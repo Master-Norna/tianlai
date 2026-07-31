@@ -1,0 +1,31 @@
+{
+  "upstream": "sgossner/VCSL (Versilian Community Sample Library)",
+  "origin": "https://github.com/sgossner/VCSL",
+  "upstream_version": "1.2.2-RC",
+  "license": "CC0-1.0",
+  "source_file_count": 1,
+  "source_file_sha256": {
+    "Idiophones/Struck Idiophones/Suspended Cymbal 2.sfz": "809ae91d1bf8693a8247c1cc6cdc218ae519a0da93537e0c9142400a2502458a"
+  },
+  "evidence_sha256": {
+    "README.md": "e360f24c120c9ad734cc8508695e09a61ddc4cae5a59c6c9af33fe501b6c9a5b"
+  },
+  "sample_count": 23,
+  "sample_bytes": 49095030,
+  "sample_formats": {
+    ".wav:44100Hz:2ch": 23
+  },
+  "articulations": {
+    "hit": {
+      "attack_regions": 20,
+      "release_regions": 3,
+      "round_robin_regions": 0,
+      "velocity_bounded_regions": 13,
+      "random_variant_regions": 0,
+      "looped_regions": 0
+    }
+  },
+  "region_count": 23,
+  "sample_set_sha256": "589e35c8650f5ea037f1f5d17ca4cf933bfb632c18a4d3494e186e17b6b2037c",
+  "sample_set_hash_algorithm": "sort unique asset-root-relative UTF-8 paths; concatenate lowercase '<sha256>  <path>\\n>'; SHA-256 the UTF-8 bytes"
+}

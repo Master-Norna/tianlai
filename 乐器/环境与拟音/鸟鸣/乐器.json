@@ -1,0 +1,20 @@
+{
+  "name": "程序建模 鸟鸣群落",
+  "type": "procedural_sfx",
+  "quality_tier": "formal",
+  "collaboration_review_status": "untested",
+  "upgrade_status": "deterministic_scheduled_fm_bird_chorus",
+  "fallback_policy": "explicit_only_no_silent_gm",
+  "provenance_kind": "project_authored_dsp",
+  "implementation_license": "Apache-2.0",
+  "external_audio_assets": [],
+  "audio_asset_license": "not_applicable",
+  "license_status": "approved",
+  "implementation": "乐器.py",
+  "profile": "bird_chorus",
+  "engine_version": "1.1.0",
+  "seed": 702946211,
+  "expression_smoothing_seconds": 0.035,
+  "pitch_calibration": "音准校准.json",
+  "calibration_not_applicable_reason": "鸣叫为 FM 滑频,频率随时间连续变化,非旋律入口;不做十二平均律校准"
+}

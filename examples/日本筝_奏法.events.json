@@ -1,0 +1,143 @@
+{
+  "sample_rate": 48000,
+  "channels": 2,
+  "tuning": {
+    "temperament": "equal",
+    "a4_hz": 440.0
+  },
+  "tail_seconds": 2.0,
+  "events": [
+    {
+      "time": 0.0,
+      "type": "note_on",
+      "note_id": 1,
+      "midi_note": 69,
+      "velocity": 0.35
+    },
+    {
+      "time": 0.5,
+      "type": "note_off",
+      "note_id": 1
+    },
+    {
+      "time": 0.68,
+      "type": "note_on",
+      "note_id": 2,
+      "midi_note": 69,
+      "velocity": 0.62
+    },
+    {
+      "time": 1.18,
+      "type": "note_off",
+      "note_id": 2
+    },
+    {
+      "time": 1.36,
+      "type": "note_on",
+      "note_id": 3,
+      "midi_note": 69,
+      "velocity": 0.9
+    },
+    {
+      "time": 1.86,
+      "type": "note_off",
+      "note_id": 3
+    },
+    {
+      "time": 2.04,
+      "type": "note_on",
+      "note_id": 4,
+      "midi_note": 50,
+      "velocity": 0.72
+    },
+    {
+      "time": 2.69,
+      "type": "note_off",
+      "note_id": 4
+    },
+    {
+      "time": 2.87,
+      "type": "note_on",
+      "note_id": 5,
+      "midi_note": 59,
+      "velocity": 0.72
+    },
+    {
+      "time": 3.52,
+      "type": "note_off",
+      "note_id": 5
+    },
+    {
+      "time": 3.7,
+      "type": "note_on",
+      "note_id": 6,
+      "midi_note": 69,
+      "velocity": 0.72
+    },
+    {
+      "time": 4.35,
+      "type": "note_off",
+      "note_id": 6
+    },
+    {
+      "time": 4.53,
+      "type": "note_on",
+      "note_id": 7,
+      "midi_note": 79,
+      "velocity": 0.72
+    },
+    {
+      "time": 5.18,
+      "type": "note_off",
+      "note_id": 7
+    },
+    {
+      "time": 5.36,
+      "type": "note_on",
+      "note_id": 8,
+      "midi_note": 88,
+      "velocity": 0.72
+    },
+    {
+      "time": 6.01,
+      "type": "note_off",
+      "note_id": 8
+    },
+    {
+      "time": 6.19,
+      "type": "control",
+      "name": "modulation",
+      "value": 0.7
+    },
+    {
+      "time": 6.19,
+      "type": "note_on",
+      "note_id": 9,
+      "midi_note": 59,
+      "velocity": 0.68
+    },
+    {
+      "time": 8.39,
+      "type": "note_off",
+      "note_id": 9
+    },
+    {
+      "time": 8.69,
+      "type": "control",
+      "name": "modulation",
+      "value": 0.0
+    },
+    {
+      "time": 8.69,
+      "type": "note_on",
+      "note_id": 10,
+      "midi_note": 79,
+      "velocity": 0.85
+    },
+    {
+      "time": 9.89,
+      "type": "note_off",
+      "note_id": 10
+    }
+  ]
+}

@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "recipe_id": "freepats-bagpipe-split-and-seam-match-v1",
+  "canonical_output_root": "音源/派生/风笛-v1",
+  "receipt": "处理说明.json",
+  "license_inheritance": {
+    "source": "FreePats Bagpipe 2022-12-04, CC0-1.0",
+    "derivative": "CC0-1.0",
+    "notice": "派生文件拆分旋律管与两根持续低音管，并仅对 F4/G4 接缝做电平和温和频谱匹配；原始 FreePats 文件保持不变。"
+  },
+  "verified_inputs": [
+    {
+      "path": "音源/FreePats/Bagpipe/Bagpipe-20221204.sfz",
+      "sha256": "90d49d8d89f73f6401dc4b4a6bc606b697bd95fc309be13a2f446982b27116a1"
+    }
+  ],
+  "audio_jobs": [
+    {
+      "source": "音源/FreePats/Bagpipe/samples/F4_31.flac",
+      "output": "samples/F4_31.wav",
+      "sha256": "a69b3d1578959b0eb5f1910f7cb15a8ea5e96a2f6c0280063ff789ac7bd2ff08",
+      "sample_rate": 44100,
+      "source_channels": 1,
+      "channel_mode": "mono",
+      "steady_window": {
+        "offset_frames": 0,
+        "start_seconds": 1.0,
+        "duration_seconds": 1.5
+      },
+      "target_rms_dbfs": -13.3
+    },
+    {
+      "source": "音源/FreePats/Bagpipe/samples/G4_31.flac",
+      "output": "samples/G4_31.wav",
+      "sha256": "c723aea0a1f90132fc750322ffa3ba0dce284e68654a81c23cc678cd531f7ea0",
+      "sample_rate": 44100,
+      "source_channels": 1,
+      "channel_mode": "mono",
+      "steady_window": {
+        "offset_frames": 0,
+        "start_seconds": 1.0,
+        "duration_seconds": 1.5
+      },
+      "target_rms_dbfs": -13.3,
+      "spectral_transitions": [
+        {
+          "start_hz": 3500,
+          "end_hz": 8000,
+          "gain_db": -1.75
+        },
+        {
+          "start_hz": 14000,
+          "end_hz": 20000,
+          "gain_db": -4.0
+        }
+      ]
+    },
+    {
+      "source": "音源/FreePats/Bagpipe/samples/G4_32.flac",
+      "output": "samples/G4_32.wav",
+      "sha256": "604b0e573cb62c8ae887673fa07ae5d79b842809c0af2b709b05094c233e970f",
+      "sample_rate": 44100,
+      "source_channels": 1,
+      "channel_mode": "mono",
+      "steady_window": {
+        "offset_frames": 0,
+        "start_seconds": 1.0,
+        "duration_seconds": 1.5
+      },
+      "target_rms_dbfs": -13.3,
+      "spectral_transitions": [
+        {
+          "start_hz": 3500,
+          "end_hz": 8000,
+          "gain_db": -3.0
+        },
+        {
+          "start_hz": 14000,
+          "end_hz": 20000,
+          "gain_db": -5.0
+        }
+      ]
+    }
+  ],
+  "text_outputs": [
+    {
+      "template": "派生旋律管.sfz.in",
+      "output": "chanter.sfz"
+    },
+    {
+      "template": "派生低音管.sfz.in",
+      "output": "drone-low.sfz"
+    },
+    {
+      "template": "派生高音管.sfz.in",
+      "output": "drone-high.sfz"
+    }
+  ]
+}

@@ -1,0 +1,95 @@
+{
+  "status": "machine_pass_human_pending",
+  "rendered_at": "2026-07-26",
+  "platform": "Windows Chinese-path workspace",
+  "sample_rate": 48000,
+  "channels": 2,
+  "subtype": "PCM_24",
+  "frame_count": 1028640,
+  "duration_seconds": 21.43,
+  "peak_active_voices": 3,
+  "peak": 0.357132,
+  "rms": 0.08846,
+  "clipped_samples": 0,
+  "wav": "output/全音域试音/键盘乐器/手风琴.wav",
+  "wav_persistence": "temporary",
+  "wav_sha256": "a2e7a7797e5c071d4c7ef0746a83680183e9b37d0550fd8684c131e6f55fe64f",
+  "hash_algorithm": "SHA-256",
+  "canonicalization": "tianlai-json-v1",
+  "manifest_canonical_sha256": "756145440ada6f88f94a9509c2d05ba2377de3bfa35e98ad86dc157d2229664e",
+  "events": "examples/全音域上行/键盘乐器/手风琴_全音域上行.events.json",
+  "events_canonical_sha256": "7d6c514c8495b9eb3c209cde37b5ee0073c37ffd6714a343071323bcbc28830a",
+  "identity_migration": {
+    "status": "superseded_by_canonical_json_v1",
+    "hash_algorithm": "SHA-256",
+    "hash_semantics": "source-file-bytes",
+    "manifest_sha256": "dab3815f9e7d457621f7c568b5bbdaa3fe150bebd9116624f0f79cd233362f38",
+    "events_sha256": "26f4dcc29b4c586943e5836b9d811cdb4b8f68d40abfbe3a7e9bde8f2fe4b7e6"
+  },
+  "audition_profile": "ascending-scale",
+  "audition_protocol": "full-range-chromatic-ascending-v1",
+  "coverage": [
+    "全声明合法键升序：MIDI 50-82（33 键，33 次触发）",
+    "固定力度 0.72、时值 0.48s、音间隔 0.12s；note 事件不重叠，后端声音释音可能跨入后续音（压力扫描）"
+  ],
+  "human_review": "pending",
+  "previous_protocol_evidence": {
+    "status": "superseded_event_bound_machine_evidence",
+    "events_sha256": "c2f9526efc93c0efbd5469801189cdb8b290970e3f055a0cb6bd965d6386390d",
+    "wav_sha256": "084ff85437cca8268d32d1650c504d720167142d6fccbe858fecf50aca262173",
+    "fields": {
+      "range_policy": {
+        "core_playable_range": [
+          50,
+          79
+        ],
+        "bounded_extension_range": [
+          80,
+          82
+        ],
+        "legacy_rejected_range": [
+          83,
+          91
+        ],
+        "audition_note_ons": [
+          70,
+          70,
+          70,
+          50,
+          60,
+          70,
+          79,
+          82,
+          60
+        ],
+        "highest_real_root_audited": 79,
+        "bounded_extension_top_audited": 82,
+        "extension_top_hold_seconds": 2.15
+      },
+      "signal_gates": {
+        "global_peak_limit": 0.98,
+        "core_top": {
+          "start_seconds": 4.65,
+          "end_seconds": 5.35,
+          "peak": 0.3389528,
+          "rms": 0.13383105
+        },
+        "bounded_extension_top": {
+          "start_seconds": 5.5,
+          "end_seconds": 7.65,
+          "peak": 0.3487967,
+          "rms": 0.14496237
+        },
+        "final_50ms": {
+          "start_seconds": 11.549999999999999,
+          "end_seconds": 11.6,
+          "peak": 0.0,
+          "rms": 0.0
+        }
+      },
+      "failures": []
+    }
+  },
+  "specialized_machine_evidence_status": "previous_protocol_only_not_current_measurement",
+  "review_evidence_status": "pending_new_review_old_hash_bound_reviews_do_not_apply"
+}

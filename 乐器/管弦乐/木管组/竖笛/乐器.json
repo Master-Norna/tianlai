@@ -1,0 +1,33 @@
+{
+  "name": "VCSL 竖笛",
+  "type": "dedicated_sfz",
+  "quality_tier": "formal",
+  "collaboration_review_status": "untested",
+  "upgrade_status": "vcsl_centered_level_matched_derived_sustain",
+  "fallback_policy": "explicit_only_no_silent_gm",
+  "asset_root": "../../../../音源",
+  "upstream": "sgossner/VCSL (Versilian Community Sample Library)",
+  "origin": "https://github.com/sgossner/VCSL",
+  "upstream_version": "1.2.2-RC",
+  "license": "CC0-1.0",
+  "evidence_files": [
+    "VCSL/README.md",
+    "派生/竖笛-v1/处理说明.json"
+  ],
+  "resource_verification": "资源核验.json",
+  "pitch_calibration": "音准校准.json",
+  "articulations": {
+    "sustain": "派生/竖笛-v1/sustain.sfz",
+    "staccato": "VCSL/Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder - Staccato.sfz"
+  },
+  "default_articulation": "sustain",
+  "pitch_mode": "pitched",
+  "gain": 0.7322,
+  "velocity_exponent": 0.72,
+  "auxiliary_note_id_base": 1832000000,
+  "release_seconds": 0.25,
+  "note_min": 72,
+  "note_max": 98,
+  "sampled_range": "C5-D7 sounding",
+  "license_status": "approved"
+}

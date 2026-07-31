@@ -1,0 +1,515 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tianlai.local/schemas/collaboration-matrix.schema.json",
+  "title": "Tianlai Collaboration Acceptance Evidence Matrix",
+  "description": "独立、确定性的协奏证据聚合工件。它不写回乐器 manifest；machine_complete 仅说明引用夹具的机器断言已完整执行且未失败，不表示协奏已经通过。",
+  "type": "object",
+  "required": [
+    "format",
+    "version",
+    "generated_from",
+    "coverage",
+    "fixtures",
+    "instruments",
+    "notice"
+  ],
+  "properties": {
+    "format": {
+      "const": "tianlai.collaboration_matrix"
+    },
+    "version": {
+      "const": 1
+    },
+    "generated_from": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+      "description": "稳定的来源/配置标识，不得使用生成时间戳。",
+      "not": {
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}[Tt ]\\d{2}:\\d{2}"
+      }
+    },
+    "coverage": {
+      "$ref": "#/$defs/coverage"
+    },
+    "fixtures": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/fixture"
+      }
+    },
+    "instruments": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/instrument"
+      }
+    },
+    "notice": {
+      "const": "machine_complete 仅表示所有归属于该乐器的引用 fixture 机器断言均已执行且未失败；它不等于协奏通过，矩阵也不会写回乐器 manifest；最终结论仍须人工语境听审。"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "relativePath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!\\s)(?!/)(?![A-Za-z]:)(?!.*\\s$)(?!.*[<>:\"|?*\\\\\\u0000-\\u001F\\u007F])(?!.*//)(?!.*\\/$)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*(?:^|/)[^/]*[ .](?:/|$))(?!.*(?:^|/)(?:[Cc][Oo][Nn]|[Pp][Rr][Nn]|[Aa][Uu][Xx]|[Nn][Uu][Ll]|[Cc][Oo][Mm][1-9]|[Ll][Pp][Tt][1-9]) *(?:\\.[^/]*)?(?:/|$)).+"
+    },
+    "attribution": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/relativePath"
+      }
+    },
+    "jsonValue": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/jsonValue"
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/jsonValue"
+          }
+        }
+      ]
+    },
+    "role": {
+      "type": "object",
+      "required": [
+        "function",
+        "prominence"
+      ],
+      "properties": {
+        "function": {
+          "enum": [
+            "lead",
+            "countermelody",
+            "harmony",
+            "pad",
+            "bass",
+            "rhythm",
+            "accent",
+            "texture",
+            "ambience",
+            "effect",
+            "other"
+          ]
+        },
+        "prominence": {
+          "enum": [
+            "foreground",
+            "midground",
+            "background"
+          ]
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        }
+      },
+      "additionalProperties": false
+    },
+    "coverage": {
+      "type": "object",
+      "required": [
+        "registered",
+        "solo_formal",
+        "machine_fixture_covered",
+        "human_context_reviewed"
+      ],
+      "properties": {
+        "registered": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "instruments 明细条数。"
+        },
+        "solo_formal": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "逐件 solo_formal=true 的条数。"
+        },
+        "machine_fixture_covered": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "逐件 fixture_ids 非空的条数；不要求机器断言通过。"
+        },
+        "human_context_reviewed": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "逐件 human_status 非 pending 的条数；reject/conflict 是已形成的人工阻断结论，不表示通过。"
+        }
+      },
+      "additionalProperties": false
+    },
+    "fixtureRole": {
+      "type": "object",
+      "required": [
+        "instrument_path",
+        "role"
+      ],
+      "properties": {
+        "instrument_path": {
+          "$ref": "#/$defs/relativePath"
+        },
+        "role": {
+          "$ref": "#/$defs/role",
+          "description": "该乐器在本矩阵中的固定验收角色，须与所有所引 fixture 的角色完全一致。"
+        }
+      },
+      "additionalProperties": false
+    },
+    "assertion": {
+      "type": "object",
+      "required": [
+        "code",
+        "instrument_paths",
+        "status",
+        "observed",
+        "expected",
+        "tolerance",
+        "unit",
+        "evidence_path"
+      ],
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/identifier"
+        },
+        "instrument_paths": {
+          "$ref": "#/$defs/attribution"
+        },
+        "status": {
+          "enum": [
+            "pass",
+            "fail",
+            "inconclusive"
+          ]
+        },
+        "observed": {
+          "$ref": "#/$defs/jsonValue"
+        },
+        "expected": {
+          "$ref": "#/$defs/jsonValue"
+        },
+        "tolerance": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "unit": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "evidence_path": {
+          "$ref": "#/$defs/relativePath"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "inconclusive"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "observed": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "observed": {
+                "not": {
+                  "type": "null"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "candidate": {
+      "type": "object",
+      "description": "只读风险候选；info/warning 均不能改变 hard_status 或代替人工结论。",
+      "required": [
+        "code",
+        "instrument_paths",
+        "severity",
+        "info",
+        "evidence_path"
+      ],
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/identifier"
+        },
+        "instrument_paths": {
+          "$ref": "#/$defs/attribution"
+        },
+        "severity": {
+          "enum": [
+            "info",
+            "warning"
+          ]
+        },
+        "info": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "evidence_path": {
+          "$ref": "#/$defs/relativePath"
+        }
+      },
+      "additionalProperties": false
+    },
+    "humanCheck": {
+      "type": "object",
+      "required": [
+        "code",
+        "instrument_paths",
+        "status",
+        "evidence_path"
+      ],
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/identifier"
+        },
+        "instrument_paths": {
+          "$ref": "#/$defs/attribution"
+        },
+        "status": {
+          "enum": [
+            "pending",
+            "pass",
+            "reject",
+            "conflict"
+          ]
+        },
+        "evidence_path": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/relativePath"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "not": {
+                  "const": "pending"
+                }
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "evidence_path": {
+                "$ref": "#/$defs/relativePath"
+              }
+            }
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "fixture": {
+      "type": "object",
+      "required": [
+        "fixture_id",
+        "profile_version",
+        "score_sha256",
+        "roster_sha256",
+        "space_sha256",
+        "receipt_sha256",
+        "instruments",
+        "roles",
+        "assertions",
+        "candidates",
+        "human_checks"
+      ],
+      "properties": {
+        "fixture_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "profile_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "score_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "roster_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "space_sha256": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/sha256"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "receipt_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "instruments": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "本 fixture 中被评估的目标乐器；完整参演编制由 roster_sha256 绑定，因此单个目标仍可处于多乐器协奏语境。",
+          "items": {
+            "$ref": "#/$defs/relativePath"
+          }
+        },
+        "roles": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/fixtureRole"
+          }
+        },
+        "assertions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/assertion"
+          }
+        },
+        "candidates": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/candidate"
+          }
+        },
+        "human_checks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/humanCheck"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "instrument": {
+      "type": "object",
+      "required": [
+        "instrument_path",
+        "manifest_sha256",
+        "probe_profile_id",
+        "role",
+        "solo_formal",
+        "fixture_ids",
+        "receipt_sha256",
+        "hard_status",
+        "candidate_codes",
+        "human_status"
+      ],
+      "properties": {
+        "instrument_path": {
+          "$ref": "#/$defs/relativePath"
+        },
+        "manifest_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "probe_profile_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "role": {
+          "$ref": "#/$defs/role"
+        },
+        "solo_formal": {
+          "type": "boolean"
+        },
+        "fixture_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
+        },
+        "receipt_sha256": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sha256"
+          }
+        },
+        "hard_status": {
+          "description": "只由归属于该乐器的机器 assertion 聚合，candidate 和 human check 均不得改变它。",
+          "enum": [
+            "not_covered",
+            "machine_complete",
+            "machine_failed",
+            "inconclusive"
+          ]
+        },
+        "candidate_codes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
+        },
+        "human_status": {
+          "description": "只由归属于该乐器的 human_checks 聚合；pass 要求所有所引 fixture 均有检查且全部 pass，reject/conflict 为终局阻断状态。",
+          "enum": [
+            "pending",
+            "pass",
+            "reject",
+            "conflict"
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

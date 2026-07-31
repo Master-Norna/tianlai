@@ -1,0 +1,47 @@
+{
+  "status": "machine_pass_human_pending",
+  "rendered_at": "2026-07-26",
+  "platform": "Windows Chinese-path workspace",
+  "sample_rate": 48000,
+  "channels": 2,
+  "subtype": "PCM_24",
+  "frame_count": 2479602,
+  "duration_seconds": 51.658375,
+  "peak_active_voices": 1,
+  "peak": 0.986264,
+  "rms": 0.053655,
+  "clipped_samples": 0,
+  "wav": "output/全音域试音/管弦乐/打击乐组/反向镲.wav",
+  "wav_persistence": "temporary",
+  "wav_sha256": "af441e95d0ec1bdba4dd05f82f6db5de3377c7925d8ed34d969baacd35e9714f",
+  "hash_algorithm": "SHA-256",
+  "canonicalization": "tianlai-json-v1",
+  "manifest_canonical_sha256": "d60c8c21e019a39f3953b68863fce2985606677ffb884211b0a0e82c21ee0e29",
+  "events": "examples/全音域上行/管弦乐/打击乐组/反向镲_全音域上行.events.json",
+  "events_canonical_sha256": "fef7a254f3c5583a3a08a8d49208dd601240250ffe9affb232dcb8cce8b0a319",
+  "identity_migration": {
+    "status": "superseded_by_canonical_json_v1",
+    "hash_algorithm": "SHA-256",
+    "hash_semantics": "source-file-bytes",
+    "manifest_sha256": "5b05c3587e310af9f1945c28e9c5298e10f28dbcee5b50ab1aba996c10b87063",
+    "events_sha256": "0c2d4b0a5d3c8471e338dd1297053d12389d5613569154f327eb5cce1825e3f2"
+  },
+  "audition_profile": "ascending-scale",
+  "audition_protocol": "full-range-chromatic-ascending-v1",
+  "coverage": [
+    "全声明合法键升序：MIDI 60-62（3 键，3 次触发）",
+    "固定力度 0.72、常规时值 0.48s、音间隔 0.12s；本乐器按协议使用独立 gate/gap/tail；note 事件不重叠，是否隔离声音尾部以本乐器协议例外说明为准",
+    "协议例外：反向镲每个变体按资源核验 swell_seconds 完整持有，不使用通用 0.48s gate"
+  ],
+  "human_review": "pending",
+  "previous_protocol_evidence": {
+    "status": "superseded_event_bound_machine_evidence",
+    "events_sha256": "3c4619c8ce47e010a4216f4c743fda79e725c014b1ecfb8e0f1c0c6b5c4b0df4",
+    "wav_sha256": "de8402b34395d4532f918a58ef31783e4836436c730e8291a10584d8f7eefc70",
+    "fields": {
+      "wav_persistence": "temporary"
+    }
+  },
+  "specialized_machine_evidence_status": "previous_protocol_only_not_current_measurement",
+  "review_evidence_status": "pending_new_review_old_hash_bound_reviews_do_not_apply"
+}

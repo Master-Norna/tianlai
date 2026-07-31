@@ -1,0 +1,7 @@
+{
+  "applicable": false,
+  "pitch_mode": "not_pitched",
+  "reason": "旋翼与发动机为周期脉冲加宽带噪声,非乐音入口;不做十二平均律校准",
+  "samples": {},
+  "generated_at": "2026-07-22"
+}

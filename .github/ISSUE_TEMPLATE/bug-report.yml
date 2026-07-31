@@ -1,0 +1,72 @@
+name: 程序错误
+description: 安装、导入、编辑、渲染、候选或 MCP 的可复现程序问题
+title: "[Bug] "
+labels:
+  - bug
+body:
+  - type: input
+    id: version
+    attributes:
+      label: 天籁版本或提交
+      placeholder: 0.5.0rc1 / abcdef1
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: 环境
+      placeholder: Windows 11 x64，Python 3.12
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: 环节
+      options:
+        - 安装或环境诊断
+        - MIDI / MusicXML 导入
+        - score 编辑或 MIDI 导出
+        - 配器、预检或渲染
+        - 候选定位或比较
+        - 音源恢复
+        - MCP
+        - 其他
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 最小复现步骤
+      description: 请给出从全新命令行开始的最短步骤，并说明哪些输入可以合法公开。
+      placeholder: |
+        1. 运行 ...
+        2. 使用 ...
+        3. 看到 ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期行为
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际行为和完整错误
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: 诊断信息
+      description: 可附环境诊断相关节选、候选/回执 Hash；请删除私人路径、密钥和受保护内容。
+      render: shell
+  - type: checkboxes
+    id: rights
+    attributes:
+      label: 分享边界
+      options:
+        - label: 我确认没有在公开 issue 中附带密钥、私人路径或无权公开的音频/谱面。
+          required: true

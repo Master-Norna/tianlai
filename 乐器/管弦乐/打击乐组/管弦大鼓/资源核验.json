@@ -1,0 +1,21 @@
+{
+  "upstream": "Virtual Playing Orchestra",
+  "sfz_version": "Standard Orchestra 3.3 (2026-06-27)",
+  "wave_version": "Wave Files 3.2 (2026-06-27)",
+  "profile": "bass_drum",
+  "source_sfz_sha256": {
+    "Percussion/bassdrum.sfz": "a8fc5e5f0a5ab2c69bccc952a87885d74b22303152ac87b22ef137b02dc6894f"
+  },
+  "sample_count": 6,
+  "sample_bytes": 1828206,
+  "sample_set_sha256": "51317a4da35c6133420c0e77dcd772353f1826bb0421f26092c51bbf569cb32b",
+  "sample_set_algorithm": "Sort unique VPO-relative UTF-8 paths; for each write '<lowercase file sha256>  <path>\\n'; SHA-256 the concatenated UTF-8 bytes.",
+  "license_file_sha256": {
+    "Documentation/license.htm": "852e3be507b193625eaf76bd18f4740209287781fb95f2a06d78ae9205d4682e",
+    "libs/VSCO2-CE/LICENSE.txt": "36ffd9dc085d529a7e60e1276d73ae5a030b020313e6c5408593a6ae2af39673"
+  },
+  "version_evidence_sha256": {
+    "Documentation/change-log-Standard-Orchestra.txt": "e74cf4054b94bf0549d9c4b1fd3fa1816bd8a54ab3ae8847dd254725b52b4667",
+    "Documentation/change-log-Wave-Files.txt": "c62001d37b9e9fb076784fad2cb339e98a7c1e5918369f2b4f4f68c9112c6db5"
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "applicable": true,
+  "method": "self-test: render probe notes with the released synthesizer engine, FFT the sustained segment, then judge the peak against the patch's designed unison detune spread rather than against a bare equal-temperament target",
+  "reference_a4_hz": 440.0,
+  "summary": {
+    "probe_count": 3,
+    "maximum_absolute_error_cents": 8.560025,
+    "maximum_fft_bin_width_cents": 5.285699,
+    "designed_spread_cents": 6.5,
+    "tolerance_cents": 11.785699,
+    "within_designed_spread": true,
+    "verdict": "峰值落在补丁设计失谐与测量分辨率之内,非走音"
+  },
+  "probes": {
+    "36": {
+      "expected_hz": 65.406391,
+      "measured_hz": 65.08379,
+      "error_cents": -8.560025,
+      "fft_bin_width_cents": 5.285699,
+      "analysis_seconds": 5.0
+    },
+    "66": {
+      "expected_hz": 369.994423,
+      "measured_hz": 368.750547,
+      "error_cents": -5.83,
+      "fft_bin_width_cents": 3.116581,
+      "analysis_seconds": 1.5
+    },
+    "96": {
+      "expected_hz": 2093.004522,
+      "measured_hz": 2085.119495,
+      "error_cents": -6.534437,
+      "fft_bin_width_cents": 0.551347,
+      "analysis_seconds": 1.5
+    }
+  },
+  "generated_at": "2026-07-22",
+  "designed_unison": {
+    "patch": "synth_brass",
+    "unison_voices": 4,
+    "detune_cents_half_spread": 6.5,
+    "note": "unison 声部按 ±detune_cents 均匀铺开,FFT 峰值可能落在任一声部上;判定阈值另加该频率下的 FFT 频点宽度作为测量下限"
+  }
+}

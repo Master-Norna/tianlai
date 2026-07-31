@@ -1,0 +1,584 @@
+{
+  "applicable": true,
+  "pitch_mode": "pitched",
+  "reference_a4_hz": 440.0,
+  "playback_calibration": "upstream SFZ pitch_keycenter plus tune opcodes",
+  "measurement_role": "diagnostic; playback follows the audited upstream map, and the residual column records how far each source sample deviates after that map",
+  "measurement_algorithm": "harmonic-constrained FFT of the raw source audio near the mapped pitch, start=0.08s, search +/-180 cents",
+  "summary": {
+    "sample_count": 81,
+    "median_measured_detune_cents": -0.045116,
+    "maximum_absolute_measured_detune_cents": 44.058004,
+    "median_residual_cents": -0.045116,
+    "maximum_absolute_residual_cents": 44.058004
+  },
+  "samples": {
+    "CP80/Samples/027-D#1-F.flac": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 38.525759,
+      "measured_detune_cents": -16.329875,
+      "residual_after_upstream_map_cents": -16.329875
+    },
+    "CP80/Samples/027-D#1-FF.flac": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 38.579985,
+      "measured_detune_cents": -13.894865,
+      "residual_after_upstream_map_cents": -13.894865
+    },
+    "CP80/Samples/027-D#1-MP.flac": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 38.524621,
+      "measured_detune_cents": -16.381022,
+      "residual_after_upstream_map_cents": -16.381022
+    },
+    "CP80/Samples/027-D#1-PP.flac": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 38.524518,
+      "measured_detune_cents": -16.385653,
+      "residual_after_upstream_map_cents": -16.385653
+    },
+    "CP80/Samples/034-A#1-MP.flac": {
+      "root_midi": 34.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 57.870092,
+      "measured_detune_cents": -11.936403,
+      "residual_after_upstream_map_cents": -11.936403
+    },
+    "CP80/Samples/034-A#1-PP.flac": {
+      "root_midi": 34.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 57.870052,
+      "measured_detune_cents": -11.937609,
+      "residual_after_upstream_map_cents": -11.937609
+    },
+    "CP80/Samples/035-B1-F.flac": {
+      "root_midi": 35.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 61.458998,
+      "measured_detune_cents": -7.768857,
+      "residual_after_upstream_map_cents": -7.768857
+    },
+    "CP80/Samples/035-B1-FF.flac": {
+      "root_midi": 35.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 61.570141,
+      "measured_detune_cents": -4.640907,
+      "residual_after_upstream_map_cents": -4.640907
+    },
+    "CP80/Samples/042-F#2-F.flac": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.356584,
+      "measured_detune_cents": -2.660162,
+      "residual_after_upstream_map_cents": -2.660162
+    },
+    "CP80/Samples/042-F#2-FF.flac": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.412258,
+      "measured_detune_cents": -1.616869,
+      "residual_after_upstream_map_cents": -1.616869
+    },
+    "CP80/Samples/042-F#2-MP.flac": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.356715,
+      "measured_detune_cents": -2.657714,
+      "residual_after_upstream_map_cents": -2.657714
+    },
+    "CP80/Samples/042-F#2-PP.flac": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.356834,
+      "measured_detune_cents": -2.655485,
+      "residual_after_upstream_map_cents": -2.655485
+    },
+    "CP80/Samples/046-A#2-F.flac": {
+      "root_midi": 46.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 116.414478,
+      "measured_detune_cents": -1.879643,
+      "residual_after_upstream_map_cents": -1.879643
+    },
+    "CP80/Samples/046-A#2-FF.flac": {
+      "root_midi": 46.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 116.581617,
+      "measured_detune_cents": 0.604148,
+      "residual_after_upstream_map_cents": 0.604148
+    },
+    "CP80/Samples/046-A#2-MP.flac": {
+      "root_midi": 46.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 116.41443,
+      "measured_detune_cents": -1.880358,
+      "residual_after_upstream_map_cents": -1.880358
+    },
+    "CP80/Samples/050-D3-F.flac": {
+      "root_midi": 50.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 146.915199,
+      "measured_detune_cents": 0.976154,
+      "residual_after_upstream_map_cents": 0.976154
+    },
+    "CP80/Samples/050-D3-FF.flac": {
+      "root_midi": 50.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 146.862392,
+      "measured_detune_cents": 0.353778,
+      "residual_after_upstream_map_cents": 0.353778
+    },
+    "CP80/Samples/050-D3-MP.flac": {
+      "root_midi": 50.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 146.828558,
+      "measured_detune_cents": -0.045116,
+      "residual_after_upstream_map_cents": -0.045116
+    },
+    "CP80/Samples/050-D3-PP.flac": {
+      "root_midi": 50.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 146.864149,
+      "measured_detune_cents": 0.374492,
+      "residual_after_upstream_map_cents": 0.374492
+    },
+    "CP80/Samples/053-F3-F.flac": {
+      "root_midi": 53.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 174.453995,
+      "measured_detune_cents": -1.588261,
+      "residual_after_upstream_map_cents": -1.588261
+    },
+    "CP80/Samples/053-F3-FF.flac": {
+      "root_midi": 53.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 174.488889,
+      "measured_detune_cents": -1.242024,
+      "residual_after_upstream_map_cents": -1.242024
+    },
+    "CP80/Samples/053-F3-MP.flac": {
+      "root_midi": 53.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 174.454599,
+      "measured_detune_cents": -1.582271,
+      "residual_after_upstream_map_cents": -1.582271
+    },
+    "CP80/Samples/057-A3-F.flac": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 219.374492,
+      "measured_detune_cents": -4.929285,
+      "residual_after_upstream_map_cents": -4.929285
+    },
+    "CP80/Samples/057-A3-FF.flac": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 219.436109,
+      "measured_detune_cents": -4.443093,
+      "residual_after_upstream_map_cents": -4.443093
+    },
+    "CP80/Samples/057-A3-MP.flac": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 219.372741,
+      "measured_detune_cents": -4.943105,
+      "residual_after_upstream_map_cents": -4.943105
+    },
+    "CP80/Samples/057-A3-PP.flac": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 219.370409,
+      "measured_detune_cents": -4.96151,
+      "residual_after_upstream_map_cents": -4.96151
+    },
+    "CP80/Samples/060-C4-F.flac": {
+      "root_midi": 60.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 261.535369,
+      "measured_detune_cents": -0.596953,
+      "residual_after_upstream_map_cents": -0.596953
+    },
+    "CP80/Samples/060-C4-FF.flac": {
+      "root_midi": 60.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 261.544145,
+      "measured_detune_cents": -0.53886,
+      "residual_after_upstream_map_cents": -0.53886
+    },
+    "CP80/Samples/060-C4-MP.flac": {
+      "root_midi": 60.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 261.536498,
+      "measured_detune_cents": -0.589477,
+      "residual_after_upstream_map_cents": -0.589477
+    },
+    "CP80/Samples/063-D#4-F.flac": {
+      "root_midi": 63.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 311.05301,
+      "measured_detune_cents": -0.411669,
+      "residual_after_upstream_map_cents": -0.411669
+    },
+    "CP80/Samples/063-D#4-FF.flac": {
+      "root_midi": 63.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 311.112287,
+      "measured_detune_cents": -0.08178,
+      "residual_after_upstream_map_cents": -0.08178
+    },
+    "CP80/Samples/063-D#4-MP.flac": {
+      "root_midi": 63.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 311.051837,
+      "measured_detune_cents": -0.418199,
+      "residual_after_upstream_map_cents": -0.418199
+    },
+    "CP80/Samples/063-D#4-PP.flac": {
+      "root_midi": 63.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 311.037422,
+      "measured_detune_cents": -0.49843,
+      "residual_after_upstream_map_cents": -0.49843
+    },
+    "CP80/Samples/065-F4-F.flac": {
+      "root_midi": 65.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 348.906998,
+      "measured_detune_cents": -1.593189,
+      "residual_after_upstream_map_cents": -1.593189
+    },
+    "CP80/Samples/065-F4-FF.flac": {
+      "root_midi": 65.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 348.96637,
+      "measured_detune_cents": -1.298614,
+      "residual_after_upstream_map_cents": -1.298614
+    },
+    "CP80/Samples/065-F4-MP.flac": {
+      "root_midi": 65.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 348.904583,
+      "measured_detune_cents": -1.605168,
+      "residual_after_upstream_map_cents": -1.605168
+    },
+    "CP80/Samples/065-F4-PP.flac": {
+      "root_midi": 65.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 348.598448,
+      "measured_detune_cents": -3.124851,
+      "residual_after_upstream_map_cents": -3.124851
+    },
+    "CP80/Samples/068-G#4-F.flac": {
+      "root_midi": 68.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 414.851304,
+      "measured_detune_cents": -1.891043,
+      "residual_after_upstream_map_cents": -1.891043
+    },
+    "CP80/Samples/068-G#4-FF.flac": {
+      "root_midi": 68.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 414.857634,
+      "measured_detune_cents": -1.864628,
+      "residual_after_upstream_map_cents": -1.864628
+    },
+    "CP80/Samples/068-G#4-MP.flac": {
+      "root_midi": 68.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 414.850951,
+      "measured_detune_cents": -1.892517,
+      "residual_after_upstream_map_cents": -1.892517
+    },
+    "CP80/Samples/068-G#4-PP.flac": {
+      "root_midi": 68.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 414.851901,
+      "measured_detune_cents": -1.88855,
+      "residual_after_upstream_map_cents": -1.88855
+    },
+    "CP80/Samples/072-C5-F.flac": {
+      "root_midi": 72.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 523.188619,
+      "measured_detune_cents": -0.206838,
+      "residual_after_upstream_map_cents": -0.206838
+    },
+    "CP80/Samples/072-C5-FF.flac": {
+      "root_midi": 72.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 523.19365,
+      "measured_detune_cents": -0.190193,
+      "residual_after_upstream_map_cents": -0.190193
+    },
+    "CP80/Samples/072-C5-MP.flac": {
+      "root_midi": 72.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 523.186454,
+      "measured_detune_cents": -0.214004,
+      "residual_after_upstream_map_cents": -0.214004
+    },
+    "CP80/Samples/072-C5-PP.flac": {
+      "root_midi": 72.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 523.183418,
+      "measured_detune_cents": -0.224049,
+      "residual_after_upstream_map_cents": -0.224049
+    },
+    "CP80/Samples/076-E5-F.flac": {
+      "root_midi": 76.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 659.790665,
+      "measured_detune_cents": 1.405811,
+      "residual_after_upstream_map_cents": 1.405811
+    },
+    "CP80/Samples/076-E5-FF.flac": {
+      "root_midi": 76.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 659.800491,
+      "measured_detune_cents": 1.431594,
+      "residual_after_upstream_map_cents": 1.431594
+    },
+    "CP80/Samples/076-E5-MP.flac": {
+      "root_midi": 76.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 659.793073,
+      "measured_detune_cents": 1.41213,
+      "residual_after_upstream_map_cents": 1.41213
+    },
+    "CP80/Samples/080-G#5-F.flac": {
+      "root_midi": 80.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 832.1566,
+      "measured_detune_cents": 3.221829,
+      "residual_after_upstream_map_cents": 3.221829
+    },
+    "CP80/Samples/080-G#5-FF.flac": {
+      "root_midi": 80.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 832.279462,
+      "measured_detune_cents": 3.477416,
+      "residual_after_upstream_map_cents": 3.477416
+    },
+    "CP80/Samples/080-G#5-MP.flac": {
+      "root_midi": 80.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 832.185415,
+      "measured_detune_cents": 3.281775,
+      "residual_after_upstream_map_cents": 3.281775
+    },
+    "CP80/Samples/080-G#5-PP.flac": {
+      "root_midi": 80.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 832.343536,
+      "measured_detune_cents": 3.610691,
+      "residual_after_upstream_map_cents": 3.610691
+    },
+    "CP80/Samples/082-A#5-F.flac": {
+      "root_midi": 82.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 934.583746,
+      "measured_detune_cents": 4.184507,
+      "residual_after_upstream_map_cents": 4.184507
+    },
+    "CP80/Samples/082-A#5-FF.flac": {
+      "root_midi": 82.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 934.731487,
+      "measured_detune_cents": 4.458162,
+      "residual_after_upstream_map_cents": 4.458162
+    },
+    "CP80/Samples/082-A#5-MP.flac": {
+      "root_midi": 82.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 934.604567,
+      "measured_detune_cents": 4.223076,
+      "residual_after_upstream_map_cents": 4.223076
+    },
+    "CP80/Samples/085-C#6-F.flac": {
+      "root_midi": 85.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1111.481726,
+      "measured_detune_cents": 4.29056,
+      "residual_after_upstream_map_cents": 4.29056
+    },
+    "CP80/Samples/085-C#6-FF.flac": {
+      "root_midi": 85.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1111.801904,
+      "measured_detune_cents": 4.789196,
+      "residual_after_upstream_map_cents": 4.789196
+    },
+    "CP80/Samples/085-C#6-MP.flac": {
+      "root_midi": 85.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1111.654186,
+      "measured_detune_cents": 4.559162,
+      "residual_after_upstream_map_cents": 4.559162
+    },
+    "CP80/Samples/085-C#6-PP.flac": {
+      "root_midi": 85.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1111.770387,
+      "measured_detune_cents": 4.740117,
+      "residual_after_upstream_map_cents": 4.740117
+    },
+    "CP80/Samples/088-E6-F.flac": {
+      "root_midi": 88.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1326.684007,
+      "measured_detune_cents": 10.699229,
+      "residual_after_upstream_map_cents": 10.699229
+    },
+    "CP80/Samples/088-E6-FF.flac": {
+      "root_midi": 88.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1326.563034,
+      "measured_detune_cents": 10.541361,
+      "residual_after_upstream_map_cents": 10.541361
+    },
+    "CP80/Samples/088-E6-MP.flac": {
+      "root_midi": 88.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1326.427948,
+      "measured_detune_cents": 10.365058,
+      "residual_after_upstream_map_cents": 10.365058
+    },
+    "CP80/Samples/091-G6-F.flac": {
+      "root_midi": 91.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1578.782677,
+      "measured_detune_cents": 11.884598,
+      "residual_after_upstream_map_cents": 11.884598
+    },
+    "CP80/Samples/091-G6-FF.flac": {
+      "root_midi": 91.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1578.646818,
+      "measured_detune_cents": 11.735615,
+      "residual_after_upstream_map_cents": 11.735615
+    },
+    "CP80/Samples/091-G6-MP.flac": {
+      "root_midi": 91.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1578.793891,
+      "measured_detune_cents": 11.896896,
+      "residual_after_upstream_map_cents": 11.896896
+    },
+    "CP80/Samples/091-G6-PP.flac": {
+      "root_midi": 91.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1578.666126,
+      "measured_detune_cents": 11.756789,
+      "residual_after_upstream_map_cents": 11.756789
+    },
+    "CP80/Samples/095-B6-F.flac": {
+      "root_midi": 95.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1991.415536,
+      "measured_detune_cents": 13.862634,
+      "residual_after_upstream_map_cents": 13.862634
+    },
+    "CP80/Samples/095-B6-FF.flac": {
+      "root_midi": 95.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1991.334701,
+      "measured_detune_cents": 13.792359,
+      "residual_after_upstream_map_cents": 13.792359
+    },
+    "CP80/Samples/095-B6-MP.flac": {
+      "root_midi": 95.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1991.656279,
+      "measured_detune_cents": 14.071911,
+      "residual_after_upstream_map_cents": 14.071911
+    },
+    "CP80/Samples/097-C#7-F.flac": {
+      "root_midi": 97.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 2235.551164,
+      "measured_detune_cents": 14.066163,
+      "residual_after_upstream_map_cents": 14.066163
+    },
+    "CP80/Samples/097-C#7-FF.flac": {
+      "root_midi": 97.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 2235.065942,
+      "measured_detune_cents": 13.690361,
+      "residual_after_upstream_map_cents": 13.690361
+    },
+    "CP80/Samples/097-C#7-MP.flac": {
+      "root_midi": 97.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 2235.484119,
+      "measured_detune_cents": 14.014242,
+      "residual_after_upstream_map_cents": 14.014242
+    },
+    "CP80/Samples/097-C#7-PP.flac": {
+      "root_midi": 97.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 2235.732296,
+      "measured_detune_cents": 14.206428,
+      "residual_after_upstream_map_cents": 14.206428
+    },
+    "CP80/Samples/102-F#7-F.flac": {
+      "root_midi": 102.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 3017.602625,
+      "measured_detune_cents": 33.392888,
+      "residual_after_upstream_map_cents": 33.392888
+    },
+    "CP80/Samples/102-F#7-FF.flac": {
+      "root_midi": 102.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 3016.995801,
+      "measured_detune_cents": 33.044712,
+      "residual_after_upstream_map_cents": 33.044712
+    },
+    "CP80/Samples/102-F#7-MP.flac": {
+      "root_midi": 102.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 3015.081877,
+      "measured_detune_cents": 31.946102,
+      "residual_after_upstream_map_cents": 31.946102
+    },
+    "CP80/Samples/102-F#7-PP.flac": {
+      "root_midi": 102.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 3018.139819,
+      "measured_detune_cents": 33.701056,
+      "residual_after_upstream_map_cents": 33.701056
+    },
+    "CP80/Samples/107-B7-F.flac": {
+      "root_midi": 107.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 4050.91096,
+      "measured_detune_cents": 43.205135,
+      "residual_after_upstream_map_cents": 43.205135
+    },
+    "CP80/Samples/107-B7-FF.flac": {
+      "root_midi": 107.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 4044.607792,
+      "measured_detune_cents": 40.509258,
+      "residual_after_upstream_map_cents": 40.509258
+    },
+    "CP80/Samples/107-B7-MP.flac": {
+      "root_midi": 107.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 4051.092233,
+      "measured_detune_cents": 43.282604,
+      "residual_after_upstream_map_cents": 43.282604
+    },
+    "CP80/Samples/107-B7-PP.flac": {
+      "root_midi": 107.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 4052.907078,
+      "measured_detune_cents": 44.058004,
+      "residual_after_upstream_map_cents": 44.058004
+    }
+  }
+}

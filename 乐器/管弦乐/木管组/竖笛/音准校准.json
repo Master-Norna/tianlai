@@ -1,0 +1,193 @@
+{
+  "applicable": true,
+  "pitch_mode": "pitched",
+  "reference_a4_hz": 440.0,
+  "playback_calibration": "upstream SFZ pitch_keycenter plus tune opcodes",
+  "measurement_role": "diagnostic; playback follows the audited upstream map, and the residual column records how far each source sample deviates after that map",
+  "applied_to_runtime": false,
+  "measurement_algorithm": "harmonic-constrained FFT of the raw source audio near the mapped pitch, start=0.08s, search +/-180 cents",
+  "summary": {
+    "sample_count": 25,
+    "median_measured_detune_cents": 2.856264,
+    "maximum_absolute_measured_detune_cents": 12.871078,
+    "median_residual_cents": 2.228541,
+    "maximum_absolute_residual_cents": 9.871078
+  },
+  "samples": {
+    "VCSL/Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Staccato/SopRecorder_Stac_A#4_rr1_Main.wav": {
+      "root_midi": 82.0,
+      "upstream_claimed_detune_cents": 9.0,
+      "measured_hz": 933.919561,
+      "measured_detune_cents": 2.953726,
+      "residual_after_upstream_map_cents": -6.046274
+    },
+    "VCSL/Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Staccato/SopRecorder_Stac_A#5_rr1_Main.wav": {
+      "root_midi": 94.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1868.451887,
+      "measured_detune_cents": 3.521583,
+      "residual_after_upstream_map_cents": 3.521583
+    },
+    "VCSL/Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Staccato/SopRecorder_Stac_C4_rr1_Main.wav": {
+      "root_midi": 72.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 523.399555,
+      "measured_detune_cents": 0.491008,
+      "residual_after_upstream_map_cents": 0.491008
+    },
+    "VCSL/Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Staccato/SopRecorder_Stac_C5_rr1_Main.wav": {
+      "root_midi": 84.0,
+      "upstream_claimed_detune_cents": 3.0,
+      "measured_hz": 1050.240361,
+      "measured_detune_cents": 6.172939,
+      "residual_after_upstream_map_cents": 3.172939
+    },
+    "VCSL/Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Staccato/SopRecorder_Stac_D4_rr1_Main.wav": {
+      "root_midi": 74.0,
+      "upstream_claimed_detune_cents": 3.0,
+      "measured_hz": 589.244647,
+      "measured_detune_cents": 5.635868,
+      "residual_after_upstream_map_cents": 2.635868
+    },
+    "VCSL/Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Staccato/SopRecorder_Stac_D5_rr1_Main.wav": {
+      "root_midi": 86.0,
+      "upstream_claimed_detune_cents": 3.0,
+      "measured_hz": 1174.716569,
+      "measured_detune_cents": 0.084738,
+      "residual_after_upstream_map_cents": -2.915262
+    },
+    "VCSL/Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Staccato/SopRecorder_Stac_E4_rr1_Main.wav": {
+      "root_midi": 76.0,
+      "upstream_claimed_detune_cents": 6.0,
+      "measured_hz": 661.665886,
+      "measured_detune_cents": 6.31925,
+      "residual_after_upstream_map_cents": 0.31925
+    },
+    "VCSL/Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Staccato/SopRecorder_Stac_E5_rr1_Main.wav": {
+      "root_midi": 88.0,
+      "upstream_claimed_detune_cents": -1.0,
+      "measured_hz": 1318.631396,
+      "measured_detune_cents": 0.159089,
+      "residual_after_upstream_map_cents": 1.159089
+    },
+    "VCSL/Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Staccato/SopRecorder_Stac_F#4_rr1_Main.wav": {
+      "root_midi": 78.0,
+      "upstream_claimed_detune_cents": 3.0,
+      "measured_hz": 745.510887,
+      "measured_detune_cents": 12.871078,
+      "residual_after_upstream_map_cents": 9.871078
+    },
+    "VCSL/Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Staccato/SopRecorder_Stac_F#5_rr1_Main.wav": {
+      "root_midi": 90.0,
+      "upstream_claimed_detune_cents": 6.0,
+      "measured_hz": 1486.038267,
+      "measured_detune_cents": 7.075006,
+      "residual_after_upstream_map_cents": 1.075006
+    },
+    "VCSL/Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Staccato/SopRecorder_Stac_G#4_rr1_Main.wav": {
+      "root_midi": 80.0,
+      "upstream_claimed_detune_cents": 9.0,
+      "measured_hz": 831.056538,
+      "measured_detune_cents": 0.931726,
+      "residual_after_upstream_map_cents": -8.068274
+    },
+    "VCSL/Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Staccato/SopRecorder_Stac_G5_rr1_Main.wav": {
+      "root_midi": 91.0,
+      "upstream_claimed_detune_cents": 1.0,
+      "measured_hz": 1571.183065,
+      "measured_detune_cents": 3.531027,
+      "residual_after_upstream_map_cents": 2.531027
+    },
+    "派生/竖笛-v1/samples/SopRecorder_Sus_A#4_rr1_Main.wav": {
+      "root_midi": 82.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 933.133588,
+      "measured_detune_cents": 1.496131,
+      "residual_after_upstream_map_cents": 1.496131
+    },
+    "派生/竖笛-v1/samples/SopRecorder_Sus_A#5_rr1_Main.wav": {
+      "root_midi": 94.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1867.733973,
+      "measured_detune_cents": 2.856264,
+      "residual_after_upstream_map_cents": 2.856264
+    },
+    "派生/竖笛-v1/samples/SopRecorder_Sus_C4_rr1_Main.wav": {
+      "root_midi": 72.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 524.641831,
+      "measured_detune_cents": 4.595183,
+      "residual_after_upstream_map_cents": 4.595183
+    },
+    "派生/竖笛-v1/samples/SopRecorder_Sus_C5_rr1_Main.wav": {
+      "root_midi": 84.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1046.857691,
+      "measured_detune_cents": 0.58789,
+      "residual_after_upstream_map_cents": 0.58789
+    },
+    "派生/竖笛-v1/samples/SopRecorder_Sus_C6_rr1_Main.wav": {
+      "root_midi": 96.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 2097.674901,
+      "measured_detune_cents": 3.858811,
+      "residual_after_upstream_map_cents": 3.858811
+    },
+    "派生/竖笛-v1/samples/SopRecorder_Sus_D4_rr1_Main.wav": {
+      "root_midi": 74.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 588.156901,
+      "measured_detune_cents": 2.437056,
+      "residual_after_upstream_map_cents": 2.437056
+    },
+    "派生/竖笛-v1/samples/SopRecorder_Sus_D5_rr1_Main.wav": {
+      "root_midi": 86.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1175.44209,
+      "measured_detune_cents": 1.153642,
+      "residual_after_upstream_map_cents": 1.153642
+    },
+    "派生/竖笛-v1/samples/SopRecorder_Sus_E4_rr1_Main.wav": {
+      "root_midi": 76.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 660.878896,
+      "measured_detune_cents": 4.258884,
+      "residual_after_upstream_map_cents": 4.258884
+    },
+    "派生/竖笛-v1/samples/SopRecorder_Sus_E5_rr1_Main.wav": {
+      "root_midi": 88.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1320.344187,
+      "measured_detune_cents": 2.406358,
+      "residual_after_upstream_map_cents": 2.406358
+    },
+    "派生/竖笛-v1/samples/SopRecorder_Sus_F#4_rr1_Main.wav": {
+      "root_midi": 78.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 742.327301,
+      "measured_detune_cents": 5.462286,
+      "residual_after_upstream_map_cents": 5.462286
+    },
+    "派生/竖笛-v1/samples/SopRecorder_Sus_F#5_rr1_Main.wav": {
+      "root_midi": 90.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1481.884028,
+      "measured_detune_cents": 2.228541,
+      "residual_after_upstream_map_cents": 2.228541
+    },
+    "派生/竖笛-v1/samples/SopRecorder_Sus_G#4_rr1_Main.wav": {
+      "root_midi": 80.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 830.556159,
+      "measured_detune_cents": -0.110963,
+      "residual_after_upstream_map_cents": -0.110963
+    },
+    "派生/竖笛-v1/samples/SopRecorder_Sus_G5_rr1_Main.wav": {
+      "root_midi": 91.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1569.801702,
+      "measured_detune_cents": 2.00828,
+      "residual_after_upstream_map_cents": 2.00828
+    }
+  }
+}

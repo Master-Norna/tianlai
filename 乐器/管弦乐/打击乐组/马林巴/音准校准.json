@@ -1,0 +1,227 @@
+{
+  "applicable": true,
+  "pitch_mode": "pitched",
+  "reference_a4_hz": 440.0,
+  "playback_calibration": "upstream SFZ pitch_keycenter plus tune opcodes",
+  "measurement_role": "diagnostic; playback follows the audited upstream map, and the residual column records how far each source sample deviates after that map",
+  "measurement_algorithm": "harmonic-constrained FFT of the raw source audio near the mapped pitch, start=0.08s, search +/-180 cents",
+  "summary": {
+    "sample_count": 30,
+    "median_measured_detune_cents": -0.143583,
+    "maximum_absolute_measured_detune_cents": 142.046206,
+    "median_residual_cents": -0.143583,
+    "maximum_absolute_residual_cents": 142.046206
+  },
+  "samples": {
+    "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_B2_loud_01.wav": {
+      "root_midi": 59.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 247.129953,
+      "measured_detune_cents": 1.319627,
+      "residual_after_upstream_map_cents": 1.319627
+    },
+    "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_B2_med_01.wav": {
+      "root_midi": 59.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 247.377813,
+      "measured_detune_cents": 3.055103,
+      "residual_after_upstream_map_cents": 3.055103
+    },
+    "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_B2_soft_01.wav": {
+      "root_midi": 59.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 247.288151,
+      "measured_detune_cents": 2.427507,
+      "residual_after_upstream_map_cents": 2.427507
+    },
+    "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_B4_loud_01.wav": {
+      "root_midi": 83.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 987.700953,
+      "measured_detune_cents": -0.115065,
+      "residual_after_upstream_map_cents": -0.115065
+    },
+    "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_B4_med_01.wav": {
+      "root_midi": 83.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 987.206591,
+      "measured_detune_cents": -0.981797,
+      "residual_after_upstream_map_cents": -0.981797
+    },
+    "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_B4_soft_01.wav": {
+      "root_midi": 83.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 987.435035,
+      "measured_detune_cents": -0.581227,
+      "residual_after_upstream_map_cents": -0.581227
+    },
+    "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_C2_loud_01.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.880747,
+      "measured_detune_cents": 0.899243,
+      "residual_after_upstream_map_cents": 0.899243
+    },
+    "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_C2_med_01.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.882423,
+      "measured_detune_cents": 0.921401,
+      "residual_after_upstream_map_cents": 0.921401
+    },
+    "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_C2_soft_01.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 131.106284,
+      "measured_detune_cents": 3.87998,
+      "residual_after_upstream_map_cents": 3.87998
+    },
+    "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_C4_loud_01.wav": {
+      "root_midi": 72.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 524.567507,
+      "measured_detune_cents": 4.349907,
+      "residual_after_upstream_map_cents": 4.349907
+    },
+    "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_C4_med_01.wav": {
+      "root_midi": 72.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 524.535182,
+      "measured_detune_cents": 4.243222,
+      "residual_after_upstream_map_cents": 4.243222
+    },
+    "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_C4_soft_01.wav": {
+      "root_midi": 72.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 524.417642,
+      "measured_detune_cents": 3.855234,
+      "residual_after_upstream_map_cents": 3.855234
+    },
+    "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_C6_loud_01.wav": {
+      "root_midi": 96.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 2091.204129,
+      "measured_detune_cents": -1.489841,
+      "residual_after_upstream_map_cents": -1.489841
+    },
+    "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_C6_med_01.wav": {
+      "root_midi": 96.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1928.13169,
+      "measured_detune_cents": -142.046206,
+      "residual_after_upstream_map_cents": -142.046206
+    },
+    "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_C6_soft_01.wav": {
+      "root_midi": 96.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 2090.719034,
+      "measured_detune_cents": -1.89148,
+      "residual_after_upstream_map_cents": -1.89148
+    },
+    "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_F1_loud_01.wav": {
+      "root_midi": 41.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 87.225609,
+      "measured_detune_cents": -1.615815,
+      "residual_after_upstream_map_cents": -1.615815
+    },
+    "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_F1_med_01.wav": {
+      "root_midi": 41.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 87.254583,
+      "measured_detune_cents": -1.040849,
+      "residual_after_upstream_map_cents": -1.040849
+    },
+    "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_F1_soft_01.wav": {
+      "root_midi": 41.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 87.420472,
+      "measured_detune_cents": 2.247463,
+      "residual_after_upstream_map_cents": 2.247463
+    },
+    "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_F3_loud_01.wav": {
+      "root_midi": 65.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 349.235698,
+      "measured_detune_cents": 0.037014,
+      "residual_after_upstream_map_cents": 0.037014
+    },
+    "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_F3_med_01.wav": {
+      "root_midi": 65.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 349.274389,
+      "measured_detune_cents": 0.228803,
+      "residual_after_upstream_map_cents": 0.228803
+    },
+    "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_F3_soft_01.wav": {
+      "root_midi": 65.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 349.305803,
+      "measured_detune_cents": 0.384502,
+      "residual_after_upstream_map_cents": 0.384502
+    },
+    "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_F5_loud_01.wav": {
+      "root_midi": 89.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1394.90641,
+      "measured_detune_cents": -2.488519,
+      "residual_after_upstream_map_cents": -2.488519
+    },
+    "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_F5_med_01.wav": {
+      "root_midi": 89.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1395.28932,
+      "measured_detune_cents": -2.013351,
+      "residual_after_upstream_map_cents": -2.013351
+    },
+    "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_F5_soft_01.wav": {
+      "root_midi": 89.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1395.314887,
+      "measured_detune_cents": -1.981629,
+      "residual_after_upstream_map_cents": -1.981629
+    },
+    "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_G2_loud_01.wav": {
+      "root_midi": 55.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 195.825002,
+      "measured_detune_cents": -1.526263,
+      "residual_after_upstream_map_cents": -1.526263
+    },
+    "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_G2_med_01.wav": {
+      "root_midi": 55.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 195.978235,
+      "measured_detune_cents": -0.172101,
+      "residual_after_upstream_map_cents": -0.172101
+    },
+    "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_G2_soft_01.wav": {
+      "root_midi": 55.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 196.080643,
+      "measured_detune_cents": 0.732316,
+      "residual_after_upstream_map_cents": 0.732316
+    },
+    "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_G4_loud_01.wav": {
+      "root_midi": 79.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 782.793557,
+      "measured_detune_cents": -2.645971,
+      "residual_after_upstream_map_cents": -2.645971
+    },
+    "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_G4_med_01.wav": {
+      "root_midi": 79.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 783.401374,
+      "measured_detune_cents": -1.302239,
+      "residual_after_upstream_map_cents": -1.302239
+    },
+    "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_G4_soft_01.wav": {
+      "root_midi": 79.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 783.256618,
+      "measured_detune_cents": -1.622163,
+      "residual_after_upstream_map_cents": -1.622163
+    }
+  }
+}

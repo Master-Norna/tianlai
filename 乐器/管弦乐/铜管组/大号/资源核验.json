@@ -1,0 +1,20 @@
+{
+  "upstream": "Virtual Playing Orchestra",
+  "sfz_version": "Standard Orchestra 3.3 (2026-06-27)",
+  "wave_version": "Wave Files 3.2 (2026-06-27)",
+  "source_sfz_sha256": {
+    "Brass/tuba-SOLO-sustain.sfz": "423f0de225d9f88af32ba5240c08e565bf536520b7f086fd64d95d294717bea9",
+    "Brass/tuba-SOLO-staccato.sfz": "455448c88a5de9db6d5f53f92801bb0d047b478bb68799b502fe3201499a9e74"
+  },
+  "sample_count": 21,
+  "sample_bytes": 4931474,
+  "sample_set_sha256": "90f365d3cdbfcb057824eb8a0e4109f3d1414b840c62c8ca9082ac3df99775b6",
+  "sample_set_algorithm": "Sort unique VPO-relative UTF-8 paths; for each write '<lowercase file sha256>  <path>\\n'; SHA-256 the concatenated UTF-8 bytes.",
+  "license_file_sha256": {
+    "Documentation/license.htm": "852e3be507b193625eaf76bd18f4740209287781fb95f2a06d78ae9205d4682e"
+  },
+  "version_evidence_sha256": {
+    "Documentation/change-log-Standard-Orchestra.txt": "e74cf4054b94bf0549d9c4b1fd3fa1816bd8a54ab3ae8847dd254725b52b4667",
+    "Documentation/change-log-Wave-Files.txt": "c62001d37b9e9fb076784fad2cb339e98a7c1e5918369f2b4f4f68c9112c6db5"
+  }
+}

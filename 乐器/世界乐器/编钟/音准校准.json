@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "applicable": true,
+  "method": "render each probe for both strike banks; estimate the dominant fundamental with two Hann-windowed quadrature lock-in phases",
+  "engine_version": "1.0.0",
+  "engine_sha256": "701b61a8f705a88cd365f011f9089a961d06000508e25d0e857bfc7a6936ab5d",
+  "reference_a4_hz": 440.0,
+  "pitch_semantics": "MIDI note is the final sounding target for both zhenggu and cegu; articulation changes modal colour, not concert pitch",
+  "summary": {
+    "articulation_count": 2,
+    "probe_count": 6,
+    "maximum_absolute_error_cents": 1e-06,
+    "median_error_cents": -0.0
+  },
+  "probes": {
+    "zhenggu": {
+      "36": {
+        "expected_hz": 65.406391,
+        "measured_hz": 65.406391,
+        "error_cents": -1e-06
+      },
+      "67": {
+        "expected_hz": 391.995436,
+        "measured_hz": 391.995436,
+        "error_cents": 0.0
+      },
+      "98": {
+        "expected_hz": 2349.318143,
+        "measured_hz": 2349.318143,
+        "error_cents": -0.0
+      }
+    },
+    "cegu": {
+      "36": {
+        "expected_hz": 65.406391,
+        "measured_hz": 65.406391,
+        "error_cents": -1e-06
+      },
+      "67": {
+        "expected_hz": 391.995436,
+        "measured_hz": 391.995436,
+        "error_cents": -0.0
+      },
+      "98": {
+        "expected_hz": 2349.318143,
+        "measured_hz": 2349.318143,
+        "error_cents": -0.0
+      }
+    }
+  },
+  "generated_at": "2026-07-27"
+}

@@ -1,0 +1,25 @@
+{
+  "sample_rate": 48000,
+  "channels": 2,
+  "tuning": { "temperament": "equal", "a4_hz": 440.0 },
+  "tail_seconds": 2.0,
+  "events": [
+    { "time": 0.0, "type": "articulation", "name": "normal" },
+    { "time": 0.0, "type": "control", "name": "expression", "value": 0.72 },
+    { "time": 0.0, "type": "control", "name": "breath", "value": 0.82 },
+    { "time": 0.0, "type": "control", "name": "modulation", "value": 0.08 },
+    { "time": 0.0, "type": "note_on", "note_id": 1, "midi_note": 43, "velocity": 0.86 },
+    { "time": 0.0, "type": "note_on", "note_id": 2, "midi_note": 55, "velocity": 0.72 },
+    { "time": 1.5, "type": "control", "name": "modulation", "value": 0.62 },
+    { "time": 2.2, "type": "note_off", "note_id": 1 },
+    { "time": 2.2, "type": "note_off", "note_id": 2 },
+    { "time": 2.7, "type": "articulation", "name": "sustain" },
+    { "time": 2.7, "type": "control", "name": "expression", "value": 0.86 },
+    { "time": 2.7, "type": "note_on", "note_id": 3, "midi_note": 67.5, "velocity": 0.62 },
+    { "time": 2.7, "type": "note_on", "note_id": 4, "midi_note": 76, "velocity": 0.78 },
+    { "time": 2.7, "type": "note_on", "note_id": 5, "midi_note": 84, "velocity": 0.9 },
+    { "time": 4.9, "type": "note_off", "note_id": 3 },
+    { "time": 4.9, "type": "note_off", "note_id": 4 },
+    { "time": 4.9, "type": "note_off", "note_id": 5 }
+  ]
+}

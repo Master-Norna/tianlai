@@ -1,0 +1,41 @@
+{
+  "name": "Virtual Playing Orchestra 小军鼓",
+  "type": "vpo_percussion",
+  "quality_tier": "formal",
+  "collaboration_review_status": "untested",
+  "upgrade_status": "vpo_dedicated_multisample",
+  "fallback_policy": "explicit_only_no_silent_gm",
+  "implementation": "乐器.py",
+  "instrument_name": "小军鼓",
+  "profile": "snare",
+  "asset_root": "../../../../音源/VirtualPlayingOrchestra/Virtual-Playing-Orchestra3",
+  "pitch_calibration": "音准校准.json",
+  "resource_verification": "资源核验.json",
+  "pitch_semantics": "unpitched_articulation_event",
+  "default_articulation": "hit",
+  "gain": 0.18,
+  "velocity_exponent": 0.68,
+  "release_seconds": 0.32,
+  "expression_smoothing_seconds": 0.01,
+  "auxiliary_note_id_base": 1730000000,
+  "articulation_gain": {
+    "left": 0.78,
+    "alternating": 0.78,
+    "hit": 0.78,
+    "right": 0.78,
+    "kit2_left": 0.78,
+    "kit2_right": 0.78,
+    "tap": 0.62,
+    "roll": 0.72,
+    "roll_looped": 0.72
+  },
+  "upstream": "Virtual Playing Orchestra",
+  "origin": "http://virtualplaying.com",
+  "upstream_version": "Standard Orchestra 3.3 (2026-06-27) / Wave Files 3.2 (2026-06-27)",
+  "license": "混合许可:Sonatina Symphonic Orchestra CC Sampling Plus 1.0、Mattias Westlund additional samples CC-BY-SA-3.0、No Budget Orchestra CC-BY-SA-4.0、VSCO2 Community Edition/stamperadam CC0-1.0、University of Iowa Electronic Music 无限制使用声明;见 Documentation/license.htm 及本乐器 evidence_files",
+  "evidence_files": [
+    "Documentation/license.htm",
+    "libs/VSCO2-CE/LICENSE.txt"
+  ],
+  "license_status": "grandfathered"
+}

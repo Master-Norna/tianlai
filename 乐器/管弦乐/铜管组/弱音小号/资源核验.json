@@ -1,0 +1,49 @@
+{
+  "upstream": "Virtual Playing Orchestra 3(Standard 3.3 / Wave 3.2)",
+  "origin": "http://virtualplaying.com",
+  "upstream_version": "Standard 3.3 / Wave 3.2",
+  "license": "混合公开许可:SSO Sampling Plus、No Budget Orchestra/Mattias CC-BY-SA、VSCO2 CC0 等,见 Documentation/license.htm",
+  "source_file_count": 3,
+  "source_file_sha256": {
+    "Brass/trumpet-SOLO-accent.sfz": "865a87067e093835f7b51693ebbb3c0d6e0d655feb755f1507fe9a5c995016a0",
+    "Brass/trumpet-SOLO-staccato.sfz": "e5619a00d2ba5e74bed6493a795949656b6a17cdf0d1bf4750479cdcd168d0db",
+    "Brass/trumpet-SOLO-sustain.sfz": "739993b777f38796703cc2e3e53dc4bf7407b53263d0c74ad24ba04100a805c8"
+  },
+  "evidence_sha256": {
+    "Documentation/license.htm": "852e3be507b193625eaf76bd18f4740209287781fb95f2a06d78ae9205d4682e"
+  },
+  "sample_count": 54,
+  "sample_bytes": 18984668,
+  "sample_formats": {
+    ".wav:44100Hz:1ch": 54
+  },
+  "articulations": {
+    "sustain": {
+      "attack_regions": 54,
+      "release_regions": 0,
+      "round_robin_regions": 0,
+      "velocity_bounded_regions": 54,
+      "random_variant_regions": 0,
+      "looped_regions": 54
+    },
+    "staccato": {
+      "attack_regions": 54,
+      "release_regions": 0,
+      "round_robin_regions": 0,
+      "velocity_bounded_regions": 54,
+      "random_variant_regions": 0,
+      "looped_regions": 54
+    },
+    "accent": {
+      "attack_regions": 108,
+      "release_regions": 0,
+      "round_robin_regions": 0,
+      "velocity_bounded_regions": 108,
+      "random_variant_regions": 0,
+      "looped_regions": 108
+    }
+  },
+  "region_count": 216,
+  "sample_set_sha256": "58a3af7f9313249dd627af0c083ef744cd76041eac7527cda69c156a3612f1f3",
+  "sample_set_hash_algorithm": "sort unique asset-root-relative UTF-8 paths; concatenate lowercase '<sha256>  <path>\\n>'; SHA-256 the UTF-8 bytes"
+}

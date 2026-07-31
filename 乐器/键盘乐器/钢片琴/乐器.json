@@ -1,0 +1,33 @@
+{
+  "name": "Virtual Playing Orchestra 钢片琴（Celesta）",
+  "type": "vpo_celesta",
+  "profile": "celesta",
+  "quality_tier": "formal",
+  "collaboration_review_status": "untested",
+  "upgrade_status": "vpo_dedicated_celesta_multisample",
+  "fallback_policy": "explicit_only_no_silent_gm",
+  "implementation": "乐器.py",
+  "asset_root": "../../../音源/VirtualPlayingOrchestra/Virtual-Playing-Orchestra3",
+  "pitch_calibration": "音准校准.json",
+  "note_min": 60,
+  "note_max": 108,
+  "sampled_range": "C4-C8 sounding",
+  "input_pitch_semantics": "concert_pitch",
+  "written_note_min": 48,
+  "written_note_max": 96,
+  "written_to_concert_semitones": 12,
+  "gain": 0.42,
+  "velocity_exponent": 0.74,
+  "release_seconds": 2.0,
+  "expression_smoothing_seconds": 0.01,
+  "auxiliary_note_id_base": 1800000000,
+  "upstream": "Virtual Playing Orchestra",
+  "origin": "http://virtualplaying.com",
+  "upstream_version": "Standard Orchestra 3.3 (2026-06-27) / Wave Files 3.2 (2026-06-27)",
+  "license": "混合许可:Sonatina Symphonic Orchestra CC Sampling Plus 1.0、Mattias Westlund additional samples CC-BY-SA-3.0、No Budget Orchestra CC-BY-SA-4.0、VSCO2 Community Edition/stamperadam CC0-1.0、University of Iowa Electronic Music 无限制使用声明;见 Documentation/license.htm 及本乐器 evidence_files",
+  "evidence_files": [
+    "Documentation/license.htm",
+    "libs/stamperadam/samples/celesta/_readme_and_license.txt"
+  ],
+  "license_status": "grandfathered"
+}

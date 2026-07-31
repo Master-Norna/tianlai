@@ -1,0 +1,10 @@
+{
+  "sample_rate": 48000,
+  "duration_seconds": 10.0,
+  "events": [
+    {"time": 0.0, "type": "note_on", "note_id": 1, "midi_note": 60, "velocity": 0.78},
+    {"time": 2.6, "type": "control", "name": "modulation", "value": 0.92},
+    {"time": 6.2, "type": "control", "name": "modulation", "value": 0.28},
+    {"time": 8.0, "type": "note_off", "note_id": 1}
+  ]
+}

@@ -1,0 +1,406 @@
+{
+  "description": "FFT measurement of raw bassoon samples; A4=440 Hz",
+  "sfz_prefix": "bassoon",
+  "summary": {
+    "sample_count": 79,
+    "median_detune_cents": 7.360291,
+    "maximum_absolute_detune_cents": 26.584901
+  },
+  "samples": {
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.ff.A#1-PB.wav": {
+      "root_midi": 34.0,
+      "measured_hz": 58.342596,
+      "detune_cents": 2.141548
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.ff.A#2-PB.wav": {
+      "root_midi": 46.0,
+      "measured_hz": 116.766802,
+      "detune_cents": 3.351968
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.ff.A#3-PB.wav": {
+      "root_midi": 58.0,
+      "measured_hz": 232.691254,
+      "detune_cents": -2.903846
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.ff.A#4-PB.wav": {
+      "root_midi": 70.0,
+      "measured_hz": 469.039207,
+      "detune_cents": 10.645999
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.ff.A2-PB.wav": {
+      "root_midi": 45.0,
+      "measured_hz": 110.389473,
+      "detune_cents": 6.118894
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.ff.A3-PB.wav": {
+      "root_midi": 57.0,
+      "measured_hz": 222.437711,
+      "detune_cents": 19.077449
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.ff.A4-PB.wav": {
+      "root_midi": 69.0,
+      "measured_hz": 443.533454,
+      "detune_cents": 13.847281
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.ff.B1-PB.wav": {
+      "root_midi": 35.0,
+      "measured_hz": 61.875072,
+      "detune_cents": 3.912017
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.ff.B2-PB.wav": {
+      "root_midi": 47.0,
+      "measured_hz": 123.063508,
+      "detune_cents": -5.720606
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.ff.B4-PB.wav": {
+      "root_midi": 71.0,
+      "measured_hz": 500.459519,
+      "detune_cents": 22.899824
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.ff.C#2-PB.wav": {
+      "root_midi": 37.0,
+      "measured_hz": 69.688711,
+      "detune_cents": 9.792014
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.ff.C#3-PB.wav": {
+      "root_midi": 49.0,
+      "measured_hz": 139.165694,
+      "detune_cents": 7.160103
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.ff.C#4-PB.wav": {
+      "root_midi": 61.0,
+      "measured_hz": 276.51611,
+      "detune_cents": -4.167988
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.ff.C2-PB.wav": {
+      "root_midi": 36.0,
+      "measured_hz": 65.973604,
+      "detune_cents": 14.948763
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.ff.C3-PB.wav": {
+      "root_midi": 48.0,
+      "measured_hz": 130.66615,
+      "detune_cents": -1.941693
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.ff.C4-PB.wav": {
+      "root_midi": 60.0,
+      "measured_hz": 259.668614,
+      "detune_cents": -12.998254
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.ff.C5-PB.wav": {
+      "root_midi": 72.0,
+      "measured_hz": 526.206328,
+      "detune_cents": 9.750089
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.ff.D#2-PB.wav": {
+      "root_midi": 39.0,
+      "measured_hz": 78.278638,
+      "detune_cents": 11.02444
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.ff.D#3-PB.wav": {
+      "root_midi": 51.0,
+      "measured_hz": 156.503385,
+      "detune_cents": 10.428409
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.ff.D#4-PB.wav": {
+      "root_midi": 63.0,
+      "measured_hz": 306.385801,
+      "detune_cents": -26.584901
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.ff.D3-PB.wav": {
+      "root_midi": 50.0,
+      "measured_hz": 147.700109,
+      "detune_cents": 10.200838
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.ff.D4-PB.wav": {
+      "root_midi": 62.0,
+      "measured_hz": 293.004957,
+      "detune_cents": -3.894141
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.ff.E2-PB.wav": {
+      "root_midi": 40.0,
+      "measured_hz": 82.870043,
+      "detune_cents": 9.702869
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.ff.E4-PB.wav": {
+      "root_midi": 64.0,
+      "measured_hz": 328.73265,
+      "detune_cents": -4.706522
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.ff.F#2-PB.wav": {
+      "root_midi": 42.0,
+      "measured_hz": 92.185987,
+      "detune_cents": -5.860977
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.ff.F#3-PB.wav": {
+      "root_midi": 54.0,
+      "measured_hz": 185.984044,
+      "detune_cents": 9.210396
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.ff.F#4-PB.wav": {
+      "root_midi": 66.0,
+      "measured_hz": 372.582595,
+      "detune_cents": 12.068108
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.ff.F2-PB.wav": {
+      "root_midi": 41.0,
+      "measured_hz": 87.492715,
+      "detune_cents": 3.677532
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.ff.F3-PB.wav": {
+      "root_midi": 53.0,
+      "measured_hz": 175.88658,
+      "detune_cents": 12.570262
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.ff.G#3-PB.wav": {
+      "root_midi": 56.0,
+      "measured_hz": 207.799701,
+      "detune_cents": 1.228066
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.ff.G#4-PB.wav": {
+      "root_midi": 68.0,
+      "measured_hz": 421.456872,
+      "detune_cents": 25.457778
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.ff.G2-PB.wav": {
+      "root_midi": 43.0,
+      "measured_hz": 98.249488,
+      "detune_cents": 4.421924
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.ff.G3-PB.wav": {
+      "root_midi": 55.0,
+      "measured_hz": 196.285877,
+      "detune_cents": 2.543418
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.mf.A#1-PB.wav": {
+      "root_midi": 34.0,
+      "measured_hz": 58.771063,
+      "detune_cents": 14.809237
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.mf.A#2-PB.wav": {
+      "root_midi": 46.0,
+      "measured_hz": 116.446856,
+      "detune_cents": -1.398196
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.mf.A#3-PB.wav": {
+      "root_midi": 58.0,
+      "measured_hz": 233.62361,
+      "detune_cents": 4.01907
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.mf.A#4-PB.wav": {
+      "root_midi": 70.0,
+      "measured_hz": 468.286817,
+      "detune_cents": 7.866679
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.mf.A2-PB.wav": {
+      "root_midi": 45.0,
+      "measured_hz": 110.821471,
+      "detune_cents": 12.880682
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.mf.A4-PB.wav": {
+      "root_midi": 69.0,
+      "measured_hz": 442.896808,
+      "detune_cents": 11.360491
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.mf.B1-PB.wav": {
+      "root_midi": 35.0,
+      "measured_hz": 62.214289,
+      "detune_cents": 13.377214
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.mf.B3-PB.wav": {
+      "root_midi": 59.0,
+      "measured_hz": 246.924375,
+      "detune_cents": -0.121117
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.mf.B4-PB.wav": {
+      "root_midi": 71.0,
+      "measured_hz": 499.085367,
+      "detune_cents": 18.139698
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.mf.C#2-PB.wav": {
+      "root_midi": 37.0,
+      "measured_hz": 69.937419,
+      "detune_cents": 15.959536
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.mf.C#3-PB.wav": {
+      "root_midi": 49.0,
+      "measured_hz": 139.333878,
+      "detune_cents": 9.251067
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.mf.C#4-PB.wav": {
+      "root_midi": 61.0,
+      "measured_hz": 276.058515,
+      "detune_cents": -7.035309
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.mf.C2-PB.wav": {
+      "root_midi": 36.0,
+      "measured_hz": 66.257501,
+      "detune_cents": 22.382618
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.mf.C3-PB.wav": {
+      "root_midi": 48.0,
+      "measured_hz": 130.769876,
+      "detune_cents": -0.567944
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.mf.C4-PB.wav": {
+      "root_midi": 60.0,
+      "measured_hz": 260.763184,
+      "detune_cents": -5.715994
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.mf.C5-PB.wav": {
+      "root_midi": 72.0,
+      "measured_hz": 525.432025,
+      "detune_cents": 7.200735
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.mf.D#3-PB.wav": {
+      "root_midi": 51.0,
+      "measured_hz": 156.946691,
+      "detune_cents": 15.325308
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.mf.D#4-PB.wav": {
+      "root_midi": 63.0,
+      "measured_hz": 308.577134,
+      "detune_cents": -14.246839
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.mf.D3-PB.wav": {
+      "root_midi": 50.0,
+      "measured_hz": 147.589002,
+      "detune_cents": 8.898035
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.mf.D4-PB.wav": {
+      "root_midi": 62.0,
+      "measured_hz": 292.960537,
+      "detune_cents": -4.156621
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.mf.E2-PB.wav": {
+      "root_midi": 40.0,
+      "measured_hz": 82.893832,
+      "detune_cents": 10.19977
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.mf.E3-PB.wav": {
+      "root_midi": 52.0,
+      "measured_hz": 166.117976,
+      "detune_cents": 13.645614
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.mf.E4-PB.wav": {
+      "root_midi": 64.0,
+      "measured_hz": 330.345263,
+      "detune_cents": 3.765358
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.mf.F#2-PB.wav": {
+      "root_midi": 42.0,
+      "measured_hz": 92.537714,
+      "detune_cents": 0.731807
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.mf.F#3-PB.wav": {
+      "root_midi": 54.0,
+      "measured_hz": 187.483318,
+      "detune_cents": 23.110449
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.mf.F#4-PB.wav": {
+      "root_midi": 66.0,
+      "measured_hz": 371.949094,
+      "detune_cents": 9.121991
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.mf.F2-PB.wav": {
+      "root_midi": 41.0,
+      "measured_hz": 87.627388,
+      "detune_cents": 6.340293
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.mf.F3-PB.wav": {
+      "root_midi": 53.0,
+      "measured_hz": 175.963245,
+      "detune_cents": 13.324708
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.mf.F4-PB.wav": {
+      "root_midi": 65.0,
+      "measured_hz": 349.1262,
+      "detune_cents": -0.505875
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.mf.G#4-PB.wav": {
+      "root_midi": 68.0,
+      "measured_hz": 419.809791,
+      "detune_cents": 18.678748
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.mf.G2-PB.wav": {
+      "root_midi": 43.0,
+      "measured_hz": 98.135701,
+      "detune_cents": 2.415753
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.mf.G3-PB.wav": {
+      "root_midi": 55.0,
+      "measured_hz": 196.83277,
+      "detune_cents": 7.360291
+    },
+    "libs/Iowa/samples/Bassoon-solo/Bassoon.mf.G4-PB.wav": {
+      "root_midi": 67.0,
+      "measured_hz": 394.301992,
+      "detune_cents": 10.156972
+    },
+    "libs/SSO/Samples/Bassoon/bassoon-a#1-PB-loop.wav": {
+      "root_midi": 34.0,
+      "measured_hz": 58.787953,
+      "detune_cents": 15.306698
+    },
+    "libs/SSO/Samples/Bassoon/bassoon-a#2-PB-loop.wav": {
+      "root_midi": 46.0,
+      "measured_hz": 116.424894,
+      "detune_cents": -1.724748
+    },
+    "libs/SSO/Samples/Bassoon/bassoon-a#3-PB-loop.wav": {
+      "root_midi": 58.0,
+      "measured_hz": 232.876988,
+      "detune_cents": -1.522526
+    },
+    "libs/SSO/Samples/Bassoon/bassoon-a#4-PB-loop.wav": {
+      "root_midi": 70.0,
+      "measured_hz": 465.589696,
+      "detune_cents": -2.133274
+    },
+    "libs/SSO/Samples/Bassoon/bassoon-c#2-PB-loop.wav": {
+      "root_midi": 37.0,
+      "measured_hz": 69.997805,
+      "detune_cents": 17.453673
+    },
+    "libs/SSO/Samples/Bassoon/bassoon-c#3-PB-loop.wav": {
+      "root_midi": 49.0,
+      "measured_hz": 139.395378,
+      "detune_cents": 10.015039
+    },
+    "libs/SSO/Samples/Bassoon/bassoon-c#4-PB-loop.wav": {
+      "root_midi": 61.0,
+      "measured_hz": 276.75592,
+      "detune_cents": -2.667215
+    },
+    "libs/SSO/Samples/Bassoon/bassoon-e2-PB-loop.wav": {
+      "root_midi": 40.0,
+      "measured_hz": 82.959682,
+      "detune_cents": 11.574486
+    },
+    "libs/SSO/Samples/Bassoon/bassoon-e3-PB-loop.wav": {
+      "root_midi": 52.0,
+      "measured_hz": 166.089099,
+      "detune_cents": 13.344637
+    },
+    "libs/SSO/Samples/Bassoon/bassoon-e4-PB-loop.wav": {
+      "root_midi": 64.0,
+      "measured_hz": 330.414169,
+      "detune_cents": 4.126436
+    },
+    "libs/SSO/Samples/Bassoon/bassoon-g2-PB-loop.wav": {
+      "root_midi": 43.0,
+      "measured_hz": 98.174719,
+      "detune_cents": 3.103938
+    },
+    "libs/SSO/Samples/Bassoon/bassoon-g3-PB-loop.wav": {
+      "root_midi": 55.0,
+      "measured_hz": 196.921578,
+      "detune_cents": 8.141217
+    },
+    "libs/SSO/Samples/Bassoon/bassoon-g4-PB-loop.wav": {
+      "root_midi": 67.0,
+      "measured_hz": 393.3569,
+      "detune_cents": 6.002442
+    }
+  }
+}

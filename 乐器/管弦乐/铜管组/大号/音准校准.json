@@ -1,0 +1,56 @@
+{
+  "description": "FFT measurement of raw sustained 大号 samples; A4=440 Hz",
+  "source_sfz": "Brass/tuba-SOLO-sustain.sfz",
+  "summary": {
+    "sample_count": 9,
+    "median_detune_cents": -1.255995,
+    "maximum_absolute_detune_cents": 11.152827
+  },
+  "samples": {
+    "libs/SSO/Samples/Tuba/tuba-sus-e1-PB-loop.wav": {
+      "root_midi": 28.0,
+      "measured_hz": 41.433154,
+      "detune_cents": 9.624812
+    },
+    "libs/SSO/Samples/Tuba/tuba-sus-g1-PB-loop.wav": {
+      "root_midi": 31.0,
+      "measured_hz": 48.821803,
+      "detune_cents": -6.287239
+    },
+    "libs/SSO/Samples/Tuba/tuba-sus-a#1-PB-loop.wav": {
+      "root_midi": 34.0,
+      "measured_hz": 58.342787,
+      "detune_cents": 2.147209
+    },
+    "libs/SSO/Samples/Tuba/tuba-sus-c#2-PB-loop.wav": {
+      "root_midi": 37.0,
+      "measured_hz": 69.207811,
+      "detune_cents": -2.19609
+    },
+    "libs/SSO/Samples/Tuba/tuba-sus-e2-PB-loop.wav": {
+      "root_midi": 40.0,
+      "measured_hz": 82.347125,
+      "detune_cents": -1.255995
+    },
+    "libs/SSO/Samples/Tuba/tuba-sus-g2-PB-loop.wav": {
+      "root_midi": 43.0,
+      "measured_hz": 97.965015,
+      "detune_cents": -0.597988
+    },
+    "libs/SSO/Samples/Tuba/tuba-sus-a#2-PB-loop.wav": {
+      "root_midi": 46.0,
+      "measured_hz": 116.590176,
+      "detune_cents": 0.73125
+    },
+    "libs/SSO/Samples/Tuba/tuba-sus-c#3-PB-loop.wav": {
+      "root_midi": 49.0,
+      "measured_hz": 137.701362,
+      "detune_cents": -11.152827
+    },
+    "libs/SSO/Samples/Tuba/tuba-sus-e3-PB-loop.wav": {
+      "root_midi": 52.0,
+      "measured_hz": 164.67352,
+      "detune_cents": -1.473931
+    }
+  }
+}

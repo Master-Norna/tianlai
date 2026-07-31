@@ -1,0 +1,48 @@
+{
+  "sample_rate": 48000,
+  "channels": 2,
+  "tuning": {
+    "temperament": "equal",
+    "a4_hz": 440.0
+  },
+  "tail_seconds": 1.6,
+  "events": [
+    { "time": 0.0, "type": "articulation", "name": "slow_sustain" },
+    { "time": 0.0, "type": "control", "name": "expression", "value": 0.56 },
+    { "time": 0.0, "type": "note_on", "note_id": 1, "midi_note": 48, "velocity": 0.74 },
+    { "time": 0.85, "type": "control", "name": "expression", "value": 0.88 },
+    { "time": 1.55, "type": "note_on", "note_id": 2, "midi_note": 52, "velocity": 0.76 },
+    { "time": 1.74, "type": "note_off", "note_id": 1, "release_velocity": 0.38 },
+    { "time": 2.55, "type": "note_on", "note_id": 3, "midi_note": 55, "velocity": 0.78 },
+    { "time": 2.74, "type": "note_off", "note_id": 2, "release_velocity": 0.4 },
+    { "time": 3.45, "type": "control", "name": "expression", "value": 0.68 },
+    { "time": 3.55, "type": "note_on", "note_id": 4, "midi_note": 60, "velocity": 0.8 },
+    { "time": 3.74, "type": "note_off", "note_id": 3, "release_velocity": 0.42 },
+    { "time": 4.65, "type": "note_off", "note_id": 4, "release_velocity": 0.5 },
+
+    { "time": 5.0, "type": "articulation", "name": "staccato" },
+    { "time": 5.0, "type": "note_on", "note_id": 5, "midi_note": 48, "velocity": 0.86 },
+    { "time": 5.16, "type": "note_off", "note_id": 5 },
+    { "time": 5.34, "type": "note_on", "note_id": 6, "midi_note": 50, "velocity": 0.82 },
+    { "time": 5.5, "type": "note_off", "note_id": 6 },
+    { "time": 5.68, "type": "note_on", "note_id": 7, "midi_note": 52, "velocity": 0.87 },
+    { "time": 5.84, "type": "note_off", "note_id": 7 },
+    { "time": 6.02, "type": "note_on", "note_id": 8, "midi_note": 55, "velocity": 0.9 },
+    { "time": 6.18, "type": "note_off", "note_id": 8 },
+
+    { "time": 6.5, "type": "articulation", "name": "pizzicato" },
+    { "time": 6.5, "type": "note_on", "note_id": 9, "midi_note": 36, "velocity": 0.82 },
+    { "time": 6.68, "type": "note_off", "note_id": 9 },
+    { "time": 6.9, "type": "note_on", "note_id": 10, "midi_note": 43, "velocity": 0.8 },
+    { "time": 7.08, "type": "note_off", "note_id": 10 },
+    { "time": 7.3, "type": "note_on", "note_id": 11, "midi_note": 48, "velocity": 0.84 },
+    { "time": 7.48, "type": "note_off", "note_id": 11 },
+    { "time": 7.7, "type": "note_on", "note_id": 12, "midi_note": 52, "velocity": 0.86 },
+    { "time": 7.88, "type": "note_off", "note_id": 12 },
+
+    { "time": 8.25, "type": "articulation", "name": "accent" },
+    { "time": 8.25, "type": "control", "name": "expression", "value": 0.84 },
+    { "time": 8.25, "type": "note_on", "note_id": 13, "midi_note": 55, "velocity": 0.9 },
+    { "time": 9.55, "type": "note_off", "note_id": 13, "release_velocity": 0.58 }
+  ]
+}

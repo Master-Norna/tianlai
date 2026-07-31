@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tianlai.local/schemas/candidate.schema.json",
+  "title": "Tianlai Immutable Render Candidate",
+  "description": "把一次实际渲染所用的 score、roster、render profile、演奏计划与渲染回执绑定在同一不可变候选版本中。",
+  "type": "object",
+  "required": [
+    "format",
+    "version",
+    "candidate_id",
+    "work_id",
+    "title",
+    "created_at_utc",
+    "parent_candidate_id",
+    "project",
+    "render_receipt"
+  ],
+  "properties": {
+    "format": {
+      "const": "tianlai.candidate"
+    },
+    "version": {
+      "const": 1
+    },
+    "candidate_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "work_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "title": {
+      "type": "string"
+    },
+    "created_at_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "parent_candidate_id": {
+      "type": ["string", "null"]
+    },
+    "project": {
+      "type": "object",
+      "required": [
+        "score",
+        "roster",
+        "render_profile",
+        "performance_plan_sha256"
+      ],
+      "properties": {
+        "score": {
+          "$ref": "#/$defs/jsonBinding"
+        },
+        "roster": {
+          "$ref": "#/$defs/jsonBinding"
+        },
+        "render_profile": {
+          "$ref": "#/$defs/jsonBinding"
+        },
+        "performance_plan_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "additionalProperties": false
+    },
+    "render_receipt": {
+      "type": "object",
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {
+          "const": "渲染回执.json"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "additionalProperties": false
+    },
+    "cache_telemetry": {
+      "type": "object",
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {
+          "const": "缓存遥测.json"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "jsonBinding": {
+      "type": "object",
+      "required": ["path", "canonical_sha256", "file_sha256"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?![A-Za-z]:)(?![/\\\\])(?!.*(?:^|[/\\\\])\\.\\.(?:[/\\\\]|$)).+$"
+        },
+        "canonical_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "file_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

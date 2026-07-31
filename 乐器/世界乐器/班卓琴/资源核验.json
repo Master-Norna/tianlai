@@ -1,0 +1,32 @@
+{
+  "upstream": "itsclipping Ganjo / SX six-string guitar-banjo",
+  "origin": "https://github.com/sfzinstruments/ganjo",
+  "upstream_version": "v1.000 @ ccff5cd5cd3b513873a48994c07724d9d3c39e1c",
+  "license": "CC0-1.0",
+  "source_file_count": 1,
+  "source_file_sha256": {
+    "ganjo.sfz": "9717cacbd1f12c55233b5edc85d10fad02229b231b7bd3188c4e7bf5227f3214"
+  },
+  "evidence_sha256": {
+    "LICENSE.md": "f4e7f373b9b996950337e8d41a4a2939c2d90b7725e9baf3d5084a22717ad328",
+    "README.md": "b79a853a0b8d48d6fbc7cc64b0cc56c5738572bddb075b2b277cffa81e90a08d"
+  },
+  "sample_count": 58,
+  "sample_bytes": 22724032,
+  "sample_formats": {
+    ".wav:44100Hz:2ch": 58
+  },
+  "articulations": {
+    "normal": {
+      "attack_regions": 58,
+      "release_regions": 0,
+      "round_robin_regions": 42,
+      "velocity_bounded_regions": 0,
+      "random_variant_regions": 0,
+      "looped_regions": 0
+    }
+  },
+  "region_count": 58,
+  "sample_set_sha256": "55171f4917102bab0cd4b4b76a0f64a7892fa1e1440970a93ec76d932a5a4368",
+  "sample_set_hash_algorithm": "sort unique asset-root-relative UTF-8 paths; concatenate lowercase '<sha256>  <path>\\n>'; SHA-256 the UTF-8 bytes"
+}

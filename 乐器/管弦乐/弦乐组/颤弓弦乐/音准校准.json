@@ -1,0 +1,491 @@
+{
+  "description": "FFT measurement of raw tremolo string ensemble samples; A4=440 Hz",
+  "source_sfz": "Strings/all-strings-SEC-tremolo.sfz",
+  "summary": {
+    "sample_count": 96,
+    "median_detune_cents": -0.622389,
+    "maximum_absolute_detune_cents": 51.890421
+  },
+  "samples": {
+    "libs/Other/Samples/Bass-Section/C1-tremolo-PB.wav": {
+      "root_midi": 24.0,
+      "measured_hz": 33.056856,
+      "detune_cents": 18.62147
+    },
+    "libs/Other/Samples/Bass-Section/D1-tremolo-PB.wav": {
+      "root_midi": 26.0,
+      "measured_hz": 37.057422,
+      "detune_cents": 16.39706
+    },
+    "libs/Other/Samples/Bass-Section/E1-tremolo-PB.wav": {
+      "root_midi": 28.0,
+      "measured_hz": 41.889647,
+      "detune_cents": 28.594549
+    },
+    "libs/Other/Samples/Bass-Section/F1-tremolo-PB.wav": {
+      "root_midi": 29.0,
+      "measured_hz": 44.412142,
+      "detune_cents": 29.827039
+    },
+    "libs/Other/Samples/Bass-Section/G1-tremolo-PB.wav": {
+      "root_midi": 31.0,
+      "measured_hz": 48.978351,
+      "detune_cents": -0.744912
+    },
+    "libs/Other/Samples/Bass-Section/A1-tremolo-PB.wav": {
+      "root_midi": 33.0,
+      "measured_hz": 54.717007,
+      "detune_cents": -8.930756
+    },
+    "libs/Other/Samples/Bass-Section/B1-tremolo-PB.wav": {
+      "root_midi": 35.0,
+      "measured_hz": 61.683412,
+      "detune_cents": -1.458867
+    },
+    "libs/Other/Samples/Bass-Section/C2-tremolo-PB.wav": {
+      "root_midi": 36.0,
+      "measured_hz": 65.552224,
+      "detune_cents": 3.855743
+    },
+    "libs/Other/Samples/Bass-Section/D2-tremolo-PB.wav": {
+      "root_midi": 38.0,
+      "measured_hz": 73.123706,
+      "detune_cents": -6.910921
+    },
+    "libs/Other/Samples/Bass-Section/E2-tremolo-PB.wav": {
+      "root_midi": 40.0,
+      "measured_hz": 82.543459,
+      "detune_cents": 2.866726
+    },
+    "libs/Other/Samples/Bass-Section/F2-tremolo-PB.wav": {
+      "root_midi": 41.0,
+      "measured_hz": 87.01842,
+      "detune_cents": -5.732957
+    },
+    "libs/Other/Samples/Bass-Section/G2-tremolo-PB.wav": {
+      "root_midi": 43.0,
+      "measured_hz": 97.640773,
+      "detune_cents": -6.337487
+    },
+    "libs/Other/Samples/Bass-Section/A2-tremolo-PB.wav": {
+      "root_midi": 45.0,
+      "measured_hz": 110.860795,
+      "detune_cents": 13.494885
+    },
+    "libs/Other/Samples/Bass-Section/B2-tremolo-PB.wav": {
+      "root_midi": 47.0,
+      "measured_hz": 123.649721,
+      "detune_cents": 2.506555
+    },
+    "libs/Other/Samples/Bass-Section/C3-tremolo-PB.wav": {
+      "root_midi": 48.0,
+      "measured_hz": 131.217086,
+      "detune_cents": 5.34248
+    },
+    "libs/Other/Samples/Bass-Section/D3-tremolo-PB.wav": {
+      "root_midi": 50.0,
+      "measured_hz": 147.534075,
+      "detune_cents": 8.253614
+    },
+    "libs/Other/Samples/Bass-Section/E3-tremolo-PB.wav": {
+      "root_midi": 52.0,
+      "measured_hz": 165.622233,
+      "detune_cents": 8.471394
+    },
+    "libs/Other/Samples/Bass-Section/F3-tremolo-PB.wav": {
+      "root_midi": 53.0,
+      "measured_hz": 175.227025,
+      "detune_cents": 6.066125
+    },
+    "libs/Other/Samples/Bass-Section/G3-tremolo-PB.wav": {
+      "root_midi": 55.0,
+      "measured_hz": 197.406168,
+      "detune_cents": 12.396252
+    },
+    "libs/Other/Samples/Bass-Section/A3-tremolo-PB.wav": {
+      "root_midi": 57.0,
+      "measured_hz": 218.358749,
+      "detune_cents": -12.963824
+    },
+    "libs/Other/Samples/Bass-Section/B3-tremolo-PB.wav": {
+      "root_midi": 59.0,
+      "measured_hz": 244.939569,
+      "detune_cents": -14.093206
+    },
+    "libs/Other/Samples/Bass-Section/C4-tremolo-PB.wav": {
+      "root_midi": 60.0,
+      "measured_hz": 261.845802,
+      "detune_cents": 1.45674
+    },
+    "libs/Other/Samples/Bass-Section/D4-tremolo-PB.wav": {
+      "root_midi": 62.0,
+      "measured_hz": 292.969499,
+      "detune_cents": -4.103663
+    },
+    "libs/Other/Samples/Bass-Section/E4-tremolo-PB.wav": {
+      "root_midi": 64.0,
+      "measured_hz": 329.730433,
+      "detune_cents": 0.54023
+    },
+    "libs/Other/Samples/Bass-Section/F4-tremolo-PB.wav": {
+      "root_midi": 65.0,
+      "measured_hz": 347.85968,
+      "detune_cents": -6.797667
+    },
+    "libs/Other/Samples/Bass-Section/G4-tremolo-PB.wav": {
+      "root_midi": 67.0,
+      "measured_hz": 391.719948,
+      "detune_cents": -1.21711
+    },
+    "libs/NoBudgetOrch2/Cello/CelloSect/Tremulo/2_C_t.wav": {
+      "root_midi": 36.0,
+      "measured_hz": 65.155624,
+      "detune_cents": -6.650289
+    },
+    "libs/NoBudgetOrch2/Cello/CelloSect/Tremulo/2_D_t.wav": {
+      "root_midi": 38.0,
+      "measured_hz": 73.355426,
+      "detune_cents": -1.433533
+    },
+    "libs/NoBudgetOrch2/Cello/CelloSect/Tremulo/2_E_t.wav": {
+      "root_midi": 40.0,
+      "measured_hz": 79.97355,
+      "detune_cents": -51.890421
+    },
+    "libs/NoBudgetOrch2/Cello/CelloSect/Tremulo/2_Bb_t-PB-loop.wav": {
+      "root_midi": 46.0,
+      "measured_hz": 116.936377,
+      "detune_cents": 5.864336
+    },
+    "libs/NoBudgetOrch2/Cello/CelloSect/Tremulo/3_C_t.wav": {
+      "root_midi": 48.0,
+      "measured_hz": 127.438926,
+      "detune_cents": -45.237018
+    },
+    "libs/NoBudgetOrch2/Cello/CelloSect/Tremulo/3_D_t.wav": {
+      "root_midi": 50.0,
+      "measured_hz": 143.19316,
+      "detune_cents": -43.449128
+    },
+    "libs/NoBudgetOrch2/Cello/CelloSect/Tremulo/3_E_t.wav": {
+      "root_midi": 52.0,
+      "measured_hz": 162.386029,
+      "detune_cents": -25.691207
+    },
+    "libs/NoBudgetOrch2/Cello/CelloSect/Tremulo/3_Gb_t-PB-loop.wav": {
+      "root_midi": 54.0,
+      "measured_hz": 184.480099,
+      "detune_cents": -4.845996
+    },
+    "libs/NoBudgetOrch2/Cello/CelloSect/Tremulo/3_Ab_t-PB-loop.wav": {
+      "root_midi": 56.0,
+      "measured_hz": 204.835146,
+      "detune_cents": -23.648296
+    },
+    "libs/NoBudgetOrch2/Cello/CelloSect/Tremulo/3_Bb_t.wav": {
+      "root_midi": 58.0,
+      "measured_hz": 230.017798,
+      "detune_cents": -22.909631
+    },
+    "libs/NoBudgetOrch2/Cello/CelloSect/Tremulo/4_C_t-PB-loop.wav": {
+      "root_midi": 60.0,
+      "measured_hz": 257.393303,
+      "detune_cents": -28.234811
+    },
+    "libs/NoBudgetOrch2/Cello/CelloSect/Tremulo/4_D_t-PB-loop.wav": {
+      "root_midi": 62.0,
+      "measured_hz": 289.123905,
+      "detune_cents": -26.978753
+    },
+    "libs/NoBudgetOrch2/Cello/CelloSect/Tremulo/4_Gb_t.wav": {
+      "root_midi": 66.0,
+      "measured_hz": 366.500749,
+      "detune_cents": -16.424855
+    },
+    "libs/NoBudgetOrch2/Violin/SoloViolin/Tremulo/3_G-PB.wav": {
+      "root_midi": 55.0,
+      "measured_hz": 195.817083,
+      "detune_cents": -1.596275
+    },
+    "libs/NoBudgetOrch2/Violin/SoloViolin/Tremulo/3_A-PB.wav": {
+      "root_midi": 57.0,
+      "measured_hz": 218.094482,
+      "detune_cents": -15.060303
+    },
+    "libs/NoBudgetOrch2/Violin/SoloViolin/Tremulo/3_B-PB.wav": {
+      "root_midi": 59.0,
+      "measured_hz": 245.467953,
+      "detune_cents": -10.362602
+    },
+    "libs/NoBudgetOrch2/Violin/SoloViolin/Tremulo/4_Db-PB.wav": {
+      "root_midi": 61.0,
+      "measured_hz": 278.456839,
+      "detune_cents": 7.940241
+    },
+    "libs/NoBudgetOrch2/Violin/SoloViolin/Tremulo/4_Eb-PB.wav": {
+      "root_midi": 63.0,
+      "measured_hz": 310.224493,
+      "detune_cents": -5.029112
+    },
+    "libs/NoBudgetOrch2/Violin/SoloViolin/Tremulo/4_F-PB.wav": {
+      "root_midi": 65.0,
+      "measured_hz": 346.58679,
+      "detune_cents": -13.144228
+    },
+    "libs/NoBudgetOrch2/Violin/SoloViolin/Tremulo/4_G-PB.wav": {
+      "root_midi": 67.0,
+      "measured_hz": 393.787428,
+      "detune_cents": 7.896235
+    },
+    "libs/NoBudgetOrch2/Violin/SoloViolin/Tremulo/4_A-PB.wav": {
+      "root_midi": 69.0,
+      "measured_hz": 438.06168,
+      "detune_cents": -7.643406
+    },
+    "libs/NoBudgetOrch2/Violin/SoloViolin/Tremulo/4_B-PB.wav": {
+      "root_midi": 71.0,
+      "measured_hz": 488.774909,
+      "detune_cents": -17.999955
+    },
+    "libs/NoBudgetOrch2/Violin/SoloViolin/Tremulo/5_Db-PB.wav": {
+      "root_midi": 73.0,
+      "measured_hz": 550.266577,
+      "detune_cents": -12.847384
+    },
+    "libs/NoBudgetOrch2/Violin/SoloViolin/Tremulo/5_Eb-PB.wav": {
+      "root_midi": 75.0,
+      "measured_hz": 622.686601,
+      "detune_cents": 1.203255
+    },
+    "libs/NoBudgetOrch2/Violin/SoloViolin/Tremulo/5_F-PB.wav": {
+      "root_midi": 77.0,
+      "measured_hz": 701.925294,
+      "detune_cents": 8.576762
+    },
+    "libs/NoBudgetOrch2/Violin/SoloViolin/Tremulo/5_G-PB.wav": {
+      "root_midi": 79.0,
+      "measured_hz": 782.351954,
+      "detune_cents": -3.622901
+    },
+    "libs/NoBudgetOrch2/Violin/SoloViolin/Tremulo/5_A-PB.wav": {
+      "root_midi": 81.0,
+      "measured_hz": 882.900288,
+      "detune_cents": 5.696388
+    },
+    "libs/NoBudgetOrch2/Violin/SoloViolin/Tremulo/5_B-PB.wav": {
+      "root_midi": 83.0,
+      "measured_hz": 990.355992,
+      "detune_cents": 4.53242
+    },
+    "libs/NoBudgetOrch2/Violin/SoloViolin/Tremulo/6_Db-PB.wav": {
+      "root_midi": 85.0,
+      "measured_hz": 1115.346528,
+      "detune_cents": 10.2999
+    },
+    "libs/NoBudgetOrch2/Violin/SoloViolin/Tremulo/6_Eb-PB.wav": {
+      "root_midi": 87.0,
+      "measured_hz": 1253.761922,
+      "detune_cents": 12.825589
+    },
+    "libs/NoBudgetOrch2/Violin/SoloViolin/Tremulo/6_F-PB.wav": {
+      "root_midi": 89.0,
+      "measured_hz": 1404.107481,
+      "detune_cents": 8.893535
+    },
+    "libs/NoBudgetOrch2/Violin/SoloViolin/Tremulo/6_G-PB.wav": {
+      "root_midi": 91.0,
+      "measured_hz": 1597.313475,
+      "detune_cents": 32.086451
+    },
+    "libs/NoBudgetOrch2/Violin/SoloViolin/Tremulo/6_A-PB.wav": {
+      "root_midi": 93.0,
+      "measured_hz": 1780.869154,
+      "detune_cents": 20.40731
+    },
+    "libs/Other/Samples/Viola-Section/C3-tremolo-PB-loop.wav": {
+      "root_midi": 48.0,
+      "measured_hz": 131.553395,
+      "detune_cents": 9.773947
+    },
+    "libs/Other/Samples/Viola-Section/D3-tremolo-PB-loop.wav": {
+      "root_midi": 50.0,
+      "measured_hz": 147.533417,
+      "detune_cents": 8.245893
+    },
+    "libs/Other/Samples/Viola-Section/E3-tremolo-PB-loop.wav": {
+      "root_midi": 52.0,
+      "measured_hz": 164.810181,
+      "detune_cents": -0.037787
+    },
+    "libs/Other/Samples/Viola-Section/F3-tremolo-PB-loop.wav": {
+      "root_midi": 53.0,
+      "measured_hz": 174.619531,
+      "detune_cents": 0.053691
+    },
+    "libs/Other/Samples/Viola-Section/G3-tremolo-PB-loop.wav": {
+      "root_midi": 55.0,
+      "measured_hz": 195.814271,
+      "detune_cents": -1.621132
+    },
+    "libs/Other/Samples/Viola-Section/A3-tremolo-PB-loop.wav": {
+      "root_midi": 57.0,
+      "measured_hz": 219.706577,
+      "detune_cents": -2.310562
+    },
+    "libs/Other/Samples/Viola-Section/B3-tremolo-PB-loop.wav": {
+      "root_midi": 59.0,
+      "measured_hz": 245.948388,
+      "detune_cents": -6.977511
+    },
+    "libs/Other/Samples/Viola-Section/C4-tremolo-PB-loop.wav": {
+      "root_midi": 60.0,
+      "measured_hz": 261.484991,
+      "detune_cents": -0.930459
+    },
+    "libs/Other/Samples/Viola-Section/D4-tremolo-PB-loop.wav": {
+      "root_midi": 62.0,
+      "measured_hz": 293.34819,
+      "detune_cents": -1.867321
+    },
+    "libs/Other/Samples/Viola-Section/E4-tremolo-PB-loop.wav": {
+      "root_midi": 64.0,
+      "measured_hz": 330.068181,
+      "detune_cents": 2.312654
+    },
+    "libs/Other/Samples/Viola-Section/F4-tremolo-PB-loop.wav": {
+      "root_midi": 65.0,
+      "measured_hz": 350.126717,
+      "detune_cents": 4.448356
+    },
+    "libs/Other/Samples/Viola-Section/G4-tremolo-PB-loop.wav": {
+      "root_midi": 67.0,
+      "measured_hz": 391.82146,
+      "detune_cents": -0.76853
+    },
+    "libs/Other/Samples/Viola-Section/A4-tremolo-PB-loop.wav": {
+      "root_midi": 69.0,
+      "measured_hz": 440.760485,
+      "detune_cents": 2.989641
+    },
+    "libs/Other/Samples/Viola-Section/B4-tremolo-PB-loop.wav": {
+      "root_midi": 71.0,
+      "measured_hz": 495.468231,
+      "detune_cents": 5.54684
+    },
+    "libs/Other/Samples/Viola-Section/C5-tremolo-PB-loop.wav": {
+      "root_midi": 72.0,
+      "measured_hz": 524.837138,
+      "detune_cents": 5.239543
+    },
+    "libs/Other/Samples/Viola-Section/D5-tremolo-PB-loop.wav": {
+      "root_midi": 74.0,
+      "measured_hz": 589.182942,
+      "detune_cents": 5.454566
+    },
+    "libs/Other/Samples/Viola-Section/E5-tremolo-PB-loop.wav": {
+      "root_midi": 76.0,
+      "measured_hz": 661.319049,
+      "detune_cents": 5.411523
+    },
+    "libs/Other/Samples/Viola-Section/F5-tremolo-PB-loop.wav": {
+      "root_midi": 77.0,
+      "measured_hz": 701.682402,
+      "detune_cents": 7.977587
+    },
+    "libs/Other/Samples/Viola-Section/A5-tremolo-PB-loop.wav": {
+      "root_midi": 81.0,
+      "measured_hz": 882.910338,
+      "detune_cents": 5.716094
+    },
+    "libs/Other/Samples/Viola-Section/B5-tremolo-PB-loop.wav": {
+      "root_midi": 83.0,
+      "measured_hz": 986.165136,
+      "detune_cents": -2.809128
+    },
+    "libs/Other/Samples/Viola-Section/C6-tremolo-PB-loop.wav": {
+      "root_midi": 84.0,
+      "measured_hz": 1046.390863,
+      "detune_cents": -0.184296
+    },
+    "libs/Other/Samples/Viola-Section/D6-tremolo-PB-loop.wav": {
+      "root_midi": 86.0,
+      "measured_hz": 1183.964025,
+      "detune_cents": 13.659779
+    },
+    "libs/Other/Samples/Viola-Section/E6-tremolo-PB-loop.wav": {
+      "root_midi": 88.0,
+      "measured_hz": 1315.184188,
+      "detune_cents": -4.372684
+    },
+    "libs/Other/Samples/Viola-Section/F6-tremolo-PB-loop.wav": {
+      "root_midi": 89.0,
+      "measured_hz": 1407.549601,
+      "detune_cents": 13.1324
+    },
+    "libs/Other/Samples/Viola-Section/G6-tremolo-PB-loop.wav": {
+      "root_midi": 91.0,
+      "measured_hz": 1562.782997,
+      "detune_cents": -5.749557
+    },
+    "libs/Other/Samples/Viola-Section/A6-tremolo-PB-loop.wav": {
+      "root_midi": 93.0,
+      "measured_hz": 1771.580306,
+      "detune_cents": 11.353723
+    },
+    "libs/NoBudgetOrch2/Violin/SoloViolin/Tremulo/6_B-PB.wav": {
+      "root_midi": 95.0,
+      "measured_hz": 1992.651627,
+      "detune_cents": 14.936895
+    },
+    "libs/NoBudgetOrch2/Violin/ViolinSect/Tremulo/3_G.wav": {
+      "root_midi": 55.0,
+      "measured_hz": 194.843022,
+      "detune_cents": -10.229509
+    },
+    "libs/NoBudgetOrch2/Violin/ViolinSect/Tremulo/3_Bb.wav": {
+      "root_midi": 58.0,
+      "measured_hz": 232.030108,
+      "detune_cents": -7.829803
+    },
+    "libs/NoBudgetOrch2/Violin/ViolinSect/Tremulo/4_Db.wav": {
+      "root_midi": 61.0,
+      "measured_hz": 275.64708,
+      "detune_cents": -9.617447
+    },
+    "libs/NoBudgetOrch2/Violin/ViolinSect/Tremulo/4_E-PB-loop.wav": {
+      "root_midi": 64.0,
+      "measured_hz": 329.133483,
+      "detune_cents": -2.596867
+    },
+    "libs/NoBudgetOrch2/Violin/ViolinSect/Tremulo/4_G-PB-loop.wav": {
+      "root_midi": 67.0,
+      "measured_hz": 389.615482,
+      "detune_cents": -10.543022
+    },
+    "libs/NoBudgetOrch2/Violin/ViolinSect/Tremulo/4_Bb.wav": {
+      "root_midi": 70.0,
+      "measured_hz": 465.168147,
+      "detune_cents": -3.701458
+    },
+    "libs/NoBudgetOrch2/Violin/ViolinSect/Tremulo/5_Db.wav": {
+      "root_midi": 73.0,
+      "measured_hz": 556.631121,
+      "detune_cents": 7.061656
+    },
+    "libs/NoBudgetOrch2/Violin/ViolinSect/Tremulo/5_E.wav": {
+      "root_midi": 76.0,
+      "measured_hz": 658.548322,
+      "detune_cents": -1.857063
+    },
+    "libs/NoBudgetOrch2/Violin/ViolinSect/Tremulo/5_G.wav": {
+      "root_midi": 79.0,
+      "measured_hz": 783.76454,
+      "detune_cents": -0.499866
+    },
+    "libs/NoBudgetOrch2/Violin/ViolinSect/Tremulo/5_B.wav": {
+      "root_midi": 83.0,
+      "measured_hz": 990.044051,
+      "detune_cents": 3.987033
+    }
+  }
+}

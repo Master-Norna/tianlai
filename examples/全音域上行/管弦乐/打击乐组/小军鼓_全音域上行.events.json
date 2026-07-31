@@ -1,0 +1,173 @@
+{
+  "sample_rate": 48000,
+  "channels": 2,
+  "tail_seconds": 1.5,
+  "tuning": {
+    "temperament": "equal",
+    "a4_hz": 440.0
+  },
+  "events": [
+    {
+      "time": 0.25,
+      "type": "articulation",
+      "name": "left"
+    },
+    {
+      "time": 0.25,
+      "type": "note_on",
+      "note_id": 1,
+      "midi_note": 48,
+      "velocity": 0.72
+    },
+    {
+      "time": 0.73,
+      "type": "note_off",
+      "note_id": 1,
+      "release_velocity": 0.5
+    },
+    {
+      "time": 0.85,
+      "type": "articulation",
+      "name": "alternating"
+    },
+    {
+      "time": 0.85,
+      "type": "note_on",
+      "note_id": 2,
+      "midi_note": 49,
+      "velocity": 0.72
+    },
+    {
+      "time": 1.33,
+      "type": "note_off",
+      "note_id": 2,
+      "release_velocity": 0.5
+    },
+    {
+      "time": 1.45,
+      "type": "articulation",
+      "name": "right"
+    },
+    {
+      "time": 1.45,
+      "type": "note_on",
+      "note_id": 3,
+      "midi_note": 50,
+      "velocity": 0.72
+    },
+    {
+      "time": 1.93,
+      "type": "note_off",
+      "note_id": 3,
+      "release_velocity": 0.5
+    },
+    {
+      "time": 2.05,
+      "type": "articulation",
+      "name": "roll_looped"
+    },
+    {
+      "time": 2.05,
+      "type": "note_on",
+      "note_id": 4,
+      "midi_note": 52,
+      "velocity": 0.72
+    },
+    {
+      "time": 4.45,
+      "type": "note_off",
+      "note_id": 4,
+      "release_velocity": 0.5
+    },
+    {
+      "time": 4.57,
+      "type": "articulation",
+      "name": "kit2_left"
+    },
+    {
+      "time": 4.57,
+      "type": "note_on",
+      "note_id": 5,
+      "midi_note": 53,
+      "velocity": 0.72
+    },
+    {
+      "time": 5.05,
+      "type": "note_off",
+      "note_id": 5,
+      "release_velocity": 0.5
+    },
+    {
+      "time": 5.17,
+      "type": "articulation",
+      "name": "hit"
+    },
+    {
+      "time": 5.17,
+      "type": "note_on",
+      "note_id": 6,
+      "midi_note": 54,
+      "velocity": 0.72
+    },
+    {
+      "time": 5.65,
+      "type": "note_off",
+      "note_id": 6,
+      "release_velocity": 0.5
+    },
+    {
+      "time": 5.77,
+      "type": "articulation",
+      "name": "kit2_right"
+    },
+    {
+      "time": 5.77,
+      "type": "note_on",
+      "note_id": 7,
+      "midi_note": 55,
+      "velocity": 0.72
+    },
+    {
+      "time": 6.25,
+      "type": "note_off",
+      "note_id": 7,
+      "release_velocity": 0.5
+    },
+    {
+      "time": 6.37,
+      "type": "articulation",
+      "name": "tap"
+    },
+    {
+      "time": 6.37,
+      "type": "note_on",
+      "note_id": 8,
+      "midi_note": 56,
+      "velocity": 0.72
+    },
+    {
+      "time": 6.85,
+      "type": "note_off",
+      "note_id": 8,
+      "release_velocity": 0.5
+    },
+    {
+      "time": 6.97,
+      "type": "articulation",
+      "name": "roll"
+    },
+    {
+      "time": 6.97,
+      "type": "note_on",
+      "note_id": 9,
+      "midi_note": 57,
+      "velocity": 0.72
+    },
+    {
+      "time": 9.37,
+      "type": "note_off",
+      "note_id": 9,
+      "release_velocity": 0.5
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "description": "FFT measurement of raw oboe samples; A4=440 Hz",
+  "sfz_prefix": "oboe",
+  "summary": {
+    "sample_count": 9,
+    "median_detune_cents": 10.678504,
+    "maximum_absolute_detune_cents": 23.929161
+  },
+  "samples": {
+    "libs/SSO/Samples/Oboe/oboe-a#3-PB-loop.wav": {
+      "root_midi": 58.0,
+      "measured_hz": 234.369895,
+      "detune_cents": 9.540491
+    },
+    "libs/SSO/Samples/Oboe/oboe-a#4-PB-loop.wav": {
+      "root_midi": 70.0,
+      "measured_hz": 467.720544,
+      "detune_cents": 5.771929
+    },
+    "libs/SSO/Samples/Oboe/oboe-a#5-PB-loop.wav": {
+      "root_midi": 82.0,
+      "measured_hz": 944.406458,
+      "detune_cents": 22.285261
+    },
+    "libs/SSO/Samples/Oboe/oboe-c#4-PB-loop.wav": {
+      "root_midi": 61.0,
+      "measured_hz": 276.631853,
+      "detune_cents": -3.443482
+    },
+    "libs/SSO/Samples/Oboe/oboe-c#5-PB-loop.wav": {
+      "root_midi": 73.0,
+      "measured_hz": 556.609636,
+      "detune_cents": 6.994833
+    },
+    "libs/SSO/Samples/Oboe/oboe-c6-PB-loop.wav": {
+      "root_midi": 84.0,
+      "measured_hz": 1060.094162,
+      "detune_cents": 22.340386
+    },
+    "libs/SSO/Samples/Oboe/oboe-e4-PB-loop.wav": {
+      "root_midi": 64.0,
+      "measured_hz": 332.026222,
+      "detune_cents": 12.552391
+    },
+    "libs/SSO/Samples/Oboe/oboe-g4-PB-loop.wav": {
+      "root_midi": 67.0,
+      "measured_hz": 394.420793,
+      "detune_cents": 10.678504
+    },
+    "libs/SSO/Samples/Oboe/oboe-g5-PB-loop.wav": {
+      "root_midi": 79.0,
+      "measured_hz": 794.90245,
+      "detune_cents": 23.929161
+    }
+  }
+}

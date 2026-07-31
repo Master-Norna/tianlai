@@ -1,0 +1,22 @@
+{
+  "sample_rate": 48000,
+  "channels": 2,
+  "tail_seconds": 1.0,
+  "tuning": {
+    "temperament": "equal",
+    "a4_hz": 440.0
+  },
+  "events": [
+    { "time": 0.0, "type": "control", "name": "sustain_pedal", "value": 1.0 },
+    { "time": 0.0, "type": "note_on", "note_id": 1, "midi_note": 60, "velocity": 0.62 },
+    { "time": 0.5, "type": "note_on", "note_id": 2, "midi_note": 64, "velocity": 0.68 },
+    { "time": 1.0, "type": "note_on", "note_id": 3, "midi_note": 67, "velocity": 0.74 },
+    { "time": 1.5, "type": "note_on", "note_id": 4, "midi_note": 72, "velocity": 0.82 },
+    { "time": 2.0, "type": "note_off", "note_id": 1, "release_velocity": 0.4 },
+    { "time": 2.0, "type": "note_off", "note_id": 2, "release_velocity": 0.4 },
+    { "time": 2.0, "type": "note_off", "note_id": 3, "release_velocity": 0.4 },
+    { "time": 2.0, "type": "note_off", "note_id": 4, "release_velocity": 0.4 },
+    { "time": 2.35, "type": "control", "name": "sustain_pedal", "value": 0.0 }
+  ]
+}
+

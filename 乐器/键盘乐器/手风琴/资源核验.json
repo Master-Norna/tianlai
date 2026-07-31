@@ -1,0 +1,277 @@
+{
+  "upstream": "FreePats project: Button Accordion HN",
+  "origin": "https://freepats.zenvoid.org/Organ/accordion.html",
+  "upstream_version": "2024-03-29",
+  "license": "CC0-1.0",
+  "source_file_count": 1,
+  "source_file_sha256": {
+    "PRESET Button Accordion HN tuned.sfz": "1f273b331061ca72e32321b3673fdff1c66d056a0877456f1ed1499781fec36c"
+  },
+  "evidence_sha256": {
+    "LICENSE.txt": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499",
+    "README.txt": "e1c60cd66b0d6167eb29f581b43a141fd39dd6abe90e68b69fed7fd625e66957"
+  },
+  "sample_count": 34,
+  "sample_bytes": 4458595,
+  "sample_formats": {
+    ".flac:44100Hz:2ch": 34
+  },
+  "articulations": {
+    "sustain": {
+      "attack_regions": 17,
+      "release_regions": 17,
+      "round_robin_regions": 0,
+      "velocity_bounded_regions": 0,
+      "random_variant_regions": 0,
+      "looped_regions": 17
+    }
+  },
+  "region_count": 34,
+  "sample_set_sha256": "6c7086127e9c9b0cb26c21f81e43fa1e0caa75da7fe9ada6e64ae391852999d1",
+  "sample_set_hash_algorithm": "sort unique asset-root-relative UTF-8 paths; concatenate lowercase '<sha256>  <path>\\n>'; SHA-256 the UTF-8 bytes",
+  "status": "passed",
+  "manifest_sha256": "dab3815f9e7d457621f7c568b5bbdaa3fe150bebd9116624f0f79cd233362f38",
+  "runtime_range_policy": {
+    "source_recorded_attack_roots_midi": [
+      47,
+      50,
+      54,
+      55,
+      57,
+      59,
+      60,
+      62,
+      64,
+      66,
+      67,
+      69,
+      71,
+      72,
+      74,
+      76,
+      79
+    ],
+    "source_recorded_attack_root_range": [
+      47,
+      79
+    ],
+    "core_playable_range": [
+      50,
+      79
+    ],
+    "bounded_extension_range": [
+      80,
+      82
+    ],
+    "legacy_rejected_range": [
+      83,
+      91
+    ],
+    "upstream_raw_high_key": 127,
+    "runtime_high_key": 82,
+    "maximum_core_upward_transposition_semitones": 3,
+    "maximum_extension_upward_transposition_semitones": 3,
+    "extension_not_wider_than_existing_core_zone": true,
+    "note_mapping": {
+      "50": {
+        "root_midi": 50,
+        "transposition_semitones": 0,
+        "sample": "Button Accordion HN D4.flac",
+        "tier": "core"
+      },
+      "51": {
+        "root_midi": 50,
+        "transposition_semitones": 1,
+        "sample": "Button Accordion HN D4.flac",
+        "tier": "core"
+      },
+      "52": {
+        "root_midi": 50,
+        "transposition_semitones": 2,
+        "sample": "Button Accordion HN D4.flac",
+        "tier": "core"
+      },
+      "53": {
+        "root_midi": 50,
+        "transposition_semitones": 3,
+        "sample": "Button Accordion HN D4.flac",
+        "tier": "core"
+      },
+      "54": {
+        "root_midi": 54,
+        "transposition_semitones": 0,
+        "sample": "Button Accordion HN F#4.flac",
+        "tier": "core"
+      },
+      "55": {
+        "root_midi": 55,
+        "transposition_semitones": 0,
+        "sample": "Button Accordion HN G4.flac",
+        "tier": "core"
+      },
+      "56": {
+        "root_midi": 55,
+        "transposition_semitones": 1,
+        "sample": "Button Accordion HN G4.flac",
+        "tier": "core"
+      },
+      "57": {
+        "root_midi": 57,
+        "transposition_semitones": 0,
+        "sample": "Button Accordion HN A4.flac",
+        "tier": "core"
+      },
+      "58": {
+        "root_midi": 57,
+        "transposition_semitones": 1,
+        "sample": "Button Accordion HN A4.flac",
+        "tier": "core"
+      },
+      "59": {
+        "root_midi": 59,
+        "transposition_semitones": 0,
+        "sample": "Button Accordion HN B4.flac",
+        "tier": "core"
+      },
+      "60": {
+        "root_midi": 60,
+        "transposition_semitones": 0,
+        "sample": "Button Accordion HN C5.flac",
+        "tier": "core"
+      },
+      "61": {
+        "root_midi": 60,
+        "transposition_semitones": 1,
+        "sample": "Button Accordion HN C5.flac",
+        "tier": "core"
+      },
+      "62": {
+        "root_midi": 62,
+        "transposition_semitones": 0,
+        "sample": "Button Accordion HN D5.flac",
+        "tier": "core"
+      },
+      "63": {
+        "root_midi": 62,
+        "transposition_semitones": 1,
+        "sample": "Button Accordion HN D5.flac",
+        "tier": "core"
+      },
+      "64": {
+        "root_midi": 64,
+        "transposition_semitones": 0,
+        "sample": "Button Accordion HN E5.flac",
+        "tier": "core"
+      },
+      "65": {
+        "root_midi": 64,
+        "transposition_semitones": 1,
+        "sample": "Button Accordion HN E5.flac",
+        "tier": "core"
+      },
+      "66": {
+        "root_midi": 66,
+        "transposition_semitones": 0,
+        "sample": "Button Accordion HN F#5.flac",
+        "tier": "core"
+      },
+      "67": {
+        "root_midi": 67,
+        "transposition_semitones": 0,
+        "sample": "Button Accordion HN G5.flac",
+        "tier": "core"
+      },
+      "68": {
+        "root_midi": 67,
+        "transposition_semitones": 1,
+        "sample": "Button Accordion HN G5.flac",
+        "tier": "core"
+      },
+      "69": {
+        "root_midi": 69,
+        "transposition_semitones": 0,
+        "sample": "Button Accordion HN A5.flac",
+        "tier": "core"
+      },
+      "70": {
+        "root_midi": 69,
+        "transposition_semitones": 1,
+        "sample": "Button Accordion HN A5.flac",
+        "tier": "core"
+      },
+      "71": {
+        "root_midi": 71,
+        "transposition_semitones": 0,
+        "sample": "Button Accordion HN B5.flac",
+        "tier": "core"
+      },
+      "72": {
+        "root_midi": 72,
+        "transposition_semitones": 0,
+        "sample": "Button Accordion HN C6.flac",
+        "tier": "core"
+      },
+      "73": {
+        "root_midi": 72,
+        "transposition_semitones": 1,
+        "sample": "Button Accordion HN C6.flac",
+        "tier": "core"
+      },
+      "74": {
+        "root_midi": 74,
+        "transposition_semitones": 0,
+        "sample": "Button Accordion HN D6.flac",
+        "tier": "core"
+      },
+      "75": {
+        "root_midi": 74,
+        "transposition_semitones": 1,
+        "sample": "Button Accordion HN D6.flac",
+        "tier": "core"
+      },
+      "76": {
+        "root_midi": 76,
+        "transposition_semitones": 0,
+        "sample": "Button Accordion HN E6.flac",
+        "tier": "core"
+      },
+      "77": {
+        "root_midi": 76,
+        "transposition_semitones": 1,
+        "sample": "Button Accordion HN E6.flac",
+        "tier": "core"
+      },
+      "78": {
+        "root_midi": 76,
+        "transposition_semitones": 2,
+        "sample": "Button Accordion HN E6.flac",
+        "tier": "core"
+      },
+      "79": {
+        "root_midi": 79,
+        "transposition_semitones": 0,
+        "sample": "Button Accordion HN G6.flac",
+        "tier": "core"
+      },
+      "80": {
+        "root_midi": 79,
+        "transposition_semitones": 1,
+        "sample": "Button Accordion HN G6.flac",
+        "tier": "bounded_extension"
+      },
+      "81": {
+        "root_midi": 79,
+        "transposition_semitones": 2,
+        "sample": "Button Accordion HN G6.flac",
+        "tier": "bounded_extension"
+      },
+      "82": {
+        "root_midi": 79,
+        "transposition_semitones": 3,
+        "sample": "Button Accordion HN G6.flac",
+        "tier": "bounded_extension"
+      }
+    }
+  },
+  "failures": []
+}

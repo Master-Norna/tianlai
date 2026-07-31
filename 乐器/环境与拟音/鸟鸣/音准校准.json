@@ -1,0 +1,7 @@
+{
+  "applicable": false,
+  "pitch_mode": "not_pitched",
+  "reason": "鸣叫为 FM 滑频,频率随时间连续变化,非旋律入口;不做十二平均律校准",
+  "samples": {},
+  "generated_at": "2026-07-22"
+}

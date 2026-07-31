@@ -1,0 +1,37 @@
+{
+  "upstream": "sfzinstruments/MTG.SoloSax",
+  "origin": "https://github.com/sfzinstruments/MTG.SoloSax.git",
+  "upstream_commit": "b494d256549b3d088fdec176ce82867f8a1f58b2",
+  "installed_git_commit": "b494d256549b3d088fdec176ce82867f8a1f58b2",
+  "license": "CC-BY-4.0",
+  "source_file_count": 11,
+  "source_file_sha256": {
+    "MTG Solo Saxophones/Data/group_ten.txt": "d3ace96a36dc3d478fb0ba73b106369aa4cb6d16c08a4ecab9b31980e00a4354",
+    "MTG Solo Saxophones/Data/noise_ten.txt": "ba4dee69d8b04e9b7d9466b7875ab85c890e046316db75ccbb2fab6f2a81422c",
+    "MTG Solo Saxophones/Data/ten_f_rr1.txt": "81fb33f365c7edea22eb1ee7987e9f93ea8bdb1c3d8712251935bdcf55c7476f",
+    "MTG Solo Saxophones/Data/ten_f_rr2.txt": "f10f321f82ec1effefbc483b57740ee4c9839307688b365ef00c1a25336772f5",
+    "MTG Solo Saxophones/Data/ten_f_rr3.txt": "cd6d619da369d1c32112a2722c7fa4a41944a2e686f5b8ec2340f7ae1bddb7f3",
+    "MTG Solo Saxophones/Data/ten_p_rr1.txt": "bb4c990108daf7f139d8ffdf82c445cbe90fc90d516a54411ae666e882ada76a",
+    "MTG Solo Saxophones/Data/ten_p_rr2.txt": "5affb1602a05fd5791075092dbec36d2b0127e9d62e40d3c7d9b52e2c1d6b7c9",
+    "MTG Solo Saxophones/Data/ten_p_rr3.txt": "feacb2ff721b42ca767f7e02cdfa46783338a34af271ef3eecb988ccb43593c3",
+    "MTG Solo Saxophones/Data/volpan.txt": "afbd42d78a3318aeb6346dc8773f5d698d41acdc268fa47b2668ed3846dd8749",
+    "MTG Solo Saxophones/Data/xtension.txt": "a562f214572fc57ec19815c310b5f56a50cf932f5ccf1cf1e0dbd2e88a8b2cbd",
+    "MTG Solo Saxophones/MTG Tenor Sax.sfz": "28e25102e99a00f8dd864d8596ef2ac2a8a263203fe958814d9c9a54246ed636"
+  },
+  "evidence_sha256": {
+    "LICENSE": "9ba9550ad48438d0836ddab3da480b3b69ffa0aac7b7878b5a0039e7ab429411",
+    "README.md": "00a7d705e57077da7a62b942aa72d954b7675ce1210561fd6632a112ad44c23e"
+  },
+  "sample_count": 163,
+  "sample_bytes": 28340587,
+  "sample_formats": {
+    ".flac:48000Hz:1ch": 163
+  },
+  "pitched_region_count": 198,
+  "unique_pitched_sample_count": 66,
+  "looped_pitched_region_count": 198,
+  "breath_sample_count": 64,
+  "key_click_sample_count": 33,
+  "sample_set_sha256": "8d0d7d4a38a25d9eba959e85976730e8a357cafbc2eb97b26168e61737647368",
+  "sample_set_hash_algorithm": "sort unique asset-root-relative UTF-8 paths; concatenate lowercase '<sha256>  <path>\\n>'; SHA-256 the UTF-8 bytes"
+}

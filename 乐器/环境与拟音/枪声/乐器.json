@@ -1,0 +1,20 @@
+{
+  "name": "程序建模 枪声",
+  "type": "procedural_sfx",
+  "quality_tier": "formal",
+  "collaboration_review_status": "untested",
+  "upgrade_status": "deterministic_muzzle_blast_reflection_model",
+  "fallback_policy": "explicit_only_no_silent_gm",
+  "provenance_kind": "project_authored_dsp",
+  "implementation_license": "Apache-2.0",
+  "external_audio_assets": [],
+  "audio_asset_license": "not_applicable",
+  "license_status": "approved",
+  "implementation": "乐器.py",
+  "profile": "gunshot",
+  "engine_version": "1.1.0",
+  "seed": 398201749,
+  "expression_smoothing_seconds": 0.008,
+  "pitch_calibration": "音准校准.json",
+  "calibration_not_applicable_reason": "枪口冲击为宽带瞬态,无固定音高;MIDI 音高被主动忽略,不做十二平均律校准"
+}

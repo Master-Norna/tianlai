@@ -1,0 +1,20 @@
+{
+  "upstream": "Virtual Playing Orchestra",
+  "sfz_version": "Standard Orchestra 3.3 (2026-06-27)",
+  "wave_version": "Wave Files 3.2 (2026-06-27)",
+  "profile": "woodblock",
+  "source_sfz_sha256": {
+    "Percussion/misc.sfz": "4d8915d8d378751d3c6d3b4eae82a34bf5e3285e24db73fb6079622885fde952"
+  },
+  "sample_count": 2,
+  "sample_bytes": 42332,
+  "sample_set_sha256": "a4f17e99f268caf6a450514c40a10780beb96c9b9403c17d222ac0f4d5e4753e",
+  "sample_set_algorithm": "Sort unique VPO-relative UTF-8 paths; for each write '<lowercase file sha256>  <path>\\n'; SHA-256 the concatenated UTF-8 bytes.",
+  "license_file_sha256": {
+    "Documentation/license.htm": "852e3be507b193625eaf76bd18f4740209287781fb95f2a06d78ae9205d4682e"
+  },
+  "version_evidence_sha256": {
+    "Documentation/change-log-Standard-Orchestra.txt": "e74cf4054b94bf0549d9c4b1fd3fa1816bd8a54ab3ae8847dd254725b52b4667",
+    "Documentation/change-log-Wave-Files.txt": "c62001d37b9e9fb076784fad2cb339e98a7c1e5918369f2b4f4f68c9112c6db5"
+  }
+}

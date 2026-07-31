@@ -1,0 +1,368 @@
+{
+  "applicable": true,
+  "pitch_mode": "pitched",
+  "reference_a4_hz": 440.0,
+  "playback_calibration": "per-sample measured_detune_cents applied at runtime",
+  "measurement_role": "formal runtime correction; each current attack sample must have one finite measured_detune_cents value",
+  "applied_to_runtime": true,
+  "measurement_algorithm": "harmonic-constrained FFT of the raw source audio near the mapped pitch, start=0.9s, search +/-240 cents",
+  "summary": {
+    "sample_count": 50,
+    "median_measured_detune_cents": -0.129517,
+    "maximum_absolute_measured_detune_cents": 3.794793,
+    "median_residual_cents": -0.129517,
+    "maximum_absolute_residual_cents": 3.794793
+  },
+  "samples": {
+    "Idiophones/Struck Idiophones/Vibraphone/Bowed/Vibes_bowed_A2_rr1_Main.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 219.813147,
+      "measured_detune_cents": -1.471015,
+      "residual_after_upstream_map_cents": -1.471015
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Bowed/Vibes_bowed_A4_rr1_Main.wav": {
+      "root_midi": 81.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 879.760836,
+      "measured_detune_cents": -0.470574,
+      "residual_after_upstream_map_cents": -0.470574
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Bowed/Vibes_bowed_D4_rr1_Main.wav": {
+      "root_midi": 74.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 587.114534,
+      "measured_detune_cents": -0.633863,
+      "residual_after_upstream_map_cents": -0.633863
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Bowed/Vibes_bowed_E3_rr1_Main.wav": {
+      "root_midi": 64.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 329.441369,
+      "measured_detune_cents": -0.978152,
+      "residual_after_upstream_map_cents": -0.978152
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Bowed/Vibes_bowed_E5_rr1_Main.wav": {
+      "root_midi": 88.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1318.123003,
+      "measured_detune_cents": -0.50851,
+      "residual_after_upstream_map_cents": -0.50851
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Bowed/Vibes_bowed_G3_rr1_Main.wav": {
+      "root_midi": 67.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 391.773155,
+      "measured_detune_cents": -0.981976,
+      "residual_after_upstream_map_cents": -0.981976
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Hard Mallets/Vibes_hard_A2_v2_rr1_Main.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 219.841156,
+      "measured_detune_cents": -1.250437,
+      "residual_after_upstream_map_cents": -1.250437
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Hard Mallets/Vibes_hard_A2_v3_rr1_Main.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 219.643008,
+      "measured_detune_cents": -2.811537,
+      "residual_after_upstream_map_cents": -2.811537
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Hard Mallets/Vibes_hard_A4_v2_rr1_Main.wav": {
+      "root_midi": 81.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 880.081934,
+      "measured_detune_cents": 0.161182,
+      "residual_after_upstream_map_cents": 0.161182
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Hard Mallets/Vibes_hard_A4_v3_rr1_Main.wav": {
+      "root_midi": 81.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 879.951288,
+      "measured_detune_cents": -0.095835,
+      "residual_after_upstream_map_cents": -0.095835
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Hard Mallets/Vibes_hard_B3_v2_rr1_Main.wav": {
+      "root_midi": 71.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 493.913828,
+      "measured_detune_cents": 0.107004,
+      "residual_after_upstream_map_cents": 0.107004
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Hard Mallets/Vibes_hard_B3_v3_rr1_Main.wav": {
+      "root_midi": 71.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 493.963484,
+      "measured_detune_cents": 0.281046,
+      "residual_after_upstream_map_cents": 0.281046
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Hard Mallets/Vibes_hard_C3_v2_rr1_Main.wav": {
+      "root_midi": 60.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 261.430802,
+      "measured_detune_cents": -1.289274,
+      "residual_after_upstream_map_cents": -1.289274
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Hard Mallets/Vibes_hard_C3_v3_rr1_Main.wav": {
+      "root_midi": 60.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 261.422837,
+      "measured_detune_cents": -1.342019,
+      "residual_after_upstream_map_cents": -1.342019
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Hard Mallets/Vibes_hard_C5_v2_rr1_Main.wav": {
+      "root_midi": 84.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1046.371313,
+      "measured_detune_cents": -0.216642,
+      "residual_after_upstream_map_cents": -0.216642
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Hard Mallets/Vibes_hard_C5_v3_rr1_Main.wav": {
+      "root_midi": 84.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1046.521581,
+      "measured_detune_cents": 0.03196,
+      "residual_after_upstream_map_cents": 0.03196
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Hard Mallets/Vibes_hard_D4_v2_rr1_Main.wav": {
+      "root_midi": 74.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 587.456376,
+      "measured_detune_cents": 0.373839,
+      "residual_after_upstream_map_cents": 0.373839
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Hard Mallets/Vibes_hard_D4_v3_rr1_Main.wav": {
+      "root_midi": 74.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 587.295121,
+      "measured_detune_cents": -0.101447,
+      "residual_after_upstream_map_cents": -0.101447
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Hard Mallets/Vibes_hard_E3_v2_rr1_Main.wav": {
+      "root_midi": 64.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 329.688209,
+      "measured_detune_cents": 0.318523,
+      "residual_after_upstream_map_cents": 0.318523
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Hard Mallets/Vibes_hard_E3_v3_rr1_Main.wav": {
+      "root_midi": 64.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 329.560857,
+      "measured_detune_cents": -0.350349,
+      "residual_after_upstream_map_cents": -0.350349
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Hard Mallets/Vibes_hard_E5_v2_rr1_Main.wav": {
+      "root_midi": 88.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1318.495406,
+      "measured_detune_cents": -0.019462,
+      "residual_after_upstream_map_cents": -0.019462
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Hard Mallets/Vibes_hard_E5_v3_rr1_Main.wav": {
+      "root_midi": 88.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1318.580936,
+      "measured_detune_cents": 0.092839,
+      "residual_after_upstream_map_cents": 0.092839
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Hard Mallets/Vibes_hard_F2_v2_rr1_Main.wav": {
+      "root_midi": 53.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 174.997282,
+      "measured_detune_cents": 3.794793,
+      "residual_after_upstream_map_cents": 3.794793
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Hard Mallets/Vibes_hard_F2_v3_rr1_Main.wav": {
+      "root_midi": 53.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 174.750885,
+      "measured_detune_cents": 1.355489,
+      "residual_after_upstream_map_cents": 1.355489
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Hard Mallets/Vibes_hard_F4_v2_rr1_Main.wav": {
+      "root_midi": 77.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 698.431249,
+      "measured_detune_cents": -0.062497,
+      "residual_after_upstream_map_cents": -0.062497
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Hard Mallets/Vibes_hard_F4_v3_rr1_Main.wav": {
+      "root_midi": 77.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 698.281106,
+      "measured_detune_cents": -0.434704,
+      "residual_after_upstream_map_cents": -0.434704
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Hard Mallets/Vibes_hard_G3_v2_rr1_Main.wav": {
+      "root_midi": 67.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 391.881189,
+      "measured_detune_cents": -0.504641,
+      "residual_after_upstream_map_cents": -0.504641
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Hard Mallets/Vibes_hard_G3_v3_rr1_Main.wav": {
+      "root_midi": 67.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 391.930709,
+      "measured_detune_cents": -0.285888,
+      "residual_after_upstream_map_cents": -0.285888
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Soft Mallets/Vibes_soft_A2_v1_rr1_Main.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 220.043069,
+      "measured_detune_cents": 0.338887,
+      "residual_after_upstream_map_cents": 0.338887
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Soft Mallets/Vibes_soft_A2_v2_rr1_Main.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 219.998425,
+      "measured_detune_cents": -0.012394,
+      "residual_after_upstream_map_cents": -0.012394
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Soft Mallets/Vibes_soft_A4_v1_rr1_Main.wav": {
+      "root_midi": 81.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 879.821911,
+      "measured_detune_cents": -0.350393,
+      "residual_after_upstream_map_cents": -0.350393
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Soft Mallets/Vibes_soft_A4_v2_rr1_Main.wav": {
+      "root_midi": 81.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 880.030665,
+      "measured_detune_cents": 0.060327,
+      "residual_after_upstream_map_cents": 0.060327
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Soft Mallets/Vibes_soft_B3_v1_rr1_Main.wav": {
+      "root_midi": 71.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 493.805853,
+      "measured_detune_cents": -0.271506,
+      "residual_after_upstream_map_cents": -0.271506
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Soft Mallets/Vibes_soft_B3_v2_rr1_Main.wav": {
+      "root_midi": 71.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 493.906422,
+      "measured_detune_cents": 0.081045,
+      "residual_after_upstream_map_cents": 0.081045
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Soft Mallets/Vibes_soft_C3_v1_rr2_Main.wav": {
+      "root_midi": 60.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 261.561189,
+      "measured_detune_cents": -0.426046,
+      "residual_after_upstream_map_cents": -0.426046
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Soft Mallets/Vibes_soft_C3_v2_rr1_Main.wav": {
+      "root_midi": 60.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 261.520063,
+      "measured_detune_cents": -0.698271,
+      "residual_after_upstream_map_cents": -0.698271
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Soft Mallets/Vibes_soft_C5_v1_rr1_Main.wav": {
+      "root_midi": 84.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1046.448531,
+      "measured_detune_cents": -0.088888,
+      "residual_after_upstream_map_cents": -0.088888
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Soft Mallets/Vibes_soft_C5_v2_rr1_Main.wav": {
+      "root_midi": 84.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1046.419255,
+      "measured_detune_cents": -0.137323,
+      "residual_after_upstream_map_cents": -0.137323
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Soft Mallets/Vibes_soft_D4_v1_rr1_Main.wav": {
+      "root_midi": 74.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 587.450921,
+      "measured_detune_cents": 0.357761,
+      "residual_after_upstream_map_cents": 0.357761
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Soft Mallets/Vibes_soft_D4_v2_rr1_Main.wav": {
+      "root_midi": 74.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 587.28357,
+      "measured_detune_cents": -0.135496,
+      "residual_after_upstream_map_cents": -0.135496
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Soft Mallets/Vibes_soft_E3_v1_rr2_Main.wav": {
+      "root_midi": 64.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 329.627857,
+      "measured_detune_cents": 0.001575,
+      "residual_after_upstream_map_cents": 0.001575
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Soft Mallets/Vibes_soft_E3_v2_rr1_Main.wav": {
+      "root_midi": 64.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 329.600958,
+      "measured_detune_cents": -0.139708,
+      "residual_after_upstream_map_cents": -0.139708
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Soft Mallets/Vibes_soft_E5_v1_rr1_Main.wav": {
+      "root_midi": 88.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1318.329458,
+      "measured_detune_cents": -0.237372,
+      "residual_after_upstream_map_cents": -0.237372
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Soft Mallets/Vibes_soft_E5_v2_rr1_Main.wav": {
+      "root_midi": 88.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1318.673062,
+      "measured_detune_cents": 0.213792,
+      "residual_after_upstream_map_cents": 0.213792
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Soft Mallets/Vibes_soft_F2_v1_rr1_Main.wav": {
+      "root_midi": 53.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 174.280376,
+      "measured_detune_cents": -3.312068,
+      "residual_after_upstream_map_cents": -3.312068
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Soft Mallets/Vibes_soft_F2_v2_rr1_Main.wav": {
+      "root_midi": 53.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 174.734027,
+      "measured_detune_cents": 1.188469,
+      "residual_after_upstream_map_cents": 1.188469
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Soft Mallets/Vibes_soft_F4_v1_rr1_Main.wav": {
+      "root_midi": 77.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 698.663907,
+      "measured_detune_cents": 0.514105,
+      "residual_after_upstream_map_cents": 0.514105
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Soft Mallets/Vibes_soft_F4_v2_rr1_Main.wav": {
+      "root_midi": 77.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 698.517419,
+      "measured_detune_cents": 0.151082,
+      "residual_after_upstream_map_cents": 0.151082
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Soft Mallets/Vibes_soft_G3_v1_rr1_Main.wav": {
+      "root_midi": 67.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 391.827219,
+      "measured_detune_cents": -0.743082,
+      "residual_after_upstream_map_cents": -0.743082
+    },
+    "Idiophones/Struck Idiophones/Vibraphone/Soft Mallets/Vibes_soft_G3_v2_rr1_Main.wav": {
+      "root_midi": 67.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 391.967465,
+      "measured_detune_cents": -0.123538,
+      "residual_after_upstream_map_cents": -0.123538
+    }
+  }
+}

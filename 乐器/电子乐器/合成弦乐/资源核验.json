@@ -1,0 +1,15 @@
+{
+  "implementation": "Tianlai self-authored procedural DSP",
+  "engine": "synthesizer.py",
+  "engine_version": "1.0.0",
+  "patch": "synth_strings",
+  "seed": 1618033988,
+  "engine_sha256": "16FA5D989EF5E4B73E931CCA479023FA3EAFF6341E7FAEE58906233991EF95B0",
+  "external_assets": [],
+  "provenance_kind": "project_authored_dsp",
+  "implementation_license": "Apache-2.0",
+  "external_audio_assets": [],
+  "audio_asset_license": "not_applicable",
+  "license_status": "approved",
+  "generated_at": "2026-07-27"
+}

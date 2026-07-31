@@ -1,0 +1,3053 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tianlai.local/schemas/instrument.schema.json",
+  "title": "Tianlai Instrument Manifest",
+  "description": "天籁无界面乐器清单。公共双轴质量状态、来源、音域、奏法和效果字段由 $defs 统一约束，各后端分支只补充自己的专有字段。",
+  "$defs": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "assetRelativePosixPath": {
+      "description": "Canonical asset-root-relative POSIX path: no absolute/drive path, backslash, colon, repeated slash, or dot traversal segment.",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*//)(?!.*\\\\)(?!.*:).+$"
+    },
+    "midiNote": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 127
+    },
+    "nonNegativeNumber": {
+      "type": "number",
+      "minimum": 0
+    },
+    "positiveNumber": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "unitNumber": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "base": {
+      "type": "object",
+      "required": [
+        "name",
+        "type"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "type": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "onset_overlap_policy": {
+          "description": "How a later written onset is classified while an earlier note is still held. Missing declarations use the conservative fail-closed policy.",
+          "enum": [
+            "conservative",
+            "polyphonic_independent",
+            "monophonic_connected"
+          ],
+          "default": "conservative"
+        },
+        "articulation_auto_default": {
+          "type": "boolean",
+          "description": "Instrument-level master default for duration-based automatic articulation selection. It has no effect unless duration_articulation_rules are declared; roster assignments may override the switch explicitly.",
+          "default": true
+        },
+        "duration_articulation_rules": {
+          "description": "Explicit opt-in contracts for replacing an unmarked default articulation according to the deterministic effective gate duration. Supporting an articulation name alone never authorizes automatic substitution.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "rule_id",
+              "source_articulation",
+              "target_articulation",
+              "below_seconds"
+            ],
+            "properties": {
+              "rule_id": {
+                "$ref": "#/$defs/nonEmptyString"
+              },
+              "source_articulation": {
+                "$ref": "#/$defs/nonEmptyString"
+              },
+              "target_articulation": {
+                "$ref": "#/$defs/nonEmptyString"
+              },
+              "below_seconds": {
+                "$ref": "#/$defs/positiveNumber"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    "candidateMetadata": {
+      "type": "object",
+      "required": [
+        "quality_tier",
+        "collaboration_review_status",
+        "upgrade_status",
+        "fallback_policy"
+      ],
+      "properties": {
+        "quality_tier": {
+          "enum": [
+            "candidate",
+            "formal"
+          ],
+          "description": "formal means the current bound instrument passed the project's standalone single-instrument acceptance only. It does not imply ensemble, mix, licence, trusted-palette or strict-HQ approval."
+        },
+        "collaboration_review_status": {
+          "enum": [
+            "untested",
+            "in_progress",
+            "passed",
+            "failed"
+          ],
+          "description": "Independent ensemble/collaboration review axis. It never changes quality_tier, licence policy or trusted-palette membership automatically."
+        },
+        "upgrade_status": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "fallback_policy": {
+          "const": "explicit_only_no_silent_gm"
+        },
+        "manual_review": {
+          "enum": [
+            "pending",
+            "passed"
+          ],
+          "deprecated": true,
+          "description": "Deprecated mixed-semantics field retained only for old documents. New manifests use quality_tier plus collaboration_review_status."
+        },
+        "license_status": {
+          "enum": [
+            "approved",
+            "grandfathered",
+            "quarantined"
+          ]
+        }
+      }
+    },
+    "implementationFields": {
+      "type": "object",
+      "properties": {
+        "implementation": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "instrument_name": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "display_name": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "engine_version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$"
+        }
+      }
+    },
+    "sampledAsset": {
+      "type": "object",
+      "required": [
+        "asset_root",
+        "license_status"
+      ],
+      "properties": {
+        "asset_root": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "reference_a4_hz": {
+          "$ref": "#/$defs/positiveNumber"
+        }
+      },
+      "allOf": [
+        {
+          "$ref": "#/$defs/sourceProvenance"
+        },
+        {
+          "$ref": "#/$defs/licenseEvidence"
+        }
+      ]
+    },
+    "sourceProvenance": {
+      "type": "object",
+      "required": [
+        "upstream",
+        "origin",
+        "upstream_version",
+        "license"
+      ],
+      "properties": {
+        "upstream": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "origin": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "upstream_version": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "upstream_commit": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "license": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      }
+    },
+    "licenseEvidence": {
+      "type": "object",
+      "required": [
+        "evidence_files"
+      ],
+      "properties": {
+        "evidence_files": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/nonEmptyString"
+          }
+        }
+      }
+    },
+    "projectAuthoredDspProvenance": {
+      "type": "object",
+      "required": [
+        "provenance_kind",
+        "implementation_license",
+        "external_audio_assets",
+        "audio_asset_license",
+        "license_status"
+      ],
+      "properties": {
+        "provenance_kind": {
+          "const": "project_authored_dsp"
+        },
+        "implementation_license": {
+          "const": "Apache-2.0"
+        },
+        "external_audio_assets": {
+          "type": "array",
+          "maxItems": 0
+        },
+        "audio_asset_license": {
+          "const": "not_applicable"
+        },
+        "license_status": {
+          "const": "approved"
+        }
+      }
+    },
+    "verificationFields": {
+      "type": "object",
+      "properties": {
+        "resource_verification": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "pitch_calibration": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "calibration_not_applicable_reason": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "range_evidence": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "modeling_rationale": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      }
+    },
+    "midiRangePair": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "prefixItems": [
+        {
+          "$ref": "#/$defs/midiNote"
+        },
+        {
+          "$ref": "#/$defs/midiNote"
+        }
+      ],
+      "items": false
+    },
+    "rangeProfileMidiNote": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 127
+    },
+    "rangeProfileMidiPair": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "prefixItems": [
+        {
+          "$ref": "#/$defs/rangeProfileMidiNote"
+        },
+        {
+          "$ref": "#/$defs/rangeProfileMidiNote"
+        }
+      ],
+      "items": false
+    },
+    "rangeProfileRanges": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/rangeProfileMidiPair"
+      }
+    },
+    "optionalRangeProfileRanges": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/rangeProfileMidiPair"
+          }
+        }
+      ]
+    },
+    "runtimeConfigurationScalar": {
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "resolvedRuntimeConfiguration": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "minLength": 1
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/runtimeConfigurationScalar"
+      }
+    },
+    "rangeProfileSelector": {
+      "type": "object",
+      "required": [
+        "resolved_runtime_configuration",
+        "final_articulation"
+      ],
+      "properties": {
+        "resolved_runtime_configuration": {
+          "$ref": "#/$defs/resolvedRuntimeConfiguration"
+        },
+        "final_articulation": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      },
+      "additionalProperties": false
+    },
+    "rangeProfilePhysical": {
+      "type": "object",
+      "required": [
+        "hard_playable_ranges",
+        "idiomatic_ranges",
+        "extended_ranges"
+      ],
+      "properties": {
+        "hard_playable_ranges": {
+          "$ref": "#/$defs/rangeProfileRanges"
+        },
+        "idiomatic_ranges": {
+          "$ref": "#/$defs/optionalRangeProfileRanges"
+        },
+        "extended_ranges": {
+          "$ref": "#/$defs/optionalRangeProfileRanges"
+        }
+      },
+      "additionalProperties": false
+    },
+    "rangeProfileRenderQuality": {
+      "type": "object",
+      "required": [
+        "current_high_quality_render_ranges",
+        "status",
+        "approval_evidence"
+      ],
+      "properties": {
+        "current_high_quality_render_ranges": {
+          "$ref": "#/$defs/optionalRangeProfileRanges"
+        },
+        "status": {
+          "enum": [
+            "pending",
+            "contract_candidate",
+            "rejected"
+          ]
+        },
+        "approval_evidence": {
+          "type": "null",
+          "description": "Reserved fail-closed slot. The current protocol cannot approve HQ ranges until compound-variant proof and a strict human-review summary contract exist."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "pending"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "current_high_quality_render_ranges": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "contract_candidate"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "current_high_quality_render_ranges": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "$ref": "#/$defs/rangeProfileMidiPair"
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "rejected"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "current_high_quality_render_ranges": {
+                "type": "array",
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "rangeProfile": {
+      "type": "object",
+      "required": [
+        "profile_id",
+        "selector",
+        "physical",
+        "render_quality"
+      ],
+      "properties": {
+        "profile_id": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "selector": {
+          "$ref": "#/$defs/rangeProfileSelector"
+        },
+        "physical": {
+          "$ref": "#/$defs/rangeProfilePhysical"
+        },
+        "render_quality": {
+          "$ref": "#/$defs/rangeProfileRenderQuality"
+        }
+      },
+      "additionalProperties": false
+    },
+    "rangeProfiles": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "pitch_unit",
+        "profiles",
+        "fallback_policy"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "pitch_unit": {
+          "const": "concert_midi_note"
+        },
+        "unknown_value_semantics": {
+          "const": "null_means_unreviewed"
+        },
+        "profiles": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/rangeProfile"
+          }
+        },
+        "fallback_policy": {
+          "const": "reject_unknown_configuration_or_final_articulation"
+        }
+      },
+      "additionalProperties": false
+    },
+    "rangeFields": {
+      "type": "object",
+      "properties": {
+        "note_min": {
+          "$ref": "#/$defs/midiNote"
+        },
+        "note_max": {
+          "$ref": "#/$defs/midiNote"
+        },
+        "fixed_midi_note": {
+          "$ref": "#/$defs/midiNote"
+        },
+        "fixed_source_midi_note": {
+          "$ref": "#/$defs/midiNote"
+        },
+        "sampled_range": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "sampled_range_note": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "playable_ranges": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/midiRangePair"
+          }
+        },
+        "articulation_playable_ranges": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {
+            "type": "string",
+            "minLength": 1
+          },
+          "additionalProperties": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/$defs/midiRangePair"
+            }
+          }
+        },
+        "range_profiles": {
+          "$ref": "#/$defs/rangeProfiles"
+        },
+        "written_note_min": {
+          "$ref": "#/$defs/midiNote"
+        },
+        "written_note_max": {
+          "$ref": "#/$defs/midiNote"
+        },
+        "written_range": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "written_to_sounding_semitones": {
+          "type": "number"
+        },
+        "written_to_concert_semitones": {
+          "type": "number"
+        },
+        "input_pitch_semantics": {
+          "const": "concert_pitch"
+        },
+        "pitch_input": {
+          "const": "sounding"
+        },
+        "pitch_semantics": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "transposing_instrument_key": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      }
+    },
+    "audioControls": {
+      "type": "object",
+      "properties": {
+        "gain": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "main_gain": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "output_gain": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "output_trim": {
+          "$ref": "#/$defs/positiveNumber"
+        },
+        "velocity_exponent": {
+          "$ref": "#/$defs/positiveNumber"
+        },
+        "pan": {
+          "type": "number",
+          "minimum": -1,
+          "maximum": 1
+        },
+        "attack_seconds": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "release_seconds": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "one_shot_seconds": {
+          "$ref": "#/$defs/positiveNumber"
+        },
+        "release_tail_gain": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "fast_attack_seconds": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "legato_attack_seconds": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "legato_release_seconds": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "short_gate_seconds": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "short_release_seconds": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "tongue_choke_seconds": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "choke_seconds": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "gate_seconds": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "transient_gate_seconds": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "stop_fade_seconds": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "accent_delay_seconds": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "expression_smoothing_seconds": {
+          "$ref": "#/$defs/positiveNumber"
+        },
+        "breath_smoothing_seconds": {
+          "$ref": "#/$defs/positiveNumber"
+        },
+        "modulation_smoothing_seconds": {
+          "$ref": "#/$defs/positiveNumber"
+        },
+        "noise_smoothing_seconds": {
+          "$ref": "#/$defs/positiveNumber"
+        },
+        "calibration_search_cents": {
+          "$ref": "#/$defs/positiveNumber"
+        },
+        "calibration_start_seconds": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "calibration_harmonic_count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32
+        },
+        "auxiliary_note_id_base": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "brass_auxiliary_note_id_base": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "layer_auxiliary_note_id_base": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "legato_offset_frames": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "modulation_attack_bins": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 33
+        },
+        "modulation_attack_extension_seconds": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "noise_default": {
+          "$ref": "#/$defs/unitNumber"
+        },
+        "noise_gain": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "vibrato_depth_cents": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "vibrato_fade_seconds": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "vibrato_rate_hz": {
+          "$ref": "#/$defs/positiveNumber"
+        },
+        "hammer_noise": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "release_noise_exponent": {
+          "$ref": "#/$defs/positiveNumber"
+        },
+        "hammer_rt_decay_db_per_second": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "string_resonance": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "resonance_velocity_exponent": {
+          "$ref": "#/$defs/positiveNumber"
+        },
+        "pedal_noise": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "main_retrigger_release_seconds": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "sustain_threshold": {
+          "$ref": "#/$defs/unitNumber"
+        },
+        "open_release_seconds": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "dampened_release_seconds": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "bass_drum_gain": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "brass_gain": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "cymbal_gain": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "strings_gain": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        }
+      }
+    },
+    "numericGainMap": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/$defs/nonNegativeNumber"
+      }
+    },
+    "sfzArticulation": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        {
+          "type": "object",
+          "required": [
+            "sfz"
+          ],
+          "properties": {
+            "sfz": {
+              "$ref": "#/$defs/nonEmptyString"
+            },
+            "keyswitch_select": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/nonEmptyString"
+                },
+                {
+                  "$ref": "#/$defs/midiNote"
+                }
+              ]
+            },
+            "keyswitch_sequence": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/nonEmptyString"
+                  },
+                  {
+                    "$ref": "#/$defs/midiNote"
+                  }
+                ]
+              }
+            },
+            "playable_ranges": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/midiRangePair"
+              }
+            },
+            "use_embedded_loops": {
+              "type": "boolean"
+            },
+            "gain": {
+              "$ref": "#/$defs/nonNegativeNumber"
+            },
+            "velocity_exponent": {
+              "$ref": "#/$defs/positiveNumber"
+            },
+            "release_seconds": {
+              "$ref": "#/$defs/nonNegativeNumber"
+            },
+            "attack_override_seconds": {
+              "$ref": "#/$defs/nonNegativeNumber"
+            },
+            "release_override_seconds": {
+              "$ref": "#/$defs/nonNegativeNumber"
+            },
+            "release_trigger_gain": {
+              "$ref": "#/$defs/nonNegativeNumber"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "articulationMap": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "type": "string",
+        "minLength": 1
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/sfzArticulation"
+      }
+    },
+    "articulationFields": {
+      "type": "object",
+      "properties": {
+        "articulations": {
+          "$ref": "#/$defs/articulationMap"
+        },
+        "allowed_articulations": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/nonEmptyString"
+          }
+        },
+        "default_articulation": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "calibration_articulation": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "articulation_gain": {
+          "$ref": "#/$defs/numericGainMap"
+        }
+      }
+    },
+    "effect": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "highpass",
+            "lowpass",
+            "peak",
+            "waveshaper",
+            "chorus"
+          ]
+        },
+        "cutoff_hz": {
+          "$ref": "#/$defs/positiveNumber"
+        },
+        "center_hz": {
+          "$ref": "#/$defs/positiveNumber"
+        },
+        "q": {
+          "$ref": "#/$defs/positiveNumber"
+        },
+        "gain_db": {
+          "type": "number"
+        },
+        "curve": {
+          "enum": [
+            "soft",
+            "hard"
+          ]
+        },
+        "pre_gain": {
+          "$ref": "#/$defs/positiveNumber"
+        },
+        "post_gain": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "rate_hz": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "depth_seconds": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "base_delay_seconds": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "mix": {
+          "$ref": "#/$defs/unitNumber"
+        },
+        "stereo_phase": {
+          "type": "number"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "highpass",
+                  "lowpass"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "cutoff_hz"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "peak"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "center_hz",
+              "q",
+              "gain_db"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "waveshaper"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "curve",
+              "pre_gain",
+              "post_gain"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "chorus"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "rate_hz",
+              "depth_seconds",
+              "base_delay_seconds",
+              "mix",
+              "stereo_phase"
+            ]
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "effectsFields": {
+      "type": "object",
+      "properties": {
+        "effects": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/effect"
+          }
+        }
+      }
+    },
+    "sampleRegion": {
+      "type": "object",
+      "required": [
+        "sample"
+      ],
+      "properties": {
+        "sample": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "root_midi": {
+          "$ref": "#/$defs/midiNote"
+        },
+        "root_pitch_hz": {
+          "$ref": "#/$defs/positiveNumber"
+        },
+        "measured_tuning_cents": {
+          "type": "number"
+        },
+        "velocity_min": {
+          "$ref": "#/$defs/unitNumber"
+        },
+        "velocity_max": {
+          "$ref": "#/$defs/unitNumber"
+        },
+        "key_min": {
+          "$ref": "#/$defs/midiNote"
+        },
+        "key_max": {
+          "$ref": "#/$defs/midiNote"
+        },
+        "gain_db": {
+          "type": "number"
+        },
+        "pan": {
+          "type": "number",
+          "minimum": -1,
+          "maximum": 1
+        },
+        "delay_seconds": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "attack_seconds": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "release_seconds": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "offset_frames": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sample_end": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "loop_start": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "loop_end": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "use_embedded_loop": {
+          "type": "boolean"
+        },
+        "loop_mode": {
+          "enum": [
+            "no_loop",
+            "one_shot",
+            "loop_continuous",
+            "loop_sustain"
+          ]
+        },
+        "stereo_width": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2
+        },
+        "stable_key": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "pitch_random_cents": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "amplitude_random_db": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "delay_random_seconds": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "round_robin_position": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "round_robin_length": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "root_midi"
+          ]
+        },
+        {
+          "required": [
+            "root_pitch_hz"
+          ]
+        }
+      ],
+      "additionalProperties": false
+    },
+    "synthParameters": {
+      "type": "object",
+      "properties": {
+        "unison_voices": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9
+        },
+        "detune_cents": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "stereo_width": {
+          "$ref": "#/$defs/unitNumber"
+        },
+        "attack_seconds": {
+          "$ref": "#/$defs/positiveNumber"
+        },
+        "decay_seconds": {
+          "$ref": "#/$defs/positiveNumber"
+        },
+        "sustain_level": {
+          "$ref": "#/$defs/unitNumber"
+        },
+        "release_seconds": {
+          "$ref": "#/$defs/positiveNumber"
+        },
+        "gain": {
+          "$ref": "#/$defs/positiveNumber"
+        },
+        "velocity_exponent": {
+          "$ref": "#/$defs/positiveNumber"
+        },
+        "cutoff_hz": {
+          "$ref": "#/$defs/positiveNumber"
+        },
+        "resonance": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 0.97
+        },
+        "filter_keytrack": {
+          "type": "number"
+        },
+        "filter_env_octaves": {
+          "type": "number"
+        },
+        "filter_env_decay_seconds": {
+          "$ref": "#/$defs/positiveNumber"
+        },
+        "filter_lfo_octaves": {
+          "type": "number"
+        },
+        "lfo_rate_hz": {
+          "$ref": "#/$defs/positiveNumber"
+        },
+        "vibrato_cents": {
+          "type": "number"
+        },
+        "pulse_width": {
+          "type": "number",
+          "minimum": 0.02,
+          "maximum": 0.98
+        },
+        "noise_amount": {
+          "$ref": "#/$defs/unitNumber"
+        },
+        "fm_ratio": {
+          "$ref": "#/$defs/positiveNumber"
+        },
+        "fm_index": {
+          "type": "number"
+        },
+        "drive": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "oneOf": [
+    {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/base"
+        },
+        {
+          "$ref": "#/$defs/implementationFields"
+        },
+        {
+          "$ref": "#/$defs/rangeFields"
+        },
+        {
+          "$ref": "#/$defs/audioControls"
+        }
+      ],
+      "required": [
+        "implementation",
+        "harmonics"
+      ],
+      "properties": {
+        "type": {
+          "const": "oscillator"
+        },
+        "harmonics": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "number"
+          }
+        },
+        "runtime_asset_policy": {
+          "const": "no_external_audio_assets"
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/base"
+        },
+        {
+          "$ref": "#/$defs/candidateMetadata"
+        },
+        {
+          "$ref": "#/$defs/implementationFields"
+        },
+        {
+          "$ref": "#/$defs/verificationFields"
+        },
+        {
+          "$ref": "#/$defs/rangeFields"
+        },
+        {
+          "$ref": "#/$defs/audioControls"
+        },
+        {
+          "$ref": "#/$defs/articulationFields"
+        },
+        {
+          "$ref": "#/$defs/projectAuthoredDspProvenance"
+        }
+      ],
+      "required": [
+        "implementation",
+        "instrument_name",
+        "engine_version",
+        "model_family",
+        "modeling_rationale",
+        "resource_verification",
+        "pitch_calibration",
+        "external_assets",
+        "seed",
+        "note_min",
+        "note_max",
+        "sampled_range",
+        "input_pitch_semantics",
+        "pitch_semantics",
+        "allowed_articulations",
+        "default_articulation",
+        "supported_controls",
+        "gain",
+        "velocity_exponent",
+        "expression_smoothing_seconds",
+        "modulation_smoothing_seconds"
+      ],
+      "properties": {
+        "type": {
+          "const": "modeled_bianzhong"
+        },
+        "implementation": {
+          "const": "乐器.py"
+        },
+        "engine_version": {
+          "const": "1.0.0"
+        },
+        "model_family": {
+          "const": "representative_double_tone_bell_modal_bank"
+        },
+        "collaboration_review_status": {
+          "const": "untested"
+        },
+        "external_assets": {
+          "type": "array",
+          "maxItems": 0
+        },
+        "seed": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        "note_min": {
+          "const": 36
+        },
+        "note_max": {
+          "const": 98
+        },
+        "input_pitch_semantics": {
+          "const": "concert_pitch"
+        },
+        "pitch_semantics": {
+          "const": "sounding_pitch_nonharmonic_modal"
+        },
+        "allowed_articulations": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "prefixItems": [
+            {
+              "const": "zhenggu"
+            },
+            {
+              "const": "cegu"
+            }
+          ],
+          "items": false
+        },
+        "default_articulation": {
+          "const": "zhenggu"
+        },
+        "supported_controls": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "prefixItems": [
+            {
+              "const": "expression"
+            },
+            {
+              "const": "modulation"
+            }
+          ],
+          "items": false
+        },
+        "gain": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 0.15
+        },
+        "velocity_exponent": {
+          "type": "number",
+          "minimum": 0.5,
+          "maximum": 1.2
+        },
+        "expression_smoothing_seconds": {
+          "type": "number",
+          "minimum": 0.001,
+          "maximum": 0.1
+        },
+        "modulation_smoothing_seconds": {
+          "type": "number",
+          "minimum": 0.001,
+          "maximum": 0.1
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/base"
+        },
+        {
+          "$ref": "#/$defs/candidateMetadata"
+        },
+        {
+          "$ref": "#/$defs/implementationFields"
+        },
+        {
+          "$ref": "#/$defs/sampledAsset"
+        },
+        {
+          "$ref": "#/$defs/verificationFields"
+        },
+        {
+          "$ref": "#/$defs/rangeFields"
+        },
+        {
+          "$ref": "#/$defs/audioControls"
+        },
+        {
+          "$ref": "#/$defs/articulationFields"
+        }
+      ],
+      "required": [
+        "implementation",
+        "instrument_name",
+        "sample_subtree",
+        "pitch_calibration",
+        "resource_verification",
+        "note_min",
+        "note_max",
+        "sampled_range",
+        "recorded_root_range",
+        "upper_extension_note",
+        "input_pitch_semantics",
+        "allowed_articulations",
+        "default_articulation",
+        "articulation_source_semantics",
+        "recorded_velocity_layers",
+        "velocity_behavior",
+        "recorded_round_robins",
+        "articulation_gain",
+        "sustain_attack_seconds",
+        "sustain_release_seconds",
+        "spiccato_attack_seconds",
+        "distribution_origin",
+        "license_scope"
+      ],
+      "properties": {
+        "type": {
+          "const": "vsco2_viola_section"
+        },
+        "sample_subtree": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "recorded_root_range": {
+          "type": "object",
+          "required": [
+            "sustain",
+            "spiccato"
+          ],
+          "properties": {
+            "sustain": {
+              "$ref": "#/$defs/midiRangePair"
+            },
+            "spiccato": {
+              "$ref": "#/$defs/midiRangePair"
+            }
+          },
+          "additionalProperties": false
+        },
+        "upper_extension_note": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "allowed_articulations": {
+          "const": [
+            "sustain",
+            "spiccato"
+          ]
+        },
+        "default_articulation": {
+          "const": "sustain"
+        },
+        "articulation_source_semantics": {
+          "type": "object",
+          "required": [
+            "sustain",
+            "spiccato"
+          ],
+          "properties": {
+            "sustain": {
+              "$ref": "#/$defs/nonEmptyString"
+            },
+            "spiccato": {
+              "$ref": "#/$defs/nonEmptyString"
+            }
+          },
+          "additionalProperties": false
+        },
+        "recorded_velocity_layers": {
+          "type": "object",
+          "required": [
+            "sustain",
+            "spiccato"
+          ],
+          "properties": {
+            "sustain": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "spiccato": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "velocity_behavior": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "recorded_round_robins": {
+          "type": "object",
+          "required": [
+            "sustain",
+            "spiccato"
+          ],
+          "properties": {
+            "sustain": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "spiccato": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "articulation_gain": {
+          "type": "object",
+          "required": [
+            "sustain",
+            "spiccato"
+          ],
+          "properties": {
+            "sustain": {
+              "$ref": "#/$defs/nonNegativeNumber"
+            },
+            "spiccato": {
+              "$ref": "#/$defs/nonNegativeNumber"
+            }
+          },
+          "additionalProperties": false
+        },
+        "sustain_attack_seconds": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "sustain_release_seconds": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "spiccato_attack_seconds": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "distribution_origin": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "license_scope": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/base"
+        },
+        {
+          "$ref": "#/$defs/audioControls"
+        }
+      ],
+      "required": [
+        "regions"
+      ],
+      "properties": {
+        "type": {
+          "const": "sample"
+        },
+        "reference_a4_hz": {
+          "$ref": "#/$defs/positiveNumber"
+        },
+        "regions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/sampleRegion"
+          }
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/base"
+        },
+        {
+          "$ref": "#/$defs/candidateMetadata"
+        },
+        {
+          "$ref": "#/$defs/implementationFields"
+        },
+        {
+          "$ref": "#/$defs/sampledAsset"
+        },
+        {
+          "$ref": "#/$defs/sourceProvenance"
+        },
+        {
+          "$ref": "#/$defs/verificationFields"
+        },
+        {
+          "$ref": "#/$defs/rangeFields"
+        },
+        {
+          "$ref": "#/$defs/audioControls"
+        }
+      ],
+      "required": [
+        "implementation",
+        "pitch_calibration",
+        "resource_verification",
+        "note_min",
+        "note_max"
+      ],
+      "properties": {
+        "type": {
+          "const": "piano"
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/base"
+        },
+        {
+          "$ref": "#/$defs/candidateMetadata"
+        },
+        {
+          "$ref": "#/$defs/implementationFields"
+        },
+        {
+          "$ref": "#/$defs/sampledAsset"
+        },
+        {
+          "$ref": "#/$defs/sourceProvenance"
+        },
+        {
+          "$ref": "#/$defs/verificationFields"
+        },
+        {
+          "$ref": "#/$defs/rangeFields"
+        },
+        {
+          "$ref": "#/$defs/audioControls"
+        },
+        {
+          "$ref": "#/$defs/articulationFields"
+        }
+      ],
+      "required": [
+        "implementation",
+        "pitch_calibration",
+        "resource_verification",
+        "note_min",
+        "note_max",
+        "default_articulation",
+        "articulation_gain"
+      ],
+      "properties": {
+        "type": {
+          "const": "violin"
+        },
+        "sample_variant": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "sample_variant_note": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "variant_articulation_gain": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "$ref": "#/$defs/numericGainMap"
+          }
+        },
+        "variant_articulation_gain_note": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "variant_gain": {
+          "$ref": "#/$defs/numericGainMap"
+        },
+        "variant_gain_note": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/base"
+        },
+        {
+          "$ref": "#/$defs/candidateMetadata"
+        },
+        {
+          "$ref": "#/$defs/implementationFields"
+        },
+        {
+          "$ref": "#/$defs/sampledAsset"
+        },
+        {
+          "$ref": "#/$defs/sourceProvenance"
+        },
+        {
+          "$ref": "#/$defs/verificationFields"
+        },
+        {
+          "$ref": "#/$defs/rangeFields"
+        },
+        {
+          "$ref": "#/$defs/audioControls"
+        },
+        {
+          "$ref": "#/$defs/articulationFields"
+        }
+      ],
+      "required": [
+        "implementation",
+        "pitch_calibration",
+        "resource_verification",
+        "note_min",
+        "note_max",
+        "default_articulation",
+        "articulation_gain"
+      ],
+      "properties": {
+        "type": {
+          "const": "cello"
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/base"
+        },
+        {
+          "$ref": "#/$defs/candidateMetadata"
+        },
+        {
+          "$ref": "#/$defs/implementationFields"
+        },
+        {
+          "$ref": "#/$defs/sampledAsset"
+        },
+        {
+          "$ref": "#/$defs/sourceProvenance"
+        },
+        {
+          "$ref": "#/$defs/verificationFields"
+        },
+        {
+          "$ref": "#/$defs/rangeFields"
+        },
+        {
+          "$ref": "#/$defs/audioControls"
+        },
+        {
+          "$ref": "#/$defs/articulationFields"
+        }
+      ],
+      "required": [
+        "implementation",
+        "pitch_calibration",
+        "resource_verification",
+        "note_min",
+        "note_max",
+        "default_articulation",
+        "articulation_gain"
+      ],
+      "properties": {
+        "type": {
+          "const": "flute"
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "resource_verification",
+        "pitch_calibration",
+        "articulations",
+        "default_articulation",
+        "pitch_mode"
+      ],
+      "properties": {
+        "type": {
+          "const": "dedicated_sfz"
+        },
+        "pitch_mode": {
+          "enum": [
+            "pitched",
+            "fixed",
+            "ignore"
+          ]
+        },
+        "use_embedded_loops": {
+          "type": "boolean"
+        },
+        "control_smoothing_seconds": {
+          "$ref": "#/$defs/positiveNumber"
+        },
+        "apply_pitch_calibration": {
+          "type": "boolean"
+        },
+        "sample_region_exclusions": {
+          "description": "Exact asset-root-relative sample paths whose loaded attack and release regions are removed across all articulations. Every path must match; affected round-robin families are normalized after removal.",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/assetRelativePosixPath"
+          }
+        },
+        "sample_gain_db_overrides": {
+          "description": "Additive deterministic dB corrections for exact asset-root-relative sample paths. Corrections are applied after upstream SFZ volume and must match at least one loaded attack or release region across all articulations.",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "required": [
+              "sample",
+              "gain_db"
+            ],
+            "properties": {
+              "sample": {
+                "$ref": "#/$defs/assetRelativePosixPath"
+              },
+              "gain_db": {
+                "type": "number",
+                "minimum": -24,
+                "maximum": 24
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "note_min",
+            "note_max"
+          ]
+        },
+        {
+          "required": [
+            "fixed_midi_note"
+          ]
+        },
+        {
+          "required": [
+            "playable_ranges"
+          ]
+        }
+      ],
+      "allOf": [
+        {
+          "$ref": "#/$defs/base"
+        },
+        {
+          "$ref": "#/$defs/candidateMetadata"
+        },
+        {
+          "$ref": "#/$defs/implementationFields"
+        },
+        {
+          "$ref": "#/$defs/sampledAsset"
+        },
+        {
+          "$ref": "#/$defs/sourceProvenance"
+        },
+        {
+          "$ref": "#/$defs/licenseEvidence"
+        },
+        {
+          "$ref": "#/$defs/verificationFields"
+        },
+        {
+          "$ref": "#/$defs/rangeFields"
+        },
+        {
+          "$ref": "#/$defs/audioControls"
+        },
+        {
+          "$ref": "#/$defs/articulationFields"
+        },
+        {
+          "if": {
+            "properties": {
+              "pitch_mode": {
+                "const": "fixed"
+              }
+            },
+            "required": [
+              "pitch_mode"
+            ]
+          },
+          "then": {
+            "required": [
+              "fixed_midi_note"
+            ]
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/base"
+        },
+        {
+          "$ref": "#/$defs/candidateMetadata"
+        },
+        {
+          "$ref": "#/$defs/sampledAsset"
+        },
+        {
+          "$ref": "#/$defs/sourceProvenance"
+        },
+        {
+          "$ref": "#/$defs/licenseEvidence"
+        },
+        {
+          "$ref": "#/$defs/verificationFields"
+        },
+        {
+          "$ref": "#/$defs/rangeFields"
+        },
+        {
+          "$ref": "#/$defs/audioControls"
+        },
+        {
+          "$ref": "#/$defs/articulationFields"
+        },
+        {
+          "$ref": "#/$defs/effectsFields"
+        }
+      ],
+      "required": [
+        "resource_verification",
+        "pitch_calibration",
+        "articulations",
+        "default_articulation",
+        "pitch_mode",
+        "effects",
+        "note_min",
+        "note_max"
+      ],
+      "properties": {
+        "type": {
+          "const": "dedicated_fx"
+        },
+        "pitch_mode": {
+          "const": "pitched"
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/base"
+        },
+        {
+          "$ref": "#/$defs/candidateMetadata"
+        },
+        {
+          "$ref": "#/$defs/implementationFields"
+        },
+        {
+          "$ref": "#/$defs/sampledAsset"
+        },
+        {
+          "$ref": "#/$defs/verificationFields"
+        },
+        {
+          "$ref": "#/$defs/rangeFields"
+        },
+        {
+          "$ref": "#/$defs/audioControls"
+        },
+        {
+          "$ref": "#/$defs/articulationFields"
+        }
+      ],
+      "required": [
+        "implementation",
+        "instrument_name",
+        "pitch_calibration",
+        "note_min",
+        "note_max",
+        "sampled_range",
+        "allowed_articulations",
+        "default_articulation",
+        "sfz_file",
+        "upstream_commit"
+      ],
+      "properties": {
+        "type": {
+          "const": "mtg_solo_sax"
+        },
+        "sfz_file": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "upstream_commit": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/base"
+        },
+        {
+          "$ref": "#/$defs/candidateMetadata"
+        },
+        {
+          "$ref": "#/$defs/implementationFields"
+        },
+        {
+          "$ref": "#/$defs/verificationFields"
+        },
+        {
+          "$ref": "#/$defs/rangeFields"
+        },
+        {
+          "$ref": "#/$defs/audioControls"
+        },
+        {
+          "$ref": "#/$defs/projectAuthoredDspProvenance"
+        }
+      ],
+      "required": [
+        "profile",
+        "engine_version",
+        "modeling_rationale",
+        "resource_verification",
+        "pitch_calibration",
+        "seed",
+        "note_min",
+        "note_max"
+      ],
+      "properties": {
+        "type": {
+          "const": "modeled_instrument"
+        },
+        "profile": {
+          "enum": [
+            "shamisen",
+            "koto",
+            "sitar",
+            "shakuhachi",
+            "pan_flute",
+            "suona",
+            "taiko",
+            "steelpan",
+            "music_box",
+            "synth_drum"
+          ]
+        },
+        "seed": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/base"
+        },
+        {
+          "$ref": "#/$defs/candidateMetadata"
+        },
+        {
+          "$ref": "#/$defs/implementationFields"
+        },
+        {
+          "$ref": "#/$defs/verificationFields"
+        },
+        {
+          "$ref": "#/$defs/rangeFields"
+        },
+        {
+          "$ref": "#/$defs/audioControls"
+        },
+        {
+          "$ref": "#/$defs/projectAuthoredDspProvenance"
+        }
+      ],
+      "required": [
+        "patch",
+        "engine_version",
+        "resource_verification",
+        "pitch_calibration",
+        "note_min",
+        "note_max",
+        "seed"
+      ],
+      "properties": {
+        "type": {
+          "const": "synthesizer"
+        },
+        "patch": {
+          "enum": [
+            "halo_pad",
+            "choir_pad",
+            "synth_bass",
+            "broad_pad",
+            "synth_lead",
+            "synth_brass",
+            "synth_strings",
+            "metallic_pad",
+            "sweep_pad",
+            "warm_pad"
+          ]
+        },
+        "seed": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        "parameters": {
+          "$ref": "#/$defs/synthParameters"
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/base"
+        },
+        {
+          "$ref": "#/$defs/candidateMetadata"
+        },
+        {
+          "$ref": "#/$defs/implementationFields"
+        },
+        {
+          "$ref": "#/$defs/verificationFields"
+        },
+        {
+          "$ref": "#/$defs/audioControls"
+        },
+        {
+          "$ref": "#/$defs/projectAuthoredDspProvenance"
+        }
+      ],
+      "required": [
+        "implementation",
+        "profile",
+        "engine_version",
+        "pitch_calibration",
+        "seed"
+      ],
+      "properties": {
+        "type": {
+          "const": "procedural_sfx"
+        },
+        "profile": {
+          "enum": [
+            "breath",
+            "applause",
+            "gunshot",
+            "ocean",
+            "telephone_bell",
+            "helicopter",
+            "rain_atmosphere",
+            "bird_chorus"
+          ]
+        },
+        "seed": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "attack_seconds": {
+              "$ref": "#/$defs/positiveNumber"
+            },
+            "release_seconds": {
+              "$ref": "#/$defs/positiveNumber"
+            },
+            "gain": {
+              "$ref": "#/$defs/positiveNumber"
+            },
+            "one_shot_seconds": {
+              "$ref": "#/$defs/positiveNumber"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/base"
+        },
+        {
+          "$ref": "#/$defs/candidateMetadata"
+        },
+        {
+          "$ref": "#/$defs/implementationFields"
+        },
+        {
+          "$ref": "#/$defs/sampledAsset"
+        },
+        {
+          "$ref": "#/$defs/verificationFields"
+        },
+        {
+          "$ref": "#/$defs/rangeFields"
+        },
+        {
+          "$ref": "#/$defs/audioControls"
+        },
+        {
+          "$ref": "#/$defs/articulationFields"
+        }
+      ],
+      "required": [
+        "implementation",
+        "instrument_name",
+        "pitch_calibration",
+        "note_min",
+        "note_max",
+        "sampled_range",
+        "allowed_articulations",
+        "default_articulation"
+      ],
+      "properties": {
+        "type": {
+          "const": "vpo_string_section"
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/base"
+        },
+        {
+          "$ref": "#/$defs/candidateMetadata"
+        },
+        {
+          "$ref": "#/$defs/implementationFields"
+        },
+        {
+          "$ref": "#/$defs/sampledAsset"
+        },
+        {
+          "$ref": "#/$defs/verificationFields"
+        },
+        {
+          "$ref": "#/$defs/rangeFields"
+        },
+        {
+          "$ref": "#/$defs/audioControls"
+        },
+        {
+          "$ref": "#/$defs/articulationFields"
+        }
+      ],
+      "required": [
+        "implementation",
+        "instrument_name",
+        "pitch_calibration",
+        "note_min",
+        "note_max",
+        "sampled_range",
+        "default_articulation"
+      ],
+      "properties": {
+        "type": {
+          "const": "vpo_harp"
+        },
+        "source_sfz": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "offset_overrides": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {
+            "type": "string",
+            "minLength": 1
+          },
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/base"
+        },
+        {
+          "$ref": "#/$defs/candidateMetadata"
+        },
+        {
+          "$ref": "#/$defs/implementationFields"
+        },
+        {
+          "$ref": "#/$defs/sampledAsset"
+        },
+        {
+          "$ref": "#/$defs/verificationFields"
+        },
+        {
+          "$ref": "#/$defs/rangeFields"
+        },
+        {
+          "$ref": "#/$defs/audioControls"
+        },
+        {
+          "$ref": "#/$defs/articulationFields"
+        }
+      ],
+      "required": [
+        "implementation",
+        "instrument_name",
+        "profile",
+        "pitch_calibration",
+        "resource_verification",
+        "pitch_semantics",
+        "default_articulation"
+      ],
+      "properties": {
+        "type": {
+          "const": "vpo_percussion"
+        },
+        "profile": {
+          "enum": [
+            "triangle",
+            "timpani",
+            "snare",
+            "xylophone",
+            "woodblock",
+            "bass_drum",
+            "cymbals",
+            "tubular_bells",
+            "vcsl_tubular_bells_2",
+            "glockenspiel",
+            "vibraphone"
+          ]
+        },
+        "pitch_semantics": {
+          "enum": [
+            "sounding_pitch",
+            "sounding_pitch_inharmonic",
+            "unpitched_articulation_event",
+            "unpitched_two_block_articulation",
+            "unpitched_two_drum_articulation"
+          ]
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/base"
+        },
+        {
+          "$ref": "#/$defs/candidateMetadata"
+        },
+        {
+          "$ref": "#/$defs/implementationFields"
+        },
+        {
+          "$ref": "#/$defs/sampledAsset"
+        },
+        {
+          "$ref": "#/$defs/verificationFields"
+        },
+        {
+          "$ref": "#/$defs/rangeFields"
+        },
+        {
+          "$ref": "#/$defs/audioControls"
+        },
+        {
+          "$ref": "#/$defs/articulationFields"
+        }
+      ],
+      "required": [
+        "implementation",
+        "instrument_name",
+        "sfz_prefix",
+        "pitch_calibration",
+        "note_min",
+        "note_max",
+        "sampled_range",
+        "default_articulation"
+      ],
+      "properties": {
+        "type": {
+          "const": "vpo_solo_string"
+        },
+        "sfz_prefix": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "sample_gain_db_overrides": {
+          "description": "Additive deterministic dB corrections, each explicitly scoped to one VPO sample family. Exact paths fail closed only when that family is selected.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "sample_variant",
+              "sample",
+              "gain_db"
+            ],
+            "properties": {
+              "sample_variant": {
+                "enum": [
+                  "SOLO",
+                  "SEC"
+                ]
+              },
+              "sample": {
+                "$ref": "#/$defs/nonEmptyString"
+              },
+              "gain_db": {
+                "type": "number",
+                "minimum": -24,
+                "maximum": 24
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/base"
+        },
+        {
+          "$ref": "#/$defs/candidateMetadata"
+        },
+        {
+          "$ref": "#/$defs/implementationFields"
+        },
+        {
+          "$ref": "#/$defs/sampledAsset"
+        },
+        {
+          "$ref": "#/$defs/verificationFields"
+        },
+        {
+          "$ref": "#/$defs/rangeFields"
+        },
+        {
+          "$ref": "#/$defs/audioControls"
+        },
+        {
+          "$ref": "#/$defs/articulationFields"
+        }
+      ],
+      "required": [
+        "implementation",
+        "instrument_name",
+        "sfz_prefix",
+        "pitch_calibration",
+        "note_min",
+        "note_max",
+        "sampled_range",
+        "default_articulation"
+      ],
+      "properties": {
+        "type": {
+          "const": "vpo_woodwind"
+        },
+        "sfz_prefix": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/base"
+        },
+        {
+          "$ref": "#/$defs/candidateMetadata"
+        },
+        {
+          "$ref": "#/$defs/implementationFields"
+        },
+        {
+          "$ref": "#/$defs/sampledAsset"
+        },
+        {
+          "$ref": "#/$defs/verificationFields"
+        },
+        {
+          "$ref": "#/$defs/rangeFields"
+        },
+        {
+          "$ref": "#/$defs/audioControls"
+        },
+        {
+          "$ref": "#/$defs/articulationFields"
+        }
+      ],
+      "required": [
+        "implementation",
+        "instrument_name",
+        "sfz_prefix",
+        "pitch_calibration",
+        "note_min",
+        "note_max",
+        "sampled_range",
+        "default_articulation"
+      ],
+      "properties": {
+        "type": {
+          "const": "vpo_brass"
+        },
+        "sfz_prefix": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "ensemble_scope": {
+          "enum": [
+            "SOLO",
+            "SEC"
+          ]
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/base"
+        },
+        {
+          "$ref": "#/$defs/candidateMetadata"
+        },
+        {
+          "$ref": "#/$defs/implementationFields"
+        },
+        {
+          "$ref": "#/$defs/sampledAsset"
+        },
+        {
+          "$ref": "#/$defs/verificationFields"
+        },
+        {
+          "$ref": "#/$defs/rangeFields"
+        },
+        {
+          "$ref": "#/$defs/audioControls"
+        }
+      ],
+      "required": [
+        "implementation",
+        "profile",
+        "pitch_calibration",
+        "note_min",
+        "note_max",
+        "sampled_range"
+      ],
+      "properties": {
+        "type": {
+          "const": "vpo_celesta"
+        },
+        "profile": {
+          "const": "celesta"
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/base"
+        },
+        {
+          "$ref": "#/$defs/candidateMetadata"
+        },
+        {
+          "$ref": "#/$defs/implementationFields"
+        },
+        {
+          "$ref": "#/$defs/sampledAsset"
+        },
+        {
+          "$ref": "#/$defs/verificationFields"
+        },
+        {
+          "$ref": "#/$defs/rangeFields"
+        },
+        {
+          "$ref": "#/$defs/audioControls"
+        },
+        {
+          "$ref": "#/$defs/articulationFields"
+        }
+      ],
+      "required": [
+        "implementation",
+        "profile",
+        "pitch_calibration",
+        "fixed_source_midi_note",
+        "default_articulation",
+        "percussion"
+      ],
+      "properties": {
+        "type": {
+          "const": "vpo_cowbell"
+        },
+        "profile": {
+          "const": "cowbell"
+        },
+        "percussion": {
+          "const": true
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/base"
+        },
+        {
+          "$ref": "#/$defs/candidateMetadata"
+        },
+        {
+          "$ref": "#/$defs/implementationFields"
+        },
+        {
+          "$ref": "#/$defs/sampledAsset"
+        },
+        {
+          "$ref": "#/$defs/verificationFields"
+        },
+        {
+          "$ref": "#/$defs/rangeFields"
+        },
+        {
+          "$ref": "#/$defs/audioControls"
+        }
+      ],
+      "required": [
+        "implementation",
+        "profile",
+        "pitch_calibration",
+        "note_min",
+        "note_max",
+        "sampled_range"
+      ],
+      "properties": {
+        "type": {
+          "const": "vpo_mixed_choir"
+        },
+        "profile": {
+          "const": "mixed_choir"
+        },
+        "default_articulation": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/base"
+        },
+        {
+          "$ref": "#/$defs/candidateMetadata"
+        },
+        {
+          "$ref": "#/$defs/implementationFields"
+        },
+        {
+          "$ref": "#/$defs/sampledAsset"
+        },
+        {
+          "$ref": "#/$defs/verificationFields"
+        },
+        {
+          "$ref": "#/$defs/rangeFields"
+        },
+        {
+          "$ref": "#/$defs/audioControls"
+        }
+      ],
+      "required": [
+        "implementation",
+        "profile",
+        "pitch_calibration",
+        "note_min",
+        "note_max",
+        "sampled_range",
+        "default_articulation"
+      ],
+      "properties": {
+        "type": {
+          "const": "vpo_orchestral_hit"
+        },
+        "profile": {
+          "const": "orchestral_hit"
+        },
+        "default_articulation": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/base"
+        },
+        {
+          "$ref": "#/$defs/candidateMetadata"
+        },
+        {
+          "$ref": "#/$defs/sampledAsset"
+        },
+        {
+          "$ref": "#/$defs/sourceProvenance"
+        },
+        {
+          "$ref": "#/$defs/licenseEvidence"
+        },
+        {
+          "$ref": "#/$defs/verificationFields"
+        },
+        {
+          "$ref": "#/$defs/rangeFields"
+        },
+        {
+          "$ref": "#/$defs/audioControls"
+        }
+      ],
+      "required": [
+        "resource_verification",
+        "pitch_calibration",
+        "calibration_not_applicable_reason",
+        "variants",
+        "note_min",
+        "note_max"
+      ],
+      "properties": {
+        "type": {
+          "const": "reversed_cymbal"
+        },
+        "variants": {
+          "type": "object",
+          "minProperties": 1,
+          "patternProperties": {
+            "^(?:[0-9]|[1-9][0-9]|1[01][0-9]|12[0-7])$": {
+              "type": "object",
+              "required": [
+                "sample"
+              ],
+              "properties": {
+                "sample": {
+                  "$ref": "#/$defs/nonEmptyString"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/base"
+        },
+        {
+          "$ref": "#/$defs/candidateMetadata"
+        },
+        {
+          "$ref": "#/$defs/sampledAsset"
+        },
+        {
+          "$ref": "#/$defs/sourceProvenance"
+        },
+        {
+          "$ref": "#/$defs/licenseEvidence"
+        },
+        {
+          "$ref": "#/$defs/verificationFields"
+        },
+        {
+          "$ref": "#/$defs/rangeFields"
+        },
+        {
+          "$ref": "#/$defs/audioControls"
+        }
+      ],
+      "required": [
+        "resource_verification",
+        "pitch_calibration",
+        "drums",
+        "note_min",
+        "note_max"
+      ],
+      "properties": {
+        "type": {
+          "const": "melodic_toms"
+        },
+        "drums": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "object",
+            "required": [
+              "samples",
+              "span"
+            ],
+            "properties": {
+              "samples": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "sample",
+                    "lovel",
+                    "hivel",
+                    "seq",
+                    "seq_length"
+                  ],
+                  "properties": {
+                    "sample": {
+                      "$ref": "#/$defs/nonEmptyString"
+                    },
+                    "lovel": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 127
+                    },
+                    "hivel": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 127
+                    },
+                    "seq": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "seq_length": {
+                      "type": "integer",
+                      "minimum": 1
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "span": {
+                "$ref": "#/$defs/midiRangePair"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/base"
+        },
+        {
+          "$ref": "#/$defs/rangeFields"
+        },
+        {
+          "$ref": "#/$defs/audioControls"
+        },
+        {
+          "$ref": "#/$defs/articulationFields"
+        }
+      ],
+      "required": [
+        "soundfont",
+        "program"
+      ],
+      "properties": {
+        "type": {
+          "const": "soundfont"
+        },
+        "soundfont": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "bank": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "program": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 127
+        },
+        "percussion": {
+          "type": "boolean"
+        },
+        "pitch_bend_range_semitones": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 127.99
+        },
+        "channel_count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 256
+        },
+        "reverb": {
+          "type": "boolean"
+        },
+        "chorus": {
+          "type": "boolean"
+        },
+        "articulation_programs": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 127
+              },
+              {
+                "type": "object",
+                "required": [
+                  "program"
+                ],
+                "properties": {
+                  "bank": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "program": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 127
+                  }
+                },
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "source_priority": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nonEmptyString"
+          }
+        },
+        "quality_tier": {
+          "enum": [
+            "fallback",
+            "candidate",
+            "formal"
+          ]
+        },
+        "upgrade_status": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      },
+      "unevaluatedProperties": false
+    }
+  ]
+}

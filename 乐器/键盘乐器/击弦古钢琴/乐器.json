@@ -1,0 +1,37 @@
+{
+  "name": "SIMPK Johann Gottlob Horn 击弦古钢琴",
+  "type": "dedicated_sfz",
+  "quality_tier": "formal",
+  "collaboration_review_status": "untested",
+  "license_status": "approved",
+  "upgrade_status": "simpk_real_clavichord_native_octave_1_velocity_3_zones_2rr_2_timbres",
+  "fallback_policy": "explicit_only_no_silent_gm",
+  "asset_root": "../../../音源/SIMPK_03_Clavichord",
+  "upstream": "Staatliches Institut für Musikforschung (SIMPK): Johann Gottlob Horn clavichord, Dresden circa 1793",
+  "origin": "https://www.simpk.de/museum/besuch/projekte/klaviatur-tastatur-interface/samples.html",
+  "upstream_version": "1.0 (SIMPK_03_Clavichord.zip, 2022-10-21)",
+  "license": "CC-BY-4.0",
+  "evidence_files": [
+    "LICENSE",
+    "SOURCE.json",
+    "tianlai/tuning.json"
+  ],
+  "resource_verification": "资源核验.json",
+  "pitch_calibration": "音准校准.json",
+  "articulations": {
+    "normal": "tianlai/normal.sfz",
+    "resonance": "tianlai/resonance.sfz"
+  },
+  "default_articulation": "normal",
+  "calibration_articulation": "normal",
+  "pitch_mode": "pitched",
+  "reference_a4_hz": 440.0,
+  "calibration_search_cents": 600.0,
+  "gain": 0.9,
+  "velocity_exponent": 0.72,
+  "auxiliary_note_id_base": 1837000000,
+  "release_seconds": 4.0,
+  "note_min": 28,
+  "note_max": 90,
+  "sampled_range": "E1-F#6 sounding; every semitone; 1 unique recorded velocity exposed through 3 upstream mapping zones; 2 round robins; 2 timbres"
+}

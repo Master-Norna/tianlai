@@ -1,0 +1,43 @@
+{
+  "name": "Greg Sullivan CP80 合唱电钢琴",
+  "type": "dedicated_fx",
+  "quality_tier": "formal",
+  "collaboration_review_status": "untested",
+  "upgrade_status": "greg_sullivan_cp80_dedicated_multisample_fx_chain",
+  "fallback_policy": "explicit_only_no_silent_gm",
+  "asset_root": "../../../音源/GregSullivan.E-Pianos",
+  "upstream": "Greg Sullivan E-Pianos / Yamaha CP80",
+  "origin": "https://github.com/sfzinstruments/GregSullivan.E-Pianos",
+  "upstream_version": "8c3e581acda3594b553948ff0222d4f84a698376",
+  "license": "CC-BY-3.0",
+  "evidence_files": [
+    "LICENSE",
+    "README.md"
+  ],
+  "resource_verification": "资源核验.json",
+  "pitch_calibration": "音准校准.json",
+  "articulations": {
+    "normal": "CP80/CP80.sfz"
+  },
+  "default_articulation": "normal",
+  "pitch_mode": "pitched",
+  "effects": [
+    {
+      "type": "chorus",
+      "rate_hz": 0.9,
+      "depth_seconds": 0.0045,
+      "base_delay_seconds": 0.016,
+      "mix": 0.5,
+      "stereo_phase": 1.5707963
+    }
+  ],
+  "gain": 0.9,
+  "output_gain": 1.2476,
+  "velocity_exponent": 0.72,
+  "release_seconds": 0.5,
+  "auxiliary_note_id_base": 1873000000,
+  "note_min": 21,
+  "note_max": 108,
+  "sampled_range": "A0-C8 sounding",
+  "license_status": "approved"
+}

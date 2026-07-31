@@ -1,0 +1,46 @@
+{
+  "status": "machine_pass_human_pending",
+  "rendered_at": "2026-07-26",
+  "platform": "Windows Chinese-path workspace",
+  "sample_rate": 48000,
+  "channels": 2,
+  "subtype": "PCM_24",
+  "frame_count": 1143840,
+  "duration_seconds": 23.83,
+  "peak_active_voices": 1,
+  "peak": 0.275783,
+  "rms": 0.055869,
+  "clipped_samples": 0,
+  "wav": "output/全音域试音/世界乐器/民谣提琴.wav",
+  "wav_persistence": "temporary",
+  "wav_sha256": "1ab4c88ed3ac0b9862496aae9222cca08af65fef1448cf5efbaa841f0c76c066",
+  "hash_algorithm": "SHA-256",
+  "canonicalization": "tianlai-json-v1",
+  "manifest_canonical_sha256": "e4a0c326eb9afcdab4d1d7a5e0b3a5f5b34f671ce0d7940a3d0c1bd164b129d3",
+  "events": "examples/全音域上行/世界乐器/民谣提琴_全音域上行.events.json",
+  "events_canonical_sha256": "15ed508a8d9f30e36fb580228b132162672ccc956204ec94b080a685dd914479",
+  "identity_migration": {
+    "status": "superseded_by_canonical_json_v1",
+    "hash_algorithm": "SHA-256",
+    "hash_semantics": "source-file-bytes",
+    "manifest_sha256": "9ea312f88bfcbe0b3dea4a3d2660872f2765e96f5a64d6b57a8cfa44e8dcc799",
+    "events_sha256": "67c9d5815deb05913eddd531873e4e03fbce5a7bed88fa91ffe3bcddd01fdd26"
+  },
+  "audition_profile": "ascending-scale",
+  "audition_protocol": "full-range-chromatic-ascending-v1",
+  "coverage": [
+    "全声明合法键升序：MIDI 55-91（37 键，37 次触发）",
+    "固定力度 0.72、时值 0.48s、音间隔 0.12s；note 事件不重叠，后端声音释音可能跨入后续音（压力扫描）"
+  ],
+  "human_review": "pending",
+  "previous_protocol_evidence": {
+    "status": "superseded_event_bound_machine_evidence",
+    "events_sha256": "58282c36a0a5b97fa288d7a097fb032aa2ce9838b86adf23a66f79c5abbb42a3",
+    "wav_sha256": "eaab03b78daa993f8eb32aab679012858207755783ed50d0ce9fc367175ad0c7",
+    "fields": {
+      "wav_persistence": "temporary"
+    }
+  },
+  "specialized_machine_evidence_status": "previous_protocol_only_not_current_measurement",
+  "review_evidence_status": "pending_new_review_old_hash_bound_reviews_do_not_apply"
+}

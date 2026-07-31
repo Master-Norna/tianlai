@@ -1,0 +1,16 @@
+{
+  "sample_rate": 48000,
+  "tuning": { "temperament": "equal", "a4_hz": 440.0 },
+  "tail_seconds": 5.0,
+  "events": [
+    { "time": 0.0, "type": "control", "name": "expression", "value": 0.78 },
+    { "time": 0.0, "type": "control", "name": "modulation", "value": 0.22 },
+    { "time": 0.0, "type": "note_on", "note_id": 1, "midi_note": 60, "velocity": 0.72 },
+    { "time": 0.0, "type": "note_on", "note_id": 2, "midi_note": 67, "velocity": 0.66 },
+    { "time": 0.0, "type": "note_on", "note_id": 3, "midi_note": 74, "velocity": 0.58 },
+    { "time": 2.2, "type": "control", "name": "modulation", "value": 0.82 },
+    { "time": 4.5, "type": "note_off", "note_id": 1 },
+    { "time": 4.5, "type": "note_off", "note_id": 2 },
+    { "time": 4.5, "type": "note_off", "note_id": 3 }
+  ]
+}

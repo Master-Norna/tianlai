@@ -1,0 +1,47 @@
+{
+  "status": "machine_pass_human_pending",
+  "rendered_at": "2026-07-26",
+  "platform": "Windows Chinese-path workspace",
+  "sample_rate": 48000,
+  "channels": 2,
+  "subtype": "PCM_24",
+  "frame_count": 256800,
+  "duration_seconds": 5.35,
+  "peak_active_voices": 3,
+  "peak": 0.191496,
+  "rms": 0.016235,
+  "clipped_samples": 0,
+  "wav": "output/全音域试音/管弦乐/打击乐组/三角铁.wav",
+  "wav_persistence": "temporary",
+  "wav_sha256": "a82a5f11120730e787abd169130c23ae9d3f4415257003cfffd8f7f80cef01f3",
+  "hash_algorithm": "SHA-256",
+  "canonicalization": "tianlai-json-v1",
+  "manifest_canonical_sha256": "28626492790a9caad440e7505748a8b6710c7996980278c5c2adc4ab4a5bffea",
+  "events": "examples/全音域上行/管弦乐/打击乐组/三角铁_全音域上行.events.json",
+  "events_canonical_sha256": "5fc88296d70bbef6d96f032e9e913b08d53cdd7a2d5208d32edccdbb8318de93",
+  "identity_migration": {
+    "status": "superseded_by_canonical_json_v1",
+    "hash_algorithm": "SHA-256",
+    "hash_semantics": "source-file-bytes",
+    "manifest_sha256": "a4ba02e15d6933d27fedf876759b67c3da1f7718f804dbb2b9db3e9480ed83e0",
+    "events_sha256": "b127bef862ae829acd58ee9768a9c305ca872662082c8f1d2f76179d1d3b54c0"
+  },
+  "audition_profile": "ascending-scale",
+  "audition_protocol": "full-range-chromatic-ascending-v1",
+  "coverage": [
+    "全声明合法键升序：MIDI 79-81（3 键，3 次触发）",
+    "固定力度 0.72、常规时值 0.48s、音间隔 0.12s；本乐器按协议使用独立 gate/gap/tail；note 事件不重叠，是否隔离声音尾部以本乐器协议例外说明为准",
+    "协议例外：VPO 无音高打击按全部奏法的固定源键升序；roll/crescendo 使用延长时值"
+  ],
+  "human_review": "pending",
+  "previous_protocol_evidence": {
+    "status": "superseded_event_bound_machine_evidence",
+    "events_sha256": "11b078b3f3431d5993289adf383684bd8e1daebd6fc96cc2342436b7398b6add",
+    "wav_sha256": "5156bccca014c8571d950556aec2c0832cc8449fa0bbcac70500f0657bceec71",
+    "fields": {
+      "wav_persistence": "temporary"
+    }
+  },
+  "specialized_machine_evidence_status": "previous_protocol_only_not_current_measurement",
+  "review_evidence_status": "pending_new_review_old_hash_bound_reviews_do_not_apply"
+}

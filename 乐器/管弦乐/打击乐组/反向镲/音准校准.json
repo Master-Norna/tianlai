@@ -1,0 +1,6 @@
+{
+  "applicable": false,
+  "pitch_mode": "variant_select",
+  "reason": "反向镲为镲片采样确定性倒放,键 60-62 仅选择上升沿长度/音色变体,无十二平均律音高可校准",
+  "samples": {}
+}

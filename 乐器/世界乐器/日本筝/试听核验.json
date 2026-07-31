@@ -1,0 +1,52 @@
+{
+  "status": "machine_pass_human_pending",
+  "rendered_at": "2026-07-26",
+  "platform": "Windows Chinese-path workspace",
+  "sample_rate": 48000,
+  "channels": 2,
+  "subtype": "PCM_24",
+  "frame_count": 1201440,
+  "duration_seconds": 25.03,
+  "peak_active_voices": 2,
+  "peak": 0.294011,
+  "rms": 0.059921,
+  "clipped_samples": 0,
+  "wav": "output/全音域试音/世界乐器/日本筝.wav",
+  "wav_persistence": "temporary",
+  "wav_sha256": "444c84101b4ebe69be43eeac371cc21596757f9d97775528039a32768c5abfe2",
+  "hash_algorithm": "SHA-256",
+  "canonicalization": "tianlai-json-v1",
+  "manifest_canonical_sha256": "d1dcf2050ffe07113da10499bcddb68aed5ab419d4e487d3826ce1c498da49cf",
+  "events": "examples/全音域上行/世界乐器/日本筝_全音域上行.events.json",
+  "events_canonical_sha256": "bec4d82fd27475e8b851442d74ae20ab4529f4ba2b48c9c9afa02df3dd8f7e26",
+  "identity_migration": {
+    "status": "superseded_by_canonical_json_v1",
+    "hash_algorithm": "SHA-256",
+    "hash_semantics": "source-file-bytes",
+    "manifest_sha256": "8be6dbeb2c5bd9e0e2aa68ede04ddb282edd8d23ce0c17793e99ef1b8b7f7443",
+    "events_sha256": "c671d9a012d1c4edf8d58bf29988136a5e7a329a2f284f8e046cd320c43b486d"
+  },
+  "audition_profile": "ascending-scale",
+  "audition_protocol": "full-range-chromatic-ascending-v1",
+  "coverage": [
+    "全声明合法键升序：MIDI 50-88（39 键，39 次触发）",
+    "固定力度 0.72、时值 0.48s、音间隔 0.12s；note 事件不重叠，后端声音释音可能跨入后续音（压力扫描）"
+  ],
+  "human_review": "pending",
+  "previous_protocol_evidence": {
+    "status": "superseded_event_bound_machine_evidence",
+    "events_sha256": "ea5dfe8336de10db5768726144d9213d317837a76cfe84f856c9ab79d1ca7684",
+    "wav_sha256": "eb1f99076133cf39e958d6d5544899bd75ad804f8e7f22577e71707015ceee20",
+    "fields": {
+      "wav_persistence": "temporary"
+    }
+  },
+  "specialized_machine_evidence_status": "previous_protocol_only_not_current_measurement",
+  "review_evidence_status": "pending_new_review_old_hash_bound_reviews_do_not_apply",
+  "manifest_provenance_migration": {
+    "date": "2026-07-27",
+    "previous_manifest_sha256": "4384e2ab162246cfd8a49ae0027fcc9af5126ec084278c866740bd4d17be2209",
+    "reason": "added non-runtime project-authored DSP provenance and Apache-2.0 metadata",
+    "audio_reverification": "bit_exact_against_frozen_wav_sha256"
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "description": "FFT measurement of raw english-horn samples; A4=440 Hz",
+  "sfz_prefix": "english-horn",
+  "summary": {
+    "sample_count": 9,
+    "median_detune_cents": 0.923233,
+    "maximum_absolute_detune_cents": 7.700908
+  },
+  "samples": {
+    "libs/SSO/Samples/Cor Anglais/cor_anglais-b3-PB-loop.wav": {
+      "root_midi": 59.0,
+      "measured_hz": 246.64896,
+      "detune_cents": -2.053182
+    },
+    "libs/SSO/Samples/Cor Anglais/cor_anglais-b4-PB-loop.wav": {
+      "root_midi": 71.0,
+      "measured_hz": 495.190047,
+      "detune_cents": 4.574554
+    },
+    "libs/SSO/Samples/Cor Anglais/cor_anglais-d4-PB-loop.wav": {
+      "root_midi": 62.0,
+      "measured_hz": 294.899851,
+      "detune_cents": 7.265886
+    },
+    "libs/SSO/Samples/Cor Anglais/cor_anglais-d5-PB-loop.wav": {
+      "root_midi": 74.0,
+      "measured_hz": 585.286679,
+      "detune_cents": -6.032097
+    },
+    "libs/SSO/Samples/Cor Anglais/cor_anglais-f3-PB-loop.wav": {
+      "root_midi": 53.0,
+      "measured_hz": 174.435363,
+      "detune_cents": -1.773174
+    },
+    "libs/SSO/Samples/Cor Anglais/cor_anglais-f4-PB-loop.wav": {
+      "root_midi": 65.0,
+      "measured_hz": 350.785135,
+      "detune_cents": 7.700908
+    },
+    "libs/SSO/Samples/Cor Anglais/cor_anglais-f5-PB-loop.wav": {
+      "root_midi": 77.0,
+      "measured_hz": 698.829035,
+      "detune_cents": 0.923233
+    },
+    "libs/SSO/Samples/Cor Anglais/cor_anglais-g#3-PB-loop.wav": {
+      "root_midi": 56.0,
+      "measured_hz": 207.714184,
+      "detune_cents": 0.515452
+    },
+    "libs/SSO/Samples/Cor Anglais/cor_anglais-g#4-PB-loop.wav": {
+      "root_midi": 68.0,
+      "measured_hz": 416.07815,
+      "detune_cents": 3.221205
+    }
+  }
+}

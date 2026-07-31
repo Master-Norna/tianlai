@@ -1,0 +1,23 @@
+{
+  "upstream": "Virtual Playing Orchestra",
+  "sfz_version": "Standard Orchestra 3.3 (2026-06-27)",
+  "wave_version": "Wave Files 3.2 (2026-06-27)",
+  "source_sfz_sha256": {
+    "Strings/all-strings-SEC-tremolo.sfz": "6ec940b0ff29ce40b838bd7e34af07b224dfa82e948a401263b05e8d67f23098"
+  },
+  "sample_count": 96,
+  "sample_bytes": 84871254,
+  "sample_set_sha256": "b93eb3dca28e576bf9dd9d300c2d5c524ad71b07b25213e2e2a4964ff1389354",
+  "sample_set_algorithm": "Sort unique VPO-relative UTF-8 paths; for each write '<lowercase file sha256>  <path>\\n'; SHA-256 the concatenated UTF-8 bytes.",
+  "license_file_sha256": {
+    "Documentation/license.htm": "852e3be507b193625eaf76bd18f4740209287781fb95f2a06d78ae9205d4682e",
+    "libs/NoBudgetOrch2/Cello/CelloSect/license.txt": "51a630f18ee558420e51bcfe1644ccc335de704e9a360003ca3c12705c25e7a1",
+    "libs/NoBudgetOrch2/Violin/SoloViolin/license.txt": "398577ecf258792917d6c3b17240e38bb82fa68b13100b99014da03f1c940c59",
+    "libs/NoBudgetOrch2/Violin/ViolinSect/license.txt": "51a630f18ee558420e51bcfe1644ccc335de704e9a360003ca3c12705c25e7a1",
+    "libs/Other/readme-pb.txt": "8eccfe36dcd12718ec1606a09fbe713bef0772815852a57b7f783da5f5c2674b"
+  },
+  "version_evidence_sha256": {
+    "Documentation/change-log-Standard-Orchestra.txt": "e74cf4054b94bf0549d9c4b1fd3fa1816bd8a54ab3ae8847dd254725b52b4667",
+    "Documentation/change-log-Wave-Files.txt": "c62001d37b9e9fb076784fad2cb339e98a7c1e5918369f2b4f4f68c9112c6db5"
+  }
+}

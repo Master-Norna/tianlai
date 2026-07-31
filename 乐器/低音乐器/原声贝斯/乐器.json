@@ -1,0 +1,33 @@
+{
+  "name": "Karoryfer Meatbass 原声贝斯",
+  "type": "dedicated_sfz",
+  "quality_tier": "formal",
+  "collaboration_review_status": "untested",
+  "upgrade_status": "karoryfer_dedicated_multisample",
+  "fallback_policy": "explicit_only_no_silent_gm",
+  "asset_root": "../../../音源/Karoryfer/karoryfer.meatbass-master",
+  "upstream": "Karoryfer Samples: Meatbass (1958 Otto Rubner 低音提琴)",
+  "origin": "https://github.com/sfzinstruments/karoryfer.meatbass",
+  "upstream_version": "master @ ac9e859564bd",
+  "license": "CC0-1.0",
+  "evidence_files": [
+    "LICENSE",
+    "readme.txt"
+  ],
+  "resource_verification": "资源核验.json",
+  "pitch_calibration": "音准校准.json",
+  "articulations": {
+    "pizzicato": "Programs/04_pizz.sfz",
+    "arco": "Programs/02_arco_3vel.sfz"
+  },
+  "default_articulation": "pizzicato",
+  "pitch_mode": "pitched",
+  "gain": 0.6664,
+  "velocity_exponent": 0.72,
+  "auxiliary_note_id_base": 1876000000,
+  "release_seconds": 0.45,
+  "note_min": 28,
+  "note_max": 55,
+  "sampled_range": "E1-G3 sounding",
+  "license_status": "approved"
+}

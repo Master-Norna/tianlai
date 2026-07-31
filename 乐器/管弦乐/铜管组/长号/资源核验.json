@@ -1,0 +1,21 @@
+{
+  "upstream": "Virtual Playing Orchestra",
+  "sfz_version": "Standard Orchestra 3.3 (2026-06-27)",
+  "wave_version": "Wave Files 3.2 (2026-06-27)",
+  "source_sfz_sha256": {
+    "Brass/trombone-SOLO-sustain.sfz": "b64d4790f789c5bad6a290d8425979c433d1c8ae3aa96e380f455b0af22fe6b3",
+    "Brass/trombone-SOLO-staccato.sfz": "1db437c8cb371522735424b61a61532849cff535f3159956d3cf1bc0e5515ff2"
+  },
+  "sample_count": 20,
+  "sample_bytes": 6717942,
+  "sample_set_sha256": "3a3cd7f3bdfd844153dbcb99f79ec4007775766bf0a71fc906a56400f5ff671f",
+  "sample_set_algorithm": "Sort unique VPO-relative UTF-8 paths; for each write '<lowercase file sha256>  <path>\\n'; SHA-256 the concatenated UTF-8 bytes.",
+  "license_file_sha256": {
+    "Documentation/license.htm": "852e3be507b193625eaf76bd18f4740209287781fb95f2a06d78ae9205d4682e",
+    "libs/Iowa/license.txt": "a23314bef428a8fb3f506cf096431eaf7aaee5595a06cbd1f277ae55c8c14f14"
+  },
+  "version_evidence_sha256": {
+    "Documentation/change-log-Standard-Orchestra.txt": "e74cf4054b94bf0549d9c4b1fd3fa1816bd8a54ab3ae8847dd254725b52b4667",
+    "Documentation/change-log-Wave-Files.txt": "c62001d37b9e9fb076784fad2cb339e98a7c1e5918369f2b4f4f68c9112c6db5"
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "upstream": "sgossner/VCSL (Versilian Community Sample Library)",
+  "origin": "https://github.com/sgossner/VCSL",
+  "upstream_version": "1.2.2-RC",
+  "license": "CC0-1.0",
+  "source_file_count": 2,
+  "source_file_sha256": {
+    "Aerophones/Edge-blown Aerophones/Ocarina, Typical - Sus.sfz": "7d38daf8025e57245b50f817c9f256a6a414f70959cdc21d4151ccd77d3f24bc",
+    "Aerophones/Edge-blown Aerophones/Ocarina, Typical - SusVib.sfz": "307be82c04831a0c9a4d62c1f554e918ca3f0d6f6b374963327950230cadc9ec"
+  },
+  "evidence_sha256": {
+    "README.md": "e360f24c120c9ad734cc8508695e09a61ddc4cae5a59c6c9af33fe501b6c9a5b"
+  },
+  "sample_count": 42,
+  "sample_bytes": 44618964,
+  "sample_formats": {
+    ".wav:44100Hz:2ch": 42
+  },
+  "articulations": {
+    "sustain": {
+      "attack_regions": 11,
+      "release_regions": 11,
+      "round_robin_regions": 0,
+      "velocity_bounded_regions": 0,
+      "random_variant_regions": 0,
+      "looped_regions": 0
+    },
+    "vibrato": {
+      "attack_regions": 10,
+      "release_regions": 10,
+      "round_robin_regions": 0,
+      "velocity_bounded_regions": 0,
+      "random_variant_regions": 0,
+      "looped_regions": 0
+    }
+  },
+  "region_count": 42,
+  "sample_set_sha256": "459de389b0db1b3aa9abb7682f421cb1631ddd93568fb2a1443ddf82a3ab610a",
+  "sample_set_hash_algorithm": "sort unique asset-root-relative UTF-8 paths; concatenate lowercase '<sha256>  <path>\\n>'; SHA-256 the UTF-8 bytes"
+}

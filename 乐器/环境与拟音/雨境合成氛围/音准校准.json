@@ -1,0 +1,7 @@
+{
+  "applicable": false,
+  "pitch_mode": "not_pitched",
+  "reason": "雨幕为随机雨滴叠加的宽带噪声,无固定音高;不做十二平均律校准",
+  "samples": {},
+  "generated_at": "2026-07-22"
+}

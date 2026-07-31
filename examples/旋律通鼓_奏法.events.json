@@ -1,0 +1,179 @@
+{
+  "sample_rate": 48000,
+  "channels": 2,
+  "tuning": {
+    "temperament": "equal",
+    "a4_hz": 440.0
+  },
+  "tail_seconds": 1.5,
+  "events": [
+    {
+      "time": 0.0,
+      "type": "note_on",
+      "note_id": 1,
+      "midi_note": 36,
+      "velocity": 0.4
+    },
+    {
+      "time": 0.35,
+      "type": "note_off",
+      "note_id": 1
+    },
+    {
+      "time": 0.42,
+      "type": "note_on",
+      "note_id": 2,
+      "midi_note": 38,
+      "velocity": 0.62
+    },
+    {
+      "time": 0.77,
+      "type": "note_off",
+      "note_id": 2
+    },
+    {
+      "time": 0.84,
+      "type": "note_on",
+      "note_id": 3,
+      "midi_note": 40,
+      "velocity": 0.85
+    },
+    {
+      "time": 1.19,
+      "type": "note_off",
+      "note_id": 3
+    },
+    {
+      "time": 1.26,
+      "type": "note_on",
+      "note_id": 4,
+      "midi_note": 42,
+      "velocity": 0.4
+    },
+    {
+      "time": 1.61,
+      "type": "note_off",
+      "note_id": 4
+    },
+    {
+      "time": 1.68,
+      "type": "note_on",
+      "note_id": 5,
+      "midi_note": 43,
+      "velocity": 0.62
+    },
+    {
+      "time": 2.03,
+      "type": "note_off",
+      "note_id": 5
+    },
+    {
+      "time": 2.1,
+      "type": "note_on",
+      "note_id": 6,
+      "midi_note": 45,
+      "velocity": 0.85
+    },
+    {
+      "time": 2.45,
+      "type": "note_off",
+      "note_id": 6
+    },
+    {
+      "time": 2.52,
+      "type": "note_on",
+      "note_id": 7,
+      "midi_note": 47,
+      "velocity": 0.4
+    },
+    {
+      "time": 2.87,
+      "type": "note_off",
+      "note_id": 7
+    },
+    {
+      "time": 2.94,
+      "type": "note_on",
+      "note_id": 8,
+      "midi_note": 49,
+      "velocity": 0.62
+    },
+    {
+      "time": 3.29,
+      "type": "note_off",
+      "note_id": 8
+    },
+    {
+      "time": 3.36,
+      "type": "note_on",
+      "note_id": 9,
+      "midi_note": 47,
+      "velocity": 0.85
+    },
+    {
+      "time": 3.71,
+      "type": "note_off",
+      "note_id": 9
+    },
+    {
+      "time": 3.78,
+      "type": "note_on",
+      "note_id": 10,
+      "midi_note": 45,
+      "velocity": 0.4
+    },
+    {
+      "time": 4.13,
+      "type": "note_off",
+      "note_id": 10
+    },
+    {
+      "time": 4.2,
+      "type": "note_on",
+      "note_id": 11,
+      "midi_note": 43,
+      "velocity": 0.62
+    },
+    {
+      "time": 4.55,
+      "type": "note_off",
+      "note_id": 11
+    },
+    {
+      "time": 4.62,
+      "type": "note_on",
+      "note_id": 12,
+      "midi_note": 42,
+      "velocity": 0.85
+    },
+    {
+      "time": 4.97,
+      "type": "note_off",
+      "note_id": 12
+    },
+    {
+      "time": 5.04,
+      "type": "note_on",
+      "note_id": 13,
+      "midi_note": 40,
+      "velocity": 0.4
+    },
+    {
+      "time": 5.39,
+      "type": "note_off",
+      "note_id": 13
+    },
+    {
+      "time": 5.46,
+      "type": "note_on",
+      "note_id": 14,
+      "midi_note": 38,
+      "velocity": 0.62
+    },
+    {
+      "time": 5.81,
+      "type": "note_off",
+      "note_id": 14
+    }
+  ]
+}

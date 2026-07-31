@@ -1,0 +1,331 @@
+{
+  "description": "FFT measurement of raw string ensemble samples; A4=440 Hz",
+  "source_sfz": "Strings/all-strings-SEC-sustain.sfz",
+  "summary": {
+    "sample_count": 64,
+    "median_detune_cents": -0.305822,
+    "maximum_absolute_detune_cents": 22.954366
+  },
+  "samples": {
+    "libs/SSO/Samples/Basses/basses-sus-c1-PB-loop.wav": {
+      "root_midi": 24.0,
+      "measured_hz": 32.568034,
+      "detune_cents": -7.169984
+    },
+    "libs/SSO/Samples/Basses/basses-sus-f#1-PB-loop.wav": {
+      "root_midi": 30.0,
+      "measured_hz": 46.318519,
+      "detune_cents": 2.589008
+    },
+    "libs/SSO/Samples/Basses/basses-sus-a1-PB-loop.wav": {
+      "root_midi": 33.0,
+      "measured_hz": 54.953849,
+      "detune_cents": -1.453316
+    },
+    "libs/SSO/Samples/Basses/basses-sus-c2-PB-loop.wav": {
+      "root_midi": 36.0,
+      "measured_hz": 65.238803,
+      "detune_cents": -4.441557
+    },
+    "libs/SSO/Samples/Basses/basses-sus-d#2-PB-loop.wav": {
+      "root_midi": 39.0,
+      "measured_hz": 77.654632,
+      "detune_cents": -2.831573
+    },
+    "libs/SSO/Samples/Basses/basses-sus-f#2-PB-loop.wav": {
+      "root_midi": 42.0,
+      "measured_hz": 92.611394,
+      "detune_cents": 2.109694
+    },
+    "libs/SSO/Samples/Basses/basses-sus-a2-PB-loop.wav": {
+      "root_midi": 45.0,
+      "measured_hz": 109.733312,
+      "detune_cents": -4.202364
+    },
+    "libs/SSO/Samples/Basses/basses-sus-c3-PB-loop.wav": {
+      "root_midi": 48.0,
+      "measured_hz": 130.814466,
+      "detune_cents": 0.022279
+    },
+    "libs/SSO/Samples/Basses/basses-sus-d#3-PB-loop.wav": {
+      "root_midi": 51.0,
+      "measured_hz": 154.80814,
+      "detune_cents": -8.426635
+    },
+    "libs/SSO/Samples/Basses/basses-sus-f#3-PB-loop.wav": {
+      "root_midi": 54.0,
+      "measured_hz": 184.628308,
+      "detune_cents": -3.455703
+    },
+    "libs/SSO/Samples/Basses/basses-sus-a3-PB-loop.wav": {
+      "root_midi": 57.0,
+      "measured_hz": 219.029026,
+      "detune_cents": -7.65774
+    },
+    "libs/SSO/Samples/Basses/basses-sus-c4-PB-loop.wav": {
+      "root_midi": 60.0,
+      "measured_hz": 262.145866,
+      "detune_cents": 3.439523
+    },
+    "libs/NoBudgetOrch/CelloSect/Sustain/2_Db-PB-loop.wav": {
+      "root_midi": 37.0,
+      "measured_hz": 69.276072,
+      "detune_cents": -0.489381
+    },
+    "libs/NoBudgetOrch/CelloSect/Sustain/2_E-PB-loop.wav": {
+      "root_midi": 40.0,
+      "measured_hz": 82.356767,
+      "detune_cents": -1.053304
+    },
+    "libs/NoBudgetOrch/CelloSect/Sustain/2_G-PB-loop.wav": {
+      "root_midi": 43.0,
+      "measured_hz": 98.00631,
+      "detune_cents": 0.13163
+    },
+    "libs/NoBudgetOrch/CelloSect/Sustain/2_Bb-PB-loop.wav": {
+      "root_midi": 46.0,
+      "measured_hz": 116.414173,
+      "detune_cents": -1.884181
+    },
+    "libs/NoBudgetOrch/CelloSect/Sustain/3_Db-PB-loop.wav": {
+      "root_midi": 49.0,
+      "measured_hz": 138.65802,
+      "detune_cents": 0.833044
+    },
+    "libs/NoBudgetOrch/CelloSect/Sustain/3_Bb-PB-loop.wav": {
+      "root_midi": 58.0,
+      "measured_hz": 233.125365,
+      "detune_cents": 0.322955
+    },
+    "libs/NoBudgetOrch/CelloSect/Sustain/4_Db-PB-loop.wav": {
+      "root_midi": 61.0,
+      "measured_hz": 277.177277,
+      "detune_cents": -0.033443
+    },
+    "libs/NoBudgetOrch/CelloSect/Sustain/4_E-PB-loop.wav": {
+      "root_midi": 64.0,
+      "measured_hz": 329.643599,
+      "detune_cents": 0.084254
+    },
+    "libs/NoBudgetOrch/CelloSect/Sustain/4_G.wav": {
+      "root_midi": 67.0,
+      "measured_hz": 392.089152,
+      "detune_cents": 0.413842
+    },
+    "libs/NoBudgetOrch/CelloSect/Sustain/4_Bb.wav": {
+      "root_midi": 70.0,
+      "measured_hz": 464.957096,
+      "detune_cents": -4.487113
+    },
+    "libs/NoBudgetOrch/CelloSect/Sustain/5_E.wav": {
+      "root_midi": 76.0,
+      "measured_hz": 659.754481,
+      "detune_cents": 1.310865
+    },
+    "libs/Mattias-Westlund/ViolaSect/Samples/Violas_c3.wav": {
+      "root_midi": 48.0,
+      "measured_hz": 130.811978,
+      "detune_cents": -0.010645
+    },
+    "libs/Mattias-Westlund/ViolaSect/Samples/Violas_d#3.wav": {
+      "root_midi": 51.0,
+      "measured_hz": 155.555395,
+      "detune_cents": -0.090114
+    },
+    "libs/Mattias-Westlund/ViolaSect/Samples/Violas_f#3.wav": {
+      "root_midi": 54.0,
+      "measured_hz": 184.994781,
+      "detune_cents": -0.022741
+    },
+    "libs/Mattias-Westlund/ViolaSect/Samples/Violas_a3.wav": {
+      "root_midi": 57.0,
+      "measured_hz": 219.707283,
+      "detune_cents": -2.304992
+    },
+    "libs/Mattias-Westlund/ViolaSect/Samples/Violas_c4.wav": {
+      "root_midi": 60.0,
+      "measured_hz": 261.596035,
+      "detune_cents": -0.195419
+    },
+    "libs/Mattias-Westlund/ViolaSect/Samples/Violas_d#4.wav": {
+      "root_midi": 63.0,
+      "measured_hz": 311.111779,
+      "detune_cents": -0.084609
+    },
+    "libs/Mattias-Westlund/ViolaSect/Samples/Violas_f#4.wav": {
+      "root_midi": 66.0,
+      "measured_hz": 369.767832,
+      "detune_cents": -1.060563
+    },
+    "libs/Mattias-Westlund/ViolaSect/Samples/Violas_a4.wav": {
+      "root_midi": 69.0,
+      "measured_hz": 439.948376,
+      "detune_cents": -0.203133
+    },
+    "libs/Mattias-Westlund/ViolaSect/Samples/Violas_c5.wav": {
+      "root_midi": 72.0,
+      "measured_hz": 517.35706,
+      "detune_cents": -19.611848
+    },
+    "libs/Mattias-Westlund/ViolaSect/Samples/Violas_d#5.wav": {
+      "root_midi": 75.0,
+      "measured_hz": 622.16347,
+      "detune_cents": -0.251801
+    },
+    "libs/Mattias-Westlund/ViolaSect/Samples/Violas_f#5.wav": {
+      "root_midi": 78.0,
+      "measured_hz": 737.593885,
+      "detune_cents": -5.612193
+    },
+    "libs/Mattias-Westlund/ViolaSect/Samples/Violas_a5.wav": {
+      "root_midi": 81.0,
+      "measured_hz": 879.817108,
+      "detune_cents": -0.359844
+    },
+    "libs/Mattias-Westlund/ViolaSect/Samples/Violas_c6.wav": {
+      "root_midi": 84.0,
+      "measured_hz": 1041.217019,
+      "detune_cents": -8.765556
+    },
+    "libs/Mattias-Westlund/ViolaSect/Samples/Violas_d#6.wav": {
+      "root_midi": 87.0,
+      "measured_hz": 1251.873591,
+      "detune_cents": 10.216155
+    },
+    "libs/Mattias-Westlund/ViolaSect/Samples/Violas_f#6.wav": {
+      "root_midi": 90.0,
+      "measured_hz": 1488.739121,
+      "detune_cents": 10.218644
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/susvib/ViolaEns_susvib_A3_v2_1-PB-loop.wav": {
+      "root_midi": 69.0,
+      "measured_hz": 439.113218,
+      "detune_cents": -3.492672
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/susvib/ViolaEns_susvib_B2_v2_1-PB-loop.wav": {
+      "root_midi": 59.0,
+      "measured_hz": 247.29484,
+      "detune_cents": 2.474335
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/susvib/ViolaEns_susvib_B4_v2_1-PB-loop.wav": {
+      "root_midi": 83.0,
+      "measured_hz": 994.356216,
+      "detune_cents": 11.511099
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/susvib/ViolaEns_susvib_C4_v2_1-PB-loop.wav": {
+      "root_midi": 72.0,
+      "measured_hz": 521.899802,
+      "detune_cents": -4.476802
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/susvib/ViolaEns_susvib_D2_v2_1-PB-loop.wav": {
+      "root_midi": 50.0,
+      "measured_hz": 146.767734,
+      "detune_cents": -0.762423
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/susvib/ViolaEns_susvib_D3_v2_1-PB-loop.wav": {
+      "root_midi": 62.0,
+      "measured_hz": 293.01565,
+      "detune_cents": -3.830962
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/susvib/ViolaEns_susvib_D5_v2_1-PB-loop.wav": {
+      "root_midi": 86.0,
+      "measured_hz": 1174.333259,
+      "detune_cents": -0.480256
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/susvib/ViolaEns_susvib_E2_v2_1-PB-loop.wav": {
+      "root_midi": 52.0,
+      "measured_hz": 165.097613,
+      "detune_cents": 2.978888
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/susvib/ViolaEns_susvib_E4_v2_1-PB-loop.wav": {
+      "root_midi": 76.0,
+      "measured_hz": 662.318057,
+      "detune_cents": 8.0248
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/susvib/ViolaEns_susvib_F3_v2_1-PB-loop.wav": {
+      "root_midi": 65.0,
+      "measured_hz": 348.73357,
+      "detune_cents": -2.453928
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/susvib/ViolaEns_susvib_G2_v2_1-PB-loop.wav": {
+      "root_midi": 55.0,
+      "measured_hz": 195.902576,
+      "detune_cents": -0.840587
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/susvib/ViolaEns_susvib_G4_v2_1-PB-loop.wav": {
+      "root_midi": 79.0,
+      "measured_hz": 784.819681,
+      "detune_cents": 1.829236
+    },
+    "libs/SSO/Samples/1st Violins/1st-violins-sus-g3.wav": {
+      "root_midi": 55.0,
+      "measured_hz": 196.189146,
+      "detune_cents": 1.690044
+    },
+    "libs/SSO/Samples/1st Violins/1st-violins-sus-a#3.wav": {
+      "root_midi": 58.0,
+      "measured_hz": 233.069054,
+      "detune_cents": -0.095275
+    },
+    "libs/SSO/Samples/1st Violins/1st-violins-sus-c#4.wav": {
+      "root_midi": 61.0,
+      "measured_hz": 277.236402,
+      "detune_cents": 0.335811
+    },
+    "libs/SSO/Samples/1st Violins/1st-violins-sus-e4.wav": {
+      "root_midi": 64.0,
+      "measured_hz": 330.372702,
+      "detune_cents": 3.909154
+    },
+    "libs/SSO/Samples/1st Violins/1st-violins-sus-g4.wav": {
+      "root_midi": 67.0,
+      "measured_hz": 388.028185,
+      "detune_cents": -17.610492
+    },
+    "libs/SSO/Samples/1st Violins/1st-violins-sus-a#4.wav": {
+      "root_midi": 70.0,
+      "measured_hz": 467.42824,
+      "detune_cents": 4.689648
+    },
+    "libs/SSO/Samples/1st Violins/1st-violins-sus-c#5.wav": {
+      "root_midi": 73.0,
+      "measured_hz": 547.746048,
+      "detune_cents": -20.795626
+    },
+    "libs/SSO/Samples/1st Violins/1st-violins-sus-e5.wav": {
+      "root_midi": 76.0,
+      "measured_hz": 654.248477,
+      "detune_cents": -13.197835
+    },
+    "libs/SSO/Samples/1st Violins/1st-violins-sus-g5.wav": {
+      "root_midi": 79.0,
+      "measured_hz": 778.893036,
+      "detune_cents": -11.293965
+    },
+    "libs/SSO/Samples/1st Violins/1st-violins-sus-a#5.wav": {
+      "root_midi": 82.0,
+      "measured_hz": 924.420844,
+      "detune_cents": -14.744479
+    },
+    "libs/SSO/Samples/1st Violins/1st-violins-sus-c#6.wav": {
+      "root_midi": 85.0,
+      "measured_hz": 1102.383543,
+      "detune_cents": -9.939008
+    },
+    "libs/SSO/Samples/1st Violins/1st-violins-sus-e6.wav": {
+      "root_midi": 88.0,
+      "measured_hz": 1330.922534,
+      "detune_cents": 16.221408
+    },
+    "libs/SSO/Samples/1st Violins/1st-violins-sus-g6.wav": {
+      "root_midi": 91.0,
+      "measured_hz": 1567.388363,
+      "detune_cents": -0.655285
+    },
+    "libs/SSO/Samples/1st Violins/1st-violins-sus-a#6.wav": {
+      "root_midi": 94.0,
+      "measured_hz": 1889.543066,
+      "detune_cents": 22.954366
+    }
+  }
+}

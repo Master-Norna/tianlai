@@ -1,0 +1,32 @@
+{
+  "name": "FreePats 指弹电贝斯",
+  "type": "dedicated_sfz",
+  "quality_tier": "formal",
+  "collaboration_review_status": "untested",
+  "upgrade_status": "freepats_dedicated_multisample",
+  "fallback_policy": "explicit_only_no_silent_gm",
+  "asset_root": "../../../音源/FreePats/electric-bass-YR-main",
+  "upstream": "FreePats project: Yamaha RBX 指弹电贝斯 (Andrea Biasior)",
+  "origin": "https://github.com/freepats/electric-bass-YR",
+  "upstream_version": "2019-09-30 (main @ 8dcb7ea9116f)",
+  "license": "CC0-1.0",
+  "evidence_files": [
+    "LICENSE.txt",
+    "README.txt"
+  ],
+  "resource_verification": "资源核验.json",
+  "pitch_calibration": "音准校准.json",
+  "articulations": {
+    "normal": "FingerBassYR 20190930.sfz"
+  },
+  "default_articulation": "normal",
+  "pitch_mode": "pitched",
+  "gain": 0.4542,
+  "velocity_exponent": 0.72,
+  "auxiliary_note_id_base": 1875000000,
+  "release_seconds": 0.35,
+  "note_min": 28,
+  "note_max": 45,
+  "sampled_range": "E1-A2 sounding",
+  "license_status": "approved"
+}

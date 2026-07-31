@@ -1,0 +1,290 @@
+{
+  "upstream": "sgossner/VCSL (Versilian Community Sample Library)",
+  "origin": "https://github.com/sgossner/VCSL",
+  "upstream_version": "1.2.2-RC",
+  "upstream_commit": "b6e6ac82d22248edee98a0bde185eb9ef6d439ad",
+  "license": "CC0-1.0",
+  "license_status": "approved",
+  "source_sfz_sha256": {
+    "Membranophones/Struck Membranophones/Timpani 1 - Roll.sfz": "3ec91e9eee1d8614889380b1a5581fdc5191baaf7598eac6d3c038811dd5c1e5",
+    "Membranophones/Struck Membranophones/Timpani 2 - Scale.sfz": "2e1953d4c3c79c187d312f4f93a7249f3024dbc5b4b69b8190c9d68925fb5ab4"
+  },
+  "evidence_sha256": {
+    "README.md": "e360f24c120c9ad734cc8508695e09a61ddc4cae5a59c6c9af33fe501b6c9a5b"
+  },
+  "sample_count": 64,
+  "sample_bytes": 132588162,
+  "sample_sha256": {
+    "Membranophones/Struck Membranophones/Timpani 1/Roll/Timpani1_Roll_v3_rr1_Sum.wav": "834f3fcf28a546d854cf3e331cde3d14da68788d130ca306a2ef6f975230566a",
+    "Membranophones/Struck Membranophones/Timpani 1/Roll/Timpani1_Roll_v5_rr1_Sum.wav": "9a4b61ae283d607cc77f07d99908f5f1835c4512fdfaa2a69b8b878f51a0ae60",
+    "Membranophones/Struck Membranophones/Timpani 1/Roll/Timpani2_Roll_v3_rr1_Sum.wav": "3f78dc5077ed03ea6bc1c125e27be8882b8260ba37ec379da06b80334c7661e7",
+    "Membranophones/Struck Membranophones/Timpani 1/Roll/Timpani2_Roll_v5_rr1_Sum.wav": "f05404c85a8512f2a1503b849ed54b5c1a0e7ea7fab93f68dc2817819a137f44",
+    "Membranophones/Struck Membranophones/Timpani 1/Roll/Timpani3_Roll_v3_rr1_Sum.wav": "5d41045533f0163be7ca264cf9c18b3a4e898ecba334c49c0786f14d04665d3a",
+    "Membranophones/Struck Membranophones/Timpani 1/Roll/Timpani3_Roll_v5_rr1_Sum.wav": "423a57aaab07fe6e406a7e066ba78ab7c5196b3c62067e58a5718a780d22264c",
+    "Membranophones/Struck Membranophones/Timpani 1/Roll/Timpani4_Roll_v3_rr1_Sum.wav": "c9ce7599c5f5612a66d01a3830a3ec92311cca4985ca6764c4b2b70b6a89e535",
+    "Membranophones/Struck Membranophones/Timpani 1/Roll/Timpani4_Roll_v5_rr1_Sum.wav": "1e3c6c8231c668e103fd801845c10d5fc7af2a3757110595724b37cd4a9832bd",
+    "Membranophones/Struck Membranophones/Timpani 1/Roll/Timpani5_Roll_v2_rr1_Sum.wav": "1712ea4bbda842b79fefdeb290f01510d026dd9cf83ca162d9548dbea96e09c3",
+    "Membranophones/Struck Membranophones/Timpani 1/Roll/Timpani5_Roll_v4_rr1_Sum.wav": "794123bbe4625ab4abc4fb31de27dcfc4276de7cc4fc2df5e50271e27e5c5d0e",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani1B_hit_v2_rr1_main.wav": "d10a84b1f54f6d35ed3839a69d0cdf4e1b78c4070f399a831b8f6bea0b3970b1",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani1B_hit_v2_rr2_main.wav": "a796f0b3cd80755b4cb5aba3b68698270167259867f26791370d4626ee50473e",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani1B_hit_v3_rr1_main.wav": "2ed1f6aea3a120c0fcb9c8849c6e823cc472b81069797fd06a5b098e90edd66d",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani1B_hit_v3_rr2_main.wav": "27ec737491df5bfe8d3fa4edcc0661dd8c30979c1711c6c4c397f78724326e08",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani1B_hit_v5_rr1_main.wav": "551746dc51bbc5fbb5bfce07c71382cae579dec2ba1828ead2b656636f282100",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani1B_hit_v5_rr2_main.wav": "ff3e7da64b695c8c2b847c722b784672b75932cbc2746df285e9c641d3d0f807",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani1C_hit_v2_rr1_main.wav": "a2b673a0b103d50f47e3d94d5a212d2a0ec9b6e6bc718e769172fdd32726a4f0",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani1C_hit_v2_rr2_main.wav": "60ea8aa8bb47d9b3f5d2882b0c86613718fbf1a2e2c0465036853e7ba0cc1420",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani1C_hit_v3_rr1_main.wav": "175b2dad2a18b678bb7dc228a4d4c65c822c0bf5d33bafdb86849e44f81b03c8",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani1C_hit_v3_rr2_main.wav": "1a8385c84aa56458d6989d7ea33638187e39d0615867be2b29863f5ca14f7dd4",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani1C_hit_v5_rr1_main.wav": "12d0c6d39553316f37c594b8d6358394da353184362434d78f094ddb82000c26",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani1C_hit_v5_rr2_main.wav": "aaa1adb630af335fcbb2b1bd989a254b12ed569448e40a6e537ba944af9dda90",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani3A_hit_v2_rr1_main.wav": "c09ba2bd6fe3177050e1f7af4fd227bf1202ccc3165f3e2094f2396a25db2bdd",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani3A_hit_v2_rr2_main.wav": "11b216ec5a93b7eb5308c797b056578b6a1f7a18c62ebc0df8ce412321395df9",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani3A_hit_v3_rr1_main.wav": "56c646796af6bde209bc484443d2489cc1add490711db95f77bcc2a891a7f8ca",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani3A_hit_v3_rr2_main.wav": "328597d424acddd564fdcb3bdd61ec799b793f4d86db846ede454b066d71bd44",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani3A_hit_v5_rr1_main.wav": "9619d502be476840f170bf75c3643eceb2ef88aa4329622c014059b3de6cbad6",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani3A_hit_v5_rr2_main.wav": "97a0d5db8d246946f60abcf28f59605f9237af6b7203d39ab381df35ec8a2d25",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani3B_hit_v2_rr1_main.wav": "f4d628a7bfa1f023b62f069897c3e319fc37827936410c5552c9b4990f02f2ab",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani3B_hit_v2_rr2_main.wav": "548ad209d986dbd1c259bf7fff007f768dde9c2ed8cbcacf6a10bf7f57e2305a",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani3B_hit_v3_rr1_main.wav": "ad3ff0944c78a3f77561d950677fc38fd75a4025351c825002521891749013be",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani3B_hit_v3_rr2_main.wav": "0e2e2685f5eb291b5a741d94a13f22a3189dfef3e35580b1086c04b53013ab52",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani3B_hit_v5_rr1_main.wav": "c784eff70231c7bd445e715a6acb6276896326458128777a06839e6c676f3b9c",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani3B_hit_v5_rr2_main.wav": "dedc39091c0fc530b0a5e15b0a99dad7c93c21acc05c1eb79afbb54d97b0cfd6",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani3C_hit_v2_rr1_main.wav": "4a87035dfdb017460438a955c4a7c9898e3c096268afa55593e5cdf4ea6d52c4",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani3C_hit_v2_rr2_main.wav": "9d36538d1326759cfd081f1f713c19a4d6ace3f5986316a3d1e6b9ce0931d92e",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani3C_hit_v3_rr1_main.wav": "966d6e7f4137f4bb564f1931d89f99f37a0b41d5c46ba90e88c976565383e038",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani3C_hit_v3_rr2_main.wav": "c6a71a5a1b4b7b6c1f19eb3066b4ee8963a49b5756052daf72cf0daf26133080",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani3C_hit_v5_rr1_main.wav": "78a6cc80b9348b87f3a843126d077534ded126de477354188efd8537dd829393",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani3C_hit_v5_rr2_main.wav": "4111ed9584a046fd0dd02ae6f9755cd89cb1b48ef3dbf102d48d21a6dc5756dd",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani4A_hit_v2_rr1_main.wav": "f38df5794f4dda277d44829b31345ecd4d3a2e8bf9faa3b0a5bdb07c72c9adda",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani4A_hit_v2_rr2_main.wav": "aec4833852d83993463d1107c42ea9d71a6fb75aa78201c2b0687c7985bbaa92",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani4A_hit_v3_rr1_main.wav": "a9c34bd50e950b9bd20eb56f7c5d9fe3fa9349996c07d4dca0f7793b61506070",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani4A_hit_v3_rr2_main.wav": "e986e8576309d67f60b7e8096eb8a3cd472948d4805293a9c716b8c454763004",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani4A_hit_v5_rr1_main.wav": "b0e93a017cc505fb134e7fbea9ac1df8f80b93b8a087d816a9f50a284b27ad0c",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani4A_hit_v5_rr2_main.wav": "b5b0b12b2795231a3160eef1994bd89c4dd6d2ba5bda3f10ebc21bd3421d4a03",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani5B_hit_v2_rr1_main.wav": "474a77fb9eb73404fcebe3680df07768ce77c2d6af191091857f7215cca8535a",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani5B_hit_v2_rr2_main.wav": "f649a5423524df7da1667dcbf011ccc6ab45beb5cae5180826ebd9c344eeb801",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani5B_hit_v3_rr1_main.wav": "ec55f8c89efbecc7339cb19b69a988a720e0c9575bd74f86034a4f4c3775a4a2",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani5B_hit_v3_rr2_main.wav": "51241f8b54dabccdca58b22565d640ceb0e203986294655c7fa7bce097bd4be4",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani5B_hit_v5_rr1_main.wav": "ddc2ec0940f8b0e5da4a0c24b40789d36dea98d8372c46102f107e816e8c6285",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani5B_hit_v5_rr2_main.wav": "7ed395d3249bcb17027ce306f12852611c2ab930cfbb49a203fd79aa13b90e4e",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani7A_hit_v2_rr1_main.wav": "c935ee7d647c1bf9309a2babc7cc67385f3d36ab9715bf026a0f3c7c7b269f3f",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani7A_hit_v2_rr2_main.wav": "d662ca854086257a14467de64bddaa6687cbaafd6b255ed38386b99c8feebc56",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani7A_hit_v3_rr1_main.wav": "fda037d24bf2b1edf517a86fe9979ae7529a33ac7a45ceb02dc9f92cd845a222",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani7A_hit_v3_rr2_main.wav": "0b54f3da1c9f1eb6bb810fb54852834879c1dfe7ade8915df85af24b1d549566",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani7A_hit_v5_rr1_main.wav": "82ddc2f085da2f79ef6137e17703a3d5b8dde696e6590177a4d4f3610eee6eba",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani7A_hit_v5_rr2_main.wav": "6c42aec2f6f9d63048d2598870117969ee0a9a0540f03c36cebafcf3d1fdc4cc",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani7B_hit_v2_rr1_main.wav": "0a5d272eef46caecfb496b803a7cd574edf0b5a9e91b9c5006581c21e54591f3",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani7B_hit_v2_rr2_main.wav": "a9727cf02bd574363033f29c328268dc186e47fc8d83171b57a488a65a35ec00",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani7B_hit_v3_rr1_main.wav": "1b817aeb871c685fb8f3cf6354aada3ae4bdfd61361512cdb841f1baa6eb8174",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani7B_hit_v3_rr2_main.wav": "c1a282517da392563276483d9416b1c01c0d05edb8b81cb3bd00bc58e4c4444b",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani7B_hit_v5_rr1_main.wav": "99ac5ec8f6c5b2d0ca444bbfc6a92e8b8f654d466fe96e03fd3102c82013c2a9",
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani7B_hit_v5_rr2_main.wav": "ba928662d4839954af48ca2fd543e813db97d9fb47b06d4252e368ba3a1a05a8"
+  },
+  "sample_set_sha256": "d323d3c2a7587be4948bf831b4956c6e0d6fec73aceb4255a425226be8c1803a",
+  "sample_set_algorithm": "Sort unique VCSL-relative UTF-8 paths; for each write '<lowercase file sha256>  <path>\\n'; SHA-256 the concatenated UTF-8 bytes.",
+  "articulations": {
+    "hit": {
+      "sfz": "Membranophones/Struck Membranophones/Timpani 2 - Scale.sfz",
+      "source_file_sha256": {
+        "Membranophones/Struck Membranophones/Timpani 2 - Scale.sfz": "2e1953d4c3c79c187d312f4f93a7249f3024dbc5b4b69b8190c9d68925fb5ab4"
+      },
+      "region_count": 54,
+      "unique_sample_count": 54,
+      "coverage_midi": [
+        38,
+        59
+      ],
+      "physical_recorded_pitch_group_count": 9,
+      "physical_recorded_pitch_groups": [
+        "Timpani1B",
+        "Timpani1C",
+        "Timpani3A",
+        "Timpani3B",
+        "Timpani3C",
+        "Timpani4A",
+        "Timpani5B",
+        "Timpani7A",
+        "Timpani7B"
+      ],
+      "mapped_root_count": 10,
+      "mapped_root_midi": [
+        39.0,
+        41.0,
+        44.0,
+        46.0,
+        47.0,
+        48.0,
+        49.0,
+        50.0,
+        54.0,
+        58.0
+      ],
+      "recorded_velocity_layer_count": 3,
+      "source_filename_velocity_labels": [
+        2,
+        3,
+        5
+      ],
+      "true_round_robin_count": 2,
+      "round_robin_family_count": 27,
+      "velocity_crossfade_region_count": 54,
+      "sample_formats": {
+        ".wav:44100Hz:2ch:PCM_24": 54
+      },
+      "source_clipped_sample_count": 0,
+      "silent_sample_count": 0,
+      "duration_seconds": {
+        "minimum": 1.972653,
+        "median": 5.564161,
+        "maximum": 14.915374
+      },
+      "onset_seconds": {
+        "minimum": 0.0,
+        "median": 0.0,
+        "maximum": 0.000363
+      },
+      "tail_250ms_rms": {
+        "maximum": 0.000120973,
+        "maximum_dbfs": -78.346234,
+        "maximum_endpoint_peak": 2.146e-06
+      },
+      "offsets": {
+        "nonzero_region_count": 40,
+        "maximum_frames": 398,
+        "maximum_discarded_peak_ratio": 0.02874333,
+        "discarded_peak_ratio_over_1_percent_count": 13,
+        "discarded_peak_ratio_over_5_percent_count": 0
+      },
+      "embedded_loop_sample_count": 0,
+      "looped_regions": 0,
+      "maximum_upstream_mapped_peak": 1.623271455,
+      "maximum_upstream_mapped_peak_dbfs": 4.207823,
+      "inharmonic_pitch_diagnostic": {
+        "method": "strongest low spectral mode within +/-300 cents of the SFZ-mapped raw center; diagnostic only",
+        "median_residual_cents": -38.186886,
+        "maximum_absolute_residual_cents": 225.412733,
+        "automatic_correction_count": 0,
+        "rr_pair_low_mode_difference_cents": {
+          "pair_count": 27,
+          "median": 11.947018,
+          "maximum": 134.524731
+        }
+      }
+    },
+    "roll": {
+      "sfz": "Membranophones/Struck Membranophones/Timpani 1 - Roll.sfz",
+      "source_file_sha256": {
+        "Membranophones/Struck Membranophones/Timpani 1 - Roll.sfz": "3ec91e9eee1d8614889380b1a5581fdc5191baaf7598eac6d3c038811dd5c1e5"
+      },
+      "region_count": 10,
+      "unique_sample_count": 10,
+      "coverage_midi": [
+        41,
+        55
+      ],
+      "physical_recorded_pitch_group_count": 5,
+      "physical_recorded_pitch_groups": [
+        "Timpani1",
+        "Timpani2",
+        "Timpani3",
+        "Timpani4",
+        "Timpani5"
+      ],
+      "mapped_root_count": 5,
+      "mapped_root_midi": [
+        42.0,
+        46.0,
+        49.0,
+        52.0,
+        54.0
+      ],
+      "recorded_velocity_layer_count": 2,
+      "source_filename_velocity_labels": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "true_round_robin_count": 0,
+      "round_robin_family_count": 0,
+      "velocity_crossfade_region_count": 0,
+      "sample_formats": {
+        ".wav:44100Hz:2ch:PCM_16": 10
+      },
+      "source_clipped_sample_count": 0,
+      "silent_sample_count": 0,
+      "duration_seconds": {
+        "minimum": 15.679297,
+        "median": 22.467914,
+        "maximum": 29.458163
+      },
+      "onset_seconds": {
+        "minimum": 0.000136,
+        "median": 0.000283,
+        "maximum": 0.000975
+      },
+      "tail_250ms_rms": {
+        "maximum": 0.0,
+        "maximum_dbfs": null,
+        "maximum_endpoint_peak": 0.0
+      },
+      "offsets": {
+        "nonzero_region_count": 0,
+        "maximum_frames": 0,
+        "maximum_discarded_peak_ratio": 0.0,
+        "discarded_peak_ratio_over_1_percent_count": 0,
+        "discarded_peak_ratio_over_5_percent_count": 0
+      },
+      "embedded_loop_sample_count": 0,
+      "looped_regions": 0,
+      "maximum_upstream_mapped_peak": 1.793100429,
+      "maximum_upstream_mapped_peak_dbfs": 5.072092,
+      "inharmonic_pitch_diagnostic": {
+        "method": "strongest low spectral mode within +/-300 cents of the SFZ-mapped raw center; diagnostic only",
+        "median_residual_cents": -5.742683,
+        "maximum_absolute_residual_cents": 277.120026,
+        "automatic_correction_count": 0,
+        "rr_pair_low_mode_difference_cents": {
+          "pair_count": 0,
+          "median": null,
+          "maximum": null
+        }
+      }
+    }
+  },
+  "audio_integrity": {
+    "source_clipped_sample_count": 0,
+    "silent_sample_count": 0,
+    "minimum_single_voice_headroom_db": 7.769211,
+    "single_voice_headroom_db": {
+      "hit": 8.187952,
+      "roll": 7.769211
+    }
+  },
+  "runtime_truth": {
+    "hit": {
+      "source": "Timpani 2 - Scale",
+      "range_midi": [
+        38,
+        59
+      ],
+      "recorded_velocity_layers": 3,
+      "recorded_round_robin": 2,
+      "upstream_velocity_crossfades_preserved": true
+    },
+    "roll": {
+      "source": "Timpani 1 - Roll",
+      "range_midi": [
+        41,
+        55
+      ],
+      "recorded_velocity_layers": 2,
+      "recorded_round_robin": 0,
+      "finite_natural_recording": true,
+      "loop": false
+    },
+    "synthetic_pitch_or_amplitude_variation": false,
+    "upstream_sfz_and_wav_unchanged": true,
+    "automatic_inharmonic_pitch_correction": false
+  }
+}

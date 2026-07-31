@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "retrieved_at": "2026-07-25",
+  "official_page": {
+    "url": "https://www.simpk.de/museum/besuch/projekte/klaviatur-tastatur-interface/samples.html",
+    "sha256": "5ed2348b2f5c16b0f210aa84ba488f401dc757ca32d04734cf082af3c0b0bbf0"
+  },
+  "archive": {
+    "url": "https://topographie.simpk.de/kti/SIMPK_03_Clavichord.zip",
+    "version": "1.0",
+    "content_length": 1518834178,
+    "last_modified": "Fri, 21 Oct 2022 21:46:37 GMT",
+    "etag": "\"6353133d-5a879202\"",
+    "sha256": "470721722d5d4abad0a6f29adab8d7aecc815fd695b531b73ad5d9d07dce39a2",
+    "md5": "f1e2adc4abf7ab9f97d8e07ba0cee381",
+    "root": "SIMPK_03_Clavichord"
+  },
+  "attribution": {
+    "creator": "Staatliches Institut für Musikforschung (SIMPK)",
+    "instrument": "Johann Gottlob Horn clavichord, Dresden, circa 1793",
+    "license": "CC-BY-4.0",
+    "license_url": "https://creativecommons.org/licenses/by/4.0/",
+    "license_file_sha256": "a790bda01537a8d6635806093abeaf72e693c55c0c3935e86f294b7d05440c49"
+  },
+  "upstream_mapping": {
+    "file": "clavichord.dspreset",
+    "sha256": "f2077b5d89e14f60f2f9f5c45ba195bb87c29c04c1548ec5f446fb1f43313f35"
+  },
+  "source_samples": {
+    "count": 756,
+    "bytes": 2002780260,
+    "sample_set_sha256": "5c71b39656e11b4cb20e8fc8cc1292298506b990c11ad13e62a40d4eb9d24940",
+    "sample_set_hash_algorithm": "sort unique archive-root-relative UTF-8 POSIX paths; concatenate lowercase '<sha256>  <path>\\n>'; SHA-256 the UTF-8 bytes"
+  },
+  "playback_mapping": {
+    "source_note_range": [
+      40,
+      102
+    ],
+    "playback_note_offset": -12,
+    "sounding_note_range": [
+      28,
+      90
+    ],
+    "sounding_range": "E1-F#6",
+    "policy": "preserve_recorded_native_octave",
+    "description": "Preserve the recorded native octave; do not pitch the WAV data up by 12 semitones."
+  },
+  "content_uniqueness": {
+    "hash_scope": "complete decoded PCM payload plus sample rate, channel count, bit depth, and decoded frame count",
+    "hashed_sample_count": 756,
+    "unique_pcm_content_count": 252,
+    "duplicate_pcm_group_count": 252,
+    "sample_count_in_duplicate_groups": 756,
+    "duplicate_group_categories": {
+      "cross_velocity_layer": 252,
+      "cross_round_robin": 0,
+      "cross_key": 0,
+      "cross_timbre": 0
+    },
+    "interpretation": "Each timbre/key/round-robin group exposes 3 upstream velocity-zone paths with identical PCM, so the archive provides 1 unique recorded velocity through 3 mapping zones, 2 round robins, and 2 timbres."
+  },
+  "project_modifications": [
+    "Repair the single known unescaped XML label only while parsing.",
+    "Convert SIMPK interleaved PCM-point boundaries to inclusive SFZ audio-frame boundaries.",
+    "Expose the upstream lupe and reso groups as normal and resonance articulations.",
+    "Map upstream rootNote 40-102 to the measured native sounding roots 28-90 instead of pitching the recordings up by one octave.",
+    "Retain the 3 upstream velocity zones for deterministic mapping compatibility while documenting that their PCM is identical inside every timbre/key/round-robin group.",
+    "Apply a frozen per-sample fine-tuning table relative to the actual roots; original WAV bytes remain unchanged."
+  ]
+}

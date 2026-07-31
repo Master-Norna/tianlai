@@ -1,0 +1,102 @@
+name: Tagged source release candidate
+
+on:
+  push:
+    tags:
+      - "v*"
+
+# This workflow can read the tagged commit and publish provenance, but it
+# cannot create a Git tag, mutate repository contents, or create a Release.
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
+  artifact-metadata: write
+
+concurrency:
+  group: tagged-source-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-attest:
+    name: Test, build, and attest / Windows
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 1
+          fetch-tags: true
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install portable test environment
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $PSNativeCommandUseErrorActionPreference = $true
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev,mcp]"
+          python -m pip check
+
+      - name: Run portable release gates
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $PSNativeCommandUseErrorActionPreference = $true
+          python -m pytest -q -m "not external_assets and not listening"
+          git diff --check
+
+      - name: Build version-bound source ZIP and SHA-256
+        id: build
+        shell: pwsh
+        env:
+          TIANLAI_RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $PSNativeCommandUseErrorActionPreference = $true
+          $outputDirectory = Join-Path $env:RUNNER_TEMP "tianlai-release"
+          $resultJson = python tools/build_tagged_release.py `
+            --repo . `
+            --tag $env:TIANLAI_RELEASE_TAG `
+            --output-dir $outputDirectory
+          $result = $resultJson | ConvertFrom-Json
+          $actual = (Get-FileHash `
+            -LiteralPath $result.archive `
+            -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne $result.archive_sha256) {
+            throw "source ZIP hash changed after publication"
+          }
+          Add-Content `
+            -LiteralPath $env:GITHUB_OUTPUT `
+            -Encoding utf8 `
+            -Value "archive=$($result.archive)"
+          Add-Content `
+            -LiteralPath $env:GITHUB_OUTPUT `
+            -Encoding utf8 `
+            -Value "checksum=$($result.checksum)"
+
+      - name: Attest source ZIP
+        uses: actions/attest@v4
+        with:
+          subject-path: ${{ steps.build.outputs.archive }}
+
+      - name: Attest SHA-256 sidecar
+        uses: actions/attest@v4
+        with:
+          subject-path: ${{ steps.build.outputs.checksum }}
+
+      - name: Upload temporary release candidate
+        uses: actions/upload-artifact@v7
+        with:
+          name: tianlai-${{ github.ref_name }}-source-candidate
+          path: |
+            ${{ steps.build.outputs.archive }}
+            ${{ steps.build.outputs.checksum }}
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30

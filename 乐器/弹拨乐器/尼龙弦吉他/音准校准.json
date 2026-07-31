@@ -1,0 +1,353 @@
+{
+  "applicable": true,
+  "pitch_mode": "pitched",
+  "reference_a4_hz": 440.0,
+  "playback_calibration": "upstream SFZ pitch_keycenter plus tune opcodes",
+  "measurement_role": "diagnostic; playback follows the audited upstream map, and the residual column records how far each source sample deviates after that map",
+  "measurement_algorithm": "harmonic-constrained FFT of the raw source audio near the mapped pitch, start=0.08s, search +/-180 cents",
+  "summary": {
+    "sample_count": 48,
+    "median_measured_detune_cents": 4.843186,
+    "maximum_absolute_measured_detune_cents": 16.454611,
+    "median_residual_cents": 4.843186,
+    "maximum_absolute_residual_cents": 16.454611
+  },
+  "samples": {
+    "samples/A#1.flac": {
+      "root_midi": 34.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 58.430444,
+      "measured_detune_cents": 4.746355,
+      "residual_after_upstream_map_cents": 4.746355
+    },
+    "samples/A#3.flac": {
+      "root_midi": 58.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 234.521937,
+      "measured_detune_cents": 10.663223,
+      "residual_after_upstream_map_cents": 10.663223
+    },
+    "samples/A#4.flac": {
+      "root_midi": 70.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 466.391996,
+      "measured_detune_cents": 0.847409,
+      "residual_after_upstream_map_cents": 0.847409
+    },
+    "samples/A#5.flac": {
+      "root_midi": 82.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 934.673521,
+      "measured_detune_cents": 4.350799,
+      "residual_after_upstream_map_cents": 4.350799
+    },
+    "samples/A1.flac": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 55.01171,
+      "measured_detune_cents": 0.368567,
+      "residual_after_upstream_map_cents": 0.368567
+    },
+    "samples/A2.flac": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 110.132219,
+      "measured_detune_cents": 2.079679,
+      "residual_after_upstream_map_cents": 2.079679
+    },
+    "samples/A3.flac": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 221.372735,
+      "measured_detune_cents": 10.768823,
+      "residual_after_upstream_map_cents": 10.768823
+    },
+    "samples/A4.flac": {
+      "root_midi": 69.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 441.257318,
+      "measured_detune_cents": 4.940016,
+      "residual_after_upstream_map_cents": 4.940016
+    },
+    "samples/A5.flac": {
+      "root_midi": 81.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 884.562745,
+      "measured_detune_cents": 8.953149,
+      "residual_after_upstream_map_cents": 8.953149
+    },
+    "samples/B1.flac": {
+      "root_midi": 35.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 61.796037,
+      "measured_detune_cents": 1.69924,
+      "residual_after_upstream_map_cents": 1.69924
+    },
+    "samples/B2.flac": {
+      "root_midi": 47.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 124.151232,
+      "measured_detune_cents": 9.51406,
+      "residual_after_upstream_map_cents": 9.51406
+    },
+    "samples/B3.flac": {
+      "root_midi": 59.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 249.255904,
+      "measured_detune_cents": 16.148986,
+      "residual_after_upstream_map_cents": 16.148986
+    },
+    "samples/B4.flac": {
+      "root_midi": 71.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 498.497806,
+      "measured_detune_cents": 16.100359,
+      "residual_after_upstream_map_cents": 16.100359
+    },
+    "samples/B5.flac": {
+      "root_midi": 83.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 989.557408,
+      "measured_detune_cents": 3.135859,
+      "residual_after_upstream_map_cents": 3.135859
+    },
+    "samples/C#2.flac": {
+      "root_midi": 37.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 69.255758,
+      "measured_detune_cents": -0.997106,
+      "residual_after_upstream_map_cents": -0.997106
+    },
+    "samples/C#4.flac": {
+      "root_midi": 61.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 279.829688,
+      "measured_detune_cents": 16.454611,
+      "residual_after_upstream_map_cents": 16.454611
+    },
+    "samples/C#5.flac": {
+      "root_midi": 73.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 557.825804,
+      "measured_detune_cents": 10.773378,
+      "residual_after_upstream_map_cents": 10.773378
+    },
+    "samples/C2.flac": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.567515,
+      "measured_detune_cents": 4.259515,
+      "residual_after_upstream_map_cents": 4.259515
+    },
+    "samples/C3.flac": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.881141,
+      "measured_detune_cents": 0.904451,
+      "residual_after_upstream_map_cents": 0.904451
+    },
+    "samples/C4.flac": {
+      "root_midi": 60.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 262.975196,
+      "measured_detune_cents": 8.907847,
+      "residual_after_upstream_map_cents": 8.907847
+    },
+    "samples/C5.flac": {
+      "root_midi": 72.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 526.560957,
+      "measured_detune_cents": 10.916437,
+      "residual_after_upstream_map_cents": 10.916437
+    },
+    "samples/C6.flac": {
+      "root_midi": 84.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1050.441374,
+      "measured_detune_cents": 6.50426,
+      "residual_after_upstream_map_cents": 6.50426
+    },
+    "samples/D#2.flac": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 77.822161,
+      "measured_detune_cents": 0.89931,
+      "residual_after_upstream_map_cents": 0.89931
+    },
+    "samples/D#4.flac": {
+      "root_midi": 63.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 312.736601,
+      "measured_detune_cents": 8.933463,
+      "residual_after_upstream_map_cents": 8.933463
+    },
+    "samples/D#5.flac": {
+      "root_midi": 75.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 623.918193,
+      "measured_detune_cents": 4.624026,
+      "residual_after_upstream_map_cents": 4.624026
+    },
+    "samples/D2.flac": {
+      "root_midi": 38.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 73.346674,
+      "measured_detune_cents": -1.640095,
+      "residual_after_upstream_map_cents": -1.640095
+    },
+    "samples/D3.flac": {
+      "root_midi": 50.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 147.258655,
+      "measured_detune_cents": 5.018692,
+      "residual_after_upstream_map_cents": 5.018692
+    },
+    "samples/D4.flac": {
+      "root_midi": 62.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 294.904416,
+      "measured_detune_cents": 7.29268,
+      "residual_after_upstream_map_cents": 7.29268
+    },
+    "samples/D5.flac": {
+      "root_midi": 74.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 591.125908,
+      "measured_detune_cents": 11.154315,
+      "residual_after_upstream_map_cents": 11.154315
+    },
+    "samples/E2.flac": {
+      "root_midi": 40.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 82.48109,
+      "measured_detune_cents": 1.558133,
+      "residual_after_upstream_map_cents": 1.558133
+    },
+    "samples/E3.flac": {
+      "root_midi": 52.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 165.307968,
+      "measured_detune_cents": 5.183292,
+      "residual_after_upstream_map_cents": 5.183292
+    },
+    "samples/E4.flac": {
+      "root_midi": 64.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 329.312735,
+      "measured_detune_cents": -1.654263,
+      "residual_after_upstream_map_cents": -1.654263
+    },
+    "samples/E5.flac": {
+      "root_midi": 76.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 661.248057,
+      "measured_detune_cents": 5.225666,
+      "residual_after_upstream_map_cents": 5.225666
+    },
+    "samples/F#3.flac": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 185.852111,
+      "measured_detune_cents": 7.981859,
+      "residual_after_upstream_map_cents": 7.981859
+    },
+    "samples/F#4.flac": {
+      "root_midi": 66.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 370.77291,
+      "measured_detune_cents": 3.63878,
+      "residual_after_upstream_map_cents": 3.63878
+    },
+    "samples/F#5.flac": {
+      "root_midi": 78.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 740.376019,
+      "measured_detune_cents": 0.905571,
+      "residual_after_upstream_map_cents": 0.905571
+    },
+    "samples/F2.flac": {
+      "root_midi": 41.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 87.768333,
+      "measured_detune_cents": 9.122658,
+      "residual_after_upstream_map_cents": 9.122658
+    },
+    "samples/F3.flac": {
+      "root_midi": 53.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 175.126047,
+      "measured_detune_cents": 5.068181,
+      "residual_after_upstream_map_cents": 5.068181
+    },
+    "samples/F4.flac": {
+      "root_midi": 65.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 349.751582,
+      "measured_detune_cents": 2.592472,
+      "residual_after_upstream_map_cents": 2.592472
+    },
+    "samples/F5.flac": {
+      "root_midi": 77.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 698.13083,
+      "measured_detune_cents": -0.80732,
+      "residual_after_upstream_map_cents": -0.80732
+    },
+    "samples/G#1.flac": {
+      "root_midi": 32.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 52.006871,
+      "measured_detune_cents": 3.124734,
+      "residual_after_upstream_map_cents": 3.124734
+    },
+    "samples/G#3.flac": {
+      "root_midi": 56.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 208.833784,
+      "measured_detune_cents": 9.821917,
+      "residual_after_upstream_map_cents": 9.821917
+    },
+    "samples/G#5.flac": {
+      "root_midi": 80.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 829.882658,
+      "measured_detune_cents": -1.515396,
+      "residual_after_upstream_map_cents": -1.515396
+    },
+    "samples/G1.flac": {
+      "root_midi": 31.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 49.23429,
+      "measured_detune_cents": 8.278198,
+      "residual_after_upstream_map_cents": 8.278198
+    },
+    "samples/G2.flac": {
+      "root_midi": 43.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 98.580206,
+      "measured_detune_cents": 10.239652,
+      "residual_after_upstream_map_cents": 10.239652
+    },
+    "samples/G3.flac": {
+      "root_midi": 55.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 196.493614,
+      "measured_detune_cents": 4.374684,
+      "residual_after_upstream_map_cents": 4.374684
+    },
+    "samples/G4.flac": {
+      "root_midi": 67.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 392.830866,
+      "measured_detune_cents": 3.685719,
+      "residual_after_upstream_map_cents": 3.685719
+    },
+    "samples/G5.flac": {
+      "root_midi": 79.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 783.534185,
+      "measured_detune_cents": -1.008765,
+      "residual_after_upstream_map_cents": -1.008765
+    }
+  }
+}

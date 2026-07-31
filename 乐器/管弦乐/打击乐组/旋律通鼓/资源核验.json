@@ -1,0 +1,49 @@
+{
+  "upstream": "sgossner/VCSL (Versilian Community Sample Library)",
+  "origin": "https://github.com/sgossner/VCSL",
+  "upstream_version": "1.2.2-RC",
+  "license": "CC0-1.0",
+  "evidence_sha256": {
+    "README.md": "e360f24c120c9ad734cc8508695e09a61ddc4cae5a59c6c9af33fe501b6c9a5b"
+  },
+  "sample_count": 12,
+  "sample_bytes": 5922428,
+  "sample_formats": {
+    ".wav:44100Hz:2ch": 12
+  },
+  "drums": {
+    "low": {
+      "span": [
+        36,
+        42
+      ],
+      "sample_count": 6,
+      "sample_sha256": {
+        "Membranophones/Struck Membranophones/Tom 2/Stick/TomL_HitS_v2_rr1_Mid.wav": "662aebda82f294d754a1c026bba81304e78d6ef49aadac4fb5edb582bdbe061a",
+        "Membranophones/Struck Membranophones/Tom 2/Stick/TomL_HitS_v2_rr2_Mid.wav": "0436df2d06e0520f35dccf835cf60c515f0ae34bd618f9c8d4c0a6a0ba5cb014",
+        "Membranophones/Struck Membranophones/Tom 2/Stick/TomL_HitS_v3_rr1_Mid.wav": "bdc312f2f4c799cb43319a7aa0e664bf6194c6f8b14151051b375968df55eab4",
+        "Membranophones/Struck Membranophones/Tom 2/Stick/TomL_HitS_v3_rr2_Mid.wav": "c3ff68525047c8571522798132c3d0d09f32e9567313f8cefc2d1580a21d40da",
+        "Membranophones/Struck Membranophones/Tom 2/Stick/TomL_HitS_v4_rr1_Mid.wav": "d1cb91ccf2817e4c6f2e839530980554f63c232a3fa98f84a383a6cb1c4a98bd",
+        "Membranophones/Struck Membranophones/Tom 2/Stick/TomL_HitS_v4_rr2_Mid.wav": "b432f3e837f9a5ad9bf9eb8c2e9c67aa00e314d85e6ffa0fce99188ff9dfbbd0"
+      }
+    },
+    "high": {
+      "span": [
+        43,
+        49
+      ],
+      "sample_count": 6,
+      "sample_sha256": {
+        "Membranophones/Struck Membranophones/Tom 1/Stick/TomH_HitS_v2_rr1_Mid.wav": "ed22e076b649b9fd678454a6fc8852fb8e6a86d782d8b48e0107c1fb73104122",
+        "Membranophones/Struck Membranophones/Tom 1/Stick/TomH_HitS_v2_rr2_Mid.wav": "6cb3888e0077a20ac2063064cbcaef08e6d0ba04d925e3938019897452fe14fb",
+        "Membranophones/Struck Membranophones/Tom 1/Stick/TomH_HitS_v3_rr1_Mid.wav": "40bd5cf904ed20eb8e7bba6298e356b66cedd313b4f459c5a5884c054bf447a4",
+        "Membranophones/Struck Membranophones/Tom 1/Stick/TomH_HitS_v3_rr2_Mid.wav": "d7ad9e7f9faff3593a78404d867c8c214cc806d325a4751e126af18af713b799",
+        "Membranophones/Struck Membranophones/Tom 1/Stick/TomH_HitS_v4_rr1_Mid.wav": "021ae3ad142c891d2f8422f74bbbff24d258a72edcc3d9c4ff0d8107f1686512",
+        "Membranophones/Struck Membranophones/Tom 1/Stick/TomH_HitS_v4_rr2_Mid.wav": "1a0774d0a255ffdd96610161be75003b7bb0d533b84aedc99ce3b567b21a051f"
+      }
+    }
+  },
+  "sample_set_sha256": "bcb50e25694dc188c4b458f465e68117b143692b5ca3ea1a644d9e0fe3150240",
+  "sample_set_hash_algorithm": "sort unique asset-root-relative UTF-8 paths; concatenate lowercase '<sha256>  <path>\\n>'; SHA-256 the UTF-8 bytes",
+  "generated_at": "2026-07-22"
+}

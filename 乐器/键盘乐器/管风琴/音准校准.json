@@ -1,0 +1,311 @@
+{
+  "applicable": true,
+  "pitch_mode": "pitched",
+  "reference_a4_hz": 440.0,
+  "playback_calibration": "upstream SFZ pitch_keycenter plus tune opcodes",
+  "measurement_role": "diagnostic; playback follows the audited upstream map, and the residual column records how far each source sample deviates after that map",
+  "measurement_algorithm": "harmonic-constrained FFT of the raw source audio near the mapped pitch, start=0.08s, search +/-180 cents",
+  "summary": {
+    "sample_count": 42,
+    "median_measured_detune_cents": 0.202499,
+    "maximum_absolute_measured_detune_cents": 11.085651,
+    "median_residual_cents": 0.271532,
+    "maximum_absolute_residual_cents": 19.188071
+  },
+  "samples": {
+    "Aerophones/Edge-blown Aerophones/Pipe Organ/Loud/Rode_Man3Open_A1.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 110.125512,
+      "measured_detune_cents": 1.974237,
+      "residual_after_upstream_map_cents": 1.974237
+    },
+    "Aerophones/Edge-blown Aerophones/Pipe Organ/Loud/Rode_Man3Open_A2.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 220.036997,
+      "measured_detune_cents": 0.291118,
+      "residual_after_upstream_map_cents": 0.291118
+    },
+    "Aerophones/Edge-blown Aerophones/Pipe Organ/Loud/Rode_Man3Open_A3.wav": {
+      "root_midi": 69.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 439.267066,
+      "measured_detune_cents": -2.886222,
+      "residual_after_upstream_map_cents": -2.886222
+    },
+    "Aerophones/Edge-blown Aerophones/Pipe Organ/Loud/Rode_Man3Open_A4.wav": {
+      "root_midi": 81.0,
+      "upstream_claimed_detune_cents": -1.0,
+      "measured_hz": 880.836987,
+      "measured_detune_cents": 1.645831,
+      "residual_after_upstream_map_cents": 2.645831
+    },
+    "Aerophones/Edge-blown Aerophones/Pipe Organ/Loud/Rode_Man3Open_A5.wav": {
+      "root_midi": 93.0,
+      "upstream_claimed_detune_cents": -1.0,
+      "measured_hz": 1758.864775,
+      "measured_detune_cents": -1.117031,
+      "residual_after_upstream_map_cents": -0.117031
+    },
+    "Aerophones/Edge-blown Aerophones/Pipe Organ/Loud/Rode_Man3Open_C1.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": 2.0,
+      "measured_hz": 65.643271,
+      "measured_detune_cents": 6.258611,
+      "residual_after_upstream_map_cents": 4.258611
+    },
+    "Aerophones/Edge-blown Aerophones/Pipe Organ/Loud/Rode_Man3Open_C2.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": 2.0,
+      "measured_hz": 131.066646,
+      "measured_detune_cents": 3.356479,
+      "residual_after_upstream_map_cents": 1.356479
+    },
+    "Aerophones/Edge-blown Aerophones/Pipe Organ/Loud/Rode_Man3Open_C3.wav": {
+      "root_midi": 60.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 261.912897,
+      "measured_detune_cents": 1.900295,
+      "residual_after_upstream_map_cents": 1.900295
+    },
+    "Aerophones/Edge-blown Aerophones/Pipe Organ/Loud/Rode_Man3Open_C4.wav": {
+      "root_midi": 72.0,
+      "upstream_claimed_detune_cents": -1.0,
+      "measured_hz": 522.424235,
+      "measured_detune_cents": -2.73804,
+      "residual_after_upstream_map_cents": -1.73804
+    },
+    "Aerophones/Edge-blown Aerophones/Pipe Organ/Loud/Rode_Man3Open_C5.wav": {
+      "root_midi": 84.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1046.771868,
+      "measured_detune_cents": 0.445955,
+      "residual_after_upstream_map_cents": 0.445955
+    },
+    "Aerophones/Edge-blown Aerophones/Pipe Organ/Loud/Rode_Man3Open_C6.wav": {
+      "root_midi": 96.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 2088.17334,
+      "measured_detune_cents": -4.000744,
+      "residual_after_upstream_map_cents": -4.000744
+    },
+    "Aerophones/Edge-blown Aerophones/Pipe Organ/Loud/Rode_Man3Open_D#1.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": 5.0,
+      "measured_hz": 78.281406,
+      "measured_detune_cents": 11.085651,
+      "residual_after_upstream_map_cents": 6.085651
+    },
+    "Aerophones/Edge-blown Aerophones/Pipe Organ/Loud/Rode_Man3Open_D#2.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": 1.0,
+      "measured_hz": 156.080575,
+      "measured_detune_cents": 5.744968,
+      "residual_after_upstream_map_cents": 4.744968
+    },
+    "Aerophones/Edge-blown Aerophones/Pipe Organ/Loud/Rode_Man3Open_D#3.wav": {
+      "root_midi": 63.0,
+      "upstream_claimed_detune_cents": -3.0,
+      "measured_hz": 310.88371,
+      "measured_detune_cents": -1.354203,
+      "residual_after_upstream_map_cents": 1.645797
+    },
+    "Aerophones/Edge-blown Aerophones/Pipe Organ/Loud/Rode_Man3Open_D#4.wav": {
+      "root_midi": 75.0,
+      "upstream_claimed_detune_cents": -2.0,
+      "measured_hz": 621.664573,
+      "measured_detune_cents": -1.64059,
+      "residual_after_upstream_map_cents": 0.35941
+    },
+    "Aerophones/Edge-blown Aerophones/Pipe Organ/Loud/Rode_Man3Open_D#5.wav": {
+      "root_midi": 87.0,
+      "upstream_claimed_detune_cents": -2.0,
+      "measured_hz": 1242.205126,
+      "measured_detune_cents": -3.206403,
+      "residual_after_upstream_map_cents": -1.206403
+    },
+    "Aerophones/Edge-blown Aerophones/Pipe Organ/Loud/Rode_Man3Open_F#1.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": 1.0,
+      "measured_hz": 92.717884,
+      "measured_detune_cents": 4.099224,
+      "residual_after_upstream_map_cents": 3.099224
+    },
+    "Aerophones/Edge-blown Aerophones/Pipe Organ/Loud/Rode_Man3Open_F#2.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": 1.0,
+      "measured_hz": 185.65553,
+      "measured_detune_cents": 6.149719,
+      "residual_after_upstream_map_cents": 5.149719
+    },
+    "Aerophones/Edge-blown Aerophones/Pipe Organ/Loud/Rode_Man3Open_F#3.wav": {
+      "root_midi": 66.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 370.429158,
+      "measured_detune_cents": 2.032968,
+      "residual_after_upstream_map_cents": 2.032968
+    },
+    "Aerophones/Edge-blown Aerophones/Pipe Organ/Loud/Rode_Man3Open_F#4.wav": {
+      "root_midi": 78.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 741.268628,
+      "measured_detune_cents": 2.991517,
+      "residual_after_upstream_map_cents": 2.991517
+    },
+    "Aerophones/Edge-blown Aerophones/Pipe Organ/Loud/Rode_Man3Open_F#5.wav": {
+      "root_midi": 90.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1481.098128,
+      "measured_detune_cents": 1.310158,
+      "residual_after_upstream_map_cents": 1.310158
+    },
+    "Aerophones/Edge-blown Aerophones/Pipe Organ/Quiet/NT5_Man3Quiet_A1_rr1.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 110.021011,
+      "measured_detune_cents": 0.330643,
+      "residual_after_upstream_map_cents": 0.330643
+    },
+    "Aerophones/Edge-blown Aerophones/Pipe Organ/Quiet/NT5_Man3Quiet_A2_rr1.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": 3.0,
+      "measured_hz": 220.450768,
+      "measured_detune_cents": 3.543571,
+      "residual_after_upstream_map_cents": 0.543571
+    },
+    "Aerophones/Edge-blown Aerophones/Pipe Organ/Quiet/NT5_Man3Quiet_A3_rr1.wav": {
+      "root_midi": 69.0,
+      "upstream_claimed_detune_cents": -2.0,
+      "measured_hz": 439.183371,
+      "measured_detune_cents": -3.216112,
+      "residual_after_upstream_map_cents": -1.216112
+    },
+    "Aerophones/Edge-blown Aerophones/Pipe Organ/Quiet/NT5_Man3Quiet_A4_rr1.wav": {
+      "root_midi": 81.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 879.946316,
+      "measured_detune_cents": -0.105616,
+      "residual_after_upstream_map_cents": -0.105616
+    },
+    "Aerophones/Edge-blown Aerophones/Pipe Organ/Quiet/NT5_Man3Quiet_A5_rr1.wav": {
+      "root_midi": 93.0,
+      "upstream_claimed_detune_cents": -2.0,
+      "measured_hz": 1757.603572,
+      "measured_detune_cents": -2.358866,
+      "residual_after_upstream_map_cents": -0.358866
+    },
+    "Aerophones/Edge-blown Aerophones/Pipe Organ/Quiet/NT5_Man3Quiet_C1_rr1.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -6.0,
+      "measured_hz": 65.060824,
+      "measured_detune_cents": -9.17102,
+      "residual_after_upstream_map_cents": -3.17102
+    },
+    "Aerophones/Edge-blown Aerophones/Pipe Organ/Quiet/NT5_Man3Quiet_C2_rr1.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.728943,
+      "measured_detune_cents": -1.109931,
+      "residual_after_upstream_map_cents": -1.109931
+    },
+    "Aerophones/Edge-blown Aerophones/Pipe Organ/Quiet/NT5_Man3Quiet_C3_rr1.wav": {
+      "root_midi": 60.0,
+      "upstream_claimed_detune_cents": 2.0,
+      "measured_hz": 261.989426,
+      "measured_detune_cents": 2.406076,
+      "residual_after_upstream_map_cents": 0.406076
+    },
+    "Aerophones/Edge-blown Aerophones/Pipe Organ/Quiet/NT5_Man3Quiet_C4_rr1.wav": {
+      "root_midi": 72.0,
+      "upstream_claimed_detune_cents": -3.0,
+      "measured_hz": 522.142293,
+      "measured_detune_cents": -3.672605,
+      "residual_after_upstream_map_cents": -0.672605
+    },
+    "Aerophones/Edge-blown Aerophones/Pipe Organ/Quiet/NT5_Man3Quiet_C5_rr1.wav": {
+      "root_midi": 84.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1044.461664,
+      "measured_detune_cents": -3.379066,
+      "residual_after_upstream_map_cents": -3.379066
+    },
+    "Aerophones/Edge-blown Aerophones/Pipe Organ/Quiet/NT5_Man3Quiet_C6_rr1.wav": {
+      "root_midi": 96.0,
+      "upstream_claimed_detune_cents": -1.0,
+      "measured_hz": 2091.210403,
+      "measured_detune_cents": -1.484647,
+      "residual_after_upstream_map_cents": -0.484647
+    },
+    "Aerophones/Edge-blown Aerophones/Pipe Organ/Quiet/NT5_Man3Quiet_D#1_rr1.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": 1.0,
+      "measured_hz": 77.869896,
+      "measured_detune_cents": 1.960905,
+      "residual_after_upstream_map_cents": 0.960905
+    },
+    "Aerophones/Edge-blown Aerophones/Pipe Organ/Quiet/NT5_Man3Quiet_D#2_rr1.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": 2.0,
+      "measured_hz": 155.742385,
+      "measured_detune_cents": 1.989724,
+      "residual_after_upstream_map_cents": -0.010276
+    },
+    "Aerophones/Edge-blown Aerophones/Pipe Organ/Quiet/NT5_Man3Quiet_D#3_rr1.wav": {
+      "root_midi": 63.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 311.172265,
+      "measured_detune_cents": 0.251946,
+      "residual_after_upstream_map_cents": 0.251946
+    },
+    "Aerophones/Edge-blown Aerophones/Pipe Organ/Quiet/NT5_Man3Quiet_D#4_rr1.wav": {
+      "root_midi": 75.0,
+      "upstream_claimed_detune_cents": -2.0,
+      "measured_hz": 621.101978,
+      "measured_detune_cents": -3.208033,
+      "residual_after_upstream_map_cents": -1.208033
+    },
+    "Aerophones/Edge-blown Aerophones/Pipe Organ/Quiet/NT5_Man3Quiet_D#5_rr1.wav": {
+      "root_midi": 87.0,
+      "upstream_claimed_detune_cents": -8.0,
+      "measured_hz": 1238.474416,
+      "measured_detune_cents": -8.413636,
+      "residual_after_upstream_map_cents": -0.413636
+    },
+    "Aerophones/Edge-blown Aerophones/Pipe Organ/Quiet/NT5_Man3Quiet_F#1_rr1.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": 15.0,
+      "measured_hz": 92.27511,
+      "measured_detune_cents": -4.188071,
+      "residual_after_upstream_map_cents": -19.188071
+    },
+    "Aerophones/Edge-blown Aerophones/Pipe Organ/Quiet/NT5_Man3Quiet_F#2_rr1.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": 5.0,
+      "measured_hz": 185.557636,
+      "measured_detune_cents": 5.236621,
+      "residual_after_upstream_map_cents": 0.236621
+    },
+    "Aerophones/Edge-blown Aerophones/Pipe Organ/Quiet/NT5_Man3Quiet_F#3_rr1.wav": {
+      "root_midi": 66.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 370.027134,
+      "measured_detune_cents": 0.153053,
+      "residual_after_upstream_map_cents": 0.153053
+    },
+    "Aerophones/Edge-blown Aerophones/Pipe Organ/Quiet/NT5_Man3Quiet_F#4_rr1.wav": {
+      "root_midi": 78.0,
+      "upstream_claimed_detune_cents": -1.0,
+      "measured_hz": 739.710494,
+      "measured_detune_cents": -0.651336,
+      "residual_after_upstream_map_cents": 0.348664
+    },
+    "Aerophones/Edge-blown Aerophones/Pipe Organ/Quiet/NT5_Man3Quiet_F#5_rr1.wav": {
+      "root_midi": 90.0,
+      "upstream_claimed_detune_cents": -3.0,
+      "measured_hz": 1476.68139,
+      "measured_detune_cents": -3.860216,
+      "residual_after_upstream_map_cents": -0.860216
+    }
+  }
+}

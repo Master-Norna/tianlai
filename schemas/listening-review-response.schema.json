@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tianlai.local/schemas/listening-review-response.schema.json",
+  "title": "Tianlai Listening Review Response",
+  "type": "object",
+  "required": [
+    "$schema",
+    "schema_version",
+    "kind",
+    "response_id",
+    "batch_id",
+    "batch_sha256",
+    "layer",
+    "completion_status",
+    "reviewer",
+    "session",
+    "answers"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "https://tianlai.local/schemas/listening-review-response.schema.json"
+    },
+    "schema_version": { "const": 1 },
+    "kind": { "const": "listening_review_response" },
+    "response_id": { "$ref": "#/$defs/nonEmptyString" },
+    "batch_id": {
+      "type": "string",
+      "pattern": "^(technical|identity|expert|context)-[0-9]{3}-[0-9a-f]{10}$"
+    },
+    "batch_sha256": { "$ref": "#/$defs/sha256" },
+    "layer": {
+      "enum": ["technical", "identity", "expert", "context"]
+    },
+    "completion_status": { "enum": ["draft", "complete"] },
+    "reviewer": {
+      "type": "object",
+      "required": [
+        "reviewer_id",
+        "display_name",
+        "role",
+        "expertise"
+      ],
+      "properties": {
+        "reviewer_id": { "$ref": "#/$defs/nonEmptyString" },
+        "display_name": { "type": "string" },
+        "role": {
+          "enum": [
+            "general_listener",
+            "reference_listener",
+            "instrument_expert",
+            "review_lead"
+          ]
+        },
+        "expertise": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/nonEmptyString" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "session": {
+      "type": "object",
+      "required": [
+        "started_at",
+        "completed_at",
+        "listening_environment",
+        "device",
+        "notes"
+      ],
+      "properties": {
+        "started_at": { "type": "string", "format": "date-time" },
+        "completed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "format": "date-time" }
+          ]
+        },
+        "listening_environment": {
+          "enum": ["headphones", "speakers", "other"]
+        },
+        "device": { "$ref": "#/$defs/nonEmptyString" },
+        "notes": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "answers": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/answer" }
+    }
+  },
+  "$defs": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "answer": {
+      "type": "object",
+      "required": [
+        "item_id",
+        "wav_sha256",
+        "question_id",
+        "status",
+        "comment",
+        "answered_at"
+      ],
+      "properties": {
+        "item_id": {
+          "type": "string",
+          "pattern": "^I[0-9]{2}-[0-9a-f]{10}$"
+        },
+        "wav_sha256": { "$ref": "#/$defs/sha256" },
+        "question_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{2,63}$"
+        },
+        "status": {
+          "enum": ["pass", "reject", "unsure", "not_applicable"]
+        },
+        "comment": { "type": "string" },
+        "answered_at": { "type": "string", "format": "date-time" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": ["reject", "unsure", "not_applicable"]
+              }
+            },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {
+              "comment": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      ],
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

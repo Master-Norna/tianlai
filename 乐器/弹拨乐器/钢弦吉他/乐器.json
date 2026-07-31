@@ -1,0 +1,32 @@
+{
+  "name": "FreePats 钢弦吉他",
+  "type": "dedicated_sfz",
+  "quality_tier": "formal",
+  "collaboration_review_status": "untested",
+  "upgrade_status": "freepats_dedicated_multisample",
+  "fallback_policy": "explicit_only_no_silent_gm",
+  "asset_root": "../../../音源/FreePats/FSS-SteelStringGuitar-SFZ-20200521",
+  "upstream": "FreePats project: FS Seagull Steel String Guitar (FlameStudios 采样)",
+  "origin": "https://freepats.zenvoid.org/Guitar/steel-acoustic-guitar.html",
+  "upstream_version": "2020-05-21",
+  "license": "GPL-3.0-or-later WITH FlameStudios sampling exception",
+  "evidence_files": [
+    "gpl.txt",
+    "readme.txt"
+  ],
+  "resource_verification": "资源核验.json",
+  "pitch_calibration": "音准校准.json",
+  "articulations": {
+    "normal": "FSS-SteelStringGuitar-20200521.sfz"
+  },
+  "default_articulation": "normal",
+  "pitch_mode": "pitched",
+  "gain": 0.3643,
+  "velocity_exponent": 0.72,
+  "auxiliary_note_id_base": 1874000000,
+  "release_seconds": 0.4,
+  "note_min": 40,
+  "note_max": 83,
+  "sampled_range": "E2-B5 sounding",
+  "license_status": "grandfathered"
+}

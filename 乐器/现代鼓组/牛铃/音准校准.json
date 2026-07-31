@@ -1,0 +1,6 @@
+{
+  "applicable": false,
+  "profile": "cowbell",
+  "reason": "独立牛铃为无固定音高金属打击；MIDI 56 仅是 SFZ 键位，不伪造十二平均律音高。",
+  "samples": {}
+}

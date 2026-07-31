@@ -1,0 +1,46 @@
+{
+  "name": "Virtual Playing Orchestra 颤弓弦乐",
+  "type": "vpo_string_section",
+  "quality_tier": "formal",
+  "collaboration_review_status": "untested",
+  "upgrade_status": "vpo_dedicated_tremolo_multisample",
+  "fallback_policy": "explicit_only_no_silent_gm",
+  "implementation": "乐器.py",
+  "instrument_name": "tremolo string ensemble",
+  "asset_root": "../../../../音源/VirtualPlayingOrchestra/Virtual-Playing-Orchestra3",
+  "pitch_calibration": "音准校准.json",
+  "calibration_articulation": "tremolo",
+  "note_min": 24,
+  "note_max": 105,
+  "sampled_range": "C1-A7",
+  "input_pitch_semantics": "concert_pitch",
+  "written_note_min": 24,
+  "written_note_max": 105,
+  "written_to_concert_semitones": 0,
+  "allowed_articulations": [
+    "tremolo"
+  ],
+  "default_articulation": "tremolo",
+  "gain": 0.21,
+  "velocity_exponent": 0.72,
+  "release_seconds": 0.72,
+  "short_gate_seconds": 0.17,
+  "short_release_seconds": 0.18,
+  "expression_smoothing_seconds": 0.014,
+  "auxiliary_note_id_base": 1620000000,
+  "articulation_gain": {
+    "tremolo": 0.82
+  },
+  "upstream": "Virtual Playing Orchestra",
+  "origin": "http://virtualplaying.com",
+  "upstream_version": "Standard Orchestra 3.3 (2026-06-27) / Wave Files 3.2 (2026-06-27)",
+  "license": "混合许可:Sonatina Symphonic Orchestra CC Sampling Plus 1.0、Mattias Westlund additional samples CC-BY-SA-3.0、No Budget Orchestra CC-BY-SA-4.0、VSCO2 Community Edition/stamperadam CC0-1.0、University of Iowa Electronic Music 无限制使用声明;见 Documentation/license.htm 及本乐器 evidence_files",
+  "evidence_files": [
+    "Documentation/license.htm",
+    "libs/NoBudgetOrch2/Cello/CelloSect/license.txt",
+    "libs/NoBudgetOrch2/Violin/SoloViolin/license.txt",
+    "libs/NoBudgetOrch2/Violin/ViolinSect/license.txt",
+    "libs/Other/readme-pb.txt"
+  ],
+  "license_status": "grandfathered"
+}

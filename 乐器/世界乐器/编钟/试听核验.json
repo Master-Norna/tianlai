@@ -1,0 +1,95 @@
+{
+  "status": "machine_and_human_passed",
+  "rendered_at": "2026-07-26",
+  "platform": "Windows Chinese-path workspace",
+  "sample_rate": 48000,
+  "channels": 2,
+  "subtype": "PCM_24",
+  "frame_count": 2108640,
+  "duration_seconds": 43.93,
+  "peak_active_voices": 51,
+  "peak": 0.472401,
+  "rms": 0.0783,
+  "clipped_samples": 0,
+  "wav": "output/编钟候选/01_编钟_正鼓全音域上行.wav",
+  "wav_persistence": "temporary",
+  "wav_sha256": "ec14028f79c4b2df0c964cc9921053263f095bea7a27a1a32d5652db8d7980e5",
+  "hash_algorithm": "SHA-256",
+  "canonicalization": "tianlai-json-v1",
+  "manifest_canonical_sha256": "36d4f1b953ae9f1152e2e4d5dce6e0e2542e8b0ddbfe3100c8784b844e562032",
+  "events": "examples/全音域上行/世界乐器/编钟_全音域上行.events.json",
+  "events_canonical_sha256": "f08eb84701c2f72c6559337e6551297533c09e6478afe83d7ea5d6589659efdf",
+  "identity_migration": {
+    "status": "superseded_by_canonical_json_v1",
+    "hash_algorithm": "SHA-256",
+    "hash_semantics": "source-file-bytes",
+    "manifest_sha256": "f8b1eac0f77466e0746cdde57d825de34a26c865ef3cd84f956269d5e42c5d34",
+    "events_sha256": "77a201498408ce3d9fdde1ce20321ef1a2232d70a4c940a3dcdfa2fae88f165f"
+  },
+  "audition_profile": "ascending-scale",
+  "audition_protocol": "full-range-chromatic-ascending-v1",
+  "coverage": [
+    "全声明合法键升序：MIDI 36-98（63 键，63 次触发）",
+    "固定力度 0.72、常规时值 0.48s、音间隔 0.12s；本乐器按协议使用独立 gate/gap/tail；note 事件不重叠，是否隔离声音尾部以本乐器协议例外说明为准",
+    "协议例外：编钟使用 6s 文件尾，确保最后一枚钟自然落静而不是在 EOF 截断"
+  ],
+  "human_review": "passed",
+  "review_evidence_status": "passed_direct_project_owner_listening",
+  "human_reviewed_on": "2026-07-26",
+  "human_review_scope": "独奏/单音色：全音域连续性、明显异响，以及正鼓与侧鼓低中高音区对照；不包含任何协奏、混音或实际曲目组合结论",
+  "human_review_source_wav_sha256": "7bd0456cc4a47ac3f8bc669f843306c253c59ec40a01e4420b13aba121ecef27",
+  "human_review_continuity": {
+    "status": "approved_audio_is_bit_exact_prefix_of_current_wav",
+    "approved_prefix_frames": 1892640,
+    "current_wav_adds_only_natural_tail_seconds": 4.5,
+    "current_trailing_digital_silence_seconds": 0.488979
+  },
+  "auxiliary_auditions": [
+    {
+      "wav": "output/编钟候选/02_编钟_正鼓与侧鼓对照.wav",
+      "wav_persistence": "temporary",
+      "wav_sha256": "967c9dff001fa55453c99c09daad327518472266f56d12daa93c2a4dc9024a4a",
+      "frame_count": 1300800,
+      "duration_seconds": 27.1,
+      "sequence": [
+        {
+          "articulation": "zhenggu",
+          "midi_note": 48,
+          "isolated_clip_seconds": 5.0
+        },
+        {
+          "articulation": "cegu",
+          "midi_note": 48,
+          "isolated_clip_seconds": 5.0
+        },
+        {
+          "articulation": "zhenggu",
+          "midi_note": 67,
+          "isolated_clip_seconds": 3.8
+        },
+        {
+          "articulation": "cegu",
+          "midi_note": 67,
+          "isolated_clip_seconds": 3.8
+        },
+        {
+          "articulation": "zhenggu",
+          "midi_note": 86,
+          "isolated_clip_seconds": 2.8
+        },
+        {
+          "articulation": "cegu",
+          "midi_note": 86,
+          "isolated_clip_seconds": 2.8
+        }
+      ],
+      "construction": "每次敲击使用独立引擎实例；片尾 0.45s 仅为对照文件做淡出，避免前一枚钟的长尾掩蔽下一枚，不代表正式渲染的 note_off 行为"
+    }
+  ],
+  "manifest_provenance_migration": {
+    "date": "2026-07-27",
+    "previous_manifest_sha256": "5e04a8df36da88f08bfb6ae32331c6463bfb782f569a75edf012632955508e3a",
+    "reason": "added non-runtime project-authored DSP provenance and Apache-2.0 metadata",
+    "audio_reverification": "bit_exact_against_frozen_wav_sha256"
+  }
+}

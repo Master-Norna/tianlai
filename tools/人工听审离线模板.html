@@ -1,0 +1,1353 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; media-src 'self' file:; connect-src 'none'; img-src data:;">
+  <title>天籁离线听审</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172033;
+      --muted: #647087;
+      --line: #d9dfeb;
+      --soft: #f4f6fa;
+      --paper: #ffffff;
+      --accent: #3456d1;
+      --accent-soft: #eef1ff;
+      --ok: #147a49;
+      --warn: #a35b00;
+      --bad: #b42318;
+      font-family: "Segoe UI", "Microsoft YaHei UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: #edf0f5;
+      line-height: 1.55;
+    }
+    header {
+      padding: 28px max(20px, calc((100vw - 1080px) / 2));
+      color: white;
+      background: linear-gradient(125deg, #1c2860, #3f5ed3);
+    }
+    header h1 { margin: 0 0 7px; font-size: 1.75rem; }
+    header p { margin: 3px 0; opacity: .9; }
+    main {
+      width: min(1080px, calc(100% - 28px));
+      margin: 20px auto 64px;
+    }
+    .panel, .item-card {
+      margin: 0 0 18px;
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--paper);
+      box-shadow: 0 3px 14px rgba(28, 40, 96, .06);
+    }
+    .notice {
+      border-left: 4px solid var(--accent);
+      background: var(--accent-soft);
+    }
+    .notice strong { display: block; margin-bottom: 4px; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px 18px;
+    }
+    label.field { display: block; }
+    label.field span { display: block; margin-bottom: 5px; font-weight: 650; }
+    input[type="text"], select, textarea {
+      width: 100%;
+      padding: 9px 11px;
+      color: var(--ink);
+      border: 1px solid #bac3d4;
+      border-radius: 8px;
+      background: white;
+      font: inherit;
+    }
+    textarea { min-height: 68px; resize: vertical; }
+    input:focus, select:focus, textarea:focus, button:focus-visible {
+      outline: 3px solid rgba(52, 86, 209, .22);
+      outline-offset: 1px;
+      border-color: var(--accent);
+    }
+    .wide { grid-column: 1 / -1; }
+    .hidden { display: none !important; }
+    .toolbar {
+      position: sticky;
+      z-index: 5;
+      top: 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0 0 18px;
+      padding: 12px 15px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, .96);
+      box-shadow: 0 5px 18px rgba(23, 32, 51, .1);
+    }
+    .toolbar .progress {
+      flex: 1;
+      min-width: 150px;
+    }
+    .progress-track {
+      height: 7px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #dce2ef;
+    }
+    .progress-bar {
+      width: 0;
+      height: 100%;
+      background: var(--accent);
+      transition: width .18s ease;
+    }
+    .muted, .helper { color: var(--muted); font-size: .92rem; }
+    .state-ok { color: var(--ok); }
+    .state-warn { color: var(--warn); }
+    .state-bad { color: var(--bad); }
+    button, .file-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 38px;
+      padding: 8px 13px;
+      border: 1px solid #aeb8cc;
+      border-radius: 8px;
+      color: var(--ink);
+      background: white;
+      font: inherit;
+      font-weight: 650;
+      cursor: pointer;
+    }
+    button:hover, .file-button:hover { background: var(--soft); }
+    button.primary {
+      color: white;
+      border-color: var(--accent);
+      background: var(--accent);
+    }
+    button.primary:hover { background: #2948bd; }
+    button.small { min-height: 32px; padding: 5px 9px; font-size: .88rem; }
+    .item-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 15px;
+      margin-bottom: 10px;
+    }
+    .item-head h2 { margin: 0; font-size: 1.35rem; }
+    .identity { color: var(--muted); font-size: .95rem; }
+    audio { width: 100%; margin: 8px 0 5px; }
+    .audio-warning {
+      min-height: 1.3em;
+      color: var(--bad);
+      font-size: .9rem;
+    }
+    .auxiliary {
+      margin: 11px 0;
+      padding: 11px 12px;
+      border-radius: 9px;
+      background: var(--soft);
+    }
+    .auxiliary strong { display: block; }
+    .question {
+      padding: 16px 0;
+      border-top: 1px solid var(--line);
+    }
+    .question h3 { margin: 0 0 5px; font-size: 1.05rem; }
+    .acceptance { margin: 5px 0; }
+    .listen-for { margin: 4px 0 10px; color: var(--muted); }
+    fieldset {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin: 0 0 10px;
+      padding: 0;
+      border: 0;
+    }
+    .choice {
+      padding: 6px 9px;
+      border: 1px solid #c4ccda;
+      border-radius: 8px;
+      background: #fafbfe;
+      cursor: pointer;
+    }
+    .choice:has(input:checked) {
+      color: #203a9d;
+      border-color: #7187dd;
+      background: var(--accent-soft);
+    }
+    .comment-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: start;
+      gap: 8px;
+    }
+    .required-comment { border-color: var(--bad) !important; }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 9px;
+      align-items: center;
+    }
+    #message {
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: var(--soft);
+      white-space: pre-wrap;
+    }
+    @media (max-width: 720px) {
+      .grid { grid-template-columns: 1fr; }
+      .wide { grid-column: auto; }
+      .toolbar { position: static; flex-wrap: wrap; }
+      .toolbar .progress { flex-basis: 100%; }
+      .comment-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1 id="title">天籁离线听审</h1>
+    <p id="batch-line"></p>
+    <p id="description"></p>
+  </header>
+  <main>
+    <section class="panel notice">
+      <strong>先完整解压，再打开本页。</strong>
+      本页完全离线，不上传任何音频或回答。不要在 ZIP 预览窗口中直接打开；
+      完成后只需把网页下载的 JSON 回答文件发给协调者。随包的许可与署名文件
+      不对应播放编号，技术盲听请提交后再看。
+    </section>
+
+    <section class="panel">
+      <h2>听审者与设备</h2>
+      <div class="grid">
+        <label class="field">
+          <span>听审者编号（必填）</span>
+          <input id="reviewer-id" type="text" autocomplete="off"
+                 placeholder="使用协调者分配的稳定编号">
+        </label>
+        <label class="field">
+          <span>显示名（可选）</span>
+          <input id="display-name" type="text" autocomplete="off">
+        </label>
+        <label class="field">
+          <span>角色</span>
+          <select id="role"></select>
+        </label>
+        <label class="field">
+          <span>听音环境</span>
+          <select id="environment">
+            <option value="headphones">耳机</option>
+            <option value="speakers">音箱</option>
+            <option value="other">其他</option>
+          </select>
+        </label>
+        <label class="field wide">
+          <span>设备（必填）</span>
+          <input id="device" type="text" autocomplete="off"
+                 placeholder="例如：有线封闭式耳机 / 近场监听音箱">
+        </label>
+        <label id="expertise-field" class="field wide hidden">
+          <span>熟悉的乐器族（专家层必填，用逗号分隔）</span>
+          <input id="expertise" type="text" autocomplete="off">
+        </label>
+        <label class="field wide">
+          <span>会话备注（可选）</span>
+          <textarea id="session-notes"
+                    placeholder="环境噪声、设备异常或其他需要协调者知道的情况"></textarea>
+        </label>
+      </div>
+      <p id="save-state" class="helper">正在检查本地草稿能力……</p>
+    </section>
+
+    <div class="toolbar">
+      <div class="progress">
+        <div id="progress-label">已回答 0/0</div>
+        <div class="progress-track"><div id="progress-bar" class="progress-bar"></div></div>
+      </div>
+      <button id="export-draft" type="button">导出草稿</button>
+      <label class="file-button" for="import-file">载入回答 JSON</label>
+      <input id="import-file" class="hidden" type="file" accept=".json,application/json">
+      <button id="export-complete" class="primary" type="button">导出完整回答</button>
+    </div>
+
+    <section id="items"></section>
+
+    <section class="panel">
+      <h2>完成与交回</h2>
+      <p>
+        所有音频都播放过、全部问题都作答且非“通过”项写明时间点和现象后，
+        点击“导出完整回答”。网页下载的 JSON 就是需要发回的唯一文件。
+      </p>
+      <div class="actions">
+        <button id="bottom-export" class="primary" type="button">导出完整回答</button>
+        <button id="clear-draft" type="button">清除此页本地草稿</button>
+      </div>
+      <div id="message" role="status" aria-live="polite">尚未导出。</div>
+    </section>
+  </main>
+
+  <script id="review-data" type="application/json">__TIANLAI_OFFLINE_REVIEW_DATA__</script>
+  <script>
+  (() => {
+    "use strict";
+
+    const pack = JSON.parse(document.getElementById("review-data").textContent);
+    const RESPONSE_SCHEMA =
+      "https://tianlai.local/schemas/listening-review-response.schema.json";
+    const statusLabels = {
+      pass: "通过",
+      reject: "不通过",
+      unsure: "不确定",
+      not_applicable: "不适用"
+    };
+    const roleLabels = {
+      general_listener: "普通听众",
+      reference_listener: "参考听众",
+      instrument_expert: "乐器族专家",
+      review_lead: "评审负责人"
+    };
+    const STATE_VERSION = 2;
+    const storageBase =
+      `tianlai-review-v1::${pack.batch_id}::${pack.batch_sha256}`;
+    const answerControls = new Map();
+    const mediaStates = new Map();
+    const allAudioElements = new Set();
+    const knownItemById = new Map(
+      pack.items.map((item) => [item.item_id, item])
+    );
+    const knownQuestionIds = new Set(
+      pack.questions.map((question) => question.question_id)
+    );
+    const expectedAnswerKeys = new Set();
+    for (const item of pack.items) {
+      for (const question of pack.questions) {
+        expectedAnswerKeys.add(`${item.item_id}::${question.question_id}`);
+      }
+    }
+    let saveTimer = null;
+    let storageAvailable = true;
+    let activeReviewerId = "";
+
+    const randomToken = () => {
+      if (globalThis.crypto && typeof globalThis.crypto.randomUUID === "function") {
+        return globalThis.crypto.randomUUID();
+      }
+      return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    };
+
+    const freshState = () => ({
+      stateVersion: STATE_VERSION,
+      responseId: `${pack.batch_id}-${randomToken()}`,
+      startedAt: new Date().toISOString(),
+      meta: {
+        reviewerId: "",
+        displayName: "",
+        role: pack.review_policy.allowed_roles[0],
+        environment: "headphones",
+        device: "",
+        expertise: "",
+        notes: ""
+      },
+      answers: {},
+      batchSha256: pack.batch_sha256
+    });
+
+    let state = freshState();
+
+    const byId = (id) => document.getElementById(id);
+    const make = (tag, className, text) => {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      if (text !== undefined) node.textContent = text;
+      return node;
+    };
+    const answerKey = (itemId, questionId) => `${itemId}::${questionId}`;
+    const targetMediaKey = (itemId) => `target::${itemId}`;
+    const auxiliaryMediaKey = (itemId, index) => `aux::${itemId}::${index}`;
+    const storageKeyFor = (reviewerId) => {
+      const reviewer = reviewerId.trim() || "__anonymous__";
+      return `${storageBase}::${reviewer}`;
+    };
+    const currentStorageKey = () =>
+      storageKeyFor(state.meta.reviewerId.trim());
+    const setMessage = (text, kind = "") => {
+      const node = byId("message");
+      node.textContent = text;
+      node.className = kind ? `state-${kind}` : "";
+    };
+
+    const isRecord = (value) =>
+      Boolean(
+        value &&
+        typeof value === "object" &&
+        !Array.isArray(value) &&
+        (Object.getPrototypeOf(value) === Object.prototype ||
+          Object.getPrototypeOf(value) === null)
+      );
+    const hasExactKeys = (value, keys) => {
+      if (!isRecord(value)) return false;
+      const actual = Object.keys(value);
+      return (
+        actual.length === keys.length &&
+        keys.every((key) => Object.prototype.hasOwnProperty.call(value, key))
+      );
+    };
+    const isTimestamp = (value) =>
+      typeof value === "string" &&
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value) &&
+      Number.isFinite(Date.parse(value));
+
+    const normalizeState = (candidate, expectedReviewerId = null) => {
+      const stateKeys = [
+        "stateVersion",
+        "responseId",
+        "startedAt",
+        "meta",
+        "answers",
+        "batchSha256"
+      ];
+      const metaKeys = [
+        "reviewerId",
+        "displayName",
+        "role",
+        "environment",
+        "device",
+        "expertise",
+        "notes"
+      ];
+      if (!hasExactKeys(candidate, stateKeys)) return null;
+      if (
+        candidate.stateVersion !== STATE_VERSION ||
+        candidate.batchSha256 !== pack.batch_sha256 ||
+        typeof candidate.responseId !== "string" ||
+        !candidate.responseId.trim() ||
+        !isTimestamp(candidate.startedAt) ||
+        !hasExactKeys(candidate.meta, metaKeys) ||
+        !isRecord(candidate.answers)
+      ) {
+        return null;
+      }
+      const meta = candidate.meta;
+      if (
+        !metaKeys
+          .filter((key) => !["role", "environment"].includes(key))
+          .every((key) => typeof meta[key] === "string") ||
+        !pack.review_policy.allowed_roles.includes(meta.role) ||
+        !["headphones", "speakers", "other"].includes(meta.environment) ||
+        (pack.layer === "technical" && meta.role !== "general_listener")
+      ) {
+        return null;
+      }
+      const reviewerId = meta.reviewerId.trim();
+      if (
+        expectedReviewerId !== null &&
+        reviewerId !== expectedReviewerId.trim()
+      ) {
+        return null;
+      }
+
+      const answers = {};
+      for (const [key, answer] of Object.entries(candidate.answers)) {
+        if (
+          !expectedAnswerKeys.has(key) ||
+          !hasExactKeys(answer, ["status", "comment", "answeredAt"]) ||
+          typeof answer.status !== "string" ||
+          !["", ...pack.review_policy.status_vocabulary].includes(
+            answer.status
+          ) ||
+          typeof answer.comment !== "string" ||
+          !isTimestamp(answer.answeredAt)
+        ) {
+          return null;
+        }
+        answers[key] = {
+          status: answer.status,
+          comment: answer.comment,
+          answeredAt: answer.answeredAt
+        };
+      }
+      return {
+        stateVersion: STATE_VERSION,
+        responseId: candidate.responseId,
+        startedAt: candidate.startedAt,
+        meta: {
+          reviewerId,
+          displayName: meta.displayName,
+          role: meta.role,
+          environment: meta.environment,
+          device: meta.device,
+          expertise: meta.expertise,
+          notes: meta.notes
+        },
+        answers,
+        batchSha256: pack.batch_sha256
+      };
+    };
+
+    const saveStateNow = () => {
+      try {
+        const normalized = normalizeState(
+          state,
+          state.meta.reviewerId.trim()
+        );
+        if (!normalized) {
+          throw new Error("当前草稿结构无效");
+        }
+        state = normalized;
+        const key = currentStorageKey();
+        localStorage.setItem(key, JSON.stringify(state));
+        byId("save-state").textContent =
+          "草稿已尝试保存在此浏览器；重要进度仍建议另点“导出草稿”。";
+        byId("save-state").className = "helper state-ok";
+      } catch (error) {
+        storageAvailable = false;
+        byId("save-state").textContent =
+          "浏览器禁止本地草稿保存；请经常点击“导出草稿”下载 JSON。";
+        byId("save-state").className = "helper state-warn";
+      }
+    };
+    const scheduleSave = () => {
+      if (saveTimer !== null) clearTimeout(saveTimer);
+      saveTimer = setTimeout(saveStateNow, 220);
+    };
+
+    const readSavedStateForReviewer = (reviewerId) => {
+      try {
+        const raw = localStorage.getItem(storageKeyFor(reviewerId));
+        if (!raw) return { found: false, state: null };
+        const restored = JSON.parse(raw);
+        const normalized = normalizeState(restored, reviewerId);
+        if (!normalized) {
+          return { found: true, state: null };
+        }
+        return { found: true, state: normalized };
+      } catch (error) {
+        storageAvailable = false;
+        return { found: false, state: null };
+      }
+    };
+
+    byId("title").textContent = pack.title;
+    byId("batch-line").textContent =
+      `${pack.batch_id} · 校验码 ${pack.batch_sha256.slice(0, 12)} · ` +
+      `预计 ${pack.review_policy.estimated_minutes} 分钟`;
+    byId("description").textContent = pack.description;
+
+    const roleSelect = byId("role");
+    for (const role of pack.review_policy.allowed_roles) {
+      const option = document.createElement("option");
+      option.value = role;
+      option.textContent = roleLabels[role] || role;
+      roleSelect.appendChild(option);
+    }
+    if (pack.layer === "technical") {
+      state.meta.role = "general_listener";
+      roleSelect.disabled = true;
+    }
+
+    const metaFields = {
+      "reviewer-id": "reviewerId",
+      "display-name": "displayName",
+      "role": "role",
+      "environment": "environment",
+      "device": "device",
+      "expertise": "expertise",
+      "session-notes": "notes"
+    };
+    const syncMetaControls = () => {
+      for (const [controlId, stateKey] of Object.entries(metaFields)) {
+        byId(controlId).value = state.meta[stateKey] || "";
+      }
+      const needsExpertise =
+        pack.layer === "expert" || state.meta.role === "instrument_expert";
+      byId("expertise-field").classList.toggle("hidden", !needsExpertise);
+    };
+    syncMetaControls();
+
+    const resetMediaPlayback = () => {
+      for (const audio of allAudioElements) {
+        audio.pause();
+        try {
+          audio.currentTime = 0;
+        } catch (error) {
+          // 尚未读到 metadata 时无法归零，不影响后续 ready 校验。
+        }
+      }
+      for (const media of mediaStates.values()) {
+        media.played = false;
+      }
+    };
+
+    for (const [controlId, stateKey] of Object.entries(metaFields)) {
+      if (controlId === "reviewer-id") continue;
+      const control = byId(controlId);
+      const eventName = control.tagName === "SELECT" ? "change" : "input";
+      control.addEventListener(eventName, () => {
+        state.meta[stateKey] = control.value;
+        if (stateKey === "role") syncMetaControls();
+        scheduleSave();
+      });
+    }
+
+    const reviewerControl = byId("reviewer-id");
+    reviewerControl.addEventListener("change", () => {
+      const requested = reviewerControl.value.trim();
+      if (!requested) {
+        if (activeReviewerId) {
+          window.alert("听审者编号不能为空；若要重新开始，请使用“清除此页本地草稿”。");
+          reviewerControl.value = activeReviewerId;
+          return;
+        }
+        state.meta.reviewerId = "";
+        return;
+      }
+      if (requested === activeReviewerId) {
+        state.meta.reviewerId = requested;
+        return;
+      }
+
+      let baseState;
+      if (activeReviewerId) {
+        saveStateNow();
+        if (
+          !window.confirm(
+            `正在从 ${activeReviewerId} 切换到 ${requested}。` +
+            "当前回答已经保存；继续会在页面中清空它们并切换听审者。"
+          )
+        ) {
+          reviewerControl.value = activeReviewerId;
+          return;
+        }
+        baseState = freshState();
+        baseState.meta.reviewerId = requested;
+      } else {
+        const currentCandidate = {
+          ...state,
+          meta: { ...state.meta, reviewerId: requested }
+        };
+        baseState =
+          normalizeState(currentCandidate, requested) || freshState();
+        baseState.meta.reviewerId = requested;
+      }
+
+      const saved = readSavedStateForReviewer(requested);
+      let restored = false;
+      if (saved.found && saved.state) {
+        restored = window.confirm(
+          `找到听审者 ${requested} 在本批次的本地草稿。` +
+          "点击“确定”恢复；点击“取消”从当前空白/未绑定状态开始，" +
+          "后续编辑会覆盖该浏览器草稿。"
+        );
+        if (restored) baseState = saved.state;
+      } else if (saved.found) {
+        setMessage(
+          `听审者 ${requested} 的浏览器草稿版本过旧或内容损坏，已拒绝恢复。`,
+          "bad"
+        );
+      }
+
+      state = baseState;
+      activeReviewerId = requested;
+      resetMediaPlayback();
+      syncMetaControls();
+      syncAnswerControls();
+      if (restored) {
+        setMessage(
+          `已明确恢复听审者 ${requested} 的本地草稿；所有音频需在本次页面会话重新播放。`,
+          "ok"
+        );
+      } else if (saved.found && saved.state) {
+        setMessage(
+          `未恢复听审者 ${requested} 的旧草稿；当前按新草稿继续，后续编辑会覆盖浏览器中的旧草稿。`,
+          "warn"
+        );
+      } else if (!saved.found) {
+        setMessage(`已开始听审者 ${requested} 的新草稿。`, "ok");
+      }
+    });
+
+    const formatTime = (seconds) => {
+      const safe = Number.isFinite(seconds) && seconds >= 0 ? seconds : 0;
+      const minutes = Math.floor(safe / 60);
+      const remainder = (safe - minutes * 60).toFixed(2).padStart(5, "0");
+      return `${String(minutes).padStart(2, "0")}:${remainder}`;
+    };
+
+    const updateProgress = () => {
+      const total = pack.items.length * pack.questions.length;
+      let answered = 0;
+      for (const item of pack.items) {
+        for (const question of pack.questions) {
+          const value = state.answers[answerKey(item.item_id, question.question_id)];
+          if (value && value.status) answered += 1;
+        }
+      }
+      byId("progress-label").textContent = `已回答 ${answered}/${total}`;
+      byId("progress-bar").style.width =
+        `${total ? (answered / total) * 100 : 0}%`;
+    };
+
+    const pauseOtherAudio = (current) => {
+      for (const audio of allAudioElements) {
+        if (audio !== current && !audio.paused) audio.pause();
+      }
+    };
+
+    const registerMedia = (
+      audio,
+      key,
+      warning,
+      label,
+      expectedDuration = null
+    ) => {
+      const media = {
+        label,
+        ready: false,
+        played: false,
+        error: ""
+      };
+      mediaStates.set(key, media);
+      allAudioElements.add(audio);
+
+      audio.addEventListener("play", () => pauseOtherAudio(audio));
+      audio.addEventListener("playing", () => {
+        if (media.ready) media.played = true;
+      });
+      audio.addEventListener("error", () => {
+        media.ready = false;
+        media.played = false;
+        media.error =
+          "音频无法播放。请确认已经完整解压；修复前不能导出完整回答。";
+        warning.textContent = media.error;
+      });
+      audio.addEventListener("loadedmetadata", () => {
+        media.ready = false;
+        media.error = "";
+        if (
+          !Number.isFinite(audio.duration) ||
+          audio.duration <= 0
+        ) {
+          media.error = "音频 metadata 无效，无法确认媒体已经就绪。";
+        } else if (expectedDuration !== null) {
+          const recorded = Number(expectedDuration);
+          const tolerance = Math.max(0.35, recorded * 0.015);
+          if (
+            !Number.isFinite(recorded) ||
+            Math.abs(audio.duration - recorded) > tolerance
+          ) {
+            media.error =
+              `音频时长与批次记录不符（本地 ${audio.duration.toFixed(2)} 秒，` +
+              `记录 ${recorded.toFixed(2)} 秒）。`;
+          }
+        }
+        if (media.error) {
+          media.played = false;
+          warning.textContent = media.error;
+        } else {
+          media.ready = true;
+          warning.textContent = "";
+        }
+      });
+    };
+
+    const setQuestionControls = (key) => {
+      const controls = answerControls.get(key);
+      if (!controls) return;
+      const answer = state.answers[key] || {};
+      for (const radio of controls.radios) {
+        radio.checked = radio.value === answer.status;
+      }
+      controls.comment.value = answer.comment || "";
+      const requiresComment = answer.status && answer.status !== "pass";
+      controls.comment.classList.toggle(
+        "required-comment",
+        Boolean(requiresComment && !controls.comment.value.trim())
+      );
+    };
+
+    const itemsRoot = byId("items");
+    for (const item of pack.items) {
+      const card = make("article", "item-card");
+      const head = make("div", "item-head");
+      head.appendChild(make("h2", "", `${String(item.order).padStart(2, "0")}. ${item.blind_label}`));
+      if (item.display_identity) {
+        head.appendChild(make("div", "identity", item.display_identity));
+      }
+      card.appendChild(head);
+
+      if (item.coverage && item.coverage.length) {
+        card.appendChild(
+          make("p", "muted", `谱例覆盖：${item.coverage.join("；")}`)
+        );
+      }
+
+      const audio = document.createElement("audio");
+      audio.controls = true;
+      audio.preload = "metadata";
+      audio.dataset.itemId = item.item_id;
+      card.appendChild(audio);
+
+      const audioWarning = make("div", "audio-warning");
+      card.appendChild(audioWarning);
+
+      registerMedia(
+        audio,
+        targetMediaKey(item.item_id),
+        audioWarning,
+        item.blind_label,
+        item.duration_seconds
+      );
+      audio.src = item.playback_wav;
+
+      for (const [assetIndex, asset] of (
+        item.auxiliary_audio || []
+      ).entries()) {
+        const box = make("div", "auxiliary");
+        box.appendChild(
+          make(
+            "strong",
+            "",
+            `${asset.kind}：${asset.label}（${asset.license}）`
+          )
+        );
+        if (asset.source) {
+          box.appendChild(make("div", "muted", `来源：${asset.source}`));
+        }
+        if (asset.notes) box.appendChild(make("div", "muted", asset.notes));
+        const auxiliaryAudio = document.createElement("audio");
+        auxiliaryAudio.controls = true;
+        auxiliaryAudio.preload = "metadata";
+        box.appendChild(auxiliaryAudio);
+        const auxiliaryWarning = make("div", "audio-warning");
+        box.appendChild(auxiliaryWarning);
+        registerMedia(
+          auxiliaryAudio,
+          auxiliaryMediaKey(item.item_id, assetIndex),
+          auxiliaryWarning,
+          `${item.blind_label} / ${asset.label}`
+        );
+        auxiliaryAudio.src = asset.playback_audio;
+        card.appendChild(box);
+      }
+
+      const passRemaining = make("button", "small", "本样本未填写项标为通过");
+      passRemaining.type = "button";
+      passRemaining.addEventListener("click", () => {
+        const targetMedia = mediaStates.get(targetMediaKey(item.item_id));
+        if (!targetMedia || !targetMedia.ready || !targetMedia.played) {
+          window.alert(
+            "请等待本样本媒体就绪并实际播放后，再使用批量通过按钮。"
+          );
+          return;
+        }
+        const timestamp = new Date().toISOString();
+        for (const question of pack.questions) {
+          const key = answerKey(item.item_id, question.question_id);
+          const existing = state.answers[key] || {};
+          if (!existing.status) {
+            state.answers[key] = {
+              status: "pass",
+              comment: existing.comment || "",
+              answeredAt: timestamp
+            };
+            setQuestionControls(key);
+          }
+        }
+        updateProgress();
+        scheduleSave();
+      });
+      card.appendChild(passRemaining);
+
+      for (const question of pack.questions) {
+        const key = answerKey(item.item_id, question.question_id);
+        const section = make("section", "question");
+        section.appendChild(make("h3", "", question.title));
+        section.appendChild(
+          make("p", "acceptance", `“通过”表示：${question.acceptance_statement}`)
+        );
+        section.appendChild(
+          make("p", "listen-for", `重点听：${question.listen_for}`)
+        );
+
+        const fieldset = document.createElement("fieldset");
+        fieldset.setAttribute("aria-label", `${item.blind_label} ${question.title}`);
+        const radios = [];
+        for (const status of pack.review_policy.status_vocabulary) {
+          const label = make("label", "choice");
+          const radio = document.createElement("input");
+          radio.type = "radio";
+          radio.name = `answer-${item.item_id}-${question.question_id}`;
+          radio.value = status;
+          radio.addEventListener("change", () => {
+            const existing = state.answers[key] || {};
+            state.answers[key] = {
+              status,
+              comment: existing.comment || "",
+              answeredAt: new Date().toISOString()
+            };
+            setQuestionControls(key);
+            updateProgress();
+            scheduleSave();
+          });
+          label.appendChild(radio);
+          label.appendChild(document.createTextNode(` ${statusLabels[status] || status}`));
+          fieldset.appendChild(label);
+          radios.push(radio);
+        }
+        section.appendChild(fieldset);
+
+        const commentRow = make("div", "comment-row");
+        const comment = document.createElement("textarea");
+        comment.placeholder =
+          "通过时可留空；其他答案请写时间点 + 现象，例如：00:12.30 尾音突然截断";
+        comment.addEventListener("input", () => {
+          const existing = state.answers[key] || {
+            status: "",
+            answeredAt: new Date().toISOString()
+          };
+          existing.comment = comment.value;
+          existing.answeredAt = new Date().toISOString();
+          state.answers[key] = existing;
+          setQuestionControls(key);
+          scheduleSave();
+        });
+        commentRow.appendChild(comment);
+        const addTime = make("button", "small", "插入当前时间");
+        addTime.type = "button";
+        addTime.addEventListener("click", () => {
+          const prefix = `[${formatTime(audio.currentTime)}] `;
+          comment.value = `${comment.value}${comment.value ? " " : ""}${prefix}`;
+          comment.dispatchEvent(new Event("input", { bubbles: true }));
+          comment.focus();
+        });
+        commentRow.appendChild(addTime);
+        section.appendChild(commentRow);
+        section.appendChild(
+          make("p", "helper", `不适用条件：${question.not_applicable_when}`)
+        );
+        answerControls.set(key, { radios, comment });
+        card.appendChild(section);
+      }
+
+      itemsRoot.appendChild(card);
+    }
+
+    const syncAnswerControls = () => {
+      for (const key of answerControls.keys()) setQuestionControls(key);
+      updateProgress();
+    };
+    syncAnswerControls();
+
+    const splitExpertise = (value) => {
+      const seen = new Set();
+      const result = [];
+      for (const part of value.split(/[,，;；\n]/)) {
+        const cleaned = part.trim();
+        if (cleaned && !seen.has(cleaned)) {
+          seen.add(cleaned);
+          result.push(cleaned);
+        }
+      }
+      return result;
+    };
+
+    const validateMeta = () => {
+      const errors = [];
+      if (!state.meta.reviewerId.trim()) errors.push("请填写听审者编号。");
+      if (!state.meta.device.trim()) errors.push("请填写耳机或音箱设备。");
+      if (!pack.review_policy.allowed_roles.includes(state.meta.role)) {
+        errors.push("听审者角色不属于本批次允许范围。");
+      }
+      if (!["headphones", "speakers", "other"].includes(state.meta.environment)) {
+        errors.push("听音环境无效。");
+      }
+      if (
+        (pack.layer === "expert" || state.meta.role === "instrument_expert") &&
+        splitExpertise(state.meta.expertise).length === 0
+      ) {
+        errors.push("专家层必须填写熟悉的乐器族。");
+      }
+      return errors;
+    };
+
+    const validateAnswers = (requireComplete) => {
+      const errors = [];
+      for (const item of pack.items) {
+        if (requireComplete) {
+          const target = mediaStates.get(targetMediaKey(item.item_id));
+          if (!target || !target.ready) {
+            errors.push(`${item.blind_label} 的目标音频尚未就绪或存在错误。`);
+          } else if (!target.played) {
+            errors.push(`${item.blind_label} 的目标音频在本次页面会话尚未播放。`);
+          }
+          for (const [assetIndex, asset] of (
+            item.auxiliary_audio || []
+          ).entries()) {
+            const auxiliary = mediaStates.get(
+              auxiliaryMediaKey(item.item_id, assetIndex)
+            );
+            if (!auxiliary || !auxiliary.ready) {
+              errors.push(
+                `${item.blind_label} / ${asset.label} 辅助音频尚未就绪或存在错误。`
+              );
+            } else if (!auxiliary.played) {
+              errors.push(
+                `${item.blind_label} / ${asset.label} 辅助音频在本次页面会话尚未播放。`
+              );
+            }
+          }
+        }
+        for (const question of pack.questions) {
+          const key = answerKey(item.item_id, question.question_id);
+          const answer = state.answers[key];
+          if (!answer || !answer.status) {
+            if (answer && (answer.comment || "").trim()) {
+              errors.push(
+                `${item.blind_label} / ${question.title} 已写评论但尚未选择状态。`
+              );
+            }
+            if (requireComplete) {
+              errors.push(`${item.blind_label} / ${question.title} 尚未回答。`);
+            }
+            continue;
+          }
+          if (!pack.review_policy.status_vocabulary.includes(answer.status)) {
+            errors.push(`${item.blind_label} / ${question.title} 的状态无效。`);
+          }
+          if (answer.status !== "pass" && !(answer.comment || "").trim()) {
+            errors.push(`${item.blind_label} / ${question.title} 必须填写评论。`);
+          }
+        }
+      }
+      return errors;
+    };
+
+    const buildResponse = (complete) => {
+      const answers = [];
+      for (const item of pack.items) {
+        for (const question of pack.questions) {
+          const answer = state.answers[answerKey(item.item_id, question.question_id)];
+          if (!answer || !answer.status) continue;
+          answers.push({
+            item_id: item.item_id,
+            wav_sha256: item.wav_sha256,
+            question_id: question.question_id,
+            status: answer.status,
+            comment: (answer.comment || "").trim(),
+            answered_at: answer.answeredAt || new Date().toISOString()
+          });
+        }
+      }
+      const now = new Date().toISOString();
+      return {
+        $schema: RESPONSE_SCHEMA,
+        schema_version: 1,
+        kind: "listening_review_response",
+        response_id: state.responseId,
+        batch_id: pack.batch_id,
+        batch_sha256: pack.batch_sha256,
+        layer: pack.layer,
+        completion_status: complete ? "complete" : "draft",
+        reviewer: {
+          reviewer_id: state.meta.reviewerId.trim(),
+          display_name: state.meta.displayName.trim(),
+          role: state.meta.role,
+          expertise: splitExpertise(state.meta.expertise)
+        },
+        session: {
+          started_at: state.startedAt,
+          completed_at: complete ? now : null,
+          listening_environment: state.meta.environment,
+          device: state.meta.device.trim(),
+          notes: state.meta.notes.trim()
+        },
+        answers
+      };
+    };
+
+    const safeFilePart = (value) =>
+      value.replace(/[<>:"/\\|?*\u0000-\u001f]/g, "_").slice(0, 50) || "reviewer";
+    const downloadResponse = (complete) => {
+      const errors = [
+        ...validateMeta(),
+        ...validateAnswers(complete)
+      ];
+      if (errors.length) {
+        setMessage(
+          `暂不能导出${complete ? "完整回答" : "草稿"}：\n- ` +
+          errors.slice(0, 12).join("\n- ") +
+          (errors.length > 12 ? `\n- 另有 ${errors.length - 12} 项……` : ""),
+          "bad"
+        );
+        return;
+      }
+      saveStateNow();
+      const response = buildResponse(complete);
+      const blob = new Blob(
+        [JSON.stringify(response, null, 2) + "\n"],
+        { type: "application/json;charset=utf-8" }
+      );
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const suffix = complete ? "完整" : "草稿";
+      link.href = url;
+      link.download =
+        `${pack.batch_id}__${safeFilePart(state.meta.reviewerId)}__${suffix}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setMessage(
+        complete
+          ? "完整回答已下载。请把这个 JSON 文件发给协调者。"
+          : "草稿已下载。下次可用“载入回答 JSON”继续。",
+        "ok"
+      );
+    };
+
+    const applyImportedResponse = (response) => {
+      const rootKeys = [
+        "$schema",
+        "schema_version",
+        "kind",
+        "response_id",
+        "batch_id",
+        "batch_sha256",
+        "layer",
+        "completion_status",
+        "reviewer",
+        "session",
+        "answers"
+      ];
+      const reviewerKeys = [
+        "reviewer_id",
+        "display_name",
+        "role",
+        "expertise"
+      ];
+      const sessionKeys = [
+        "started_at",
+        "completed_at",
+        "listening_environment",
+        "device",
+        "notes"
+      ];
+      const answerKeys = [
+        "item_id",
+        "wav_sha256",
+        "question_id",
+        "status",
+        "comment",
+        "answered_at"
+      ];
+      if (!hasExactKeys(response, rootKeys)) {
+        throw new Error("回答根对象字段不完整或包含未知字段。");
+      }
+      if (
+        response.$schema !== RESPONSE_SCHEMA ||
+        response.schema_version !== 1 ||
+        response.kind !== "listening_review_response"
+      ) {
+        throw new Error("文件不是受支持的天籁听审响应 v1。");
+      }
+      if (
+        response.batch_id !== pack.batch_id ||
+        response.batch_sha256 !== pack.batch_sha256 ||
+        response.layer !== pack.layer
+      ) {
+        throw new Error("回答属于另一个批次或旧版本，拒绝载入。");
+      }
+      if (
+        typeof response.response_id !== "string" ||
+        !response.response_id.trim() ||
+        !["draft", "complete"].includes(response.completion_status)
+      ) {
+        throw new Error("回答的 response_id 或完成状态无效。");
+      }
+      if (
+        !hasExactKeys(response.reviewer, reviewerKeys) ||
+        !hasExactKeys(response.session, sessionKeys) ||
+        !Array.isArray(response.answers)
+      ) {
+        throw new Error("回答缺少有效的 reviewer、session 或 answers。");
+      }
+
+      const reviewer = response.reviewer;
+      if (
+        typeof reviewer.reviewer_id !== "string" ||
+        !reviewer.reviewer_id.trim() ||
+        typeof reviewer.display_name !== "string" ||
+        !pack.review_policy.allowed_roles.includes(reviewer.role) ||
+        (pack.layer === "technical" && reviewer.role !== "general_listener") ||
+        !Array.isArray(reviewer.expertise) ||
+        !reviewer.expertise.every(
+          (value) => typeof value === "string" && value.trim()
+        ) ||
+        new Set(reviewer.expertise).size !== reviewer.expertise.length
+      ) {
+        throw new Error("回答中的听审者字段无效。");
+      }
+      if (
+        (pack.layer === "expert" || reviewer.role === "instrument_expert") &&
+        reviewer.expertise.length === 0
+      ) {
+        throw new Error("专家回答必须声明熟悉的乐器族。");
+      }
+
+      const session = response.session;
+      if (
+        !isTimestamp(session.started_at) ||
+        !["headphones", "speakers", "other"].includes(
+          session.listening_environment
+        ) ||
+        typeof session.device !== "string" ||
+        !session.device.trim() ||
+        typeof session.notes !== "string" ||
+        !(
+          session.completed_at === null ||
+          isTimestamp(session.completed_at)
+        )
+      ) {
+        throw new Error("回答中的听音会话字段无效。");
+      }
+      if (
+        response.completion_status === "complete" &&
+        !isTimestamp(session.completed_at)
+      ) {
+        throw new Error("完整回答缺少有效的完成时间。");
+      }
+
+      const importedAnswers = {};
+      for (const answer of response.answers) {
+        if (!hasExactKeys(answer, answerKeys)) {
+          throw new Error("回答项字段不完整或包含未知字段。");
+        }
+        const item = knownItemById.get(answer.item_id);
+        if (!item || !knownQuestionIds.has(answer.question_id)) {
+          throw new Error("回答引用了未知样本或问题。");
+        }
+        if (answer.wav_sha256 !== item.wav_sha256) {
+          throw new Error("回答中的 WAV Hash 与本包不一致。");
+        }
+        if (!pack.review_policy.status_vocabulary.includes(answer.status)) {
+          throw new Error("回答包含无效状态。");
+        }
+        if (
+          typeof answer.comment !== "string" ||
+          !isTimestamp(answer.answered_at)
+        ) {
+          throw new Error("回答包含无效评论或作答时间。");
+        }
+        if (answer.status !== "pass" && !answer.comment.trim()) {
+          throw new Error("回答包含没有评论的非通过项。");
+        }
+        const key = answerKey(answer.item_id, answer.question_id);
+        if (importedAnswers[key]) throw new Error("回答中存在重复题目。");
+        importedAnswers[key] = {
+          status: answer.status,
+          comment: answer.comment,
+          answeredAt: answer.answered_at
+        };
+      }
+      if (
+        response.completion_status === "complete" &&
+        Object.keys(importedAnswers).length !== expectedAnswerKeys.size
+      ) {
+        throw new Error("完整回答没有覆盖本批次的全部题目。");
+      }
+
+      const candidateState = {
+        stateVersion: STATE_VERSION,
+        responseId: response.response_id,
+        startedAt: session.started_at,
+        meta: {
+          reviewerId: reviewer.reviewer_id.trim(),
+          displayName: reviewer.display_name,
+          role: reviewer.role,
+          environment: session.listening_environment,
+          device: session.device,
+          expertise: reviewer.expertise.join("，"),
+          notes: session.notes
+        },
+        answers: importedAnswers,
+        batchSha256: pack.batch_sha256
+      };
+      const normalized = normalizeState(
+        candidateState,
+        reviewer.reviewer_id.trim()
+      );
+      if (!normalized) {
+        throw new Error("回答无法归一化为当前离线页面的草稿状态。");
+      }
+
+      state = normalized;
+      activeReviewerId = normalized.meta.reviewerId;
+      resetMediaPlayback();
+      syncMetaControls();
+      syncAnswerControls();
+      saveStateNow();
+    };
+
+    byId("import-file").addEventListener("change", (event) => {
+      const file = event.target.files && event.target.files[0];
+      event.target.value = "";
+      if (!file) return;
+      if (file.size > 8 * 1024 * 1024) {
+        setMessage("回答 JSON 超过 8 MiB，拒绝载入。", "bad");
+        return;
+      }
+      const reader = new FileReader();
+      reader.addEventListener("load", () => {
+        try {
+          applyImportedResponse(JSON.parse(String(reader.result)));
+          setMessage(
+            "回答已载入；所有音频需在本次页面会话重新播放，之后才能导出完整回答。",
+            "ok"
+          );
+        } catch (error) {
+          setMessage(`载入失败：${error.message}`, "bad");
+        }
+      });
+      reader.addEventListener("error", () => {
+        setMessage("浏览器无法读取这个回答文件。", "bad");
+      });
+      reader.readAsText(file, "utf-8");
+    });
+
+    byId("export-draft").addEventListener("click", () => downloadResponse(false));
+    byId("export-complete").addEventListener("click", () => downloadResponse(true));
+    byId("bottom-export").addEventListener("click", () => downloadResponse(true));
+    byId("clear-draft").addEventListener("click", () => {
+      if (!window.confirm("清除本页当前草稿？已经下载的 JSON 不受影响。")) return;
+      try {
+        localStorage.removeItem(currentStorageKey());
+        localStorage.removeItem(`${storageBase}::last`);
+      } catch (error) {
+        storageAvailable = false;
+      }
+      state = freshState();
+      activeReviewerId = "";
+      resetMediaPlayback();
+      syncMetaControls();
+      syncAnswerControls();
+      setMessage("本页草稿已清除。", "ok");
+    });
+
+    if (!storageAvailable) {
+      byId("save-state").textContent =
+        "浏览器禁止本地草稿保存；请经常点击“导出草稿”下载 JSON。";
+      byId("save-state").className = "helper state-warn";
+    } else {
+      saveStateNow();
+    }
+  })();
+  </script>
+</body>
+</html>

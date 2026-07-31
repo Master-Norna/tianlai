@@ -1,0 +1,137 @@
+{
+  "applicable": true,
+  "pitch_mode": "pitched",
+  "reference_a4_hz": 440.0,
+  "playback_calibration": "upstream SFZ pitch_keycenter plus tune opcodes",
+  "measurement_role": "diagnostic; playback follows the audited upstream map, and the residual column records how far each source sample deviates after that map",
+  "applied_to_runtime": false,
+  "measurement_algorithm": "harmonic-constrained FFT of the raw source audio near the mapped pitch, start=0.08s, search +/-180 cents",
+  "summary": {
+    "sample_count": 17,
+    "median_measured_detune_cents": 25.553034,
+    "maximum_absolute_measured_detune_cents": 36.957875,
+    "median_residual_cents": -1.042125,
+    "maximum_absolute_residual_cents": 25.627376
+  },
+  "samples": {
+    "Button Accordion HN A4.flac": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": 32.0,
+      "measured_hz": 223.939521,
+      "measured_detune_cents": 30.726764,
+      "residual_after_upstream_map_cents": -1.273236
+    },
+    "Button Accordion HN A5.flac": {
+      "root_midi": 69.0,
+      "upstream_claimed_detune_cents": 20.0,
+      "measured_hz": 446.938917,
+      "measured_detune_cents": 27.088979,
+      "residual_after_upstream_map_cents": 7.088979
+    },
+    "Button Accordion HN B3.flac": {
+      "root_midi": 47.0,
+      "upstream_claimed_detune_cents": 34.0,
+      "measured_hz": 124.141821,
+      "measured_detune_cents": 9.382834,
+      "residual_after_upstream_map_cents": -24.617166
+    },
+    "Button Accordion HN B4.flac": {
+      "root_midi": 59.0,
+      "upstream_claimed_detune_cents": 19.0,
+      "measured_hz": 247.879539,
+      "measured_detune_cents": 6.562801,
+      "residual_after_upstream_map_cents": -12.437199
+    },
+    "Button Accordion HN B5.flac": {
+      "root_midi": 71.0,
+      "upstream_claimed_detune_cents": 7.0,
+      "measured_hz": 495.620082,
+      "measured_detune_cents": 6.077345,
+      "residual_after_upstream_map_cents": -0.922655
+    },
+    "Button Accordion HN C5.flac": {
+      "root_midi": 60.0,
+      "upstream_claimed_detune_cents": 28.0,
+      "measured_hz": 265.714842,
+      "measured_detune_cents": 26.850348,
+      "residual_after_upstream_map_cents": -1.149652
+    },
+    "Button Accordion HN C6.flac": {
+      "root_midi": 72.0,
+      "upstream_claimed_detune_cents": 26.0,
+      "measured_hz": 532.511949,
+      "measured_detune_cents": 30.372451,
+      "residual_after_upstream_map_cents": 4.372451
+    },
+    "Button Accordion HN D4.flac": {
+      "root_midi": 50.0,
+      "upstream_claimed_detune_cents": 38.0,
+      "measured_hz": 150.000615,
+      "measured_detune_cents": 36.957875,
+      "residual_after_upstream_map_cents": -1.042125
+    },
+    "Button Accordion HN D5.flac": {
+      "root_midi": 62.0,
+      "upstream_claimed_detune_cents": 26.0,
+      "measured_hz": 299.37912,
+      "measured_detune_cents": 33.364098,
+      "residual_after_upstream_map_cents": 7.364098
+    },
+    "Button Accordion HN D6.flac": {
+      "root_midi": 74.0,
+      "upstream_claimed_detune_cents": 16.0,
+      "measured_hz": 595.281374,
+      "measured_detune_cents": 23.281876,
+      "residual_after_upstream_map_cents": 7.281876
+    },
+    "Button Accordion HN E5.flac": {
+      "root_midi": 64.0,
+      "upstream_claimed_detune_cents": 30.0,
+      "measured_hz": 330.461158,
+      "measured_detune_cents": 4.372624,
+      "residual_after_upstream_map_cents": -25.627376
+    },
+    "Button Accordion HN E6.flac": {
+      "root_midi": 76.0,
+      "upstream_claimed_detune_cents": 22.0,
+      "measured_hz": 669.747918,
+      "measured_detune_cents": 27.337601,
+      "residual_after_upstream_map_cents": 5.337601
+    },
+    "Button Accordion HN F#4.flac": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": 23.0,
+      "measured_hz": 184.860668,
+      "measured_detune_cents": -1.278268,
+      "residual_after_upstream_map_cents": -24.278268
+    },
+    "Button Accordion HN F#5.flac": {
+      "root_midi": 66.0,
+      "upstream_claimed_detune_cents": 26.0,
+      "measured_hz": 375.496047,
+      "measured_detune_cents": 25.553034,
+      "residual_after_upstream_map_cents": -0.446966
+    },
+    "Button Accordion HN G4.flac": {
+      "root_midi": 55.0,
+      "upstream_claimed_detune_cents": 30.0,
+      "measured_hz": 197.828613,
+      "measured_detune_cents": 16.097095,
+      "residual_after_upstream_map_cents": -13.902905
+    },
+    "Button Accordion HN G5.flac": {
+      "root_midi": 67.0,
+      "upstream_claimed_detune_cents": 29.0,
+      "measured_hz": 398.520132,
+      "measured_detune_cents": 28.5789,
+      "residual_after_upstream_map_cents": -0.4211
+    },
+    "Button Accordion HN G6.flac": {
+      "root_midi": 79.0,
+      "upstream_claimed_detune_cents": 10.0,
+      "measured_hz": 783.502783,
+      "measured_detune_cents": -1.07815,
+      "residual_after_upstream_map_cents": -11.07815
+    }
+  }
+}

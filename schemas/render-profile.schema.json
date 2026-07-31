@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tianlai.local/schemas/render-profile.schema.json",
+  "title": "Tianlai Render Profile",
+  "description": "可复现渲染所需的显式参数。字段可以省略并继承 preview-v1 默认值；写入候选版本时由引擎保存完整展开值。",
+  "type": "object",
+  "properties": {
+    "kind": {
+      "const": "tianlai.render_profile"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "expression": {
+      "enum": ["ensemble", "strict"]
+    },
+    "range_mode": {
+      "enum": ["compatibility", "strict_hq"]
+    },
+    "seed": {
+      "type": "integer"
+    },
+    "master_gain_db": {
+      "type": "number"
+    },
+    "normalize_peak_db": {
+      "oneOf": [
+        {
+          "type": "number",
+          "maximum": 0
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "space": {
+      "$ref": "#/$defs/space"
+    },
+    "collaboration_mode": {
+      "enum": ["manual", "analyze", "suggest", null]
+    },
+    "write_stems": {
+      "type": "boolean"
+    },
+    "use_stem_cache": {
+      "type": "boolean"
+    },
+    "refresh_stem_cache": {
+      "type": "boolean"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "space": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "config": {
+          "$ref": "#/$defs/spaceConfig"
+        }
+      },
+      "additionalProperties": false
+    },
+    "spaceConfig": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "wet_db": {
+          "type": "number",
+          "minimum": -120,
+          "maximum": 12
+        },
+        "room_size": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "predelay_ms": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2000
+        },
+        "damping_hz": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 192000
+        },
+        "highpass_hz": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 192000
+        },
+        "reference_distance_m": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1000
+        },
+        "distance_exponent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 4
+        },
+        "min_send": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 8
+        },
+        "max_send": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 8
+        },
+        "说明": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "description": "FFT measurement of raw sustained double-bass samples; A4=440 Hz",
+  "source_sfz": "Strings/bass-SOLO-sustain.sfz",
+  "summary": {
+    "sample_count": 12,
+    "median_detune_cents": 0.210427,
+    "maximum_absolute_detune_cents": 2.700798
+  },
+  "samples": {
+    "libs/VSCO2-CE/Strings/Solo Contrabass/SusVib/BKCtbss_SusVib_A1_v3_rr1-PB-loop.wav": {
+      "root_midi": 45.0,
+      "measured_hz": 110.032552,
+      "detune_cents": 0.512244
+    },
+    "libs/VSCO2-CE/Strings/Solo Contrabass/SusVib/BKCtbss_SusVib_B2_v3_rr1-PB-loop.wav": {
+      "root_midi": 59.0,
+      "measured_hz": 247.055301,
+      "detune_cents": 0.796586
+    },
+    "libs/VSCO2-CE/Strings/Solo Contrabass/SusVib/BKCtbss_SusVib_C#2_v3_rr1-PB-loop.wav": {
+      "root_midi": 49.0,
+      "measured_hz": 138.565965,
+      "detune_cents": -0.316692
+    },
+    "libs/VSCO2-CE/Strings/Solo Contrabass/SusVib/BKCtbss_SusVib_C1_v3_rr1-PB-loop.wav": {
+      "root_midi": 36.0,
+      "measured_hz": 65.422034,
+      "detune_cents": 0.413981
+    },
+    "libs/VSCO2-CE/Strings/Solo Contrabass/SusVib/BKCtbss_SusVib_D1_v3_rr1-PB-loop.wav": {
+      "root_midi": 38.0,
+      "measured_hz": 73.376822,
+      "detune_cents": -0.928633
+    },
+    "libs/VSCO2-CE/Strings/Solo Contrabass/SusVib/BKCtbss_SusVib_E1_v3_rr1-PB-loop.wav": {
+      "root_midi": 40.0,
+      "measured_hz": 82.278431,
+      "detune_cents": -2.700798
+    },
+    "libs/VSCO2-CE/Strings/Solo Contrabass/SusVib/BKCtbss_SusVib_E2_v3_rr1-PB-loop.wav": {
+      "root_midi": 52.0,
+      "measured_hz": 164.814433,
+      "detune_cents": 0.006873
+    },
+    "libs/VSCO2-CE/Strings/Solo Contrabass/SusVib/BKCtbss_SusVib_F#0_v3_rr1-PB-loop.wav": {
+      "root_midi": 30.0,
+      "measured_hz": 46.243831,
+      "detune_cents": -0.204843
+    },
+    "libs/VSCO2-CE/Strings/Solo Contrabass/SusVib/BKCtbss_SusVib_F#1_v3_rr1-PB-loop.wav": {
+      "root_midi": 42.0,
+      "measured_hz": 92.529106,
+      "detune_cents": 0.570753
+    },
+    "libs/VSCO2-CE/Strings/Solo Contrabass/SusVib/BKCtbss_SusVib_G#1_v3_rr1-PB-loop.wav": {
+      "root_midi": 44.0,
+      "measured_hz": 103.89432,
+      "detune_cents": 1.135914
+    },
+    "libs/VSCO2-CE/Strings/Solo Contrabass/SusVib/BKCtbss_SusVib_G#2_v3_rr1-PB-loop.wav": {
+      "root_midi": 56.0,
+      "measured_hz": 207.503263,
+      "detune_cents": -1.243403
+    },
+    "libs/VSCO2-CE/Strings/Solo Contrabass/SusVib/BKCtbss_SusVib_G0_v3_rr1-PB-loop.wav": {
+      "root_midi": 31.0,
+      "measured_hz": 49.03297,
+      "detune_cents": 1.184627
+    }
+  }
+}

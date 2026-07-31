@@ -1,0 +1,21 @@
+{
+  "name": "扫频铺底",
+  "type": "synthesizer",
+  "patch": "sweep_pad",
+  "engine_version": "1.0.0",
+  "quality_tier": "formal",
+  "collaboration_review_status": "untested",
+  "upgrade_status": "确定性程序合成完成；单音色独立试听通过；协奏未测试",
+  "note_min": 24,
+  "note_max": 108,
+  "seed": 3678794411,
+  "expression_smoothing_seconds": 0.024,
+  "fallback_policy": "explicit_only_no_silent_gm",
+  "provenance_kind": "project_authored_dsp",
+  "implementation_license": "Apache-2.0",
+  "external_audio_assets": [],
+  "audio_asset_license": "not_applicable",
+  "license_status": "approved",
+  "resource_verification": "资源核验.json",
+  "pitch_calibration": "音准校准.json"
+}

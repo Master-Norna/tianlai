@@ -1,0 +1,12 @@
+{
+  "kind": "tianlai.score_slice_query",
+  "schema_version": 1,
+  "part_ids": [
+    "P1"
+  ],
+  "bar_range": {
+    "start": 1,
+    "end": 1
+  },
+  "max_notes": 32
+}

@@ -1,0 +1,23 @@
+{
+  "name": "程序建模 合成鼓",
+  "type": "modeled_instrument",
+  "quality_tier": "formal",
+  "collaboration_review_status": "untested",
+  "upgrade_status": "deterministic_physical_model",
+  "fallback_policy": "explicit_only_no_silent_gm",
+  "provenance_kind": "project_authored_dsp",
+  "implementation_license": "Apache-2.0",
+  "external_audio_assets": [],
+  "audio_asset_license": "not_applicable",
+  "license_status": "approved",
+  "profile": "synth_drum",
+  "engine_version": "1.1.0",
+  "modeling_rationale": "该音色定义上就是程序合成,建模即正确路线",
+  "resource_verification": "资源核验.json",
+  "pitch_calibration": "音准校准.json",
+  "seed": 41034,
+  "note_min": 36,
+  "note_max": 84,
+  "gain": 0.2982,
+  "velocity_exponent": 0.72
+}

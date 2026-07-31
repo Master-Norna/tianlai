@@ -1,0 +1,206 @@
+{
+  "description": "FFT measurement of raw sustained 圆号 samples; A4=440 Hz",
+  "source_sfz": "Brass/french-horn-SOLO-sustain.sfz",
+  "summary": {
+    "sample_count": 39,
+    "median_detune_cents": -1.585898,
+    "maximum_absolute_detune_cents": 6.437895
+  },
+  "samples": {
+    "libs/Iowa/samples/Horn-solo/Horn.ff.E2-PB-loop.wav": {
+      "root_midi": 40.0,
+      "measured_hz": 82.313609,
+      "detune_cents": -1.96078
+    },
+    "libs/Iowa/samples/Horn-solo/Horn.ff.G#2-PB-loop.wav": {
+      "root_midi": 44.0,
+      "measured_hz": 103.722296,
+      "detune_cents": -1.732971
+    },
+    "libs/Iowa/samples/Horn-solo/Horn.ff.A2-PB-loop.wav": {
+      "root_midi": 45.0,
+      "measured_hz": 109.908396,
+      "detune_cents": -1.442312
+    },
+    "libs/Iowa/samples/Horn-solo/Horn.ff.A#2-PB-loop.wav": {
+      "root_midi": 46.0,
+      "measured_hz": 116.416884,
+      "detune_cents": -1.843859
+    },
+    "libs/Iowa/samples/Horn-solo/Horn.ff.D#3-PB-loop.wav": {
+      "root_midi": 51.0,
+      "measured_hz": 155.446361,
+      "detune_cents": -1.304017
+    },
+    "libs/Iowa/samples/Horn-solo/Horn.ff.F#3-PB-loop.wav": {
+      "root_midi": 54.0,
+      "measured_hz": 184.82808,
+      "detune_cents": -1.583486
+    },
+    "libs/Iowa/samples/Horn-solo/Horn.ff.G3-PB-loop.wav": {
+      "root_midi": 55.0,
+      "measured_hz": 195.833806,
+      "detune_cents": -1.448428
+    },
+    "libs/Iowa/samples/Horn-solo/Horn.ff.A#3-PB-loop.wav": {
+      "root_midi": 58.0,
+      "measured_hz": 232.851637,
+      "detune_cents": -1.710998
+    },
+    "libs/Iowa/samples/Horn-solo/Horn.ff.B3-PB-loop.wav": {
+      "root_midi": 59.0,
+      "measured_hz": 246.714648,
+      "detune_cents": -1.592183
+    },
+    "libs/Iowa/samples/Horn-solo/Horn.ff.C4-PB-loop.wav": {
+      "root_midi": 60.0,
+      "measured_hz": 261.45018,
+      "detune_cents": -1.160953
+    },
+    "libs/Iowa/samples/Horn-solo/Horn.ff.C#4-PB-loop.wav": {
+      "root_midi": 61.0,
+      "measured_hz": 276.833621,
+      "detune_cents": -2.181226
+    },
+    "libs/Iowa/samples/Horn-solo/Horn.ff.D#4-PB-loop.wav": {
+      "root_midi": 63.0,
+      "measured_hz": 310.821217,
+      "detune_cents": -1.702245
+    },
+    "libs/Iowa/samples/Horn-solo/Horn.ff.E4-PB-loop.wav": {
+      "root_midi": 64.0,
+      "measured_hz": 329.305002,
+      "detune_cents": -1.694918
+    },
+    "libs/Iowa/samples/Horn-solo/Horn.ff.F4-PB-loop.wav": {
+      "root_midi": 65.0,
+      "measured_hz": 348.90716,
+      "detune_cents": -1.592385
+    },
+    "libs/Iowa/samples/Horn-solo/Horn.ff.F#4-PB-loop.wav": {
+      "root_midi": 66.0,
+      "measured_hz": 369.642084,
+      "detune_cents": -1.649406
+    },
+    "libs/Iowa/samples/Horn-solo/Horn.ff.G4-PB-loop.wav": {
+      "root_midi": 67.0,
+      "measured_hz": 391.54693,
+      "detune_cents": -1.981946
+    },
+    "libs/Iowa/samples/Horn-solo/Horn.ff.G#4-PB-loop.wav": {
+      "root_midi": 68.0,
+      "measured_hz": 415.899274,
+      "detune_cents": 2.47677
+    },
+    "libs/Iowa/samples/Horn-solo/Horn.ff.A4-PB-loop.wav": {
+      "root_midi": 69.0,
+      "measured_hz": 441.329899,
+      "detune_cents": 5.224758
+    },
+    "libs/Iowa/samples/Horn-solo/Horn.ff.B4-PB-loop.wav": {
+      "root_midi": 71.0,
+      "measured_hz": 494.929529,
+      "detune_cents": 3.663515
+    },
+    "libs/Iowa/samples/Horn-solo/Horn.ff.C5-PB-loop.wav": {
+      "root_midi": 72.0,
+      "measured_hz": 523.737062,
+      "detune_cents": 1.607011
+    },
+    "libs/Iowa/samples/Horn-solo/Horn.ff.E5-PB-loop.wav": {
+      "root_midi": 76.0,
+      "measured_hz": 656.808111,
+      "detune_cents": -6.437895
+    },
+    "libs/Iowa/samples/Horn-solo/Horn.mf.E2-PB-loop.wav": {
+      "root_midi": 40.0,
+      "measured_hz": 82.3153,
+      "detune_cents": -1.925218
+    },
+    "libs/Iowa/samples/Horn-solo/Horn.mf.G#2-PB-loop.wav": {
+      "root_midi": 44.0,
+      "measured_hz": 103.748652,
+      "detune_cents": -1.293125
+    },
+    "libs/Iowa/samples/Horn-solo/Horn.mf.A2-PB-loop.wav": {
+      "root_midi": 45.0,
+      "measured_hz": 109.885918,
+      "detune_cents": -1.796412
+    },
+    "libs/Iowa/samples/Horn-solo/Horn.mf.A#2-PB-loop.wav": {
+      "root_midi": 46.0,
+      "measured_hz": 116.434232,
+      "detune_cents": -1.585898
+    },
+    "libs/SSO/Samples/Horn/horn-e3-PB-loop.wav": {
+      "root_midi": 52.0,
+      "measured_hz": 164.643897,
+      "detune_cents": -1.785386
+    },
+    "libs/SSO/Samples/Horn/horn-a#3-PB-loop.wav": {
+      "root_midi": 58.0,
+      "measured_hz": 232.770304,
+      "detune_cents": -2.315811
+    },
+    "libs/Iowa/samples/Horn-solo/Horn.mf.C4-PB-loop.wav": {
+      "root_midi": 60.0,
+      "measured_hz": 261.341738,
+      "detune_cents": -1.879165
+    },
+    "libs/Iowa/samples/Horn-solo/Horn.mf.C#4-PB-loop.wav": {
+      "root_midi": 61.0,
+      "measured_hz": 276.949556,
+      "detune_cents": -1.456361
+    },
+    "libs/Iowa/samples/Horn-solo/Horn.mf.D#4-PB-loop.wav": {
+      "root_midi": 63.0,
+      "measured_hz": 310.846084,
+      "detune_cents": -1.563744
+    },
+    "libs/Iowa/samples/Horn-solo/Horn.mf.E4-PB-loop.wav": {
+      "root_midi": 64.0,
+      "measured_hz": 329.286085,
+      "detune_cents": -1.794371
+    },
+    "libs/Iowa/samples/Horn-solo/Horn.mf.F4-PB-loop.wav": {
+      "root_midi": 65.0,
+      "measured_hz": 348.911744,
+      "detune_cents": -1.569638
+    },
+    "libs/Iowa/samples/Horn-solo/Horn.mf.F#4-PB-loop.wav": {
+      "root_midi": 66.0,
+      "measured_hz": 369.677078,
+      "detune_cents": -1.485519
+    },
+    "libs/Iowa/samples/Horn-solo/Horn.mf.G4-PB-loop.wav": {
+      "root_midi": 67.0,
+      "measured_hz": 391.57774,
+      "detune_cents": -1.845723
+    },
+    "libs/Iowa/samples/Horn-solo/Horn.mf.G#4-PB-loop.wav": {
+      "root_midi": 68.0,
+      "measured_hz": 415.414323,
+      "detune_cents": 0.456924
+    },
+    "libs/Iowa/samples/Horn-solo/Horn.mf.A4-PB-loop.wav": {
+      "root_midi": 69.0,
+      "measured_hz": 440.317117,
+      "detune_cents": 1.247286
+    },
+    "libs/Iowa/samples/Horn-solo/Horn.mf.B4-PB-loop.wav": {
+      "root_midi": 71.0,
+      "measured_hz": 495.556423,
+      "detune_cents": 5.854966
+    },
+    "libs/Iowa/samples/Horn-solo/Horn.mf.C5-PB-loop.wav": {
+      "root_midi": 72.0,
+      "measured_hz": 523.094578,
+      "detune_cents": -0.51805
+    },
+    "libs/Iowa/samples/Horn-solo/Horn.mf.E5-PB-loop.wav": {
+      "root_midi": 76.0,
+      "measured_hz": 659.633181,
+      "detune_cents": 0.992538
+    }
+  }
+}

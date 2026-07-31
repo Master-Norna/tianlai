@@ -1,0 +1,41 @@
+{
+  "name": "VCSL Concert Harp 竖琴",
+  "type": "vpo_harp",
+  "quality_tier": "formal",
+  "collaboration_review_status": "untested",
+  "upgrade_status": "vcsl_concert_harp_strict_cc0",
+  "fallback_policy": "explicit_only_no_silent_gm",
+  "implementation": "乐器.py",
+  "instrument_name": "concert harp",
+  "asset_root": "../../../../音源/VCSL",
+  "source_sfz": "Chordophones/Composite Chordophones/Concert Harp.sfz",
+  "offset_overrides": {
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_D4_f1.wav": 0
+  },
+  "resource_verification": "资源核验.json",
+  "pitch_calibration": "音准校准.json",
+  "calibration_articulation": "open",
+  "note_min": 28,
+  "note_max": 102,
+  "sampled_range": "E1-F#7 (VCSL Concert Harp mapped range; MIDI 28-102)",
+  "sampled_range_note": "23 recorded roots; E1 has one recording, the other 22 roots have two; maximum stretch 2 semitones",
+  "input_pitch_semantics": "concert_pitch",
+  "written_note_min": 28,
+  "written_note_max": 102,
+  "written_to_concert_semitones": 0,
+  "default_articulation": "open",
+  "gain": 0.38,
+  "velocity_exponent": 0.78,
+  "open_release_seconds": 30.0,
+  "dampened_release_seconds": 0.35,
+  "expression_smoothing_seconds": 0.012,
+  "upstream": "sgossner/VCSL",
+  "origin": "https://github.com/sgossner/VCSL",
+  "upstream_version": "1.2.2-RC",
+  "upstream_commit": "b6e6ac82d22248edee98a0bde185eb9ef6d439ad",
+  "license": "CC0-1.0",
+  "evidence_files": [
+    "README.md"
+  ],
+  "license_status": "approved"
+}

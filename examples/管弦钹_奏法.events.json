@@ -1,0 +1,31 @@
+{
+  "sample_rate": 48000,
+  "channels": 2,
+  "tuning": {"temperament": "equal", "a4_hz": 440.0},
+  "tail_seconds": 4.0,
+  "events": [
+    {"time": 0.0, "type": "articulation", "name": "roll_soft"},
+    {"time": 0.0, "type": "note_on", "note_id": 1, "midi_note": 60, "velocity": 0.45},
+    {"time": 2.0, "type": "note_off", "note_id": 1},
+    {"time": 2.5, "type": "articulation", "name": "piatti"},
+    {"time": 2.5, "type": "note_on", "note_id": 2, "midi_note": 60, "velocity": 0.75},
+    {"time": 4.0, "type": "articulation", "name": "roll_alt"},
+    {"time": 4.0, "type": "note_on", "note_id": 3, "midi_note": 60, "velocity": 0.72},
+    {"time": 5.8, "type": "note_off", "note_id": 3},
+    {"time": 6.2, "type": "articulation", "name": "piatti_high"},
+    {"time": 6.2, "type": "note_on", "note_id": 4, "midi_note": 60, "velocity": 0.82},
+    {"time": 7.8, "type": "articulation", "name": "crescendo_short"},
+    {"time": 7.8, "type": "note_on", "note_id": 5, "midi_note": 60, "velocity": 0.8},
+    {"time": 10.0, "type": "articulation", "name": "crash"},
+    {"time": 10.0, "type": "note_on", "note_id": 6, "midi_note": 60, "velocity": 0.42},
+    {"time": 11.2, "type": "note_on", "note_id": 7, "midi_note": 60, "velocity": 0.92},
+    {"time": 12.8, "type": "articulation", "name": "crescendo_medium"},
+    {"time": 12.8, "type": "note_on", "note_id": 8, "midi_note": 60, "velocity": 0.78},
+    {"time": 15.3, "type": "articulation", "name": "suspended_hit"},
+    {"time": 15.3, "type": "note_on", "note_id": 9, "midi_note": 60, "velocity": 0.72},
+    {"time": 17.5, "type": "articulation", "name": "crescendo_long"},
+    {"time": 17.5, "type": "note_on", "note_id": 10, "midi_note": 60, "velocity": 0.8},
+    {"time": 20.5, "type": "articulation", "name": "suspended_high"},
+    {"time": 20.5, "type": "note_on", "note_id": 11, "midi_note": 60, "velocity": 0.84}
+  ]
+}

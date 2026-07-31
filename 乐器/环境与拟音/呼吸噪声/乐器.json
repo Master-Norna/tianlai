@@ -1,0 +1,20 @@
+{
+  "name": "程序建模 呼吸噪声",
+  "type": "procedural_sfx",
+  "quality_tier": "formal",
+  "collaboration_review_status": "untested",
+  "upgrade_status": "deterministic_turbulent_breath_model",
+  "fallback_policy": "explicit_only_no_silent_gm",
+  "provenance_kind": "project_authored_dsp",
+  "implementation_license": "Apache-2.0",
+  "external_audio_assets": [],
+  "audio_asset_license": "not_applicable",
+  "license_status": "approved",
+  "implementation": "乐器.py",
+  "profile": "breath",
+  "engine_version": "1.1.0",
+  "seed": 2955607581,
+  "expression_smoothing_seconds": 0.018,
+  "pitch_calibration": "音准校准.json",
+  "calibration_not_applicable_reason": "呼吸为湍流噪声,无周期性基频;MIDI 音高被主动忽略,不做十二平均律校准"
+}

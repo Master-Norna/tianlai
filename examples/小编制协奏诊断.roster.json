@@ -1,0 +1,110 @@
+{
+  "name": "小编制协奏诊断：钢琴主奏 + 弦乐铺底 + 贝斯 + 鼓组",
+  "collaboration": {
+    "mode": "suggest",
+    "analysis": {
+      "metric": "overlap_active_rms",
+      "window_ms": 400,
+      "hop_ms": 100,
+      "gate_dbfs": -60
+    },
+    "balance_relations": [
+      {
+        "subject": "strings",
+        "reference": "piano",
+        "target_offset_db": -8,
+        "tolerance_db": 2,
+        "max_suggestion_db": 4
+      },
+      {
+        "subject": "bass",
+        "reference": "piano",
+        "target_offset_db": -5,
+        "tolerance_db": 3,
+        "max_suggestion_db": 3
+      }
+    ]
+  },
+  "assignments": [
+    {
+      "part": "piano",
+      "instrument": "键盘乐器/钢琴",
+      "gain_db": -3,
+      "role": {
+        "function": "lead",
+        "prominence": "foreground",
+        "label": "钢琴主旋律"
+      },
+      "seat": {
+        "azimuth_deg": -8,
+        "distance_m": 2.5
+      }
+    },
+    {
+      "part": "strings",
+      "instrument": "管弦乐/弦乐组/中提琴",
+      "gain_db": -9,
+      "gain_automation": [
+        {
+          "bar": 1,
+          "beat": 1,
+          "offset_db": 0
+        },
+        {
+          "bar": 5,
+          "beat": 1,
+          "offset_db": 0
+        },
+        {
+          "bar": 7,
+          "beat": 1,
+          "offset_db": 1.5
+        },
+        {
+          "bar": 8,
+          "beat": 1,
+          "offset_db": 0
+        }
+      ],
+      "role": {
+        "function": "pad",
+        "prominence": "background",
+        "label": "弦乐氛围铺底"
+      },
+      "seat": {
+        "azimuth_deg": 12,
+        "distance_m": 6
+      }
+    },
+    {
+      "part": "bass",
+      "instrument": "低音乐器/原声贝斯",
+      "gain_db": -6,
+      "role": {
+        "function": "bass",
+        "prominence": "midground"
+      },
+      "seat": {
+        "azimuth_deg": -20,
+        "distance_m": 3.5
+      }
+    },
+    {
+      "part": "drums",
+      "gain_db": -8,
+      "role": {
+        "function": "rhythm",
+        "prominence": "midground"
+      },
+      "seat": {
+        "azimuth_deg": 5,
+        "distance_m": 4
+      },
+      "kit": {
+        "C2": "现代鼓组/底鼓",
+        "D2": "现代鼓组/边击军鼓",
+        "F#2": "现代鼓组/闭合踩镲"
+      }
+    }
+  ]
+}

@@ -1,0 +1,688 @@
+{
+  "applicable": true,
+  "pitch_semantics": "sounding_pitch_inharmonic",
+  "reference_a4_hz": 440.0,
+  "playback_calibration": "audited upstream SFZ pitch_keycenter plus tune",
+  "measurement_role": "diagnostic only; no measured low spectral mode is applied as an automatic correction",
+  "measurement_algorithm": "strongest low spectral mode within +/-300 cents of the mapped raw center; hit starts at 120 ms, roll at 500 ms, maximum 131072 frames",
+  "summary": {
+    "sample_count": 64,
+    "automatic_correction_count": 0,
+    "human_spectral_review": "pending",
+    "articulations": {
+      "hit": {
+        "sample_count": 54,
+        "physical_recorded_pitch_group_count": 9,
+        "mapped_root_midi": [
+          39.0,
+          41.0,
+          44.0,
+          46.0,
+          47.0,
+          48.0,
+          49.0,
+          50.0,
+          54.0,
+          58.0
+        ],
+        "median_low_mode_residual_cents": -38.186886,
+        "maximum_absolute_low_mode_residual_cents": 225.412733
+      },
+      "roll": {
+        "sample_count": 10,
+        "physical_recorded_pitch_group_count": 5,
+        "mapped_root_midi": [
+          42.0,
+          46.0,
+          49.0,
+          52.0,
+          54.0
+        ],
+        "median_low_mode_residual_cents": -5.742683,
+        "maximum_absolute_low_mode_residual_cents": 277.120026
+      }
+    }
+  },
+  "samples": {
+    "Membranophones/Struck Membranophones/Timpani 1/Roll/Timpani1_Roll_v3_rr1_Sum.wav": {
+      "articulation": "roll",
+      "root_midi": 42.0,
+      "sfz_tune_cents": -11.0,
+      "mapped_raw_low_mode_hz": 93.088199,
+      "observed_low_mode_hz": 90.620487,
+      "low_mode_residual_cents": -46.513251,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 1/Roll/Timpani1_Roll_v5_rr1_Sum.wav": {
+      "articulation": "roll",
+      "root_midi": 42.0,
+      "sfz_tune_cents": -38.0,
+      "mapped_raw_low_mode_hz": 94.551365,
+      "observed_low_mode_hz": 93.580633,
+      "low_mode_residual_cents": -17.865966,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 1/Roll/Timpani2_Roll_v3_rr1_Sum.wav": {
+      "articulation": "roll",
+      "root_midi": 46.0,
+      "sfz_tune_cents": 0.0,
+      "mapped_raw_low_mode_hz": 116.54094,
+      "observed_low_mode_hz": 127.927007,
+      "low_mode_residual_cents": 161.380812,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 1/Roll/Timpani2_Roll_v5_rr1_Sum.wav": {
+      "articulation": "roll",
+      "root_midi": 46.0,
+      "sfz_tune_cents": 0.0,
+      "mapped_raw_low_mode_hz": 116.54094,
+      "observed_low_mode_hz": 127.734637,
+      "low_mode_residual_cents": 158.775507,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 1/Roll/Timpani3_Roll_v3_rr1_Sum.wav": {
+      "articulation": "roll",
+      "root_midi": 49.0,
+      "sfz_tune_cents": -4.0,
+      "mapped_raw_low_mode_hz": 138.9119,
+      "observed_low_mode_hz": 132.757926,
+      "low_mode_residual_cents": -78.446632,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 1/Roll/Timpani3_Roll_v5_rr1_Sum.wav": {
+      "articulation": "roll",
+      "root_midi": 49.0,
+      "sfz_tune_cents": -24.0,
+      "mapped_raw_low_mode_hz": 140.525978,
+      "observed_low_mode_hz": 141.044853,
+      "low_mode_residual_cents": 6.380601,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 1/Roll/Timpani4_Roll_v3_rr1_Sum.wav": {
+      "articulation": "roll",
+      "root_midi": 52.0,
+      "sfz_tune_cents": 0.0,
+      "mapped_raw_low_mode_hz": 164.813778,
+      "observed_low_mode_hz": 166.562154,
+      "low_mode_residual_cents": 18.26853,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 1/Roll/Timpani4_Roll_v5_rr1_Sum.wav": {
+      "articulation": "roll",
+      "root_midi": 52.0,
+      "sfz_tune_cents": 0.0,
+      "mapped_raw_low_mode_hz": 164.813778,
+      "observed_low_mode_hz": 169.650115,
+      "low_mode_residual_cents": 50.070665,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 1/Roll/Timpani5_Roll_v2_rr1_Sum.wav": {
+      "articulation": "roll",
+      "root_midi": 54.0,
+      "sfz_tune_cents": 0.0,
+      "mapped_raw_low_mode_hz": 184.997211,
+      "observed_low_mode_hz": 166.094572,
+      "low_mode_residual_cents": -186.598314,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 1/Roll/Timpani5_Roll_v4_rr1_Sum.wav": {
+      "articulation": "roll",
+      "root_midi": 54.0,
+      "sfz_tune_cents": 0.0,
+      "mapped_raw_low_mode_hz": 184.997211,
+      "observed_low_mode_hz": 157.633063,
+      "low_mode_residual_cents": -277.120026,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani1B_hit_v2_rr1_main.wav": {
+      "articulation": "hit",
+      "root_midi": 39.0,
+      "sfz_tune_cents": 62.0,
+      "mapped_raw_low_mode_hz": 75.045468,
+      "observed_low_mode_hz": 75.637985,
+      "low_mode_residual_cents": 13.615183,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani1B_hit_v2_rr2_main.wav": {
+      "articulation": "hit",
+      "root_midi": 39.0,
+      "sfz_tune_cents": 69.0,
+      "mapped_raw_low_mode_hz": 74.742645,
+      "observed_low_mode_hz": 75.65368,
+      "low_mode_residual_cents": 20.974378,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani1B_hit_v3_rr1_main.wav": {
+      "articulation": "hit",
+      "root_midi": 39.0,
+      "sfz_tune_cents": 73.0,
+      "mapped_raw_low_mode_hz": 74.570152,
+      "observed_low_mode_hz": 73.683465,
+      "low_mode_residual_cents": -20.70885,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani1B_hit_v3_rr2_main.wav": {
+      "articulation": "hit",
+      "root_midi": 39.0,
+      "sfz_tune_cents": 100.0,
+      "mapped_raw_low_mode_hz": 73.416192,
+      "observed_low_mode_hz": 73.660715,
+      "low_mode_residual_cents": 5.756537,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani1B_hit_v5_rr1_main.wav": {
+      "articulation": "hit",
+      "root_midi": 39.0,
+      "sfz_tune_cents": 44.0,
+      "mapped_raw_low_mode_hz": 75.829802,
+      "observed_low_mode_hz": 73.367203,
+      "low_mode_residual_cents": -57.155594,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani1B_hit_v5_rr2_main.wav": {
+      "articulation": "hit",
+      "root_midi": 39.0,
+      "sfz_tune_cents": 70.0,
+      "mapped_raw_low_mode_hz": 74.699484,
+      "observed_low_mode_hz": 73.055204,
+      "low_mode_residual_cents": -38.533495,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani1C_hit_v2_rr1_main.wav": {
+      "articulation": "hit",
+      "root_midi": 41.0,
+      "sfz_tune_cents": 38.0,
+      "mapped_raw_low_mode_hz": 85.411576,
+      "observed_low_mode_hz": 82.170839,
+      "low_mode_residual_cents": -66.966141,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani1C_hit_v2_rr2_main.wav": {
+      "articulation": "hit",
+      "root_midi": 41.0,
+      "sfz_tune_cents": 62.0,
+      "mapped_raw_low_mode_hz": 84.23569,
+      "observed_low_mode_hz": 82.161777,
+      "low_mode_residual_cents": -43.157071,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani1C_hit_v3_rr1_main.wav": {
+      "articulation": "hit",
+      "root_midi": 41.0,
+      "sfz_tune_cents": -20.0,
+      "mapped_raw_low_mode_hz": 88.321517,
+      "observed_low_mode_hz": 82.170072,
+      "low_mode_residual_cents": -124.982297,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani1C_hit_v3_rr2_main.wav": {
+      "articulation": "hit",
+      "root_midi": 41.0,
+      "sfz_tune_cents": -20.0,
+      "mapped_raw_low_mode_hz": 88.321517,
+      "observed_low_mode_hz": 81.878039,
+      "low_mode_residual_cents": -131.146087,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani1C_hit_v5_rr1_main.wav": {
+      "articulation": "hit",
+      "root_midi": 41.0,
+      "sfz_tune_cents": -20.0,
+      "mapped_raw_low_mode_hz": 88.321517,
+      "observed_low_mode_hz": 80.653779,
+      "low_mode_residual_cents": -157.227393,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani1C_hit_v5_rr2_main.wav": {
+      "articulation": "hit",
+      "root_midi": 41.0,
+      "sfz_tune_cents": -20.0,
+      "mapped_raw_low_mode_hz": 88.321517,
+      "observed_low_mode_hz": 80.831278,
+      "low_mode_residual_cents": -153.421546,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani3A_hit_v2_rr1_main.wav": {
+      "articulation": "hit",
+      "root_midi": 47.0,
+      "sfz_tune_cents": 85.0,
+      "mapped_raw_low_mode_hz": 117.555078,
+      "observed_low_mode_hz": 117.41201,
+      "low_mode_residual_cents": -2.10824,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani3A_hit_v2_rr2_main.wav": {
+      "articulation": "hit",
+      "root_midi": 47.0,
+      "sfz_tune_cents": 65.0,
+      "mapped_raw_low_mode_hz": 118.921002,
+      "observed_low_mode_hz": 117.427581,
+      "low_mode_residual_cents": -21.878666,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani3A_hit_v3_rr1_main.wav": {
+      "articulation": "hit",
+      "root_midi": 46.0,
+      "sfz_tune_cents": 65.0,
+      "mapped_raw_low_mode_hz": 112.246479,
+      "observed_low_mode_hz": 117.458034,
+      "low_mode_residual_cents": 78.570247,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani3A_hit_v3_rr2_main.wav": {
+      "articulation": "hit",
+      "root_midi": 46.0,
+      "sfz_tune_cents": 35.0,
+      "mapped_raw_low_mode_hz": 114.208513,
+      "observed_low_mode_hz": 117.278298,
+      "low_mode_residual_cents": 45.919058,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani3A_hit_v5_rr1_main.wav": {
+      "articulation": "hit",
+      "root_midi": 47.0,
+      "sfz_tune_cents": 79.0,
+      "mapped_raw_low_mode_hz": 117.963199,
+      "observed_low_mode_hz": 116.027796,
+      "low_mode_residual_cents": -28.639669,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani3A_hit_v5_rr2_main.wav": {
+      "articulation": "hit",
+      "root_midi": 47.0,
+      "sfz_tune_cents": 81.0,
+      "mapped_raw_low_mode_hz": 117.827002,
+      "observed_low_mode_hz": 116.236969,
+      "low_mode_residual_cents": -23.521435,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani3B_hit_v2_rr1_main.wav": {
+      "articulation": "hit",
+      "root_midi": 49.0,
+      "sfz_tune_cents": 0.0,
+      "mapped_raw_low_mode_hz": 138.591315,
+      "observed_low_mode_hz": 131.22346,
+      "low_mode_residual_cents": -94.573425,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani3B_hit_v2_rr2_main.wav": {
+      "articulation": "hit",
+      "root_midi": 49.0,
+      "sfz_tune_cents": 0.0,
+      "mapped_raw_low_mode_hz": 138.591315,
+      "observed_low_mode_hz": 131.245967,
+      "low_mode_residual_cents": -94.276516,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani3B_hit_v3_rr1_main.wav": {
+      "articulation": "hit",
+      "root_midi": 48.0,
+      "sfz_tune_cents": 35.0,
+      "mapped_raw_low_mode_hz": 128.194721,
+      "observed_low_mode_hz": 131.198815,
+      "low_mode_residual_cents": 40.101395,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani3B_hit_v3_rr2_main.wav": {
+      "articulation": "hit",
+      "root_midi": 49.0,
+      "sfz_tune_cents": 0.0,
+      "mapped_raw_low_mode_hz": 138.591315,
+      "observed_low_mode_hz": 131.234837,
+      "low_mode_residual_cents": -94.423336,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani3B_hit_v5_rr1_main.wav": {
+      "articulation": "hit",
+      "root_midi": 49.0,
+      "sfz_tune_cents": 0.0,
+      "mapped_raw_low_mode_hz": 138.591315,
+      "observed_low_mode_hz": 130.307902,
+      "low_mode_residual_cents": -106.694746,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani3B_hit_v5_rr2_main.wav": {
+      "articulation": "hit",
+      "root_midi": 49.0,
+      "sfz_tune_cents": 0.0,
+      "mapped_raw_low_mode_hz": 138.591315,
+      "observed_low_mode_hz": 130.427105,
+      "low_mode_residual_cents": -105.111761,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani3C_hit_v2_rr1_main.wav": {
+      "articulation": "hit",
+      "root_midi": 50.0,
+      "sfz_tune_cents": 65.0,
+      "mapped_raw_low_mode_hz": 141.421702,
+      "observed_low_mode_hz": 145.551651,
+      "low_mode_residual_cents": 49.833212,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani3C_hit_v2_rr2_main.wav": {
+      "articulation": "hit",
+      "root_midi": 50.0,
+      "sfz_tune_cents": 65.0,
+      "mapped_raw_low_mode_hz": 141.421702,
+      "observed_low_mode_hz": 147.137556,
+      "low_mode_residual_cents": 68.594416,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani3C_hit_v3_rr1_main.wav": {
+      "articulation": "hit",
+      "root_midi": 50.0,
+      "sfz_tune_cents": 65.0,
+      "mapped_raw_low_mode_hz": 141.421702,
+      "observed_low_mode_hz": 147.120173,
+      "low_mode_residual_cents": 68.389869,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani3C_hit_v3_rr2_main.wav": {
+      "articulation": "hit",
+      "root_midi": 50.0,
+      "sfz_tune_cents": 65.0,
+      "mapped_raw_low_mode_hz": 141.421702,
+      "observed_low_mode_hz": 146.753232,
+      "low_mode_residual_cents": 64.066509,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani3C_hit_v5_rr1_main.wav": {
+      "articulation": "hit",
+      "root_midi": 50.0,
+      "sfz_tune_cents": 65.0,
+      "mapped_raw_low_mode_hz": 141.421702,
+      "observed_low_mode_hz": 146.236229,
+      "low_mode_residual_cents": 57.956699,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani3C_hit_v5_rr2_main.wav": {
+      "articulation": "hit",
+      "root_midi": 50.0,
+      "sfz_tune_cents": 65.0,
+      "mapped_raw_low_mode_hz": 141.421702,
+      "observed_low_mode_hz": 146.528007,
+      "low_mode_residual_cents": 61.407507,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani4A_hit_v2_rr1_main.wav": {
+      "articulation": "hit",
+      "root_midi": 54.0,
+      "sfz_tune_cents": 50.0,
+      "mapped_raw_low_mode_hz": 179.7307,
+      "observed_low_mode_hz": 177.744217,
+      "low_mode_residual_cents": -19.241086,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani4A_hit_v2_rr2_main.wav": {
+      "articulation": "hit",
+      "root_midi": 54.0,
+      "sfz_tune_cents": 50.0,
+      "mapped_raw_low_mode_hz": 179.7307,
+      "observed_low_mode_hz": 177.7298,
+      "low_mode_residual_cents": -19.381507,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani4A_hit_v3_rr1_main.wav": {
+      "articulation": "hit",
+      "root_midi": 54.0,
+      "sfz_tune_cents": 50.0,
+      "mapped_raw_low_mode_hz": 179.7307,
+      "observed_low_mode_hz": 177.755353,
+      "low_mode_residual_cents": -19.132616,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani4A_hit_v3_rr2_main.wav": {
+      "articulation": "hit",
+      "root_midi": 54.0,
+      "sfz_tune_cents": 50.0,
+      "mapped_raw_low_mode_hz": 179.7307,
+      "observed_low_mode_hz": 177.747787,
+      "low_mode_residual_cents": -19.206314,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani4A_hit_v5_rr1_main.wav": {
+      "articulation": "hit",
+      "root_midi": 54.0,
+      "sfz_tune_cents": 50.0,
+      "mapped_raw_low_mode_hz": 179.7307,
+      "observed_low_mode_hz": 177.236944,
+      "low_mode_residual_cents": -24.188997,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani4A_hit_v5_rr2_main.wav": {
+      "articulation": "hit",
+      "root_midi": 54.0,
+      "sfz_tune_cents": 50.0,
+      "mapped_raw_low_mode_hz": 179.7307,
+      "observed_low_mode_hz": 176.720319,
+      "low_mode_residual_cents": -29.242717,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani5B_hit_v2_rr1_main.wav": {
+      "articulation": "hit",
+      "root_midi": 58.0,
+      "sfz_tune_cents": 60.0,
+      "mapped_raw_low_mode_hz": 225.142256,
+      "observed_low_mode_hz": 220.105292,
+      "low_mode_residual_cents": -39.171626,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani5B_hit_v2_rr2_main.wav": {
+      "articulation": "hit",
+      "root_midi": 58.0,
+      "sfz_tune_cents": 60.0,
+      "mapped_raw_low_mode_hz": 225.142256,
+      "observed_low_mode_hz": 220.139631,
+      "low_mode_residual_cents": -38.90156,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani5B_hit_v3_rr1_main.wav": {
+      "articulation": "hit",
+      "root_midi": 58.0,
+      "sfz_tune_cents": 60.0,
+      "mapped_raw_low_mode_hz": 225.142256,
+      "observed_low_mode_hz": 222.568874,
+      "low_mode_residual_cents": -19.902009,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani5B_hit_v3_rr2_main.wav": {
+      "articulation": "hit",
+      "root_midi": 58.0,
+      "sfz_tune_cents": 60.0,
+      "mapped_raw_low_mode_hz": 225.142256,
+      "observed_low_mode_hz": 224.686895,
+      "low_mode_residual_cents": -3.505049,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani5B_hit_v5_rr1_main.wav": {
+      "articulation": "hit",
+      "root_midi": 58.0,
+      "sfz_tune_cents": 60.0,
+      "mapped_raw_low_mode_hz": 225.142256,
+      "observed_low_mode_hz": 220.177988,
+      "low_mode_residual_cents": -38.599933,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani5B_hit_v5_rr2_main.wav": {
+      "articulation": "hit",
+      "root_midi": 58.0,
+      "sfz_tune_cents": 60.0,
+      "mapped_raw_low_mode_hz": 225.142256,
+      "observed_low_mode_hz": 224.683287,
+      "low_mode_residual_cents": -3.532848,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani7A_hit_v2_rr1_main.wav": {
+      "articulation": "hit",
+      "root_midi": 46.0,
+      "sfz_tune_cents": 0.0,
+      "mapped_raw_low_mode_hz": 116.54094,
+      "observed_low_mode_hz": 102.407781,
+      "low_mode_residual_cents": -223.813826,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani7A_hit_v2_rr2_main.wav": {
+      "articulation": "hit",
+      "root_midi": 46.0,
+      "sfz_tune_cents": 0.0,
+      "mapped_raw_low_mode_hz": 116.54094,
+      "observed_low_mode_hz": 102.313244,
+      "low_mode_residual_cents": -225.412733,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani7A_hit_v3_rr1_main.wav": {
+      "articulation": "hit",
+      "root_midi": 46.0,
+      "sfz_tune_cents": 20.0,
+      "mapped_raw_low_mode_hz": 115.202354,
+      "observed_low_mode_hz": 102.33008,
+      "low_mode_residual_cents": -205.127886,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani7A_hit_v3_rr2_main.wav": {
+      "articulation": "hit",
+      "root_midi": 46.0,
+      "sfz_tune_cents": 0.0,
+      "mapped_raw_low_mode_hz": 116.54094,
+      "observed_low_mode_hz": 102.317841,
+      "low_mode_residual_cents": -225.334956,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani7A_hit_v5_rr1_main.wav": {
+      "articulation": "hit",
+      "root_midi": 46.0,
+      "sfz_tune_cents": 16.0,
+      "mapped_raw_low_mode_hz": 115.468835,
+      "observed_low_mode_hz": 107.511257,
+      "low_mode_residual_cents": -123.618965,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani7A_hit_v5_rr2_main.wav": {
+      "articulation": "hit",
+      "root_midi": 46.0,
+      "sfz_tune_cents": 0.0,
+      "mapped_raw_low_mode_hz": 116.54094,
+      "observed_low_mode_hz": 107.565155,
+      "low_mode_residual_cents": -138.751262,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani7B_hit_v2_rr1_main.wav": {
+      "articulation": "hit",
+      "root_midi": 44.0,
+      "sfz_tune_cents": 83.0,
+      "mapped_raw_low_mode_hz": 98.965907,
+      "observed_low_mode_hz": 96.695222,
+      "low_mode_residual_cents": -40.18442,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani7B_hit_v2_rr2_main.wav": {
+      "articulation": "hit",
+      "root_midi": 44.0,
+      "sfz_tune_cents": 63.0,
+      "mapped_raw_low_mode_hz": 100.115836,
+      "observed_low_mode_hz": 96.687878,
+      "low_mode_residual_cents": -60.315907,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani7B_hit_v3_rr1_main.wav": {
+      "articulation": "hit",
+      "root_midi": 44.0,
+      "sfz_tune_cents": 71.0,
+      "mapped_raw_low_mode_hz": 99.65427,
+      "observed_low_mode_hz": 96.711277,
+      "low_mode_residual_cents": -51.896996,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani7B_hit_v3_rr2_main.wav": {
+      "articulation": "hit",
+      "root_midi": 44.0,
+      "sfz_tune_cents": 59.0,
+      "mapped_raw_low_mode_hz": 100.34742,
+      "observed_low_mode_hz": 96.714237,
+      "low_mode_residual_cents": -63.844014,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani7B_hit_v5_rr1_main.wav": {
+      "articulation": "hit",
+      "root_midi": 44.0,
+      "sfz_tune_cents": 0.0,
+      "mapped_raw_low_mode_hz": 103.826174,
+      "observed_low_mode_hz": 95.821063,
+      "low_mode_residual_cents": -138.906552,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    },
+    "Membranophones/Struck Membranophones/Timpani 2/Hit/Timpani7B_hit_v5_rr2_main.wav": {
+      "articulation": "hit",
+      "root_midi": 44.0,
+      "sfz_tune_cents": 0.0,
+      "mapped_raw_low_mode_hz": 103.826174,
+      "observed_low_mode_hz": 101.581426,
+      "low_mode_residual_cents": -37.840277,
+      "automatic_tuning_correction_cents": null,
+      "reason": "timpani modes are inharmonic; the audited upstream SFZ root/tune mapping is retained without deriving a fake fundamental correction from one spectral peak"
+    }
+  }
+}

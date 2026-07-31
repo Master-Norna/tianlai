@@ -1,0 +1,24 @@
+{
+  "sample_rate": 48000,
+  "channels": 2,
+  "tail_seconds": 2.45,
+  "tuning": {
+    "temperament": "equal",
+    "a4_hz": 440.0
+  },
+  "events": [
+    {
+      "time": 0.25,
+      "type": "note_on",
+      "note_id": 1,
+      "midi_note": 60,
+      "velocity": 0.72
+    },
+    {
+      "time": 2.65,
+      "type": "note_off",
+      "note_id": 1,
+      "release_velocity": 0.5
+    }
+  ]
+}

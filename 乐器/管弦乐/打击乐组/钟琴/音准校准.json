@@ -1,0 +1,42 @@
+{
+  "applicable": true,
+  "profile": "glockenspiel",
+  "method": "windowed FFT near the SFZ root; raw source WAV; A4=440 Hz",
+  "summary": {
+    "sample_count": 6,
+    "median_detune_cents": 13.667479,
+    "maximum_absolute_detune_cents": 24.372928
+  },
+  "samples": {
+    "libs/VSCO2-CE/Percussion/Glock/glock_medium_C5-PB.wav": {
+      "root_midi": 84.0,
+      "measured_hz": 1053.744657,
+      "detune_cents": 11.939865
+    },
+    "libs/VSCO2-CE/Percussion/Glock/glock_medium_C6-PB.wav": {
+      "root_midi": 96.0,
+      "measured_hz": 2111.699681,
+      "detune_cents": 15.395094
+    },
+    "libs/VSCO2-CE/Percussion/Glock/glock_medium_C7-PB.wav": {
+      "root_midi": 108.0,
+      "measured_hz": 4245.357954,
+      "detune_cents": 24.372928
+    },
+    "libs/VSCO2-CE/Percussion/Glock/glock_medium_G4-PB.wav": {
+      "root_midi": 79.0,
+      "measured_hz": 787.757371,
+      "detune_cents": 8.29739
+    },
+    "libs/VSCO2-CE/Percussion/Glock/glock_medium_G5-PB.wav": {
+      "root_midi": 91.0,
+      "measured_hz": 1578.829313,
+      "detune_cents": 11.935738
+    },
+    "libs/VSCO2-CE/Percussion/Glock/glock_medium_G6-PB.wav": {
+      "root_midi": 103.0,
+      "measured_hz": 3164.70374,
+      "detune_cents": 15.794025
+    }
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "upstream": "Karoryfer Lecolds (D. Smolken): Emilyguitar",
+  "origin": "https://shop.karoryfer.com/pages/free-samples",
+  "upstream_version": "v1.001",
+  "license": "CC0-1.0",
+  "source_file_count": 1,
+  "source_file_sha256": {
+    "emily_basic.sfz": "6374cae8516592aa50c0bc00de431b9e4ab45d5a8af66ddddc183a3945e907f0"
+  },
+  "evidence_sha256": {
+    "LICENSE": "a19d58aaab15c4d0019e569d1c073d1b5286fdd37dbeee7a58a7d1ae76045ae1",
+    "readme.txt": "99d83f6184b25de657f8528e6caaf3c35f99f8b1299ee2c4e0ac9a5c2871f924"
+  },
+  "sample_count": 323,
+  "sample_bytes": 124950240,
+  "sample_formats": {
+    ".wav:44100Hz:1ch": 323
+  },
+  "articulations": {
+    "normal": {
+      "attack_regions": 251,
+      "release_regions": 72,
+      "round_robin_regions": 0,
+      "velocity_bounded_regions": 216,
+      "random_variant_regions": 251,
+      "looped_regions": 0
+    }
+  },
+  "region_count": 323,
+  "sample_set_sha256": "5d2dad188c0fe29343766cb8e0f3407325ef34624516d27b31d06aa7ee34a965",
+  "sample_set_hash_algorithm": "sort unique asset-root-relative UTF-8 paths; concatenate lowercase '<sha256>  <path>\\n>'; SHA-256 the UTF-8 bytes"
+}

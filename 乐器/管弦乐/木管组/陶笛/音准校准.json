@@ -1,0 +1,164 @@
+{
+  "applicable": true,
+  "pitch_mode": "pitched",
+  "reference_a4_hz": 440.0,
+  "playback_calibration": "upstream SFZ pitch_keycenter plus tune opcodes",
+  "measurement_role": "diagnostic; playback follows the audited upstream map, and the residual column records how far each source sample deviates after that map",
+  "measurement_algorithm": "harmonic-constrained FFT of the raw source audio near the mapped pitch, start=0.08s, search +/-180 cents",
+  "summary": {
+    "sample_count": 21,
+    "median_measured_detune_cents": 6.518062,
+    "maximum_absolute_measured_detune_cents": 37.26109,
+    "median_residual_cents": 4.085833,
+    "maximum_absolute_residual_cents": 29.26109
+  },
+  "samples": {
+    "Aerophones/Edge-blown Aerophones/Ocarina, Typical/Sustains/Sus/StdOcarina_Sus_A#4.wav": {
+      "root_midi": 82.0,
+      "upstream_claimed_detune_cents": 4.0,
+      "measured_hz": 934.446771,
+      "measured_detune_cents": 3.930754,
+      "residual_after_upstream_map_cents": -0.069246
+    },
+    "Aerophones/Edge-blown Aerophones/Ocarina, Typical/Sustains/Sus/StdOcarina_Sus_A3.wav": {
+      "root_midi": 69.0,
+      "upstream_claimed_detune_cents": 3.0,
+      "measured_hz": 440.050854,
+      "measured_detune_cents": 0.200078,
+      "residual_after_upstream_map_cents": -2.799922
+    },
+    "Aerophones/Edge-blown Aerophones/Ocarina, Typical/Sustains/Sus/StdOcarina_Sus_A4.wav": {
+      "root_midi": 81.0,
+      "upstream_claimed_detune_cents": 1.0,
+      "measured_hz": 882.58897,
+      "measured_detune_cents": 5.085833,
+      "residual_after_upstream_map_cents": 4.085833
+    },
+    "Aerophones/Edge-blown Aerophones/Ocarina, Typical/Sustains/Sus/StdOcarina_Sus_B3.wav": {
+      "root_midi": 71.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 493.928353,
+      "measured_detune_cents": 0.157916,
+      "residual_after_upstream_map_cents": 0.157916
+    },
+    "Aerophones/Edge-blown Aerophones/Ocarina, Typical/Sustains/Sus/StdOcarina_Sus_C#4.wav": {
+      "root_midi": 73.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 553.052924,
+      "measured_detune_cents": -4.103174,
+      "residual_after_upstream_map_cents": -4.103174
+    },
+    "Aerophones/Edge-blown Aerophones/Ocarina, Typical/Sustains/Sus/StdOcarina_Sus_C#5.wav": {
+      "root_midi": 85.0,
+      "upstream_claimed_detune_cents": 5.0,
+      "measured_hz": 1115.629283,
+      "measured_detune_cents": 10.738734,
+      "residual_after_upstream_map_cents": 5.738734
+    },
+    "Aerophones/Edge-blown Aerophones/Ocarina, Typical/Sustains/Sus/StdOcarina_Sus_C5.wav": {
+      "root_midi": 84.0,
+      "upstream_claimed_detune_cents": 3.0,
+      "measured_hz": 1055.454984,
+      "measured_detune_cents": 14.747543,
+      "residual_after_upstream_map_cents": 11.747543
+    },
+    "Aerophones/Edge-blown Aerophones/Ocarina, Typical/Sustains/Sus/StdOcarina_Sus_D4.wav": {
+      "root_midi": 74.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 587.689211,
+      "measured_detune_cents": 1.059868,
+      "residual_after_upstream_map_cents": 1.059868
+    },
+    "Aerophones/Edge-blown Aerophones/Ocarina, Typical/Sustains/Sus/StdOcarina_Sus_E4.wav": {
+      "root_midi": 76.0,
+      "upstream_claimed_detune_cents": -1.0,
+      "measured_hz": 659.845417,
+      "measured_detune_cents": 1.54947,
+      "residual_after_upstream_map_cents": 2.54947
+    },
+    "Aerophones/Edge-blown Aerophones/Ocarina, Typical/Sustains/Sus/StdOcarina_Sus_F#4.wav": {
+      "root_midi": 78.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 743.439736,
+      "measured_detune_cents": 8.054732,
+      "residual_after_upstream_map_cents": 8.054732
+    },
+    "Aerophones/Edge-blown Aerophones/Ocarina, Typical/Sustains/Sus/StdOcarina_Sus_G#4.wav": {
+      "root_midi": 80.0,
+      "upstream_claimed_detune_cents": 2.0,
+      "measured_hz": 834.245384,
+      "measured_detune_cents": 7.561929,
+      "residual_after_upstream_map_cents": 5.561929
+    },
+    "Aerophones/Edge-blown Aerophones/Ocarina, Typical/Sustains/SusVib/StdOcarina_SusVib_A#4.wav": {
+      "root_midi": 82.0,
+      "upstream_claimed_detune_cents": 9.0,
+      "measured_hz": 939.865179,
+      "measured_detune_cents": 13.940358,
+      "residual_after_upstream_map_cents": 4.940358
+    },
+    "Aerophones/Edge-blown Aerophones/Ocarina, Typical/Sustains/SusVib/StdOcarina_SusVib_A3.wav": {
+      "root_midi": 69.0,
+      "upstream_claimed_detune_cents": 10.0,
+      "measured_hz": 439.523263,
+      "measured_detune_cents": -1.876798,
+      "residual_after_upstream_map_cents": -11.876798
+    },
+    "Aerophones/Edge-blown Aerophones/Ocarina, Typical/Sustains/SusVib/StdOcarina_SusVib_A4.wav": {
+      "root_midi": 81.0,
+      "upstream_claimed_detune_cents": 8.0,
+      "measured_hz": 899.145401,
+      "measured_detune_cents": 37.26109,
+      "residual_after_upstream_map_cents": 29.26109
+    },
+    "Aerophones/Edge-blown Aerophones/Ocarina, Typical/Sustains/SusVib/StdOcarina_SusVib_C#4.wav": {
+      "root_midi": 73.0,
+      "upstream_claimed_detune_cents": 5.0,
+      "measured_hz": 555.737081,
+      "measured_detune_cents": 4.278779,
+      "residual_after_upstream_map_cents": -0.721221
+    },
+    "Aerophones/Edge-blown Aerophones/Ocarina, Typical/Sustains/SusVib/StdOcarina_SusVib_C4.wav": {
+      "root_midi": 72.0,
+      "upstream_claimed_detune_cents": 1.0,
+      "measured_hz": 526.78427,
+      "measured_detune_cents": 11.65049,
+      "residual_after_upstream_map_cents": 10.65049
+    },
+    "Aerophones/Edge-blown Aerophones/Ocarina, Typical/Sustains/SusVib/StdOcarina_SusVib_C5.wav": {
+      "root_midi": 84.0,
+      "upstream_claimed_detune_cents": 9.0,
+      "measured_hz": 1056.583598,
+      "measured_detune_cents": 16.597788,
+      "residual_after_upstream_map_cents": 7.597788
+    },
+    "Aerophones/Edge-blown Aerophones/Ocarina, Typical/Sustains/SusVib/StdOcarina_SusVib_D#4.wav": {
+      "root_midi": 75.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 625.018357,
+      "measured_detune_cents": 7.674047,
+      "residual_after_upstream_map_cents": 7.674047
+    },
+    "Aerophones/Edge-blown Aerophones/Ocarina, Typical/Sustains/SusVib/StdOcarina_SusVib_E4.wav": {
+      "root_midi": 76.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 660.519016,
+      "measured_detune_cents": 3.315886,
+      "residual_after_upstream_map_cents": 3.315886
+    },
+    "Aerophones/Edge-blown Aerophones/Ocarina, Typical/Sustains/SusVib/StdOcarina_SusVib_F#4.wav": {
+      "root_midi": 78.0,
+      "upstream_claimed_detune_cents": 4.0,
+      "measured_hz": 745.26226,
+      "measured_detune_cents": 12.293617,
+      "residual_after_upstream_map_cents": 8.293617
+    },
+    "Aerophones/Edge-blown Aerophones/Ocarina, Typical/Sustains/SusVib/StdOcarina_SusVib_G#4.wav": {
+      "root_midi": 80.0,
+      "upstream_claimed_detune_cents": 5.0,
+      "measured_hz": 833.742517,
+      "measured_detune_cents": 6.518062,
+      "residual_after_upstream_map_cents": 1.518062
+    }
+  }
+}

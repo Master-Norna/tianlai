@@ -1,0 +1,41 @@
+{
+  "upstream": "Karoryfer Samples: Ergo(电立式无品贝斯,含超低音降调采样)",
+  "origin": "https://github.com/sfzinstruments/karoryfer.ergo",
+  "upstream_version": "master @ c3232f03608e",
+  "license": "CC0-1.0",
+  "source_file_count": 2,
+  "source_file_sha256": {
+    "ergo_arco.sfz": "f835da41db3d0184a6da2eb183196094f8867fbf3f3564e762bf65976ec4bb4a",
+    "ergo_pizz.sfz": "3441fd00a25c415dc00cfd6387abb4157ff3d1bc6f7f4dc77021705eaac72a88"
+  },
+  "evidence_sha256": {
+    "LICENSE": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499",
+    "readme.txt": "f8a0af1c5e8f95cde26a875d71d33cae7ed1f25b2401010d81ded3023bd7395f"
+  },
+  "sample_count": 333,
+  "sample_bytes": 235160766,
+  "sample_formats": {
+    ".wav:44100Hz:1ch": 333
+  },
+  "articulations": {
+    "pizzicato": {
+      "attack_regions": 161,
+      "release_regions": 0,
+      "round_robin_regions": 161,
+      "velocity_bounded_regions": 161,
+      "random_variant_regions": 0,
+      "looped_regions": 0
+    },
+    "arco": {
+      "attack_regions": 172,
+      "release_regions": 0,
+      "round_robin_regions": 172,
+      "velocity_bounded_regions": 172,
+      "random_variant_regions": 0,
+      "looped_regions": 0
+    }
+  },
+  "region_count": 333,
+  "sample_set_sha256": "221e3cf8f8450886cb51fc9ef0c8ee10965482c9bba6f9dc8a3405c693cd5028",
+  "sample_set_hash_algorithm": "sort unique asset-root-relative UTF-8 paths; concatenate lowercase '<sha256>  <path>\\n>'; SHA-256 the UTF-8 bytes"
+}

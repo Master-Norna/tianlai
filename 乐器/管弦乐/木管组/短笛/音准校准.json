@@ -1,0 +1,61 @@
+{
+  "description": "FFT measurement of raw piccolo samples; A4=440 Hz",
+  "sfz_prefix": "piccolo",
+  "summary": {
+    "sample_count": 10,
+    "median_detune_cents": 6.821258,
+    "maximum_absolute_detune_cents": 19.520958
+  },
+  "samples": {
+    "libs/SSO/Samples/Piccolo/piccolo-a4-PB-loop.wav": {
+      "root_midi": 81.0,
+      "measured_hz": 882.534749,
+      "detune_cents": 4.979473
+    },
+    "libs/SSO/Samples/Piccolo/piccolo-a5-PB-loop.wav": {
+      "root_midi": 93.0,
+      "measured_hz": 1752.804552,
+      "detune_cents": -7.092352
+    },
+    "libs/SSO/Samples/Piccolo/piccolo-c4-PB-loop.wav": {
+      "root_midi": 72.0,
+      "measured_hz": 524.727866,
+      "detune_cents": 4.87906
+    },
+    "libs/SSO/Samples/Piccolo/piccolo-c5-PB-loop.wav": {
+      "root_midi": 84.0,
+      "measured_hz": 1058.369135,
+      "detune_cents": 19.520958
+    },
+    "libs/SSO/Samples/Piccolo/piccolo-c6-PB-loop.wav": {
+      "root_midi": 96.0,
+      "measured_hz": 2097.36646,
+      "detune_cents": 3.604234
+    },
+    "libs/SSO/Samples/Piccolo/piccolo-d#5-PB-loop.wav": {
+      "root_midi": 87.0,
+      "measured_hz": 1243.513694,
+      "detune_cents": -1.38364
+    },
+    "libs/SSO/Samples/Piccolo/piccolo-d#6-PB-loop.wav": {
+      "root_midi": 99.0,
+      "measured_hz": 2501.50355,
+      "detune_cents": 8.664085
+    },
+    "libs/SSO/Samples/Piccolo/piccolo-f#4-PB-loop.wav": {
+      "root_midi": 78.0,
+      "measured_hz": 744.195205,
+      "detune_cents": 9.813087
+    },
+    "libs/SSO/Samples/Piccolo/piccolo-f#5-PB-loop.wav": {
+      "root_midi": 90.0,
+      "measured_hz": 1493.945578,
+      "detune_cents": 16.262599
+    },
+    "libs/SSO/Samples/Piccolo/piccolo-f#6-PB-loop.wav": {
+      "root_midi": 102.0,
+      "measured_hz": 2974.80403,
+      "detune_cents": 8.663043
+    }
+  }
+}

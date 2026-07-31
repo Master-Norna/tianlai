@@ -1,0 +1,15 @@
+{
+  "implementation": "Tianlai self-authored procedural DSP",
+  "engine": "procedural_sfx.py",
+  "engine_version": "1.1.0",
+  "profile": "helicopter",
+  "seed": 277393364,
+  "engine_sha256": "C7A516711FAA970FF6CA5035EE3D22251E43F23FA5D0D28D4DEDD9248ABF5122",
+  "external_assets": [],
+  "provenance_kind": "project_authored_dsp",
+  "implementation_license": "Apache-2.0",
+  "external_audio_assets": [],
+  "audio_asset_license": "not_applicable",
+  "license_status": "approved",
+  "generated_at": "2026-07-27"
+}

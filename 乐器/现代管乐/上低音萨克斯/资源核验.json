@@ -1,0 +1,40 @@
+{
+  "upstream": "sfzinstruments/MTG.SoloSax",
+  "origin": "https://github.com/sfzinstruments/MTG.SoloSax.git",
+  "upstream_commit": "b494d256549b3d088fdec176ce82867f8a1f58b2",
+  "installed_git_commit": "b494d256549b3d088fdec176ce82867f8a1f58b2",
+  "license": "CC-BY-4.0",
+  "source_file_count": 14,
+  "source_file_sha256": {
+    "MTG Solo Saxophones/Data/bar_f_rr1.txt": "c4766ac131ad19d8fb8679b97f24e91b5d80b6d0446cd72c51e0af9bfe21dce0",
+    "MTG Solo Saxophones/Data/bar_f_rr2.txt": "2b4b0b17da4150c7bcddfa2290b71dc8b61c8d0b36e2343a7eeafbe5dae0d2d7",
+    "MTG Solo Saxophones/Data/bar_f_rr3.txt": "3048e25e59252c71b8f252dcc47c4e8d57b185df84799c817ff74768c850da06",
+    "MTG Solo Saxophones/Data/bar_m_rr1.txt": "baaeef3e67fab7de1569c68bdb673fa53915fa1e800c968313dbaaab28575d85",
+    "MTG Solo Saxophones/Data/bar_m_rr2.txt": "92e4560e2cbe1e2bdcb5569bbf3444e0556cad1f2c2a1c395223defdb9d1d9d7",
+    "MTG Solo Saxophones/Data/bar_m_rr3.txt": "5912453d174893a16d341285ec1c3261ca71ecd47c22bbbaec28af1a1439a1e3",
+    "MTG Solo Saxophones/Data/bar_p_rr1.txt": "673ec00a4f79000c75810a349211db32cc643cc65d70161d4bcc3aabe2ad4ffb",
+    "MTG Solo Saxophones/Data/bar_p_rr2.txt": "7fc6b5addce0454bdc08594e09618289ba28f2237f5ec2d2251edfcc096fdecf",
+    "MTG Solo Saxophones/Data/bar_p_rr3.txt": "78fb4cbcc7d8951cdbefee51f0a6e6cc2891a20ad6f745b1d29760bd4c0259d7",
+    "MTG Solo Saxophones/Data/group_bar.txt": "a275a34af322f610e9fb62121ba2a436cf0d1847db4c78c4be06e0a14965e492",
+    "MTG Solo Saxophones/Data/noise_bar.txt": "112cc43bbdd8e86830bac5808a58361f0246a91385a20a8c2e4d991faafe0362",
+    "MTG Solo Saxophones/Data/volpan.txt": "afbd42d78a3318aeb6346dc8773f5d698d41acdc268fa47b2668ed3846dd8749",
+    "MTG Solo Saxophones/Data/xtension.txt": "a562f214572fc57ec19815c310b5f56a50cf932f5ccf1cf1e0dbd2e88a8b2cbd",
+    "MTG Solo Saxophones/MTG Baritone Sax.sfz": "8b9a4016c442aa28ec4429d6da50e5478fe1f5b6215d8779108d019b5c856095"
+  },
+  "evidence_sha256": {
+    "LICENSE": "9ba9550ad48438d0836ddab3da480b3b69ffa0aac7b7878b5a0039e7ab429411",
+    "README.md": "00a7d705e57077da7a62b942aa72d954b7675ce1210561fd6632a112ad44c23e"
+  },
+  "sample_count": 230,
+  "sample_bytes": 26152799,
+  "sample_formats": {
+    ".flac:48000Hz:1ch": 230
+  },
+  "pitched_region_count": 306,
+  "unique_pitched_sample_count": 100,
+  "looped_pitched_region_count": 306,
+  "breath_sample_count": 90,
+  "key_click_sample_count": 40,
+  "sample_set_sha256": "81551f6b647f81c0f50202579bfb7e995e66b5834e2cc493c2f7bd494c450ea9",
+  "sample_set_hash_algorithm": "sort unique asset-root-relative UTF-8 paths; concatenate lowercase '<sha256>  <path>\\n>'; SHA-256 the UTF-8 bytes"
+}

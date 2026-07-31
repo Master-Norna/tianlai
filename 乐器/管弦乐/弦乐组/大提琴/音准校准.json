@@ -1,0 +1,50 @@
+{
+  "description": "FFT measurement of raw sustained cello samples; A4=440 Hz",
+  "samples": {
+    "libs/NoBudgetOrch/SoloCello/Vibrato/2_Gb-PB-loop.wav": {
+      "root_midi": 42.0,
+      "measured_hz": 92.503591,
+      "detune_cents": 0.093305
+    },
+    "libs/NoBudgetOrch/SoloCello/Vibrato/2_A-PB-loop.wav": {
+      "root_midi": 45.0,
+      "measured_hz": 109.988296,
+      "detune_cents": -0.184211
+    },
+    "libs/NoBudgetOrch/SoloCello/Vibrato/3_Db-PB-loop.wav": {
+      "root_midi": 49.0,
+      "measured_hz": 138.529661,
+      "detune_cents": -0.770333
+    },
+    "libs/NoBudgetOrch/SoloCello/Vibrato/3_F-PB-loop.wav": {
+      "root_midi": 53.0,
+      "measured_hz": 174.577401,
+      "detune_cents": -0.364056
+    },
+    "libs/NoBudgetOrch/SoloCello/Vibrato/3_A-PB-loop.wav": {
+      "root_midi": 57.0,
+      "measured_hz": 219.995465,
+      "detune_cents": -0.035688
+    },
+    "libs/NoBudgetOrch/SoloCello/Vibrato/4_C-PB-loop.wav": {
+      "root_midi": 60.0,
+      "measured_hz": 261.624629,
+      "detune_cents": -0.006198
+    },
+    "libs/NoBudgetOrch/SoloCello/Vibrato/4_Eb-PB-loop.wav": {
+      "root_midi": 63.0,
+      "measured_hz": 311.018514,
+      "detune_cents": -0.603672
+    },
+    "libs/NoBudgetOrch/SoloCello/Vibrato/4_G-PB.wav": {
+      "root_midi": 67.0,
+      "measured_hz": 387.024448,
+      "detune_cents": -22.094586
+    },
+    "libs/NoBudgetOrch/SoloCello/Vibrato/4_Bb-PB.wav": {
+      "root_midi": 70.0,
+      "measured_hz": 460.661661,
+      "detune_cents": -20.555187
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "tianlai": {
+      "command": "C:\\path\\to\\tianlai\\.venv\\Scripts\\python.exe",
+      "args": ["-m", "tianlai.mcp_server"],
+      "cwd": "C:\\path\\to\\tianlai"
+    }
+  }
+}

@@ -1,0 +1,489 @@
+{
+  "schema_version": 1,
+  "kind": "tianlai.resource_restore_manifest",
+  "updated_at": "2026-07-28",
+  "description": "天籁轻量源码包未内置的大型公开音源恢复清单。下载地址只指向上游，项目不镜像或重打包第三方采样。",
+  "tree_hash": {
+    "algorithm": "tianlai-tree-sha256-v1",
+    "record": "<lowercase file sha256><two spaces><relative POSIX path><LF>，按相对路径排序；忽略 .git 与 .tianlai-* 管理文件"
+  },
+  "totals": {
+    "family_count": 10,
+    "instrument_count": 38,
+    "estimated_download_bytes": 4762288104,
+    "installed_bytes_including_derived": 7049894961,
+    "recommended_free_bytes": 12884901888
+  },
+  "families": [
+    {
+      "id": "vcsl",
+      "group": "vcsl",
+      "display_name": "Versilian Community Sample Library 1.2.2-RC",
+      "instrument_ids": [
+        "世界乐器/卡林巴",
+        "现代鼓组/低音通鼓",
+        "现代鼓组/叮叮镲",
+        "现代鼓组/底鼓",
+        "现代鼓组/开放踩镲",
+        "现代鼓组/强音镲",
+        "现代鼓组/拍手",
+        "现代鼓组/边击军鼓",
+        "现代鼓组/闭合踩镲",
+        "现代鼓组/高音通鼓",
+        "管弦乐/拨弦组/竖琴",
+        "管弦乐/打击乐组/反向镲",
+        "管弦乐/打击乐组/定音鼓",
+        "管弦乐/打击乐组/旋律通鼓",
+        "管弦乐/打击乐组/管钟",
+        "管弦乐/打击乐组/颤音琴",
+        "管弦乐/打击乐组/阿哥哥铃",
+        "管弦乐/打击乐组/马林巴",
+        "管弦乐/木管组/竖笛",
+        "管弦乐/木管组/陶笛",
+        "键盘乐器/口琴",
+        "键盘乐器/管风琴",
+        "键盘乐器/羽管键琴"
+      ],
+      "license": {
+        "expression": "CC0-1.0",
+        "status": "approved",
+        "evidence_files": [
+          "README.md"
+        ]
+      },
+      "source": {
+        "project": "sgossner/VCSL",
+        "repository": "https://github.com/sgossner/VCSL",
+        "version": "v1.2.2-RC",
+        "commit": "b6e6ac82d22248edee98a0bde185eb9ef6d439ad"
+      },
+      "archive": {
+        "url": "https://github.com/sgossner/VCSL/archive/b6e6ac82d22248edee98a0bde185eb9ef6d439ad.zip",
+        "filename": "VCSL-1.2.2-RC.zip",
+        "format": "zip",
+        "bytes": null,
+        "estimated_bytes": 4047482530,
+        "max_bytes": 4500000000,
+        "sha256": null,
+        "verification": "fixed_commit_and_complete_tree; GitHub codeload container bytes are not treated as stable"
+      },
+      "install": {
+        "target": "VCSL",
+        "strip_single_root": true,
+        "tree": {
+          "files": 4467,
+          "bytes": 6161441816,
+          "sha256": "84d2cfbcd4db2a6e1e50c047979fc4efdbe2e25fd4ea6ad171b8b19c887f9386"
+        },
+        "derived": [
+          {
+            "target": "派生/竖笛-v1",
+            "recipe": "乐器/管弦乐/木管组/竖笛/预处理参数.json",
+            "tree": {
+              "files": 15,
+              "bytes": 44863807,
+              "sha256": "811b12a0fdcc1fe45024d1dd521d27c343c02d6603143b9cf2a6c275d3ebd81c"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "freepats-bagpipe",
+      "group": "freepats",
+      "display_name": "FreePats Scottish Great Highland Bagpipe",
+      "instrument_ids": [
+        "世界乐器/风笛"
+      ],
+      "license": {
+        "expression": "CC0-1.0",
+        "status": "approved",
+        "evidence_files": [
+          "cc0.txt",
+          "readme.txt"
+        ]
+      },
+      "source": {
+        "project": "FreePats Bagpipe",
+        "repository": "https://freepats.zenvoid.org/Wind/bagpipes.html",
+        "version": "2022-12-04",
+        "commit": null
+      },
+      "archive": {
+        "url": "https://freepats.zenvoid.org/Ethnic/Bagpipe/Bagpipe-SFZ%2BFLAC-20221204.7z",
+        "filename": "Bagpipe-SFZ+FLAC-20221204.7z",
+        "format": "7z",
+        "bytes": 16201800,
+        "estimated_bytes": 16201800,
+        "max_bytes": 16300000,
+        "sha256": "ce8d13b1bdb4e9e47ab603e1eac65c23f0065e6759ff4045b1ad5ba847043734",
+        "verification": "official_archive_sha256_and_complete_tree"
+      },
+      "install": {
+        "target": "FreePats/Bagpipe",
+        "strip_single_root": true,
+        "tree": {
+          "files": 30,
+          "bytes": 16422196,
+          "sha256": "b9e501c4d26b635dc0ee1e78a8627381c892ab1b6c40380aa193f1acd033a48b"
+        },
+        "derived": [
+          {
+            "target": "派生/风笛-v1",
+            "recipe": "乐器/世界乐器/风笛/预处理参数.json",
+            "tree": {
+              "files": 7,
+              "bytes": 1924177,
+              "sha256": "70e605bac456a541bb2a82740ff16ec9577ec6080e50ce34dc8f4a269e3a07bf"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "freepats-electric-bass",
+      "group": "freepats",
+      "display_name": "FreePats Yamaha RBX Electric Bass",
+      "instrument_ids": [
+        "低音乐器/指弹电贝斯"
+      ],
+      "license": {
+        "expression": "CC0-1.0",
+        "status": "approved",
+        "evidence_files": [
+          "LICENSE.txt",
+          "README.txt"
+        ]
+      },
+      "source": {
+        "project": "freepats/electric-bass-YR",
+        "repository": "https://github.com/freepats/electric-bass-YR",
+        "version": "2019-09-30",
+        "commit": "8dcb7ea9116f417273ef8c030d15e7b3aa654301"
+      },
+      "archive": {
+        "url": "https://github.com/freepats/electric-bass-YR/archive/8dcb7ea9116f417273ef8c030d15e7b3aa654301.zip",
+        "filename": "electric-bass-YR-8dcb7ea9116f.zip",
+        "format": "zip",
+        "bytes": null,
+        "estimated_bytes": 6076290,
+        "max_bytes": 8000000,
+        "sha256": null,
+        "verification": "fixed_commit_and_complete_tree; GitHub codeload container bytes are not treated as stable"
+      },
+      "install": {
+        "target": "FreePats/electric-bass-YR-main",
+        "strip_single_root": true,
+        "tree": {
+          "files": 29,
+          "bytes": 6277261,
+          "sha256": "e3aacedd5e904edb0d8c835c7dd56ff9ffdb1b7f2af9800d7fd93f4e5a296f40"
+        },
+        "derived": []
+      }
+    },
+    {
+      "id": "freepats-spanish-guitar",
+      "group": "freepats",
+      "display_name": "FreePats Spanish Classical Guitar",
+      "instrument_ids": [
+        "弹拨乐器/尼龙弦吉他"
+      ],
+      "license": {
+        "expression": "CC0-1.0",
+        "status": "approved",
+        "evidence_files": [
+          "cc0.txt",
+          "readme.txt"
+        ]
+      },
+      "source": {
+        "project": "FreePats Spanish Classical Guitar",
+        "repository": "https://freepats.zenvoid.org/Guitar/acoustic-guitar.html",
+        "version": "2019-06-18",
+        "commit": null
+      },
+      "archive": {
+        "url": "https://freepats.zenvoid.org/Guitar/SpanishClassicalGuitar/SpanishClassicalGuitar-SFZ%2BFLAC-20190618.7z",
+        "filename": "SpanishClassicalGuitar-SFZ+FLAC-20190618.7z",
+        "format": "7z",
+        "bytes": 4713892,
+        "estimated_bytes": 4713892,
+        "max_bytes": 4800000,
+        "sha256": "903916921a21662d2237ade7f0e98e55de93cb7b86da219e4e10f4ad385b8f5e",
+        "verification": "official_archive_sha256_and_complete_tree"
+      },
+      "install": {
+        "target": "FreePats/SpanishClassicalGuitar",
+        "strip_single_root": true,
+        "tree": {
+          "files": 51,
+          "bytes": 5298024,
+          "sha256": "fb014e79bfc242d52eca8fa878e3ecbd0d4854575b0b61ed452a122e35d01860"
+        },
+        "derived": []
+      }
+    },
+    {
+      "id": "freepats-steel-guitar",
+      "group": "freepats",
+      "display_name": "FreePats / FlameStudios Steel String Guitar",
+      "instrument_ids": [
+        "弹拨乐器/钢弦吉他"
+      ],
+      "license": {
+        "expression": "GPL-3.0-or-later WITH FlameStudios-sampling-exception",
+        "status": "grandfathered",
+        "distribution_policy": "official-direct-unchanged-local-install-only; no Tianlai mirror or repack",
+        "evidence_files": [
+          "gpl.txt",
+          "readme.txt"
+        ]
+      },
+      "source": {
+        "project": "FreePats FS Seagull Steel String Guitar",
+        "repository": "https://freepats.zenvoid.org/Guitar/acoustic-guitar.html",
+        "version": "2020-05-21",
+        "commit": null
+      },
+      "archive": {
+        "url": "https://freepats.zenvoid.org/Guitar/FSS-SteelStringGuitar/FSS-SteelStringGuitar-SFZ-20200521.tar.xz",
+        "filename": "FSS-SteelStringGuitar-SFZ-20200521.tar.xz",
+        "format": "tar.xz",
+        "bytes": 13130512,
+        "estimated_bytes": 13130512,
+        "max_bytes": 13200000,
+        "sha256": "720b55c5ad4dcfb9f788ab13a0bda834cbfd7b3214df2ca90648c58951e41777",
+        "verification": "official_archive_sha256_and_complete_tree"
+      },
+      "install": {
+        "target": "FreePats/FSS-SteelStringGuitar-SFZ-20200521",
+        "strip_single_root": true,
+        "tree": {
+          "files": 62,
+          "bytes": 26400233,
+          "sha256": "d1ac3c36ab78964513608e681eb6ca6295af0c7a6685908dbec3f65b273cf738"
+        },
+        "derived": []
+      }
+    },
+    {
+      "id": "freepats-button-accordion",
+      "group": "freepats",
+      "display_name": "FreePats Button Accordion HN",
+      "instrument_ids": [
+        "键盘乐器/手风琴"
+      ],
+      "license": {
+        "expression": "CC0-1.0",
+        "status": "approved",
+        "evidence_files": [
+          "LICENSE.txt",
+          "README.txt"
+        ]
+      },
+      "source": {
+        "project": "freepats/button-accordion-HN",
+        "repository": "https://github.com/freepats/button-accordion-HN",
+        "version": "2024-03-29",
+        "commit": "d70d16456fd99305d1c24c612b205ab38846eb0f"
+      },
+      "archive": {
+        "url": "https://github.com/freepats/button-accordion-HN/releases/download/2024-03-29/ButtonAccordionHN-SFZ%2BFLAC-20240329.7z",
+        "filename": "ButtonAccordionHN-SFZ+FLAC-20240329.7z",
+        "format": "7z",
+        "bytes": 5018321,
+        "estimated_bytes": 5018321,
+        "max_bytes": 5100000,
+        "sha256": "e5326a8830f0358faa195609fd21d0c1dbab899e39bd7f44b1590ebf2ce5035e",
+        "verification": "official_release_archive_sha256_and_complete_tree"
+      },
+      "install": {
+        "target": "FreePats/ButtonAccordionHN",
+        "strip_single_root": true,
+        "tree": {
+          "files": 38,
+          "bytes": 5329931,
+          "sha256": "9e0a7ef770ef7c79f10b2b854e6a57dbd713fc9f9812fef612dd8d3b112045a9"
+        },
+        "derived": []
+      }
+    },
+    {
+      "id": "karoryfer-meatbass",
+      "group": "karoryfer",
+      "display_name": "Karoryfer Meatbass",
+      "instrument_ids": [
+        "低音乐器/原声贝斯"
+      ],
+      "license": {
+        "expression": "CC0-1.0",
+        "status": "approved",
+        "evidence_files": [
+          "LICENSE",
+          "readme.txt"
+        ]
+      },
+      "source": {
+        "project": "sfzinstruments/karoryfer.meatbass",
+        "repository": "https://github.com/sfzinstruments/karoryfer.meatbass",
+        "version": "v1.001",
+        "commit": "ac9e859564bda286ab5ec672d00ff1aa2fef2895"
+      },
+      "archive": {
+        "url": "https://github.com/sfzinstruments/karoryfer.meatbass/archive/ac9e859564bda286ab5ec672d00ff1aa2fef2895.zip",
+        "filename": "karoryfer.meatbass-ac9e859564bd.zip",
+        "format": "zip",
+        "bytes": null,
+        "estimated_bytes": 255436373,
+        "max_bytes": 270000000,
+        "sha256": null,
+        "verification": "fixed_commit_and_complete_tree; GitHub codeload container bytes are not treated as stable"
+      },
+      "install": {
+        "target": "Karoryfer/karoryfer.meatbass-master",
+        "strip_single_root": true,
+        "tree": {
+          "files": 587,
+          "bytes": 296404944,
+          "sha256": "e453e7368c228a14addf293b41334b0ee2027eb8b66feca4d6292f2a940137b9"
+        },
+        "derived": []
+      }
+    },
+    {
+      "id": "karoryfer-ergo",
+      "group": "karoryfer",
+      "display_name": "Karoryfer Ergo",
+      "instrument_ids": [
+        "低音乐器/无品电贝斯"
+      ],
+      "license": {
+        "expression": "CC0-1.0",
+        "status": "approved",
+        "evidence_files": [
+          "LICENSE",
+          "readme.txt"
+        ]
+      },
+      "source": {
+        "project": "sfzinstruments/karoryfer.ergo",
+        "repository": "https://github.com/sfzinstruments/karoryfer.ergo",
+        "version": "v1.001",
+        "commit": "c3232f03608e07e4e274c8ad9a1a4c32885f75c4"
+      },
+      "archive": {
+        "url": "https://github.com/sfzinstruments/karoryfer.ergo/archive/c3232f03608e07e4e274c8ad9a1a4c32885f75c4.zip",
+        "filename": "karoryfer.ergo-c3232f03608e.zip",
+        "format": "zip",
+        "bytes": null,
+        "estimated_bytes": 200744036,
+        "max_bytes": 215000000,
+        "sha256": null,
+        "verification": "fixed_commit_and_complete_tree; GitHub codeload container bytes are not treated as stable"
+      },
+      "install": {
+        "target": "Karoryfer/karoryfer.ergo-master",
+        "strip_single_root": true,
+        "tree": {
+          "files": 403,
+          "bytes": 249061978,
+          "sha256": "57f8afff139756ea1b48992884aec81742bd438724789af29a9c7ad7a1d570a8"
+        },
+        "derived": []
+      }
+    },
+    {
+      "id": "karoryfer-emilyguitar",
+      "group": "emilyguitar",
+      "display_name": "Karoryfer Emilyguitar",
+      "instrument_ids": [
+        "弹拨乐器/失真电吉他",
+        "弹拨乐器/清音电吉他",
+        "弹拨乐器/爵士电吉他",
+        "弹拨乐器/过载电吉他"
+      ],
+      "license": {
+        "expression": "CC0-1.0",
+        "status": "approved",
+        "evidence_files": [
+          "LICENSE",
+          "readme.txt"
+        ]
+      },
+      "source": {
+        "project": "sfzinstruments/karoryfer.emilyguitar",
+        "repository": "https://github.com/sfzinstruments/karoryfer.emilyguitar",
+        "version": "v1.001",
+        "commit": "b4920dc662fd9cad6dcaccdeecffdd91c8725d8c"
+      },
+      "archive": {
+        "url": "https://github.com/sfzinstruments/karoryfer.emilyguitar/releases/download/v1.001/Karoryfer.Emilyguitar.v1.001.zip",
+        "filename": "Karoryfer.Emilyguitar.v1.001.zip",
+        "format": "zip",
+        "bytes": 103484350,
+        "estimated_bytes": 103484350,
+        "max_bytes": 104000000,
+        "sha256": "ffef3b28972763820bee73660a25cf47ea6e13b184342fd5d325a5631598cacb",
+        "verification": "official_release_archive_sha256_and_complete_tree"
+      },
+      "install": {
+        "target": "Emilyguitar",
+        "strip_single_root": true,
+        "tree": {
+          "files": 331,
+          "bytes": 125538629,
+          "sha256": "ae1e99d79409d3d153ff92683d2682150cec5cbb3920a436a6ac4a30f8a6843a"
+        },
+        "derived": []
+      }
+    },
+    {
+      "id": "mtg-solo-sax",
+      "group": "mtg",
+      "display_name": "MTG Solo Saxophones",
+      "instrument_ids": [
+        "现代管乐/上低音萨克斯",
+        "现代管乐/中音萨克斯",
+        "现代管乐/次中音萨克斯",
+        "现代管乐/高音萨克斯"
+      ],
+      "license": {
+        "expression": "CC-BY-4.0",
+        "status": "approved",
+        "output_attribution_required": true,
+        "evidence_files": [
+          "LICENSE",
+          "README.md"
+        ]
+      },
+      "source": {
+        "project": "sfzinstruments/MTG.SoloSax",
+        "repository": "https://github.com/sfzinstruments/MTG.SoloSax",
+        "version": "b494d256549b3d088fdec176ce82867f8a1f58b2",
+        "commit": "b494d256549b3d088fdec176ce82867f8a1f58b2",
+        "git_tree": "0e44383a76e9f48684e1bd26ee747ebff13d14f9"
+      },
+      "archive": {
+        "url": "https://github.com/sfzinstruments/MTG.SoloSax/archive/b494d256549b3d088fdec176ce82867f8a1f58b2.zip",
+        "filename": "MTG.SoloSax-b494d256549b.zip",
+        "format": "zip",
+        "bytes": null,
+        "estimated_bytes": 110000000,
+        "max_bytes": 125000000,
+        "sha256": null,
+        "verification": "fixed_commit_git_tree_and_complete_extracted_tree; GitHub codeload container bytes are not treated as stable"
+      },
+      "install": {
+        "target": "MTG-Solo-Sax",
+        "strip_single_root": true,
+        "tree": {
+          "files": 785,
+          "bytes": 110931965,
+          "sha256": "52debbf1ce99f8621137acbe9d648a8d477dba021314c5524be83d4105513ece"
+        },
+        "derived": []
+      }
+    }
+  ]
+}

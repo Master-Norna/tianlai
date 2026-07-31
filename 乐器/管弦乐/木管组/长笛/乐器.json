@@ -1,0 +1,39 @@
+{
+  "name": "Virtual Playing Orchestra 独奏长笛",
+  "type": "flute",
+  "implementation": "乐器.py",
+  "asset_root": "../../../../音源/VirtualPlayingOrchestra/Virtual-Playing-Orchestra3",
+  "pitch_calibration": "音准校准.json",
+  "note_min": 60,
+  "note_max": 98,
+  "range_evidence": "实测采样区覆盖 MIDI 60..98,下限 C4 正是标准长笛最低音",
+  "default_articulation": "sustain",
+  "gain": 0.5,
+  "velocity_exponent": 0.62,
+  "release_seconds": 0.7,
+  "legato_attack_seconds": 0.008,
+  "legato_release_seconds": 0.055,
+  "tongue_choke_seconds": 0.018,
+  "expression_smoothing_seconds": 0.014,
+  "breath_smoothing_seconds": 0.024,
+  "articulation_gain": {
+    "sustain": 1.0,
+    "slow_sustain": 0.84,
+    "legato": 0.98,
+    "staccato": 0.9,
+    "accent": 0.82
+  },
+  "quality_tier": "formal",
+  "collaboration_review_status": "untested",
+  "upgrade_status": "flute_dedicated_multisample",
+  "fallback_policy": "explicit_only_no_silent_gm",
+  "upstream": "Virtual Playing Orchestra 3(Standard 3.3 / Wave 3.2)",
+  "origin": "http://virtualplaying.com",
+  "upstream_version": "Standard 3.3 / Wave 3.2",
+  "license": "混合公开许可:SSO Sampling Plus 1.0、No Budget Orchestra/Mattias CC BY-SA 4.0、VSCO2-CE CC0 等,见 Documentation/license.htm",
+  "resource_verification": "资源核验.json",
+  "evidence_files": [
+    "Documentation/license.htm"
+  ],
+  "license_status": "grandfathered"
+}

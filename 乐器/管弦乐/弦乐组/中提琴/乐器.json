@@ -1,0 +1,70 @@
+{
+  "name": "VSCO2-CE 中提琴声部 CC0",
+  "type": "vsco2_viola_section",
+  "quality_tier": "formal",
+  "collaboration_review_status": "untested",
+  "upgrade_status": "vsco2_cc0_viola_section_36_sample",
+  "fallback_policy": "explicit_only_no_silent_gm",
+  "implementation": "乐器.py",
+  "instrument_name": "viola section",
+  "asset_root": "../../../../音源/VirtualPlayingOrchestra/Virtual-Playing-Orchestra3",
+  "sample_subtree": "libs/VSCO2-CE/Strings/Viola Section",
+  "pitch_calibration": "音准校准.json",
+  "resource_verification": "资源核验.json",
+  "note_min": 48,
+  "note_max": 93,
+  "sampled_range": "C3-A6 playable; recorded roots sustain D3-D6 (MIDI 50-86), spiccato C3-D6 (MIDI 48-86)",
+  "recorded_root_range": {
+    "sustain": [
+      50,
+      86
+    ],
+    "spiccato": [
+      48,
+      86
+    ]
+  },
+  "upper_extension_note": "MIDI 85-93 uses the recorded D6 root at MIDI 86; A6 is a mapped extension, not a separately sampled root",
+  "input_pitch_semantics": "concert_pitch",
+  "allowed_articulations": [
+    "sustain",
+    "spiccato"
+  ],
+  "default_articulation": "sustain",
+  "articulation_source_semantics": {
+    "sustain": "VSCO2 ViolaEns susvib: real ensemble sustained vibrato, one retained v2 recording per root, embedded loops",
+    "spiccato": "VSCO2 Violas spic: real short spiccato, one retained v2 recording tier and two true round robins per root"
+  },
+  "recorded_velocity_layers": {
+    "sustain": 1,
+    "spiccato": 1
+  },
+  "velocity_behavior": "velocity controls amplitude only; it never selects a fictitious second recording tier",
+  "recorded_round_robins": {
+    "sustain": 1,
+    "spiccato": 2
+  },
+  "gain": 0.42,
+  "articulation_gain": {
+    "sustain": 1.0,
+    "spiccato": 0.9
+  },
+  "velocity_exponent": 0.72,
+  "sustain_attack_seconds": 0.04,
+  "sustain_release_seconds": 0.8,
+  "spiccato_attack_seconds": 0.003,
+  "expression_smoothing_seconds": 0.014,
+  "auxiliary_note_id_base": 1360000000,
+  "reference_a4_hz": 440.0,
+  "upstream": "VSCO 2 Community Edition subset distributed in Virtual Playing Orchestra",
+  "origin": "https://versilian-studios.com/vsco-community/",
+  "distribution_origin": "https://virtualplaying.com/virtual-playing-orchestra/",
+  "upstream_version": "Virtual Playing Orchestra Standard 3.3 / Wave Files 3.2 local distribution",
+  "license": "CC0-1.0",
+  "license_scope": "every runtime WAV is confined to libs/VSCO2-CE/Strings/Viola Section",
+  "evidence_files": [
+    "Documentation/license.htm",
+    "libs/VSCO2-CE/LICENSE.txt"
+  ],
+  "license_status": "approved"
+}

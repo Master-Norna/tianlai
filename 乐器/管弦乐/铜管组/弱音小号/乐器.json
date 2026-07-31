@@ -1,0 +1,50 @@
+{
+  "name": "VPO 弱音小号",
+  "type": "dedicated_fx",
+  "quality_tier": "formal",
+  "collaboration_review_status": "untested",
+  "upgrade_status": "vpo_dedicated_multisample_fx_chain",
+  "fallback_policy": "explicit_only_no_silent_gm",
+  "asset_root": "../../../../音源/VirtualPlayingOrchestra/Virtual-Playing-Orchestra3",
+  "upstream": "Virtual Playing Orchestra 3(Standard 3.3 / Wave 3.2)",
+  "origin": "http://virtualplaying.com",
+  "upstream_version": "Standard 3.3 / Wave 3.2",
+  "license": "混合公开许可:SSO Sampling Plus、No Budget Orchestra/Mattias CC-BY-SA、VSCO2 CC0 等,见 Documentation/license.htm",
+  "evidence_files": [
+    "Documentation/license.htm"
+  ],
+  "resource_verification": "资源核验.json",
+  "pitch_calibration": "音准校准.json",
+  "articulations": {
+    "sustain": "Brass/trumpet-SOLO-sustain.sfz",
+    "staccato": "Brass/trumpet-SOLO-staccato.sfz",
+    "accent": "Brass/trumpet-SOLO-accent.sfz"
+  },
+  "default_articulation": "sustain",
+  "pitch_mode": "pitched",
+  "effects": [
+    {
+      "type": "highpass",
+      "cutoff_hz": 520.0
+    },
+    {
+      "type": "peak",
+      "center_hz": 1650.0,
+      "q": 2.2,
+      "gain_db": 9.0
+    },
+    {
+      "type": "lowpass",
+      "cutoff_hz": 4200.0
+    }
+  ],
+  "gain": 0.4,
+  "output_gain": 0.6888,
+  "velocity_exponent": 0.72,
+  "release_seconds": 0.3,
+  "auxiliary_note_id_base": 1881000000,
+  "note_min": 54,
+  "note_max": 82,
+  "sampled_range": "F#3-A#5 sounding",
+  "license_status": "grandfathered"
+}

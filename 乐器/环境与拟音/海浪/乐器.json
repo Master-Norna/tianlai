@@ -1,0 +1,20 @@
+{
+  "name": "程序建模 海浪",
+  "type": "procedural_sfx",
+  "quality_tier": "formal",
+  "collaboration_review_status": "untested",
+  "upgrade_status": "deterministic_surf_swell_foam_model",
+  "fallback_policy": "explicit_only_no_silent_gm",
+  "provenance_kind": "project_authored_dsp",
+  "implementation_license": "Apache-2.0",
+  "external_audio_assets": [],
+  "audio_asset_license": "not_applicable",
+  "license_status": "approved",
+  "implementation": "乐器.py",
+  "profile": "ocean",
+  "engine_version": "1.1.0",
+  "seed": 1243850394,
+  "expression_smoothing_seconds": 0.08,
+  "pitch_calibration": "音准校准.json",
+  "calibration_not_applicable_reason": "涌浪与泡沫为宽带噪声过程,无固定音高;MIDI 音高被主动忽略,不做校准"
+}

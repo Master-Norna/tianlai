@@ -1,0 +1,75 @@
+name: 音色、音域或协奏问题
+description: 提交能绑定到乐器、资源和候选版本的可复现听感问题
+title: "[音频] "
+labels:
+  - audio
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请尽量提交最小、可合法分享的复现材料。不要上传无权公开的曲谱、MIDI、录音或采样。
+        “听起来奇怪”很有价值；候选 ID、具体秒数和分轨能让维护者把它变成可复算问题。
+  - type: input
+    id: version
+    attributes:
+      label: 天籁版本或提交
+      description: 运行 `天籁.cmd --version`；若使用源码开发版，再附 Git 提交。
+      placeholder: 0.5.0rc1 / abcdef1
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: 环境
+      placeholder: Windows 11 x64，Python 3.13，耳机/音箱型号（如相关）
+    validations:
+      required: true
+  - type: input
+    id: instrument
+    attributes:
+      label: 乐器 ID 或声部
+      placeholder: 管弦乐/弦乐组/小提琴；候选中的 04_小提琴
+    validations:
+      required: true
+  - type: input
+    id: location
+    attributes:
+      label: 候选与时间位置
+      description: 优先填写候选 ID 和发生问题的秒数；单音也可写音名、力度和奏法。
+      placeholder: candidate-...，34.2 秒；或 G5 / ff / sustain
+    validations:
+      required: true
+  - type: dropdown
+    id: scope
+    attributes:
+      label: 问题范围
+      options:
+        - 单独分轨也存在
+        - 只在合奏中存在
+        - 尚未定位分轨
+    validations:
+      required: true
+  - type: textarea
+    id: observation
+    attributes:
+      label: 实际听感与预期
+      description: 描述异响、音域错配、力度跳变、混响、遮蔽或其他现象，以及你预期听到什么。
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 可复算证据
+      description: |
+        可粘贴 `检查运行环境.cmd --json` 的相关节选、候选 ID、渲染回执 Hash、
+        `candidate-locate` 结果和最小 score/events。请删去私人路径和无权公开内容。
+      render: shell
+  - type: checkboxes
+    id: rights
+    attributes:
+      label: 分享边界
+      options:
+        - label: 我确认本 issue 没有附带无权公开的作品、谱面、录音或第三方采样。
+          required: true
+        - label: 我理解一次听感报告不会自动把该乐器标为全面合格或不合格。
+          required: true

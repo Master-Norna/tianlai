@@ -1,0 +1,376 @@
+{
+  "description": "FFT measurement of raw concert harp samples; A4=440 Hz",
+  "source_sfz": "Chordophones/Composite Chordophones/Concert Harp.sfz",
+  "method": "harmonic FFT of each raw pluck from 0.04 s; runtime represents each source root at its measured frequency",
+  "summary": {
+    "sample_count": 45,
+    "median_detune_cents": -7.761711,
+    "maximum_absolute_detune_cents": 30.508318,
+    "unique_root_count": 23,
+    "upstream_mapping_median_residual_cents": -2.633154,
+    "upstream_mapping_maximum_absolute_residual_cents": 19.558785,
+    "project_calibration_target_residual_cents": 0.0
+  },
+  "samples": {
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_E1_f1.wav": {
+      "root_midi": 28.0,
+      "measured_hz": 40.576081,
+      "detune_cents": -26.562488,
+      "sfz_tune_cents": 22.0,
+      "upstream_mapped_residual_cents": -4.562488,
+      "playback_correction_cents": 26.562488
+    },
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_G1_mp1.wav": {
+      "root_midi": 31.0,
+      "measured_hz": 48.255806,
+      "detune_cents": -26.47489,
+      "sfz_tune_cents": 22.0,
+      "upstream_mapped_residual_cents": -4.47489,
+      "playback_correction_cents": 26.47489
+    },
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_G1_f1.wav": {
+      "root_midi": 31.0,
+      "measured_hz": 48.352146,
+      "detune_cents": -23.022031,
+      "sfz_tune_cents": 20.0,
+      "upstream_mapped_residual_cents": -3.022031,
+      "playback_correction_cents": 23.022031
+    },
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_B1_mf1.wav": {
+      "root_midi": 35.0,
+      "measured_hz": 61.167458,
+      "detune_cents": -16.000752,
+      "sfz_tune_cents": 14.0,
+      "upstream_mapped_residual_cents": -2.000752,
+      "playback_correction_cents": 16.000752
+    },
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_B1_f1.wav": {
+      "root_midi": 35.0,
+      "measured_hz": 61.301997,
+      "detune_cents": -12.197042,
+      "sfz_tune_cents": 10.0,
+      "upstream_mapped_residual_cents": -2.197042,
+      "playback_correction_cents": 12.197042
+    },
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_D2_mf1.wav": {
+      "root_midi": 38.0,
+      "measured_hz": 73.145204,
+      "detune_cents": -6.402007,
+      "sfz_tune_cents": 5.0,
+      "upstream_mapped_residual_cents": -1.402007,
+      "playback_correction_cents": 6.402007
+    },
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_D2_f1.wav": {
+      "root_midi": 38.0,
+      "measured_hz": 73.220633,
+      "detune_cents": -4.617636,
+      "sfz_tune_cents": 2.0,
+      "upstream_mapped_residual_cents": -2.617636,
+      "playback_correction_cents": 4.617636
+    },
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_F2_mf1.wav": {
+      "root_midi": 41.0,
+      "measured_hz": 86.916507,
+      "detune_cents": -7.761711,
+      "sfz_tune_cents": 7.0,
+      "upstream_mapped_residual_cents": -0.761711,
+      "playback_correction_cents": 7.761711
+    },
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_F2_f1.wav": {
+      "root_midi": 41.0,
+      "measured_hz": 87.030315,
+      "detune_cents": -5.496314,
+      "sfz_tune_cents": 4.0,
+      "upstream_mapped_residual_cents": -1.496314,
+      "playback_correction_cents": 5.496314
+    },
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_A2_mf1.wav": {
+      "root_midi": 45.0,
+      "measured_hz": 109.685802,
+      "detune_cents": -4.952074,
+      "sfz_tune_cents": 2.0,
+      "upstream_mapped_residual_cents": -2.952074,
+      "playback_correction_cents": 4.952074
+    },
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_A2_f1.wav": {
+      "root_midi": 45.0,
+      "measured_hz": 109.682465,
+      "detune_cents": -5.004742,
+      "sfz_tune_cents": -1.0,
+      "upstream_mapped_residual_cents": -6.004742,
+      "playback_correction_cents": 5.004742
+    },
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_C3_mf3.wav": {
+      "root_midi": 48.0,
+      "measured_hz": 130.642358,
+      "detune_cents": -2.25694,
+      "sfz_tune_cents": 1.0,
+      "upstream_mapped_residual_cents": -1.25694,
+      "playback_correction_cents": 2.25694
+    },
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_C3_f2.wav": {
+      "root_midi": 48.0,
+      "measured_hz": 130.613972,
+      "detune_cents": -2.633154,
+      "sfz_tune_cents": 0.0,
+      "upstream_mapped_residual_cents": -2.633154,
+      "playback_correction_cents": 2.633154
+    },
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_E3_mf1.wav": {
+      "root_midi": 52.0,
+      "measured_hz": 164.358156,
+      "detune_cents": -4.792566,
+      "sfz_tune_cents": 2.0,
+      "upstream_mapped_residual_cents": -2.792566,
+      "playback_correction_cents": 4.792566
+    },
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_E3_f1.wav": {
+      "root_midi": 52.0,
+      "measured_hz": 164.562027,
+      "detune_cents": -2.646461,
+      "sfz_tune_cents": -3.0,
+      "upstream_mapped_residual_cents": -5.646461,
+      "playback_correction_cents": 2.646461
+    },
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_G3_mf1.wav": {
+      "root_midi": 55.0,
+      "measured_hz": 195.144069,
+      "detune_cents": -7.556692,
+      "sfz_tune_cents": 1.0,
+      "upstream_mapped_residual_cents": -6.556692,
+      "playback_correction_cents": 7.556692
+    },
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_G3_f1.wav": {
+      "root_midi": 55.0,
+      "measured_hz": 195.14507,
+      "detune_cents": -7.547805,
+      "sfz_tune_cents": -3.0,
+      "upstream_mapped_residual_cents": -10.547805,
+      "playback_correction_cents": 7.547805
+    },
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_B3_mf1.wav": {
+      "root_midi": 59.0,
+      "measured_hz": 245.945091,
+      "detune_cents": -7.000716,
+      "sfz_tune_cents": 8.0,
+      "upstream_mapped_residual_cents": 0.999284,
+      "playback_correction_cents": 7.000716
+    },
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_B3_f1.wav": {
+      "root_midi": 59.0,
+      "measured_hz": 246.013375,
+      "detune_cents": -6.520125,
+      "sfz_tune_cents": 1.0,
+      "upstream_mapped_residual_cents": -5.520125,
+      "playback_correction_cents": 6.520125
+    },
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_D4_mf1.wav": {
+      "root_midi": 62.0,
+      "measured_hz": 291.414237,
+      "detune_cents": -13.318594,
+      "sfz_tune_cents": 7.0,
+      "upstream_mapped_residual_cents": -6.318594,
+      "playback_correction_cents": 13.318594
+    },
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_D4_f1.wav": {
+      "root_midi": 62.0,
+      "measured_hz": 291.037395,
+      "detune_cents": -15.558785,
+      "sfz_tune_cents": -4.0,
+      "upstream_mapped_residual_cents": -19.558785,
+      "playback_correction_cents": 15.558785
+    },
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_F4_mf1.wav": {
+      "root_midi": 65.0,
+      "measured_hz": 348.871933,
+      "detune_cents": -1.767186,
+      "sfz_tune_cents": 1.0,
+      "upstream_mapped_residual_cents": -0.767186,
+      "playback_correction_cents": 1.767186
+    },
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_F4_f1.wav": {
+      "root_midi": 65.0,
+      "measured_hz": 348.901759,
+      "detune_cents": -1.619182,
+      "sfz_tune_cents": 0.0,
+      "upstream_mapped_residual_cents": -1.619182,
+      "playback_correction_cents": 1.619182
+    },
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_A4_mf1.wav": {
+      "root_midi": 69.0,
+      "measured_hz": 437.518671,
+      "detune_cents": -9.790725,
+      "sfz_tune_cents": 19.0,
+      "upstream_mapped_residual_cents": 9.209275,
+      "playback_correction_cents": 9.790725
+    },
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_A4_f1.wav": {
+      "root_midi": 69.0,
+      "measured_hz": 437.635827,
+      "detune_cents": -9.32721,
+      "sfz_tune_cents": 10.0,
+      "upstream_mapped_residual_cents": 0.67279,
+      "playback_correction_cents": 9.32721
+    },
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_C5_mf1.wav": {
+      "root_midi": 72.0,
+      "measured_hz": 519.830296,
+      "detune_cents": -11.355366,
+      "sfz_tune_cents": 12.0,
+      "upstream_mapped_residual_cents": 0.644634,
+      "playback_correction_cents": 11.355366
+    },
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_C5_f1.wav": {
+      "root_midi": 72.0,
+      "measured_hz": 519.532399,
+      "detune_cents": -12.347762,
+      "sfz_tune_cents": 3.0,
+      "upstream_mapped_residual_cents": -9.347762,
+      "playback_correction_cents": 12.347762
+    },
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_E5_mf1.wav": {
+      "root_midi": 76.0,
+      "measured_hz": 654.490597,
+      "detune_cents": -12.55727,
+      "sfz_tune_cents": 11.0,
+      "upstream_mapped_residual_cents": -1.55727,
+      "playback_correction_cents": 12.55727
+    },
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_E5_f1.wav": {
+      "root_midi": 76.0,
+      "measured_hz": 654.259704,
+      "detune_cents": -13.168128,
+      "sfz_tune_cents": 6.0,
+      "upstream_mapped_residual_cents": -7.168128,
+      "playback_correction_cents": 13.168128
+    },
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_G5_mf1.wav": {
+      "root_midi": 79.0,
+      "measured_hz": 781.08162,
+      "detune_cents": -6.436253,
+      "sfz_tune_cents": 10.0,
+      "upstream_mapped_residual_cents": 3.563747,
+      "playback_correction_cents": 6.436253
+    },
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_G5_f1.wav": {
+      "root_midi": 79.0,
+      "measured_hz": 780.830229,
+      "detune_cents": -6.993542,
+      "sfz_tune_cents": 6.0,
+      "upstream_mapped_residual_cents": -0.993542,
+      "playback_correction_cents": 6.993542
+    },
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_B5_mf1.wav": {
+      "root_midi": 83.0,
+      "measured_hz": 982.187987,
+      "detune_cents": -9.805216,
+      "sfz_tune_cents": 5.0,
+      "upstream_mapped_residual_cents": -4.805216,
+      "playback_correction_cents": 9.805216
+    },
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_B5_f1.wav": {
+      "root_midi": 83.0,
+      "measured_hz": 979.116782,
+      "detune_cents": -15.227094,
+      "sfz_tune_cents": 3.0,
+      "upstream_mapped_residual_cents": -12.227094,
+      "playback_correction_cents": 15.227094
+    },
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_D6_mf1.wav": {
+      "root_midi": 86.0,
+      "measured_hz": 1169.670545,
+      "detune_cents": -7.367838,
+      "sfz_tune_cents": 5.0,
+      "upstream_mapped_residual_cents": -2.367838,
+      "playback_correction_cents": 7.367838
+    },
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_D6_f1.wav": {
+      "root_midi": 86.0,
+      "measured_hz": 1169.685348,
+      "detune_cents": -7.345928,
+      "sfz_tune_cents": 8.0,
+      "upstream_mapped_residual_cents": 0.654072,
+      "playback_correction_cents": 7.345928
+    },
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_F6_mf1.wav": {
+      "root_midi": 89.0,
+      "measured_hz": 1392.185185,
+      "detune_cents": -5.869161,
+      "sfz_tune_cents": 11.0,
+      "upstream_mapped_residual_cents": 5.130839,
+      "playback_correction_cents": 5.869161
+    },
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_F6_f1.wav": {
+      "root_midi": 89.0,
+      "measured_hz": 1386.614327,
+      "detune_cents": -12.810628,
+      "sfz_tune_cents": 0.0,
+      "upstream_mapped_residual_cents": -12.810628,
+      "playback_correction_cents": 12.810628
+    },
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_A6_mf1.wav": {
+      "root_midi": 93.0,
+      "measured_hz": 1740.88318,
+      "detune_cents": -18.90724,
+      "sfz_tune_cents": 17.0,
+      "upstream_mapped_residual_cents": -1.90724,
+      "playback_correction_cents": 18.90724
+    },
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_A6_f1.wav": {
+      "root_midi": 93.0,
+      "measured_hz": 1740.635358,
+      "detune_cents": -19.153706,
+      "sfz_tune_cents": 8.0,
+      "upstream_mapped_residual_cents": -11.153706,
+      "playback_correction_cents": 19.153706
+    },
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_B6_mf1.wav": {
+      "root_midi": 95.0,
+      "measured_hz": 1964.262361,
+      "detune_cents": -9.905347,
+      "sfz_tune_cents": 0.0,
+      "upstream_mapped_residual_cents": -9.905347,
+      "playback_correction_cents": 9.905347
+    },
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_B6_f1.wav": {
+      "root_midi": 95.0,
+      "measured_hz": 1960.427756,
+      "detune_cents": -13.288341,
+      "sfz_tune_cents": 8.0,
+      "upstream_mapped_residual_cents": -5.288341,
+      "playback_correction_cents": 13.288341
+    },
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_D7_p1.wav": {
+      "root_midi": 98.0,
+      "measured_hz": 2349.311592,
+      "detune_cents": -0.004828,
+      "sfz_tune_cents": -4.0,
+      "upstream_mapped_residual_cents": -4.004828,
+      "playback_correction_cents": 0.004828
+    },
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_D7_f1.wav": {
+      "root_midi": 98.0,
+      "measured_hz": 2337.798903,
+      "detune_cents": -8.509513,
+      "sfz_tune_cents": 9.0,
+      "upstream_mapped_residual_cents": 0.490487,
+      "playback_correction_cents": 8.509513
+    },
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_F7_p1.wav": {
+      "root_midi": 101.0,
+      "measured_hz": 2788.160873,
+      "detune_cents": -3.513949,
+      "sfz_tune_cents": 3.0,
+      "upstream_mapped_residual_cents": -0.513949,
+      "playback_correction_cents": 3.513949
+    },
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_F7_f1.wav": {
+      "root_midi": 101.0,
+      "measured_hz": 2745.023495,
+      "detune_cents": -30.508318,
+      "sfz_tune_cents": 22.0,
+      "upstream_mapped_residual_cents": -8.508318,
+      "playback_correction_cents": 30.508318
+    }
+  }
+}

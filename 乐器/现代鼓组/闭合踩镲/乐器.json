@@ -1,0 +1,31 @@
+{
+  "name": "VCSL 闭合踩镲",
+  "type": "dedicated_sfz",
+  "quality_tier": "formal",
+  "collaboration_review_status": "untested",
+  "upgrade_status": "vcsl_dedicated_multisample",
+  "fallback_policy": "explicit_only_no_silent_gm",
+  "asset_root": "../../../音源/VCSL",
+  "upstream": "sgossner/VCSL (Versilian Community Sample Library)",
+  "origin": "https://github.com/sgossner/VCSL",
+  "upstream_version": "1.2.2-RC",
+  "license": "CC0-1.0",
+  "evidence_files": [
+    "README.md"
+  ],
+  "resource_verification": "资源核验.json",
+  "pitch_calibration": "音准校准.json",
+  "articulations": {
+    "hit": "Idiophones/Struck Idiophones/Hi-Hat Cymbal.sfz"
+  },
+  "default_articulation": "hit",
+  "pitch_mode": "ignore",
+  "gain": 0.3696,
+  "velocity_exponent": 0.72,
+  "auxiliary_note_id_base": 1846000000,
+  "release_seconds": 0.3,
+  "calibration_not_applicable_reason": "踩镲为金属体鸣打击,键 42-44 选择闭合击/半开击/踏板闭合,不做音高校准",
+  "note_min": 42,
+  "note_max": 44,
+  "license_status": "approved"
+}

@@ -1,0 +1,7 @@
+{
+  "applicable": false,
+  "pitch_mode": "not_pitched",
+  "reason": "枪口冲击为宽带瞬态,无固定音高;MIDI 音高被主动忽略,不做十二平均律校准",
+  "samples": {},
+  "generated_at": "2026-07-22"
+}

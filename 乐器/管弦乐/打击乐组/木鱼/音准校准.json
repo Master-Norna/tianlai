@@ -1,0 +1,7 @@
+{
+  "applicable": false,
+  "profile": "woodblock",
+  "reason": "无固定音高打击；输入音高只选择击法，不对样本做十二平均律校正。",
+  "a4_hz": null,
+  "samples": {}
+}

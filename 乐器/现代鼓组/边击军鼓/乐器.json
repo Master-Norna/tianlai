@@ -1,0 +1,30 @@
+{
+  "name": "VCSL 边击军鼓",
+  "type": "dedicated_sfz",
+  "quality_tier": "formal",
+  "collaboration_review_status": "untested",
+  "upgrade_status": "vcsl_dedicated_multisample",
+  "fallback_policy": "explicit_only_no_silent_gm",
+  "asset_root": "../../../音源/VCSL",
+  "upstream": "sgossner/VCSL (Versilian Community Sample Library)",
+  "origin": "https://github.com/sgossner/VCSL",
+  "upstream_version": "1.2.2-RC",
+  "license": "CC0-1.0",
+  "evidence_files": [
+    "README.md"
+  ],
+  "resource_verification": "资源核验.json",
+  "pitch_calibration": "音准校准.json",
+  "articulations": {
+    "hit": "Membranophones/Struck Membranophones/Snare Drum, Modern 2.sfz"
+  },
+  "default_articulation": "hit",
+  "pitch_mode": "fixed",
+  "gain": 0.9638,
+  "velocity_exponent": 0.72,
+  "auxiliary_note_id_base": 1851000000,
+  "fixed_midi_note": 62,
+  "release_seconds": 0.3,
+  "calibration_not_applicable_reason": "边击军鼓为膜鸣打击,任意谱面音高都触发 cross-stick 采样,不做音高校准",
+  "license_status": "approved"
+}

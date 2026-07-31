@@ -1,0 +1,43 @@
+{
+  "name": "Karoryfer Emilyguitar 爵士电吉他",
+  "type": "dedicated_fx",
+  "quality_tier": "formal",
+  "collaboration_review_status": "untested",
+  "upgrade_status": "karoryfer_dedicated_multisample_fx_chain",
+  "fallback_policy": "explicit_only_no_silent_gm",
+  "asset_root": "../../../音源/Emilyguitar",
+  "upstream": "Karoryfer Lecolds (D. Smolken): Emilyguitar",
+  "origin": "https://shop.karoryfer.com/pages/free-samples",
+  "upstream_version": "v1.001",
+  "license": "CC0-1.0",
+  "evidence_files": [
+    "LICENSE",
+    "readme.txt"
+  ],
+  "resource_verification": "资源核验.json",
+  "pitch_calibration": "音准校准.json",
+  "articulations": {
+    "normal": "emily_basic.sfz"
+  },
+  "default_articulation": "normal",
+  "pitch_mode": "pitched",
+  "effects": [
+    {
+      "type": "highpass",
+      "cutoff_hz": 90.0
+    },
+    {
+      "type": "lowpass",
+      "cutoff_hz": 2400.0
+    }
+  ],
+  "gain": 0.94,
+  "output_gain": 1.2578,
+  "velocity_exponent": 0.72,
+  "release_seconds": 0.3,
+  "auxiliary_note_id_base": 1870000000,
+  "note_min": 38,
+  "note_max": 86,
+  "sampled_range": "D2-D6 sounding",
+  "license_status": "approved"
+}

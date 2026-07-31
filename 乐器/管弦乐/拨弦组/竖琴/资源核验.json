@@ -1,0 +1,183 @@
+{
+  "upstream": "sgossner/VCSL",
+  "origin": "https://github.com/sgossner/VCSL",
+  "upstream_version": "1.2.2-RC",
+  "upstream_commit": "b6e6ac82d22248edee98a0bde185eb9ef6d439ad",
+  "license": "CC0-1.0",
+  "profile": "vcsl_concert_harp_strict_cc0",
+  "source_sfz_sha256": {
+    "Chordophones/Composite Chordophones/Concert Harp.sfz": "7d202064c7d264edfc14a0d2d0a56e47c7689c0c5eb485bec677bd7281d643e7"
+  },
+  "evidence_sha256": {
+    "README.md": "e360f24c120c9ad734cc8508695e09a61ddc4cae5a59c6c9af33fe501b6c9a5b"
+  },
+  "sample_count": 45,
+  "sample_bytes": 76694972,
+  "sample_sha256": {
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_A2_f1.wav": "c58aae0c0eec982c4cb45034d63b00567266fdbb9351354f916703ac4bc51b4e",
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_A2_mf1.wav": "1df9f4d138ca3931fcb458bcdf01304cadf2e5f4eef67bbc17b0e42c0e60fce6",
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_A4_f1.wav": "dd5cc854f4e7a01b9903cc49645e54905b06ed844a5164c0693224b60a862833",
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_A4_mf1.wav": "3665f3975cad4a33f46784aa4f896f4b4319ba2b7831e892d975bc38c9f09f23",
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_A6_f1.wav": "60fd5298274faabdbcda48f3ccf05de5a5abaaa037e337d88f1b583ea421e929",
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_A6_mf1.wav": "4605355d22fae6f58190bf0d033d2ebdd745d63e2e43204d6f41ad27e4f09af0",
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_B1_f1.wav": "3ffa4eefa4113c132c376afbc38d1d6765cd516f15ee61b3e4980005f0436124",
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_B1_mf1.wav": "284034807efbb429cb63f6fb744834b18e6281a4914e6460de0a5818b5d0d0e6",
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_B3_f1.wav": "f4e218e04bd27b3e56edb8bb34d41cb5b9960b21acaafb2a8553bea2b402ef66",
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_B3_mf1.wav": "f6f71be8c640822ef48a448b245585659acdfcc7ed5774e10f37be2fc02fcab4",
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_B5_f1.wav": "f9433c5820187b1b9ad2ad347cbc4a5db4fa0fa8f36be010b650ee9e3edc6dd1",
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_B5_mf1.wav": "f2757b674c6b7301bed52e17a1ae3e3d34d628b3f7edc5773ebb25798d2541f7",
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_B6_f1.wav": "0130701b9f7344b18938def457ccc1f91e2e11b00a65ffe141ed199642ac4331",
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_B6_mf1.wav": "720e56b99f84d4ef1b9bc8cd3c217170320f523edb68488af3da76d2217e16f7",
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_C3_f2.wav": "706e586007e07771a97ef97888c23c99aed163503b38878ac5b8ffa437bed5a0",
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_C3_mf3.wav": "18e6222e8fc11a8106e8d7a875d208835eb5b45598f010b21c786b1482e09869",
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_C5_f1.wav": "52a002ae0359257f02b972a62f05e86a4bdbeed272820f934c356408e100cda8",
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_C5_mf1.wav": "7c8b862f6fd3f1442ed87537af976d84bda8c05a5b4900e8907d570b5202a517",
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_D2_f1.wav": "2c9a8cf6b68ddd24ae012624bd5b02436ccfa76443204f2b3d580f8e05bdeb62",
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_D2_mf1.wav": "b9cbdc08e43fc0b28ac70246df991cb390f5cbd7f31519b3cc7f70d283b70566",
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_D4_f1.wav": "e81cba502669ecb390b02b803302f8492c29a1714893a16a342551b00bab6456",
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_D4_mf1.wav": "ebfde8aab4411019e37e3426f4dd88d6a52a38c2d0261d7f10ec63d8ff584dc7",
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_D6_f1.wav": "40828e75a36574f0ac1ddb57da3fc18355a5ee5f88c2b1fa397412034985055d",
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_D6_mf1.wav": "b040b61fb279efa1a9b9c60dcbd8626a37f57ffb30f3b50747a2123ee4db5bd2",
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_D7_f1.wav": "682b95338233c09889f50e6b71429780dabe0314fb11638cbdd04a735323dfd1",
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_D7_p1.wav": "18daf8340c9279fbd2ec12799b868408641ad1e6b4f96fed959f78dc572c71e3",
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_E1_f1.wav": "af372f9d4b218455884cb37201a6a14664f9cc7cf3016bfc28f36146915a370a",
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_E3_f1.wav": "8a803bd6b96a121e83b4ad7e2e0ed40d9b93540f530e89d1a454957121b95f72",
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_E3_mf1.wav": "aafa9d41ec0f77da8f2891055af8b3f9557e0ba1f1df93d53ae6e1fda07afae5",
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_E5_f1.wav": "354bd7ee7d468171593adb6c48a735c4666ec8b2b8c88f611247ac3aa5ce9060",
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_E5_mf1.wav": "95dd9ddb0bd15bee7687906e00f25aafcaa43020cc9501f0e8b6cabf0e9a53ec",
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_F2_f1.wav": "e41629bbb8d3fce5068234e9fa488348fc639dbf952e458321262dddba2d855c",
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_F2_mf1.wav": "d5c0fb42c176af334fd6f6d1b97858556619c51e177efb5b0c6c23bc19ce6dad",
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_F4_f1.wav": "990a38119a68a4b84166080be13027cfbbb4eb17333f8914c9e1a89884521155",
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_F4_mf1.wav": "db27ebbb37334c10e06f2ae63f4d9ff555e4d11704fcc6f0bcf503863867e577",
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_F6_f1.wav": "66d37fe819ca6088966a88c018b50febf76f68edd76f137d40ec89ef5057251b",
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_F6_mf1.wav": "7cf4c012542df737be39900af262fdd980681956e734f43af106718184f34213",
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_F7_f1.wav": "638b40d6c6c674257daa89b0b1e5108973ccbf13d7cc282e21266d3fb71500c5",
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_F7_p1.wav": "99b247290c6b9ee1234de0e5b8a40b6dfbc89b5bcfde84f20903e0dbb515fbed",
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_G1_f1.wav": "47a5ea6c3ec629e9f7f40410b36e6dad15213aa660f5f53b436d484cd2e9319d",
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_G1_mp1.wav": "f9fa1a6ea784320125fef31495ff223ceea675641d0728c2a33b431c06a78bfb",
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_G3_f1.wav": "90f1db1b266b37d2fa991cddb4c077b45f3fddf1be628a16be2fd833e5d32ebd",
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_G3_mf1.wav": "62600eb1b37bc2829ca65351f7ca7e506c9ae472abd5bea0765a8b8fa7df2772",
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_G5_f1.wav": "32ad10059918ed0f60d40c1c35c28031d19e4356edceacf1dcf539279ac822c1",
+    "Chordophones/Composite Chordophones/Concert Harp/KSHarp_G5_mf1.wav": "f2004dfc617997fbabc6f849add2af06f4f859361c44a8fca0f993dc7f999540"
+  },
+  "sample_set_sha256": "fde6a8543ff0dac04989deb96ead10ede341e6bdae50240a123cef5bb6c497d7",
+  "sample_set_algorithm": "Sort unique VCSL-relative UTF-8 paths; for each write '<lowercase file sha256>  <path>\\n'; SHA-256 the concatenated UTF-8 bytes.",
+  "sample_formats": {
+    ".wav:44100Hz:2ch:PCM_16": 45
+  },
+  "mapping": {
+    "source_region_count": 45,
+    "project_region_count": 47,
+    "derived_bridge_region_count": 2,
+    "unique_root_count": 23,
+    "root_midi_notes": [
+      28,
+      31,
+      35,
+      38,
+      41,
+      45,
+      48,
+      52,
+      55,
+      59,
+      62,
+      65,
+      69,
+      72,
+      76,
+      79,
+      83,
+      86,
+      89,
+      93,
+      95,
+      98,
+      101
+    ],
+    "recordings_per_root": {
+      "28": 1,
+      "31": 2,
+      "35": 2,
+      "38": 2,
+      "41": 2,
+      "45": 2,
+      "48": 2,
+      "52": 2,
+      "55": 2,
+      "59": 2,
+      "62": 2,
+      "65": 2,
+      "69": 2,
+      "72": 2,
+      "76": 2,
+      "79": 2,
+      "83": 2,
+      "86": 2,
+      "89": 2,
+      "93": 2,
+      "95": 2,
+      "98": 2,
+      "101": 2
+    },
+    "recording_count_distribution": {
+      "1": 1,
+      "2": 22
+    },
+    "maximum_recorded_velocity_layers_per_root": 2,
+    "single_recording_root_midi_notes": [
+      28
+    ],
+    "velocity_strategy": "SFZ crossfades are represented by one deterministic midpoint layer switch; no continuous crossfade",
+    "integer_note_velocity_selections_checked": 9600,
+    "ambiguous_or_missing_integer_selections": 0,
+    "round_robin_count": 0,
+    "coverage_midi": [
+      28,
+      102
+    ],
+    "maximum_stretch_semitones": 2.0,
+    "embedded_loop_count": 0,
+    "stereo_sample_count": 45,
+    "open_region_count": 47,
+    "dampened_region_count": 47,
+    "dampened_source": "same recordings; project 350 ms release envelope"
+  },
+  "project_overrides": {
+    "upstream_sfz_unchanged": true,
+    "upstream_nonzero_offset_count": 42,
+    "preserved_nonzero_offset_count": 41,
+    "offset_frames": {
+      "Chordophones/Composite Chordophones/Concert Harp/KSHarp_D4_f1.wav": {
+        "upstream": 3744,
+        "project": 0
+      }
+    },
+    "harmful_offset_diagnostic": {
+      "sample": "Chordophones/Composite Chordophones/Concert Harp/KSHarp_D4_f1.wav",
+      "upstream_offset_frames": 3744,
+      "upstream_offset_ms_at_44100_hz": 84.897959,
+      "attack_peak_ms": 58.571429,
+      "first_200ms_energy_discarded_percent": 71.630692
+    }
+  },
+  "audio_integrity": {
+    "source_clipped_samples": 0,
+    "silent_samples": 0,
+    "duration_seconds": {
+      "minimum": 1.136145,
+      "median": 10.619025,
+      "maximum": 25.35542
+    },
+    "final_100ms_rms_dbfs": {
+      "minimum": -95.089083,
+      "median": -93.364837,
+      "maximum": -66.08286,
+      "samples_above_minus_60_dbfs": 0
+    },
+    "maximum_upstream_region_peak_dbfs": 2.037941,
+    "project_gain": 0.38,
+    "maximum_project_peak_dbfs": -6.366387,
+    "minimum_headroom_db": 6.366387
+  }
+}

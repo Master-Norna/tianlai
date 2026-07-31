@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tianlai.local/schemas/performance.schema.json",
+  "title": "Tianlai Performance Document",
+  "type": "object",
+  "required": ["events"],
+  "properties": {
+    "sample_rate": { "type": "integer", "minimum": 8000, "maximum": 384000 },
+    "channels": { "const": 2 },
+    "duration_seconds": { "type": "number", "minimum": 0 },
+    "tail_seconds": { "type": "number", "minimum": 0 },
+    "tuning": {
+      "type": "object",
+      "properties": {
+        "temperament": { "const": "equal" },
+        "a4_hz": { "type": "number", "exclusiveMinimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["time", "type", "note_id", "velocity"],
+            "properties": {
+              "time": { "type": "number", "minimum": 0 },
+              "type": { "const": "note_on" },
+              "note_id": { "type": "integer" },
+              "source_event_id": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S",
+                "description": "生成此演奏事件的 score v1 event_id；legacy 计划省略。"
+              },
+              "midi_note": { "type": "number" },
+              "pitch_hz": { "type": "number", "exclusiveMinimum": 0 },
+              "velocity": { "type": "number", "minimum": 0, "maximum": 1 }
+            },
+            "oneOf": [{ "required": ["midi_note"] }, { "required": ["pitch_hz"] }],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["time", "type", "note_id"],
+            "properties": {
+              "time": { "type": "number", "minimum": 0 },
+              "type": { "const": "note_off" },
+              "note_id": { "type": "integer" },
+              "source_event_id": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S",
+                "description": "与对应 note_on 相同的 score v1 event_id。"
+              },
+              "release_velocity": { "type": "number", "minimum": 0, "maximum": 1 }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["time", "type", "name", "value"],
+            "properties": {
+              "time": { "type": "number", "minimum": 0 },
+              "type": { "const": "control" },
+              "name": { "type": "string", "minLength": 1 },
+              "value": { "type": "number", "minimum": 0, "maximum": 1 }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["time", "type", "name"],
+            "properties": {
+              "time": { "type": "number", "minimum": 0 },
+              "type": { "const": "articulation" },
+              "name": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+          }
+        ]
+      }
+    }
+  },
+  "additionalProperties": false
+}

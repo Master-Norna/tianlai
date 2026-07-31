@@ -1,0 +1,32 @@
+{
+  "upstream": "FreePats project: FS Seagull Steel String Guitar (FlameStudios 采样)",
+  "origin": "https://freepats.zenvoid.org/Guitar/steel-acoustic-guitar.html",
+  "upstream_version": "2020-05-21",
+  "license": "GPL-3.0-or-later WITH FlameStudios sampling exception",
+  "source_file_count": 1,
+  "source_file_sha256": {
+    "FSS-SteelStringGuitar-20200521.sfz": "7741fcc4b267f8e76c162273b27675aecf26d6cdad662977b7daf4ac3b63dcdc"
+  },
+  "evidence_sha256": {
+    "gpl.txt": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
+    "readme.txt": "c89ddce8b0c8f1f685c2ece7f0878eabb7d0c8e4e375fac7a637f398befa62b5"
+  },
+  "sample_count": 59,
+  "sample_bytes": 26359222,
+  "sample_formats": {
+    ".wav:44100Hz:1ch": 59
+  },
+  "articulations": {
+    "normal": {
+      "attack_regions": 59,
+      "release_regions": 0,
+      "round_robin_regions": 0,
+      "velocity_bounded_regions": 28,
+      "random_variant_regions": 0,
+      "looped_regions": 0
+    }
+  },
+  "region_count": 59,
+  "sample_set_sha256": "b9ac6f5dfad963cc3801539550867ae92c797f88a379179e3da0b22cca752fd9",
+  "sample_set_hash_algorithm": "sort unique asset-root-relative UTF-8 paths; concatenate lowercase '<sha256>  <path>\\n>'; SHA-256 the UTF-8 bytes"
+}

@@ -1,0 +1,73 @@
+{
+  "name": "FreePats 风笛",
+  "type": "dedicated_sfz",
+  "quality_tier": "formal",
+  "collaboration_review_status": "untested",
+  "upgrade_status": "freepats_split_chanter_drones_seam_matched",
+  "fallback_policy": "explicit_only_no_silent_gm",
+  "asset_root": "../../../音源",
+  "upstream": "FreePats project: Scottish Great Highland Bagpipe",
+  "origin": "https://freepats.zenvoid.org/Wind/bagpipes.html",
+  "upstream_version": "2022-12-04",
+  "license": "CC0-1.0",
+  "evidence_files": [
+    "FreePats/Bagpipe/cc0.txt",
+    "FreePats/Bagpipe/readme.txt",
+    "派生/风笛-v1/处理说明.json"
+  ],
+  "resource_verification": "资源核验.json",
+  "pitch_calibration": "音准校准.json",
+  "articulations": {
+    "chanter": {
+      "sfz": "派生/风笛-v1/chanter.sfz",
+      "playable_ranges": [
+        [
+          64,
+          81
+        ]
+      ]
+    },
+    "drone_low": {
+      "sfz": "派生/风笛-v1/drone-low.sfz",
+      "playable_ranges": [
+        [
+          43,
+          43
+        ]
+      ]
+    },
+    "drone_high": {
+      "sfz": "派生/风笛-v1/drone-high.sfz",
+      "playable_ranges": [
+        [
+          55,
+          55
+        ]
+      ]
+    }
+  },
+  "default_articulation": "chanter",
+  "pitch_mode": "pitched",
+  "playable_ranges": [
+    [
+      43,
+      43
+    ],
+    [
+      55,
+      55
+    ],
+    [
+      64,
+      81
+    ]
+  ],
+  "note_min": 43,
+  "note_max": 81,
+  "gain": 0.2889,
+  "velocity_exponent": 0.72,
+  "auxiliary_note_id_base": 1839000000,
+  "release_seconds": 0.18,
+  "sampled_range_note": "默认 chanter 为 E4-A5（MIDI 64-81）；两根持续低音管分别由 drone_low 的 G2（43）与 drone_high 的 G3（55）独立触发，不再作为连续旋律音阶。",
+  "license_status": "approved"
+}

@@ -1,0 +1,67 @@
+{
+  "status": "machine_and_human_passed",
+  "rendered_at": "2026-07-26",
+  "platform": "Windows Chinese-path workspace",
+  "sample_rate": 48000,
+  "channels": 2,
+  "subtype": "PCM_24",
+  "frame_count": 1086240,
+  "duration_seconds": 22.63,
+  "peak_active_voices": 2,
+  "peak": 0.437533,
+  "rms": 0.030727,
+  "clipped_samples": 0,
+  "wav": "output/班卓琴换源候选/班卓琴_CC0_最终修正版.wav",
+  "wav_persistence": "temporary",
+  "wav_sha256": "153bb949a871ed17a2543069ebf891feb732ed7d587b1708a6456e8441ce5728",
+  "hash_algorithm": "SHA-256",
+  "canonicalization": "tianlai-json-v1",
+  "manifest_canonical_sha256": "b10e385ab152e49eb74bf442e1d4370d64536673486241cfcec2c432afd8a781",
+  "events": "examples/全音域上行/世界乐器/班卓琴_全音域上行.events.json",
+  "events_canonical_sha256": "c5f67b41deb542f0400b30967f8516786975dec9b4ea916694418be80462b71c",
+  "identity_migration": {
+    "status": "superseded_by_canonical_json_v1",
+    "hash_algorithm": "SHA-256",
+    "hash_semantics": "source-file-bytes",
+    "manifest_sha256": "67fd0fcee02d3afe39aef908568a6d17064f2d4c9087cb63114552dc6e34bdad",
+    "events_sha256": "8d027602bcd8eda84c2579d2d536a8e4fe3748190874b9adea249de15d0c1722"
+  },
+  "audition_profile": "ascending-scale",
+  "audition_protocol": "full-range-chromatic-ascending-v1",
+  "coverage": [
+    "全声明合法键升序：MIDI 38-72（35 键，35 次触发）",
+    "固定力度 0.72、时值 0.48s、音间隔 0.12s；note 事件不重叠，后端声音释音可能跨入后续音（压力扫描）",
+    "MIDI 47 单采样响度校正已纳入；MIDI 56 排除旧 RR1/RR5/RR6 后由旧 RR2/RR3/RR4 构成连续三轮替"
+  ],
+  "human_review": "passed",
+  "review_evidence_status": "passed_direct_project_owner_listening",
+  "human_reviewed_on": "2026-07-26",
+  "human_review_scope": "独奏/单音色：最终全音域逐半音上行的音色连续性、音准、显著异响与响度突变；另复听 MIDI 56 的六次等力度轮替。结论不外推到协奏、其他力度/奏法或专家级验收。",
+  "human_review_source_wav_sha256": "153bb949a871ed17a2543069ebf891feb732ed7d587b1708a6456e8441ce5728",
+  "human_review_resolution": {
+    "reported_issue": "旧轮替在全音域试听约 11 秒的 MIDI 56 处出现质地突变；六份旧样本中 RR1/RR5/RR6 与 RR2/RR3/RR4 分成两组质地。",
+    "runtime_change": "排除旧 RR1/RR5/RR6，仅以旧 RR2/RR3/RR4 构成连续三轮替；MIDI 47 的单采样响度校正保持启用。",
+    "result": "项目负责人复听最终全音域文件与 MIDI 56 专项六触发文件后确认本轮问题消失。"
+  },
+  "auxiliary_auditions": [
+    {
+      "purpose": "MIDI 56 三轮替连续性专项复验",
+      "wav": "output/班卓琴换源候选/班卓琴_G升三轮替复验.wav",
+      "wav_persistence": "temporary",
+      "wav_sha256": "f1b3977fcec8cf4c44e7f55a222b270f2f8ed0d1d0cb32df7c8e3d08d5014454",
+      "events": "output/班卓琴换源候选/班卓琴_G升三轮替复验.events.json",
+      "events_persistence": "temporary",
+      "events_sha256": "262f3c1911a03e7507f134c214029dfa1d6be2f6e5b873e350a11c10fc9a2f15",
+      "midi_note": 56,
+      "trigger_count": 6,
+      "velocity": 0.72,
+      "active_round_robin_samples": [
+        "Common/Banjo_Common - G#4_2.wav",
+        "Common/Banjo_Common - G#4_3.wav",
+        "Common/Banjo_Common - G#4_4.wav"
+      ],
+      "human_review": "passed",
+      "review_evidence_status": "passed_direct_project_owner_listening"
+    }
+  ]
+}

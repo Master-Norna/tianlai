@@ -1,0 +1,298 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tianlai.local/schemas/score-patch.schema.json",
+  "title": "Tianlai Conflict-safe Score Patch",
+  "description": "绑定基础乐谱 Hash、以稳定 event_id 定位音符的原子编辑请求。任何操作失败时整份补丁都不生效。",
+  "type": "object",
+  "required": [
+    "kind",
+    "schema_version",
+    "base_score_sha256",
+    "operations"
+  ],
+  "properties": {
+    "kind": {
+      "const": "tianlai.score_patch"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "base_score_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "operations": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 4096,
+      "items": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/updateNote"
+          },
+          {
+            "$ref": "#/$defs/deleteNote"
+          },
+          {
+            "$ref": "#/$defs/addNote"
+          }
+        ]
+      }
+    },
+    "max_diff_entries": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1024
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "eventId": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "pitch": {
+      "oneOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "string",
+          "pattern": "^[A-Ga-g][#b♯♭]*-?[0-9]+$"
+        }
+      ]
+    },
+    "dynamic": {
+      "enum": ["ppp", "pp", "p", "mp", "mf", "f", "ff", "fff"]
+    },
+    "noteFields": {
+      "type": "object",
+      "properties": {
+        "event_id": {
+          "$ref": "#/$defs/eventId"
+        },
+        "bar": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "beat": {
+          "type": "number",
+          "minimum": 1
+        },
+        "duration_beats": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "pitch": {
+          "$ref": "#/$defs/pitch"
+        },
+        "dynamic": {
+          "$ref": "#/$defs/dynamic"
+        },
+        "velocity": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "articulation": {
+          "type": "string"
+        },
+        "tie": {
+          "type": "boolean"
+        },
+        "staff": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "voice": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        }
+      },
+      "additionalProperties": false
+    },
+    "nullableNoteFields": {
+      "type": "object",
+      "properties": {
+        "event_id": {
+          "$ref": "#/$defs/eventId"
+        },
+        "bar": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "beat": {
+          "oneOf": [
+            {
+              "type": "number",
+              "minimum": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "duration_beats": {
+          "oneOf": [
+            {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "pitch": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/pitch"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "dynamic": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/dynamic"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "velocity": {
+          "oneOf": [
+            {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "articulation": {
+          "type": ["string", "null"]
+        },
+        "tie": {
+          "type": ["boolean", "null"]
+        },
+        "staff": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "voice": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "expectation": {
+      "$ref": "#/$defs/nullableNoteFields"
+    },
+    "updateNote": {
+      "type": "object",
+      "required": ["op", "event_id", "changes"],
+      "properties": {
+        "op": {
+          "const": "update_note"
+        },
+        "event_id": {
+          "$ref": "#/$defs/eventId"
+        },
+        "changes": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/nullableNoteFields"
+            },
+            {
+              "minProperties": 1,
+              "not": {
+                "required": ["event_id"]
+              }
+            }
+          ]
+        },
+        "expect": {
+          "$ref": "#/$defs/expectation"
+        }
+      },
+      "additionalProperties": false
+    },
+    "deleteNote": {
+      "type": "object",
+      "required": ["op", "event_id"],
+      "properties": {
+        "op": {
+          "const": "delete_note"
+        },
+        "event_id": {
+          "$ref": "#/$defs/eventId"
+        },
+        "expect": {
+          "$ref": "#/$defs/expectation"
+        }
+      },
+      "additionalProperties": false
+    },
+    "addNote": {
+      "type": "object",
+      "required": ["op", "part_id", "note"],
+      "properties": {
+        "op": {
+          "const": "add_note"
+        },
+        "part_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "note": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/noteFields"
+            },
+            {
+              "required": ["bar", "beat", "duration_beats", "pitch"],
+              "not": {
+                "required": ["event_id"]
+              }
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

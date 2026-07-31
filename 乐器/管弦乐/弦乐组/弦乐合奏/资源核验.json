@@ -1,0 +1,30 @@
+{
+  "upstream": "Virtual Playing Orchestra",
+  "sfz_version": "Standard Orchestra 3.3 (2026-06-27)",
+  "wave_version": "Wave Files 3.2 (2026-06-27)",
+  "source_sfz_sha256": {
+    "Strings/all-strings-SEC-sustain.sfz": "ae9c9ef36d4c4cca08b2a3bdd0c312710fc9bb1c70ab5b794be04d8bfceaac66",
+    "Strings/all-strings-SEC-staccato.sfz": "c912c53c1d77c223a8691c73ca8d4c8f417893dd370570ca30ac9a60d1d2bd56",
+    "Strings/all-strings-SEC-pizzicato.sfz": "330dbe1b52ff1eb5699ffe74c800b1f63de6004fa02637f7611835ace6edcc16",
+    "Strings/all-strings-SEC-tremolo.sfz": "6ec940b0ff29ce40b838bd7e34af07b224dfa82e948a401263b05e8d67f23098",
+    "Strings/all-strings-SEC-accent.sfz": "dcf8afdbccc22118fc11fdd89287760c01c75652a95eb1689bff5f292ba8ccee"
+  },
+  "sample_count": 341,
+  "sample_bytes": 200688694,
+  "sample_set_sha256": "56d6b96f4968291268e33114ebee8635235f5ae41cd2980b08ddbb23086591bc",
+  "sample_set_algorithm": "Sort unique VPO-relative UTF-8 paths; for each write '<lowercase file sha256>  <path>\\n'; SHA-256 the concatenated UTF-8 bytes.",
+  "license_file_sha256": {
+    "Documentation/license.htm": "852e3be507b193625eaf76bd18f4740209287781fb95f2a06d78ae9205d4682e",
+    "libs/Mattias-Westlund/ViolaSect/readme.txt": "3b9811c31cb8ac6d9626904ec1cfbc704c6568e59c512381ba16a08a8842f7a1",
+    "libs/NoBudgetOrch/CelloSect/license.txt": "51a630f18ee558420e51bcfe1644ccc335de704e9a360003ca3c12705c25e7a1",
+    "libs/NoBudgetOrch2/Cello/CelloSect/license.txt": "51a630f18ee558420e51bcfe1644ccc335de704e9a360003ca3c12705c25e7a1",
+    "libs/NoBudgetOrch2/Violin/SoloViolin/license.txt": "398577ecf258792917d6c3b17240e38bb82fa68b13100b99014da03f1c940c59",
+    "libs/NoBudgetOrch2/Violin/ViolinSect/license.txt": "51a630f18ee558420e51bcfe1644ccc335de704e9a360003ca3c12705c25e7a1",
+    "libs/Other/readme-pb.txt": "8eccfe36dcd12718ec1606a09fbe713bef0772815852a57b7f783da5f5c2674b",
+    "libs/VSCO2-CE/LICENSE.txt": "36ffd9dc085d529a7e60e1276d73ae5a030b020313e6c5408593a6ae2af39673"
+  },
+  "version_evidence_sha256": {
+    "Documentation/change-log-Standard-Orchestra.txt": "e74cf4054b94bf0549d9c4b1fd3fa1816bd8a54ab3ae8847dd254725b52b4667",
+    "Documentation/change-log-Wave-Files.txt": "c62001d37b9e9fb076784fad2cb339e98a7c1e5918369f2b4f4f68c9112c6db5"
+  }
+}

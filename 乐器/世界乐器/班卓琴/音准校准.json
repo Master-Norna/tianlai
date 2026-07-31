@@ -1,0 +1,424 @@
+{
+  "applicable": true,
+  "pitch_mode": "pitched",
+  "reference_a4_hz": 440.0,
+  "playback_calibration": "per-sample measured_detune_cents applied at runtime",
+  "measurement_role": "formal runtime correction; each current attack sample must have one finite measured_detune_cents value",
+  "applied_to_runtime": true,
+  "measurement_algorithm": "harmonic-constrained FFT of the raw source audio near the mapped pitch, start=0.08s, search +/-180 cents",
+  "summary": {
+    "sample_count": 58,
+    "median_measured_detune_cents": 44.782348,
+    "maximum_absolute_measured_detune_cents": 58.715407,
+    "median_residual_cents": 44.782348,
+    "maximum_absolute_residual_cents": 58.715407
+  },
+  "samples": {
+    "Common/Banjo_Common - A#3.wav": {
+      "root_midi": 46.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 120.201787,
+      "measured_detune_cents": 53.545789,
+      "residual_after_upstream_map_cents": 53.545789
+    },
+    "Common/Banjo_Common - A#4.wav": {
+      "root_midi": 58.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 237.865329,
+      "measured_detune_cents": 35.169774,
+      "residual_after_upstream_map_cents": 35.169774
+    },
+    "Common/Banjo_Common - A#4_10.wav": {
+      "root_midi": 58.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 239.00015,
+      "measured_detune_cents": 43.409602,
+      "residual_after_upstream_map_cents": 43.409602
+    },
+    "Common/Banjo_Common - A#4_11.wav": {
+      "root_midi": 58.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 239.071621,
+      "measured_detune_cents": 43.927236,
+      "residual_after_upstream_map_cents": 43.927236
+    },
+    "Common/Banjo_Common - A#4_2.wav": {
+      "root_midi": 58.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 239.020678,
+      "measured_detune_cents": 43.558292,
+      "residual_after_upstream_map_cents": 43.558292
+    },
+    "Common/Banjo_Common - A#4_3.wav": {
+      "root_midi": 58.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 237.905186,
+      "measured_detune_cents": 35.459835,
+      "residual_after_upstream_map_cents": 35.459835
+    },
+    "Common/Banjo_Common - A#4_4.wav": {
+      "root_midi": 58.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 239.586364,
+      "measured_detune_cents": 47.650732,
+      "residual_after_upstream_map_cents": 47.650732
+    },
+    "Common/Banjo_Common - A#4_5.wav": {
+      "root_midi": 58.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 240.120381,
+      "measured_detune_cents": 51.505209,
+      "residual_after_upstream_map_cents": 51.505209
+    },
+    "Common/Banjo_Common - A#4_6.wav": {
+      "root_midi": 58.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 239.937623,
+      "measured_detune_cents": 50.187044,
+      "residual_after_upstream_map_cents": 50.187044
+    },
+    "Common/Banjo_Common - A#4_7.wav": {
+      "root_midi": 58.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 239.510446,
+      "measured_detune_cents": 47.10207,
+      "residual_after_upstream_map_cents": 47.10207
+    },
+    "Common/Banjo_Common - A#4_8.wav": {
+      "root_midi": 58.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 239.508119,
+      "measured_detune_cents": 47.085245,
+      "residual_after_upstream_map_cents": 47.085245
+    },
+    "Common/Banjo_Common - A#4_9.wav": {
+      "root_midi": 58.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 239.561999,
+      "measured_detune_cents": 47.474661,
+      "residual_after_upstream_map_cents": 47.474661
+    },
+    "Common/Banjo_Common - A#5.wav": {
+      "root_midi": 70.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 479.542127,
+      "measured_detune_cents": 48.984842,
+      "residual_after_upstream_map_cents": 48.984842
+    },
+    "Common/Banjo_Common - A3.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 113.481151,
+      "measured_detune_cents": 53.938999,
+      "residual_after_upstream_map_cents": 53.938999
+    },
+    "Common/Banjo_Common - A3_2.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 112.041742,
+      "measured_detune_cents": 31.839349,
+      "residual_after_upstream_map_cents": 31.839349
+    },
+    "Common/Banjo_Common - A4.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 224.24281,
+      "measured_detune_cents": 33.069842,
+      "residual_after_upstream_map_cents": 33.069842
+    },
+    "Common/Banjo_Common - A4_2.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 226.621017,
+      "measured_detune_cents": 51.333765,
+      "residual_after_upstream_map_cents": 51.333765
+    },
+    "Common/Banjo_Common - A4_3.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 226.274389,
+      "measured_detune_cents": 48.683735,
+      "residual_after_upstream_map_cents": 48.683735
+    },
+    "Common/Banjo_Common - B3.wav": {
+      "root_midi": 47.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 127.111376,
+      "measured_detune_cents": 50.307551,
+      "residual_after_upstream_map_cents": 50.307551
+    },
+    "Common/Banjo_Common - B4.wav": {
+      "root_midi": 59.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 252.259245,
+      "measured_detune_cents": 36.884345,
+      "residual_after_upstream_map_cents": 36.884345
+    },
+    "Common/Banjo_Common - B4_2.wav": {
+      "root_midi": 59.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 249.554079,
+      "measured_detune_cents": 18.218756,
+      "residual_after_upstream_map_cents": 18.218756
+    },
+    "Common/Banjo_Common - B4_3.wav": {
+      "root_midi": 59.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 253.177816,
+      "measured_detune_cents": 43.176967,
+      "residual_after_upstream_map_cents": 43.176967
+    },
+    "Common/Banjo_Common - B4_4.wav": {
+      "root_midi": 59.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 252.32753,
+      "measured_detune_cents": 37.352912,
+      "residual_after_upstream_map_cents": 37.352912
+    },
+    "Common/Banjo_Common - B4_5.wav": {
+      "root_midi": 59.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 252.383855,
+      "measured_detune_cents": 37.739323,
+      "residual_after_upstream_map_cents": 37.739323
+    },
+    "Common/Banjo_Common - B5.wav": {
+      "root_midi": 71.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 497.602107,
+      "measured_detune_cents": 12.986885,
+      "residual_after_upstream_map_cents": 12.986885
+    },
+    "Common/Banjo_Common - C#4.wav": {
+      "root_midi": 49.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 141.938331,
+      "measured_detune_cents": 41.312863,
+      "residual_after_upstream_map_cents": 41.312863
+    },
+    "Common/Banjo_Common - C#4_2.wav": {
+      "root_midi": 49.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 141.929681,
+      "measured_detune_cents": 41.207356,
+      "residual_after_upstream_map_cents": 41.207356
+    },
+    "Common/Banjo_Common - C#5.wav": {
+      "root_midi": 61.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 284.11008,
+      "measured_detune_cents": 42.735796,
+      "residual_after_upstream_map_cents": 42.735796
+    },
+    "Common/Banjo_Common - C5.wav": {
+      "root_midi": 60.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 268.02159,
+      "measured_detune_cents": 41.814834,
+      "residual_after_upstream_map_cents": 41.814834
+    },
+    "Common/Banjo_Common - D#3.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 79.565821,
+      "measured_detune_cents": 39.260639,
+      "residual_after_upstream_map_cents": 39.260639
+    },
+    "Common/Banjo_Common - D#4.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 160.250724,
+      "measured_detune_cents": 51.392818,
+      "residual_after_upstream_map_cents": 51.392818
+    },
+    "Common/Banjo_Common - D#5_2.wav": {
+      "root_midi": 63.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 315.660678,
+      "measured_detune_cents": 25.045236,
+      "residual_after_upstream_map_cents": 25.045236
+    },
+    "Common/Banjo_Common - D4.wav": {
+      "root_midi": 50.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 151.794468,
+      "measured_detune_cents": 57.538829,
+      "residual_after_upstream_map_cents": 57.538829
+    },
+    "Common/Banjo_Common - E3.wav": {
+      "root_midi": 40.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 84.588615,
+      "measured_detune_cents": 45.238252,
+      "residual_after_upstream_map_cents": 45.238252
+    },
+    "Common/Banjo_Common - E4.wav": {
+      "root_midi": 52.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 169.330808,
+      "measured_detune_cents": 46.809151,
+      "residual_after_upstream_map_cents": 46.809151
+    },
+    "Common/Banjo_Common - F#3.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 95.079831,
+      "measured_detune_cents": 47.649271,
+      "residual_after_upstream_map_cents": 47.649271
+    },
+    "Common/Banjo_Common - F#3_2.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 95.085786,
+      "measured_detune_cents": 47.757698,
+      "residual_after_upstream_map_cents": 47.757698
+    },
+    "Common/Banjo_Common - F#4_2.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 190.04316,
+      "measured_detune_cents": 46.588289,
+      "residual_after_upstream_map_cents": 46.588289
+    },
+    "Common/Banjo_Common - F#4_3.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 189.473999,
+      "measured_detune_cents": 41.395631,
+      "residual_after_upstream_map_cents": 41.395631
+    },
+    "Common/Banjo_Common - F#4_5.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 189.795032,
+      "measured_detune_cents": 44.326445,
+      "residual_after_upstream_map_cents": 44.326445
+    },
+    "Common/Banjo_Common - F#4_6.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 189.942262,
+      "measured_detune_cents": 45.668896,
+      "residual_after_upstream_map_cents": 45.668896
+    },
+    "Common/Banjo_Common - F#4_7.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 188.224233,
+      "measured_detune_cents": 29.938628,
+      "residual_after_upstream_map_cents": 29.938628
+    },
+    "Common/Banjo_Common - F3.wav": {
+      "root_midi": 41.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 89.374454,
+      "measured_detune_cents": 40.517087,
+      "residual_after_upstream_map_cents": 40.517087
+    },
+    "Common/Banjo_Common - F4.wav": {
+      "root_midi": 53.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 179.499149,
+      "measured_detune_cents": 47.768175,
+      "residual_after_upstream_map_cents": 47.768175
+    },
+    "Common/Banjo_Common - G#3.wav": {
+      "root_midi": 44.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 106.336226,
+      "measured_detune_cents": 41.355573,
+      "residual_after_upstream_map_cents": 41.355573
+    },
+    "Common/Banjo_Common - G#3_2.wav": {
+      "root_midi": 44.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 105.568178,
+      "measured_detune_cents": 28.805798,
+      "residual_after_upstream_map_cents": 28.805798
+    },
+    "Common/Banjo_Common - G#4.wav": {
+      "root_midi": 56.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 214.117624,
+      "measured_detune_cents": 53.080026,
+      "residual_after_upstream_map_cents": 53.080026
+    },
+    "Common/Banjo_Common - G#4_2.wav": {
+      "root_midi": 56.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 211.660889,
+      "measured_detune_cents": 33.101428,
+      "residual_after_upstream_map_cents": 33.101428
+    },
+    "Common/Banjo_Common - G#4_3.wav": {
+      "root_midi": 56.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 214.29244,
+      "measured_detune_cents": 54.492917,
+      "residual_after_upstream_map_cents": 54.492917
+    },
+    "Common/Banjo_Common - G#4_4.wav": {
+      "root_midi": 56.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 213.884625,
+      "measured_detune_cents": 51.195102,
+      "residual_after_upstream_map_cents": 51.195102
+    },
+    "Common/Banjo_Common - G#4_5.wav": {
+      "root_midi": 56.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 213.856422,
+      "measured_detune_cents": 50.966809,
+      "residual_after_upstream_map_cents": 50.966809
+    },
+    "Common/Banjo_Common - G#4_6.wav": {
+      "root_midi": 56.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 213.813784,
+      "measured_detune_cents": 50.621609,
+      "residual_after_upstream_map_cents": 50.621609
+    },
+    "Common/Banjo_Common - G#5.wav": {
+      "root_midi": 68.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 422.390846,
+      "measured_detune_cents": 29.290053,
+      "residual_after_upstream_map_cents": 29.290053
+    },
+    "Common/Banjo_Common - G#5_2.wav": {
+      "root_midi": 68.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 427.604906,
+      "measured_detune_cents": 50.529859,
+      "residual_after_upstream_map_cents": 50.529859
+    },
+    "Common/Banjo_Common - G3.wav": {
+      "root_midi": 43.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 101.379529,
+      "measured_detune_cents": 58.715407,
+      "residual_after_upstream_map_cents": 58.715407
+    },
+    "Common/Banjo_Common - G4.wav": {
+      "root_midi": 55.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 202.700914,
+      "measured_detune_cents": 58.218887,
+      "residual_after_upstream_map_cents": 58.218887
+    },
+    "Common/Banjo_Common - G4_2.wav": {
+      "root_midi": 55.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 199.863496,
+      "measured_detune_cents": 33.813768,
+      "residual_after_upstream_map_cents": 33.813768
+    },
+    "Common/Banjo_Common - G5.wav": {
+      "root_midi": 67.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 396.190937,
+      "measured_detune_cents": 18.430825,
+      "residual_after_upstream_map_cents": 18.430825
+    }
+  }
+}

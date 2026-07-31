@@ -1,0 +1,31 @@
+{
+  "upstream": "sgossner/VCSL (Versilian Community Sample Library)",
+  "origin": "https://github.com/sgossner/VCSL",
+  "upstream_version": "1.2.2-RC",
+  "license": "CC0-1.0",
+  "source_file_count": 1,
+  "source_file_sha256": {
+    "Membranophones/Struck Membranophones/Tom 2.sfz": "de0b0524ec08f25a69427034fd60c3d6f88809622c248c276ff188bb9a59a479"
+  },
+  "evidence_sha256": {
+    "README.md": "e360f24c120c9ad734cc8508695e09a61ddc4cae5a59c6c9af33fe501b6c9a5b"
+  },
+  "sample_count": 22,
+  "sample_bytes": 13995036,
+  "sample_formats": {
+    ".wav:44100Hz:2ch": 22
+  },
+  "articulations": {
+    "hit": {
+      "attack_regions": 22,
+      "release_regions": 0,
+      "round_robin_regions": 18,
+      "velocity_bounded_regions": 20,
+      "random_variant_regions": 0,
+      "looped_regions": 0
+    }
+  },
+  "region_count": 22,
+  "sample_set_sha256": "e4577fa5660952a0baecd9a9de739bea89362c944f4e4748a1bfe907f2c60c87",
+  "sample_set_hash_algorithm": "sort unique asset-root-relative UTF-8 paths; concatenate lowercase '<sha256>  <path>\\n>'; SHA-256 the UTF-8 bytes"
+}

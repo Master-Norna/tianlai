@@ -1,0 +1,14 @@
+{
+  "sample_rate": 48000,
+  "channels": 2,
+  "tuning": {"temperament": "equal", "a4_hz": 440.0},
+  "tail_seconds": 0.8,
+  "events": [
+    {"time": 0.0, "type": "articulation", "name": "low"},
+    {"time": 0.0, "type": "note_on", "note_id": 1, "midi_note": 60, "velocity": 0.4},
+    {"time": 0.4, "type": "note_on", "note_id": 2, "midi_note": 60, "velocity": 0.85},
+    {"time": 0.85, "type": "articulation", "name": "high"},
+    {"time": 0.85, "type": "note_on", "note_id": 3, "midi_note": 60, "velocity": 0.5},
+    {"time": 1.25, "type": "note_on", "note_id": 4, "midi_note": 60, "velocity": 0.92}
+  ]
+}

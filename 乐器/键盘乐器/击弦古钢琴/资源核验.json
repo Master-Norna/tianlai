@@ -1,0 +1,42 @@
+{
+  "upstream": "Staatliches Institut für Musikforschung (SIMPK): Johann Gottlob Horn clavichord, Dresden circa 1793",
+  "origin": "https://www.simpk.de/museum/besuch/projekte/klaviatur-tastatur-interface/samples.html",
+  "upstream_version": "1.0 (SIMPK_03_Clavichord.zip, 2022-10-21)",
+  "license": "CC-BY-4.0",
+  "source_file_count": 2,
+  "source_file_sha256": {
+    "tianlai/normal.sfz": "f8f6e66a399a87c20240264cf71e767165b92565404cc00406348f8f89159b1f",
+    "tianlai/resonance.sfz": "6a4d576f1d70a2daf36b65d8bd54be1efe5de0e108bec162b2f58ce142cec362"
+  },
+  "evidence_sha256": {
+    "LICENSE": "a790bda01537a8d6635806093abeaf72e693c55c0c3935e86f294b7d05440c49",
+    "SOURCE.json": "0f427bc8f269f569d097d5ae34852b39c2c398a66e0aafee161cd49bbc1fdf4e",
+    "tianlai/tuning.json": "9ebfdf484a03daf5dcd5bfdaf2ae41e8bead4e8d966662dd09109f62221753fe"
+  },
+  "sample_count": 756,
+  "sample_bytes": 2002780260,
+  "sample_formats": {
+    ".wav:48000Hz:2ch": 756
+  },
+  "articulations": {
+    "normal": {
+      "attack_regions": 378,
+      "release_regions": 0,
+      "round_robin_regions": 378,
+      "velocity_bounded_regions": 378,
+      "random_variant_regions": 0,
+      "looped_regions": 0
+    },
+    "resonance": {
+      "attack_regions": 378,
+      "release_regions": 0,
+      "round_robin_regions": 378,
+      "velocity_bounded_regions": 378,
+      "random_variant_regions": 0,
+      "looped_regions": 0
+    }
+  },
+  "region_count": 756,
+  "sample_set_sha256": "5c71b39656e11b4cb20e8fc8cc1292298506b990c11ad13e62a40d4eb9d24940",
+  "sample_set_hash_algorithm": "sort unique asset-root-relative UTF-8 paths; concatenate lowercase '<sha256>  <path>\\n>'; SHA-256 the UTF-8 bytes"
+}

@@ -1,0 +1,28 @@
+{
+  "applicable": true,
+  "method": "self-test: render each probe note with the released engine, FFT the steady segment, compare against the equal-temperament target",
+  "engine_version": "1.1.0",
+  "reference_a4_hz": 440.0,
+  "summary": {
+    "probe_count": 3,
+    "maximum_absolute_error_cents": 0.04742
+  },
+  "probes": {
+    "60": {
+      "expected_hz": 261.625565,
+      "measured_hz": 261.618399,
+      "error_cents": -0.04742
+    },
+    "75": {
+      "expected_hz": 622.253967,
+      "measured_hz": 622.265277,
+      "error_cents": 0.031464
+    },
+    "91": {
+      "expected_hz": 1567.981744,
+      "measured_hz": 1567.97003,
+      "error_cents": -0.012933
+    }
+  },
+  "generated_at": "2026-07-26"
+}

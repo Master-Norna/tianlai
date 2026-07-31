@@ -1,0 +1,40 @@
+{
+  "name": "VPO 小提琴·民谣演奏风格",
+  "type": "dedicated_sfz",
+  "quality_tier": "formal",
+  "collaboration_review_status": "untested",
+  "upgrade_status": "vpo_dedicated_multisample",
+  "fallback_policy": "explicit_only_no_silent_gm",
+  "asset_root": "../../../音源/VirtualPlayingOrchestra/Virtual-Playing-Orchestra3",
+  "upstream": "Virtual Playing Orchestra 3(Standard 3.3 / Wave 3.2)",
+  "origin": "http://virtualplaying.com",
+  "upstream_version": "Standard 3.3 / Wave 3.2",
+  "license": "混合公开许可:SSO Sampling Plus、No Budget Orchestra/Mattias CC-BY-SA、VSCO2 CC0 等,见 Documentation/license.htm",
+  "evidence_files": [
+    "Documentation/license.htm"
+  ],
+  "resource_verification": "资源核验.json",
+  "pitch_calibration": "音准校准.json",
+  "articulations": {
+    "fiddle": {
+      "sfz": "Strings/2nd-violin-SOLO-sustain.sfz",
+      "attack_override_seconds": 0.02,
+      "release_override_seconds": 0.12
+    },
+    "sustain": "Strings/2nd-violin-SOLO-sustain.sfz",
+    "staccato": "Strings/2nd-violin-SOLO-staccato.sfz",
+    "pizzicato": "Strings/2nd-violin-SOLO-pizzicato.sfz",
+    "accent": "Strings/2nd-violin-SOLO-accent.sfz"
+  },
+  "default_articulation": "fiddle",
+  "articulation_auto_default": false,
+  "pitch_mode": "pitched",
+  "gain": 0.2926,
+  "velocity_exponent": 0.72,
+  "auxiliary_note_id_base": 1879000000,
+  "release_seconds": 0.3,
+  "note_min": 55,
+  "note_max": 91,
+  "sampled_range": "G3-G6 sounding",
+  "license_status": "grandfathered"
+}

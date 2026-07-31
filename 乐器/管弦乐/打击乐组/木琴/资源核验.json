@@ -1,0 +1,21 @@
+{
+  "upstream": "Virtual Playing Orchestra",
+  "sfz_version": "Standard Orchestra 3.3 (2026-06-27)",
+  "wave_version": "Wave Files 3.2 (2026-06-27)",
+  "profile": "xylophone",
+  "source_sfz_sha256": {
+    "Percussion/xylophone.sfz": "14ab35865d6c3002ec5a932ae2aa99cd1a0f7c11596622459daa6617c0032bc3"
+  },
+  "sample_count": 30,
+  "sample_bytes": 1816674,
+  "sample_set_sha256": "f0d95fa6a3ea0fa8601cc5f69b1cf08b0e0586f88d84b6b65a4170698af64da4",
+  "sample_set_algorithm": "Sort unique VPO-relative UTF-8 paths; for each write '<lowercase file sha256>  <path>\\n'; SHA-256 the concatenated UTF-8 bytes.",
+  "license_file_sha256": {
+    "Documentation/license.htm": "852e3be507b193625eaf76bd18f4740209287781fb95f2a06d78ae9205d4682e",
+    "libs/NoBudgetOrch/Percussion/Xylophone/license.txt": "51a630f18ee558420e51bcfe1644ccc335de704e9a360003ca3c12705c25e7a1"
+  },
+  "version_evidence_sha256": {
+    "Documentation/change-log-Standard-Orchestra.txt": "e74cf4054b94bf0549d9c4b1fd3fa1816bd8a54ab3ae8847dd254725b52b4667",
+    "Documentation/change-log-Wave-Files.txt": "c62001d37b9e9fb076784fad2cb339e98a7c1e5918369f2b4f4f68c9112c6db5"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "upstream": "Virtual Playing Orchestra",
+  "sfz_version": "Standard Orchestra 3.3 (2026-06-27)",
+  "wave_version": "Wave Files 3.2 (2026-06-27)",
+  "source_sfz_sha256": {
+    "Brass/all-brass-SEC-sustain.sfz": "80a21d4dcd7272f06ecea6e72edd2a48fd436d9711105d972b677eac3f8907ab",
+    "Brass/all-brass-SEC-staccato.sfz": "7c491a5e6245ce3280733f3f9820317b50b5be574e43133e92d49b4246163107"
+  },
+  "sample_count": 88,
+  "sample_bytes": 54204004,
+  "sample_set_sha256": "86e18fd75c0a10f9327a36c5af67bb27e439b0774b310bab660b9b9a422cdadf",
+  "sample_set_algorithm": "Sort unique VPO-relative UTF-8 paths; for each write '<lowercase file sha256>  <path>\\n'; SHA-256 the concatenated UTF-8 bytes.",
+  "license_file_sha256": {
+    "Documentation/license.htm": "852e3be507b193625eaf76bd18f4740209287781fb95f2a06d78ae9205d4682e",
+    "libs/Mattias-Westlund/Horns/license.txt": "8b4b857d09954666c8997c58978d64c2598c7f209bcf8be109baa4bf6d8a16d2",
+    "libs/NoBudgetOrch/license.txt": "2069991b164764d5b729a753e0f5246e3b4a0234763931ea87237c2d4cd0f665",
+    "libs/NoBudgetOrch2/Trumpet/license.txt": "51a630f18ee558420e51bcfe1644ccc335de704e9a360003ca3c12705c25e7a1"
+  },
+  "version_evidence_sha256": {
+    "Documentation/change-log-Standard-Orchestra.txt": "e74cf4054b94bf0549d9c4b1fd3fa1816bd8a54ab3ae8847dd254725b52b4667",
+    "Documentation/change-log-Wave-Files.txt": "c62001d37b9e9fb076784fad2cb339e98a7c1e5918369f2b4f4f68c9112c6db5"
+  }
+}

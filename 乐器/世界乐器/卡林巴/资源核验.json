@@ -1,0 +1,103 @@
+{
+  "upstream": "sgossner/VCSL (Versilian Community Sample Library)",
+  "origin": "https://github.com/sgossner/VCSL",
+  "upstream_version": "1.2.2-RC",
+  "upstream_commit": "b6e6ac82d22248edee98a0bde185eb9ef6d439ad",
+  "license": "CC0-1.0",
+  "source_file_count": 1,
+  "source_file_sha256": {
+    "Idiophones/Plucked Idiophones/Kalimba, Kenya.sfz": "29fb4d6e1a02e05170a6bb921510d1862e5727cb903a3f24fd866b2c320dc4a9"
+  },
+  "evidence_sha256": {
+    "README.md": "e360f24c120c9ad734cc8508695e09a61ddc4cae5a59c6c9af33fe501b6c9a5b"
+  },
+  "sample_count": 15,
+  "sample_bytes": 22303536,
+  "sample_sha256": {
+    "Idiophones/Plucked Idiophones/Kalimba, Kenya/Mbira6_Normal_MainSpirit_A4_k1_vl3_rr2.wav": "153c55100dc25cdbec013b1153018e78fa094e5c0ee0b9f050ee57c2b198a500",
+    "Idiophones/Plucked Idiophones/Kalimba, Kenya/Mbira6_Normal_MainSpirit_B2_k8_vl3_rr2.wav": "b4bd2db5c868be7398e2028ec818a3edc3979e49df620f2250b786f2e45b3905",
+    "Idiophones/Plucked Idiophones/Kalimba, Kenya/Mbira6_Normal_MainSpirit_B3_k12_vl3_rr2.wav": "42a57057cfd5516545cb82c74b8512cc5d83fb2302c3c765eeae03031793e1eb",
+    "Idiophones/Plucked Idiophones/Kalimba, Kenya/Mbira6_Normal_MainSpirit_B3_k3_vl3_rr2.wav": "d35e8f5773ee989511e376876d9698e0027f44a754eb9e001de01abb29b19808",
+    "Idiophones/Plucked Idiophones/Kalimba, Kenya/Mbira6_Normal_MainSpirit_B4_k15_vl3_rr2.wav": "b26d42ab0fe80fd54ec8cfb1cea72ef26cd07ef2dae914e1ffa00471a05f1698",
+    "Idiophones/Plucked Idiophones/Kalimba, Kenya/Mbira6_Normal_MainSpirit_C#3_k7_vl3_rr2.wav": "3ba8ac79db31fbdb68f907de7c59da0c64ae48bc75350a4f7f0c957f72c420cc",
+    "Idiophones/Plucked Idiophones/Kalimba, Kenya/Mbira6_Normal_MainSpirit_C#4_k2_vl3_rr2.wav": "79643a37ffc158acb9995390c3c20aa8d0246375e074e2ea38661313e58b6a5f",
+    "Idiophones/Plucked Idiophones/Kalimba, Kenya/Mbira6_Normal_MainSpirit_D#3_k6_vl3_rr2.wav": "429e2a4797dcd79905cbd9cd13a8a221bf0f4dace5c8ff4290aa70087f08a7ce",
+    "Idiophones/Plucked Idiophones/Kalimba, Kenya/Mbira6_Normal_MainSpirit_D#3_k9_vl3_rr2.wav": "91d09e2ef04fb5fadfc2b279d28a8125e0b187c65987e12c598b1f5fbf4b896f",
+    "Idiophones/Plucked Idiophones/Kalimba, Kenya/Mbira6_Normal_MainSpirit_D#4_k13_vl3_rr2.wav": "25cee2aabafa43a0acac052a93f95e43b61f12686c0b0f47176f80a06e10deee",
+    "Idiophones/Plucked Idiophones/Kalimba, Kenya/Mbira6_Normal_MainSpirit_F#3_k10_vl3_rr2.wav": "274fff90bf95d9c39408387117a16a8d7732a42094f5ae6d32b9e26528c7fe24",
+    "Idiophones/Plucked Idiophones/Kalimba, Kenya/Mbira6_Normal_MainSpirit_F#3_k5_vl3_rr2.wav": "b1f9bbb8a3860306aab71c9fcbeff5ed9cf17a123eef0381380fb20f0e3daa95",
+    "Idiophones/Plucked Idiophones/Kalimba, Kenya/Mbira6_Normal_MainSpirit_F#4_k14_vl3_rr2.wav": "534754f601c2a16577bd26e87b8c8241b5d76c53a01ed196e54bf53f22cea7bc",
+    "Idiophones/Plucked Idiophones/Kalimba, Kenya/Mbira6_Normal_MainSpirit_G#3_k11_vl3_rr2.wav": "a08933d57f270b1f98474b328e158d5738ae34bbe10c7ce3e256f5c2e34287f7",
+    "Idiophones/Plucked Idiophones/Kalimba, Kenya/Mbira6_Normal_MainSpirit_G#3_k4_vl3_rr2.wav": "6b6fd6225b6589e21e49850d51405c7881ba2e297b6e1ec448b09383e0953155"
+  },
+  "sample_set_sha256": "6ea996c51ec01f751e5a971517266ba1a3cdf148ce5bb7411030e71a88049f5d",
+  "sample_set_hash_algorithm": "sort unique asset-root-relative UTF-8 paths; concatenate lowercase '<sha256>  <path>\\n>'; SHA-256 the UTF-8 bytes",
+  "sample_formats": {
+    ".wav:48000Hz:2ch:PCM_24": 15
+  },
+  "articulations": {
+    "normal": {
+      "attack_regions": 15,
+      "release_regions": 0,
+      "round_robin_regions": 8,
+      "velocity_bounded_regions": 0,
+      "random_variant_regions": 0,
+      "looped_regions": 0
+    }
+  },
+  "mapping": {
+    "region_count": 15,
+    "physical_tine_recording_count": 15,
+    "unique_root_count": 11,
+    "root_midi_notes": [
+      59,
+      61,
+      63,
+      66,
+      68,
+      71,
+      73,
+      75,
+      78,
+      81,
+      83
+    ],
+    "recorded_velocity_layer_count": 1,
+    "round_robin_family_count": 4,
+    "round_robin_region_count": 8,
+    "coverage_midi": [
+      59,
+      84
+    ],
+    "maximum_stretch_semitones": 1.0,
+    "ambiguous_or_missing_integer_notes": 0,
+    "embedded_loop_count": 0,
+    "stereo_sample_count": 15,
+    "release_seconds": 15.0
+  },
+  "project_policy": {
+    "upstream_sfz_unchanged": true,
+    "pitch_root_overrides": 0,
+    "average_temperament_corrections": 0,
+    "interpretation": "preserve the recorded physical tine tuning and upstream mapping; use a kalimba-specific modal audit instead of retuning from an integer-harmonic false positive"
+  },
+  "audio_integrity": {
+    "source_clipped_samples": 0,
+    "silent_samples": 0,
+    "duration_seconds": {
+      "minimum": 3.010542,
+      "median": 4.808104,
+      "maximum": 10.049812
+    },
+    "final_100ms_rms_dbfs": {
+      "minimum": -116.45036,
+      "median": -111.466091,
+      "maximum": -106.170058,
+      "samples_above_minus_60_dbfs": 0
+    },
+    "maximum_upstream_region_peak_dbfs": -0.623707,
+    "project_gain": 0.52,
+    "maximum_project_peak_dbfs": -6.30364,
+    "minimum_headroom_db": 6.30364
+  }
+}

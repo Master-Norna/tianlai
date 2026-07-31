@@ -1,0 +1,59 @@
+{
+  "sample_rate": 48000,
+  "channels": 2,
+  "tuning": {
+    "temperament": "equal",
+    "a4_hz": 440.0
+  },
+  "tail_seconds": 1.0,
+  "events": [
+    {
+      "time": 0.0,
+      "type": "note_on",
+      "note_id": 1,
+      "midi_note": 60,
+      "velocity": 0.85
+    },
+    {
+      "time": 4.5,
+      "type": "note_off",
+      "note_id": 1
+    },
+    {
+      "time": 5.1,
+      "type": "note_on",
+      "note_id": 2,
+      "midi_note": 61,
+      "velocity": 0.7
+    },
+    {
+      "time": 9.6,
+      "type": "note_off",
+      "note_id": 2
+    },
+    {
+      "time": 10.2,
+      "type": "note_on",
+      "note_id": 3,
+      "midi_note": 62,
+      "velocity": 0.9
+    },
+    {
+      "time": 19.2,
+      "type": "note_off",
+      "note_id": 3
+    },
+    {
+      "time": 19.8,
+      "type": "note_on",
+      "note_id": 4,
+      "midi_note": 60,
+      "velocity": 0.5
+    },
+    {
+      "time": 23.8,
+      "type": "note_off",
+      "note_id": 4
+    }
+  ]
+}

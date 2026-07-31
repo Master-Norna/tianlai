@@ -1,0 +1,237 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tianlai.local/schemas/roster.schema.json",
+  "title": "Tianlai Roster Document",
+  "description": "编制表:把总谱声部绑到具体乐器上。一个声部可以是一件乐器,也可以是一套按音高分派的套件(鼓组即如此)。",
+  "type": "object",
+  "required": ["assignments"],
+  "properties": {
+    "name": { "type": "string" },
+    "drop_parts": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "有意不演奏的总谱声部,须逐一列名。默认情况下总谱里任何没被指派乐器的声部都会让渲染报错(拒绝让整行谱静默消失);把声部名列进这里就是明确声明'这是有意删除'。列入的声部不能同时又出现在 assignments 里,也不能是总谱中不存在的声部。"
+    },
+    "collaboration": {
+      "type": "object",
+      "description": "可选协奏分析意图。缺省或 mode=manual 时保持既有渲染；analyze 只产诊断，suggest 只产有边界的建议，均不授权自动修改音频。",
+      "properties": {
+        "mode": {
+          "enum": ["manual", "analyze", "suggest"],
+          "default": "manual"
+        },
+        "analysis": {
+          "type": "object",
+          "properties": {
+            "metric": {
+              "const": "overlap_active_rms",
+              "default": "overlap_active_rms"
+            },
+            "window_ms": {
+              "type": "number",
+              "minimum": 20,
+              "maximum": 2000,
+              "default": 400
+            },
+            "hop_ms": {
+              "type": "number",
+              "minimum": 10,
+              "maximum": 2000,
+              "default": 100
+            },
+            "gate_dbfs": {
+              "type": "number",
+              "minimum": -300,
+              "maximum": 0,
+              "default": -60
+            }
+          },
+          "additionalProperties": false
+        },
+        "part_groups": {
+          "type": "array",
+          "description": "创作者显式声明的只读分析端点。每组由 assignments 中已有的 part 组成；组 id 不得与 part 冲突，不支持嵌套。组不是渲染总线，不拥有增益、声像或效果，也不会改变音频。JSON Schema 只验证形状，成员引用、id 冲突与非嵌套约束由解析器验证。",
+          "items": {
+            "type": "object",
+            "required": ["id", "parts"],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^(?!.*[ .]$)[^/\\\\:*?\"<>|\\u0000-\\u001F]+$"
+              },
+              "parts": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": { "type": "string", "minLength": 1 }
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "balance_relations": {
+          "type": "array",
+          "maxItems": 256,
+          "description": "显式相对电平意图。subject/reference 可引用 assignments 已分配的单个 part，或 part_groups 中由创作者声明的组；两端不能相同。不会按乐器名猜组。JSON Schema 只验证形状，跨引用由解析器验证。",
+          "items": {
+            "type": "object",
+            "required": [
+              "subject",
+              "reference",
+              "target_offset_db",
+              "tolerance_db",
+              "max_suggestion_db"
+            ],
+            "properties": {
+              "subject": { "type": "string", "minLength": 1 },
+              "reference": { "type": "string", "minLength": 1 },
+              "target_offset_db": { "type": "number" },
+              "tolerance_db": { "type": "number", "minimum": 0 },
+              "max_suggestion_db": { "type": "number", "minimum": 0 }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "assignments": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["part"],
+        "oneOf": [{ "required": ["instrument"] }, { "required": ["kit"] }],
+        "properties": {
+          "part": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?!.*[ .]$)[^/\\\\:*?\"<>|\\u0000-\\u001F]+$",
+            "description": "总谱声部 id；省略 executor_id 或展开套件时会进入分轨文件名。运行时拒绝 Windows 保留设备名，并以 Unicode NFC + casefold 后的最终 executor_id 做跨平台判重；合法中文保留原样。"
+          },
+          "_note": {
+            "type": "string",
+            "description": "仅供人工阅读的编制注释；解析时有意忽略，不进入演奏计划。"
+          },
+          "instrument": {
+            "type": "string",
+            "description": "乐器目录下的相对路径,如 键盘乐器/钢琴;末段名唯一时可只写末段。"
+          },
+          "kit": {
+            "type": "object",
+            "description": "符头音高 → 乐器。一个声部因此展开成多个执行器。值可以是乐器路径字符串,也可以是 {instrument, transpose}:打击件多按固定键位映射(踩镲 42~44、镲 63~66、通鼓 60~65…),谱面鼓音未必落在那里,transpose 把它移进该件的键位范围,否则会因超出音域而无声。忽略音高的打击件(底鼓、边击军鼓)无需 transpose。",
+            "minProperties": 1,
+            "additionalProperties": {
+              "oneOf": [
+                { "type": "string" },
+                {
+                  "type": "object",
+                  "required": ["instrument"],
+                  "properties": {
+                    "instrument": { "type": "string" },
+                    "transpose": { "type": "integer" }
+                  },
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "executor_id": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?!.*[ .]$)[^/\\\\:*?\"<>|\\u0000-\\u001F]+$",
+            "description": "分轨文件名；不写时用声部 id，套件则为 声部.音名。不得使用 Windows 保留设备名 CON/PRN/AUX/NUL/COM1..9/LPT1..9（带扩展名同样禁止）。运行时对所有普通及套件展开后的 executor_id 以 Unicode NFC + casefold 建立 portable filename key 并判重；合法中文保留原样。"
+          },
+          "gain_db": { "type": "number", "minimum": -60, "maximum": 12 },
+          "gain_automation": {
+            "type": "array",
+            "minItems": 1,
+            "description": "声部混音推子自动化,与演奏力度分离。每点的 offset_db 加在静态 gain_db 上,相邻点之间按真实时间线性插值,末点后保持。为消除首点前语义歧义,第一点必须位于 bar 1 beat 1；若稍后才开始渐变,先写 0 dB 保持点。套件声部的全部执行器共享同一包络。",
+            "items": {
+              "type": "object",
+              "required": ["bar", "beat", "offset_db"],
+              "properties": {
+                "bar": { "type": "integer", "minimum": 1 },
+                "beat": { "type": "number", "minimum": 1 },
+                "offset_db": { "type": "number", "minimum": -24, "maximum": 24 }
+              },
+              "additionalProperties": false
+            }
+          },
+          "pan": { "type": "number", "minimum": -1, "maximum": 1 },
+          "transpose": { "type": "integer" },
+          "dynamic_compression": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "把该声部的力度往上端收拢,抬起弱奏而几乎不动强奏。用于补齐乐器之间的动态范围差异:实测钢琴从 v=0.2 到 v=0.9 跨越 32 dB,弦乐只有约 10 dB,因此同一份编制在弱奏段落与强奏段落的平衡会漂移。"
+          },
+          "duration_scale": {
+            "type": "number",
+            "minimum": 0.1,
+            "maximum": 2.0,
+            "description": "按声部缩放发声时长。密集写作里音符互相拖尾是浑浊的主要来源(释音包络是指数型,声明 0.8 秒实际能拖到 2 秒);0.85 上下能明显减少堆叠又不听成断奏。"
+          },
+          "articulation_auto": {
+            "type": "boolean",
+            "description": "是否允许指挥层执行乐器清单显式声明的 duration_articulation_rules。省略时继承 articulation_auto_default；乐器没有规则时保持默认奏法，即使它公开名为 accent/normal 的奏法也不会按名字猜测。显式 false 可对本声部关闭所有时值换奏法；显式谱面奏法始终优先。"
+          },
+          "seat": {
+            "type": "object",
+            "description": "座位是编制事实,不是混音选项:它同时决定声像默认值和空间层的距离与角度。",
+            "properties": {
+              "azimuth_deg": { "type": "number", "minimum": -90, "maximum": 90 },
+              "distance_m": { "type": "number", "minimum": 0.1, "maximum": 60 }
+            },
+            "additionalProperties": false
+          },
+          "role": {
+            "type": "object",
+            "description": "该声部在当前编制中的音乐功能与前后景意图。它本身不隐式改变增益、时值、奏法或空间处理。",
+            "required": ["function", "prominence"],
+            "properties": {
+              "function": {
+                "enum": [
+                  "lead",
+                  "countermelody",
+                  "harmony",
+                  "pad",
+                  "bass",
+                  "rhythm",
+                  "accent",
+                  "texture",
+                  "ambience",
+                  "effect",
+                  "other"
+                ]
+              },
+              "prominence": {
+                "enum": ["foreground", "midground", "background"]
+              },
+              "label": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+          },
+          "articulation_map": {
+            "type": "object",
+            "description": "谱面记号 → 该乐器自己的奏法名。未映射且乐器不认识该记号时,指挥层报错而非静默替换。",
+            "additionalProperties": { "type": "string" }
+          },
+          "overrides": {
+            "type": "object",
+            "description": "逐执行器的受控参数覆盖。采用显式白名单：release_seconds 控制受 note_off 约束的主释音，release_tail_gain 可为大提琴密集写作缩放或关闭独立离弦尾采样，sample_variant 选择已审定的同乐器采样变体；执行后端、资源路径、许可、音域等身份字段即使是标量也禁止覆盖。",
+            "propertyNames": {
+              "enum": ["release_seconds", "release_tail_gain", "sample_variant"]
+            },
+            "additionalProperties": {
+              "type": ["number", "string", "boolean"]
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

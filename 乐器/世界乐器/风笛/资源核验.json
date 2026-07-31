@@ -1,0 +1,52 @@
+{
+  "upstream": "FreePats project: Scottish Great Highland Bagpipe",
+  "origin": "https://freepats.zenvoid.org/Wind/bagpipes.html",
+  "upstream_version": "2022-12-04",
+  "license": "CC0-1.0",
+  "source_file_count": 3,
+  "source_file_sha256": {
+    "派生/风笛-v1/chanter.sfz": "f8e375309980daada9442f0f8f02c9c2be86621aa65bda04efc1cfa6d49bfd1f",
+    "派生/风笛-v1/drone-high.sfz": "492e80b80be16bcaee983ee18734ce96ec2e6762ab902a7b84f72c7d1bb1bafc",
+    "派生/风笛-v1/drone-low.sfz": "42b7f657a8956ae45d88d39aa372ac15038985a2d9657cc2eb3ed6ba0110b39a"
+  },
+  "evidence_sha256": {
+    "FreePats/Bagpipe/cc0.txt": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499",
+    "FreePats/Bagpipe/readme.txt": "6e72130a309b7538db44fa4490b48d66840cfdf4ca77d1585cae5ed5e56af741",
+    "派生/风笛-v1/处理说明.json": "a71b4d7f2f3e2a5de62f4662c18a9aa7c1c90fa9a9a64f078e6a15df49ac840e"
+  },
+  "sample_count": 26,
+  "sample_bytes": 16645300,
+  "sample_formats": {
+    ".flac:44100Hz:1ch": 23,
+    ".wav:44100Hz:1ch": 3
+  },
+  "articulations": {
+    "chanter": {
+      "attack_regions": 24,
+      "release_regions": 0,
+      "round_robin_regions": 22,
+      "velocity_bounded_regions": 0,
+      "random_variant_regions": 0,
+      "looped_regions": 24
+    },
+    "drone_low": {
+      "attack_regions": 1,
+      "release_regions": 0,
+      "round_robin_regions": 0,
+      "velocity_bounded_regions": 0,
+      "random_variant_regions": 0,
+      "looped_regions": 1
+    },
+    "drone_high": {
+      "attack_regions": 1,
+      "release_regions": 0,
+      "round_robin_regions": 0,
+      "velocity_bounded_regions": 0,
+      "random_variant_regions": 0,
+      "looped_regions": 1
+    }
+  },
+  "region_count": 26,
+  "sample_set_sha256": "22b893fb82b63ebf5739e8cee8193d0d383db768645c1f93ab087121f69862d5",
+  "sample_set_hash_algorithm": "sort unique asset-root-relative UTF-8 paths; concatenate lowercase '<sha256>  <path>\\n>'; SHA-256 the UTF-8 bytes"
+}

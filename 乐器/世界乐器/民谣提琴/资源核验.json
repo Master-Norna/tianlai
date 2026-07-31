@@ -1,0 +1,66 @@
+{
+  "upstream": "Virtual Playing Orchestra 3(Standard 3.3 / Wave 3.2)",
+  "origin": "http://virtualplaying.com",
+  "upstream_version": "Standard 3.3 / Wave 3.2",
+  "license": "混合公开许可:SSO Sampling Plus、No Budget Orchestra/Mattias CC-BY-SA、VSCO2 CC0 等,见 Documentation/license.htm",
+  "source_file_count": 4,
+  "source_file_sha256": {
+    "Strings/2nd-violin-SOLO-accent.sfz": "abece3dfbb29fdca4d26ec35936f0dc57393cc1cb189bde6c629fda21f6156af",
+    "Strings/2nd-violin-SOLO-pizzicato.sfz": "58da814148f54f7e01b3f738f17a60a3fbf1cdfda69501f10a00d851fda1dec5",
+    "Strings/2nd-violin-SOLO-staccato.sfz": "32f2079d03dafed6ec84dd58b144a07a30d33bf90a765820437afd0367091b7f",
+    "Strings/2nd-violin-SOLO-sustain.sfz": "61fc0b51d65eb211e5b50674510618c986b0e54cfafe3fdc4d0613f04d24368a"
+  },
+  "evidence_sha256": {
+    "Documentation/license.htm": "852e3be507b193625eaf76bd18f4740209287781fb95f2a06d78ae9205d4682e"
+  },
+  "sample_count": 92,
+  "sample_bytes": 16570042,
+  "sample_formats": {
+    ".wav:44100Hz:1ch": 92
+  },
+  "articulations": {
+    "fiddle": {
+      "attack_regions": 30,
+      "release_regions": 0,
+      "round_robin_regions": 0,
+      "velocity_bounded_regions": 0,
+      "random_variant_regions": 0,
+      "looped_regions": 30
+    },
+    "sustain": {
+      "attack_regions": 30,
+      "release_regions": 0,
+      "round_robin_regions": 0,
+      "velocity_bounded_regions": 0,
+      "random_variant_regions": 0,
+      "looped_regions": 30
+    },
+    "staccato": {
+      "attack_regions": 26,
+      "release_regions": 0,
+      "round_robin_regions": 26,
+      "velocity_bounded_regions": 0,
+      "random_variant_regions": 0,
+      "looped_regions": 0
+    },
+    "pizzicato": {
+      "attack_regions": 36,
+      "release_regions": 0,
+      "round_robin_regions": 0,
+      "velocity_bounded_regions": 0,
+      "random_variant_regions": 0,
+      "looped_regions": 0
+    },
+    "accent": {
+      "attack_regions": 56,
+      "release_regions": 0,
+      "round_robin_regions": 26,
+      "velocity_bounded_regions": 0,
+      "random_variant_regions": 0,
+      "looped_regions": 30
+    }
+  },
+  "region_count": 178,
+  "sample_set_sha256": "42ae0d52908c39cd1a3774b86902af5131592d2c17437db08f32e1881b1f9dde",
+  "sample_set_hash_algorithm": "sort unique asset-root-relative UTF-8 paths; concatenate lowercase '<sha256>  <path>\\n>'; SHA-256 the UTF-8 bytes"
+}

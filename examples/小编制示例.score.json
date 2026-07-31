@@ -1,0 +1,1425 @@
+{
+  "title": "小编制示例:夜行(原创)",
+  "sample_rate": 48000,
+  "tail_seconds": 3.0,
+  "tuning": {
+    "temperament": "equal",
+    "a4_hz": 440.0
+  },
+  "tempo_map": [
+    {
+      "bar": 1,
+      "bpm": 92,
+      "beats_per_bar": 4,
+      "beat_unit": 4
+    }
+  ],
+  "parts": [
+    {
+      "id": "piano",
+      "name": "钢琴",
+      "default_dynamic": "mf",
+      "notes": [
+        {
+          "bar": 1,
+          "beat": 1,
+          "duration_beats": 1.5,
+          "pitch": "G4",
+          "dynamic": "mf",
+          "event_id": "event-000001"
+        },
+        {
+          "bar": 1,
+          "beat": 2.5,
+          "duration_beats": 0.5,
+          "pitch": "A#4",
+          "dynamic": "mf",
+          "event_id": "event-000002"
+        },
+        {
+          "bar": 1,
+          "beat": 3,
+          "duration_beats": 1,
+          "pitch": "C5",
+          "dynamic": "mf",
+          "event_id": "event-000003"
+        },
+        {
+          "bar": 1,
+          "beat": 4,
+          "duration_beats": 1,
+          "pitch": "G4",
+          "dynamic": "mf",
+          "event_id": "event-000004"
+        },
+        {
+          "bar": 1,
+          "beat": 1,
+          "duration_beats": 4,
+          "pitch": "C3",
+          "dynamic": "p",
+          "event_id": "event-000005"
+        },
+        {
+          "bar": 2,
+          "beat": 1,
+          "duration_beats": 1.5,
+          "pitch": "G#4",
+          "dynamic": "mf",
+          "event_id": "event-000006"
+        },
+        {
+          "bar": 2,
+          "beat": 2.5,
+          "duration_beats": 0.5,
+          "pitch": "G4",
+          "dynamic": "mf",
+          "event_id": "event-000007"
+        },
+        {
+          "bar": 2,
+          "beat": 3,
+          "duration_beats": 2,
+          "pitch": "D#4",
+          "dynamic": "mf",
+          "event_id": "event-000008"
+        },
+        {
+          "bar": 2,
+          "beat": 1,
+          "duration_beats": 4,
+          "pitch": "G#2",
+          "dynamic": "p",
+          "event_id": "event-000009"
+        },
+        {
+          "bar": 3,
+          "beat": 1,
+          "duration_beats": 1,
+          "pitch": "A#4",
+          "dynamic": "mf",
+          "event_id": "event-000010"
+        },
+        {
+          "bar": 3,
+          "beat": 2,
+          "duration_beats": 1,
+          "pitch": "C5",
+          "dynamic": "mf",
+          "event_id": "event-000011"
+        },
+        {
+          "bar": 3,
+          "beat": 3,
+          "duration_beats": 1.5,
+          "pitch": "D5",
+          "dynamic": "mf",
+          "event_id": "event-000012"
+        },
+        {
+          "bar": 3,
+          "beat": 4.5,
+          "duration_beats": 0.5,
+          "pitch": "C5",
+          "dynamic": "mf",
+          "event_id": "event-000013"
+        },
+        {
+          "bar": 3,
+          "beat": 1,
+          "duration_beats": 4,
+          "pitch": "D#3",
+          "dynamic": "p",
+          "event_id": "event-000014"
+        },
+        {
+          "bar": 4,
+          "beat": 1,
+          "duration_beats": 2,
+          "pitch": "A#4",
+          "dynamic": "mf",
+          "event_id": "event-000015"
+        },
+        {
+          "bar": 4,
+          "beat": 3,
+          "duration_beats": 2,
+          "pitch": "F4",
+          "dynamic": "mf",
+          "event_id": "event-000016"
+        },
+        {
+          "bar": 4,
+          "beat": 1,
+          "duration_beats": 4,
+          "pitch": "A#2",
+          "dynamic": "p",
+          "event_id": "event-000017"
+        },
+        {
+          "bar": 5,
+          "beat": 1,
+          "duration_beats": 1.5,
+          "pitch": "G4",
+          "dynamic": "f",
+          "event_id": "event-000018"
+        },
+        {
+          "bar": 5,
+          "beat": 2.5,
+          "duration_beats": 0.5,
+          "pitch": "A#4",
+          "dynamic": "f",
+          "event_id": "event-000019"
+        },
+        {
+          "bar": 5,
+          "beat": 3,
+          "duration_beats": 1,
+          "pitch": "D5",
+          "dynamic": "f",
+          "event_id": "event-000020"
+        },
+        {
+          "bar": 5,
+          "beat": 4,
+          "duration_beats": 1,
+          "pitch": "C5",
+          "dynamic": "f",
+          "event_id": "event-000021"
+        },
+        {
+          "bar": 5,
+          "beat": 1,
+          "duration_beats": 4,
+          "pitch": "C3",
+          "dynamic": "p",
+          "event_id": "event-000022"
+        },
+        {
+          "bar": 6,
+          "beat": 1,
+          "duration_beats": 1.5,
+          "pitch": "G#4",
+          "dynamic": "f",
+          "event_id": "event-000023"
+        },
+        {
+          "bar": 6,
+          "beat": 2.5,
+          "duration_beats": 0.5,
+          "pitch": "A#4",
+          "dynamic": "f",
+          "event_id": "event-000024"
+        },
+        {
+          "bar": 6,
+          "beat": 3,
+          "duration_beats": 2,
+          "pitch": "G4",
+          "dynamic": "f",
+          "event_id": "event-000025"
+        },
+        {
+          "bar": 6,
+          "beat": 1,
+          "duration_beats": 4,
+          "pitch": "G#2",
+          "dynamic": "p",
+          "event_id": "event-000026"
+        },
+        {
+          "bar": 7,
+          "beat": 1,
+          "duration_beats": 1,
+          "pitch": "D5",
+          "dynamic": "f",
+          "event_id": "event-000027"
+        },
+        {
+          "bar": 7,
+          "beat": 2,
+          "duration_beats": 1,
+          "pitch": "D#5",
+          "dynamic": "f",
+          "event_id": "event-000028"
+        },
+        {
+          "bar": 7,
+          "beat": 3,
+          "duration_beats": 1.5,
+          "pitch": "D5",
+          "dynamic": "f",
+          "event_id": "event-000029"
+        },
+        {
+          "bar": 7,
+          "beat": 4.5,
+          "duration_beats": 0.5,
+          "pitch": "A#4",
+          "dynamic": "f",
+          "event_id": "event-000030"
+        },
+        {
+          "bar": 7,
+          "beat": 1,
+          "duration_beats": 4,
+          "pitch": "D#3",
+          "dynamic": "p",
+          "event_id": "event-000031"
+        },
+        {
+          "bar": 8,
+          "beat": 1,
+          "duration_beats": 4,
+          "pitch": "C5",
+          "dynamic": "f",
+          "event_id": "event-000032"
+        },
+        {
+          "bar": 8,
+          "beat": 1,
+          "duration_beats": 4,
+          "pitch": "A#2",
+          "dynamic": "p",
+          "event_id": "event-000033"
+        }
+      ]
+    },
+    {
+      "id": "strings",
+      "name": "弦乐铺底",
+      "default_dynamic": "p",
+      "default_articulation": "sustain",
+      "notes": [
+        {
+          "bar": 1,
+          "beat": 1,
+          "duration_beats": 4,
+          "pitch": "C4",
+          "dynamic": "p",
+          "articulation": "sustain",
+          "event_id": "event-000034"
+        },
+        {
+          "bar": 1,
+          "beat": 1,
+          "duration_beats": 4,
+          "pitch": "D#4",
+          "dynamic": "p",
+          "articulation": "sustain",
+          "event_id": "event-000035"
+        },
+        {
+          "bar": 1,
+          "beat": 1,
+          "duration_beats": 4,
+          "pitch": "G4",
+          "dynamic": "p",
+          "articulation": "sustain",
+          "event_id": "event-000036"
+        },
+        {
+          "bar": 2,
+          "beat": 1,
+          "duration_beats": 4,
+          "pitch": "C4",
+          "dynamic": "p",
+          "articulation": "sustain",
+          "event_id": "event-000037"
+        },
+        {
+          "bar": 2,
+          "beat": 1,
+          "duration_beats": 4,
+          "pitch": "D#4",
+          "dynamic": "p",
+          "articulation": "sustain",
+          "event_id": "event-000038"
+        },
+        {
+          "bar": 2,
+          "beat": 1,
+          "duration_beats": 4,
+          "pitch": "G#4",
+          "dynamic": "p",
+          "articulation": "sustain",
+          "event_id": "event-000039"
+        },
+        {
+          "bar": 3,
+          "beat": 1,
+          "duration_beats": 4,
+          "pitch": "D#4",
+          "dynamic": "p",
+          "articulation": "sustain",
+          "event_id": "event-000040"
+        },
+        {
+          "bar": 3,
+          "beat": 1,
+          "duration_beats": 4,
+          "pitch": "G4",
+          "dynamic": "p",
+          "articulation": "sustain",
+          "event_id": "event-000041"
+        },
+        {
+          "bar": 3,
+          "beat": 1,
+          "duration_beats": 4,
+          "pitch": "A#4",
+          "dynamic": "p",
+          "articulation": "sustain",
+          "event_id": "event-000042"
+        },
+        {
+          "bar": 4,
+          "beat": 1,
+          "duration_beats": 4,
+          "pitch": "D4",
+          "dynamic": "p",
+          "articulation": "sustain",
+          "event_id": "event-000043"
+        },
+        {
+          "bar": 4,
+          "beat": 1,
+          "duration_beats": 4,
+          "pitch": "F4",
+          "dynamic": "p",
+          "articulation": "sustain",
+          "event_id": "event-000044"
+        },
+        {
+          "bar": 4,
+          "beat": 1,
+          "duration_beats": 4,
+          "pitch": "A#4",
+          "dynamic": "p",
+          "articulation": "sustain",
+          "event_id": "event-000045"
+        },
+        {
+          "bar": 5,
+          "beat": 1,
+          "duration_beats": 4,
+          "pitch": "C4",
+          "dynamic": "p",
+          "articulation": "sustain",
+          "event_id": "event-000046"
+        },
+        {
+          "bar": 5,
+          "beat": 1,
+          "duration_beats": 4,
+          "pitch": "D#4",
+          "dynamic": "p",
+          "articulation": "sustain",
+          "event_id": "event-000047"
+        },
+        {
+          "bar": 5,
+          "beat": 1,
+          "duration_beats": 4,
+          "pitch": "G4",
+          "dynamic": "p",
+          "articulation": "sustain",
+          "event_id": "event-000048"
+        },
+        {
+          "bar": 6,
+          "beat": 1,
+          "duration_beats": 4,
+          "pitch": "C4",
+          "dynamic": "p",
+          "articulation": "sustain",
+          "event_id": "event-000049"
+        },
+        {
+          "bar": 6,
+          "beat": 1,
+          "duration_beats": 4,
+          "pitch": "D#4",
+          "dynamic": "p",
+          "articulation": "sustain",
+          "event_id": "event-000050"
+        },
+        {
+          "bar": 6,
+          "beat": 1,
+          "duration_beats": 4,
+          "pitch": "G#4",
+          "dynamic": "p",
+          "articulation": "sustain",
+          "event_id": "event-000051"
+        },
+        {
+          "bar": 7,
+          "beat": 1,
+          "duration_beats": 4,
+          "pitch": "D#4",
+          "dynamic": "p",
+          "articulation": "sustain",
+          "event_id": "event-000052"
+        },
+        {
+          "bar": 7,
+          "beat": 1,
+          "duration_beats": 4,
+          "pitch": "G4",
+          "dynamic": "p",
+          "articulation": "sustain",
+          "event_id": "event-000053"
+        },
+        {
+          "bar": 7,
+          "beat": 1,
+          "duration_beats": 4,
+          "pitch": "A#4",
+          "dynamic": "p",
+          "articulation": "sustain",
+          "event_id": "event-000054"
+        },
+        {
+          "bar": 8,
+          "beat": 1,
+          "duration_beats": 4,
+          "pitch": "D4",
+          "dynamic": "p",
+          "articulation": "sustain",
+          "event_id": "event-000055"
+        },
+        {
+          "bar": 8,
+          "beat": 1,
+          "duration_beats": 4,
+          "pitch": "F4",
+          "dynamic": "p",
+          "articulation": "sustain",
+          "event_id": "event-000056"
+        },
+        {
+          "bar": 8,
+          "beat": 1,
+          "duration_beats": 4,
+          "pitch": "A#4",
+          "dynamic": "p",
+          "articulation": "sustain",
+          "event_id": "event-000057"
+        }
+      ]
+    },
+    {
+      "id": "bass",
+      "name": "原声贝斯",
+      "default_dynamic": "mp",
+      "notes": [
+        {
+          "bar": 1,
+          "beat": 1,
+          "duration_beats": 2.5,
+          "pitch": "C2",
+          "dynamic": "mp",
+          "event_id": "event-000058"
+        },
+        {
+          "bar": 1,
+          "beat": 3.5,
+          "duration_beats": 1.5,
+          "pitch": "C2",
+          "dynamic": "mp",
+          "event_id": "event-000059"
+        },
+        {
+          "bar": 2,
+          "beat": 1,
+          "duration_beats": 2.5,
+          "pitch": "G#1",
+          "dynamic": "mp",
+          "event_id": "event-000060"
+        },
+        {
+          "bar": 2,
+          "beat": 3.5,
+          "duration_beats": 1.5,
+          "pitch": "G#1",
+          "dynamic": "mp",
+          "event_id": "event-000061"
+        },
+        {
+          "bar": 3,
+          "beat": 1,
+          "duration_beats": 2.5,
+          "pitch": "D#2",
+          "dynamic": "mp",
+          "event_id": "event-000062"
+        },
+        {
+          "bar": 3,
+          "beat": 3.5,
+          "duration_beats": 1.5,
+          "pitch": "D#2",
+          "dynamic": "mp",
+          "event_id": "event-000063"
+        },
+        {
+          "bar": 4,
+          "beat": 1,
+          "duration_beats": 2.5,
+          "pitch": "A#1",
+          "dynamic": "mp",
+          "event_id": "event-000064"
+        },
+        {
+          "bar": 4,
+          "beat": 3.5,
+          "duration_beats": 1.5,
+          "pitch": "A#1",
+          "dynamic": "mp",
+          "event_id": "event-000065"
+        },
+        {
+          "bar": 5,
+          "beat": 1,
+          "duration_beats": 2.5,
+          "pitch": "C2",
+          "dynamic": "mp",
+          "event_id": "event-000066"
+        },
+        {
+          "bar": 5,
+          "beat": 3.5,
+          "duration_beats": 1.5,
+          "pitch": "C2",
+          "dynamic": "mp",
+          "event_id": "event-000067"
+        },
+        {
+          "bar": 6,
+          "beat": 1,
+          "duration_beats": 2.5,
+          "pitch": "G#1",
+          "dynamic": "mp",
+          "event_id": "event-000068"
+        },
+        {
+          "bar": 6,
+          "beat": 3.5,
+          "duration_beats": 1.5,
+          "pitch": "G#1",
+          "dynamic": "mp",
+          "event_id": "event-000069"
+        },
+        {
+          "bar": 7,
+          "beat": 1,
+          "duration_beats": 2.5,
+          "pitch": "D#2",
+          "dynamic": "mp",
+          "event_id": "event-000070"
+        },
+        {
+          "bar": 7,
+          "beat": 3.5,
+          "duration_beats": 1.5,
+          "pitch": "D#2",
+          "dynamic": "mp",
+          "event_id": "event-000071"
+        },
+        {
+          "bar": 8,
+          "beat": 1,
+          "duration_beats": 2.5,
+          "pitch": "A#1",
+          "dynamic": "mp",
+          "event_id": "event-000072"
+        },
+        {
+          "bar": 8,
+          "beat": 3.5,
+          "duration_beats": 1.5,
+          "pitch": "A#1",
+          "dynamic": "mp",
+          "event_id": "event-000073"
+        }
+      ]
+    },
+    {
+      "id": "drums",
+      "name": "鼓组",
+      "default_dynamic": "mf",
+      "notes": [
+        {
+          "bar": 1,
+          "beat": 1,
+          "duration_beats": 1,
+          "pitch": "C2",
+          "dynamic": "f",
+          "event_id": "event-000074"
+        },
+        {
+          "bar": 1,
+          "beat": 3,
+          "duration_beats": 1,
+          "pitch": "C2",
+          "dynamic": "mf",
+          "event_id": "event-000075"
+        },
+        {
+          "bar": 1,
+          "beat": 2,
+          "duration_beats": 1,
+          "pitch": "D2",
+          "dynamic": "mf",
+          "event_id": "event-000076"
+        },
+        {
+          "bar": 1,
+          "beat": 4,
+          "duration_beats": 1,
+          "pitch": "D2",
+          "dynamic": "mf",
+          "event_id": "event-000077"
+        },
+        {
+          "bar": 1,
+          "beat": 1.0,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "mp",
+          "event_id": "event-000078"
+        },
+        {
+          "bar": 1,
+          "beat": 1.5,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "p",
+          "event_id": "event-000079"
+        },
+        {
+          "bar": 1,
+          "beat": 2.0,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "mp",
+          "event_id": "event-000080"
+        },
+        {
+          "bar": 1,
+          "beat": 2.5,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "p",
+          "event_id": "event-000081"
+        },
+        {
+          "bar": 1,
+          "beat": 3.0,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "mp",
+          "event_id": "event-000082"
+        },
+        {
+          "bar": 1,
+          "beat": 3.5,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "p",
+          "event_id": "event-000083"
+        },
+        {
+          "bar": 1,
+          "beat": 4.0,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "mp",
+          "event_id": "event-000084"
+        },
+        {
+          "bar": 1,
+          "beat": 4.5,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "p",
+          "event_id": "event-000085"
+        },
+        {
+          "bar": 2,
+          "beat": 1,
+          "duration_beats": 1,
+          "pitch": "C2",
+          "dynamic": "f",
+          "event_id": "event-000086"
+        },
+        {
+          "bar": 2,
+          "beat": 3,
+          "duration_beats": 1,
+          "pitch": "C2",
+          "dynamic": "mf",
+          "event_id": "event-000087"
+        },
+        {
+          "bar": 2,
+          "beat": 2,
+          "duration_beats": 1,
+          "pitch": "D2",
+          "dynamic": "mf",
+          "event_id": "event-000088"
+        },
+        {
+          "bar": 2,
+          "beat": 4,
+          "duration_beats": 1,
+          "pitch": "D2",
+          "dynamic": "mf",
+          "event_id": "event-000089"
+        },
+        {
+          "bar": 2,
+          "beat": 1.0,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "mp",
+          "event_id": "event-000090"
+        },
+        {
+          "bar": 2,
+          "beat": 1.5,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "p",
+          "event_id": "event-000091"
+        },
+        {
+          "bar": 2,
+          "beat": 2.0,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "mp",
+          "event_id": "event-000092"
+        },
+        {
+          "bar": 2,
+          "beat": 2.5,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "p",
+          "event_id": "event-000093"
+        },
+        {
+          "bar": 2,
+          "beat": 3.0,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "mp",
+          "event_id": "event-000094"
+        },
+        {
+          "bar": 2,
+          "beat": 3.5,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "p",
+          "event_id": "event-000095"
+        },
+        {
+          "bar": 2,
+          "beat": 4.0,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "mp",
+          "event_id": "event-000096"
+        },
+        {
+          "bar": 2,
+          "beat": 4.5,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "p",
+          "event_id": "event-000097"
+        },
+        {
+          "bar": 3,
+          "beat": 1,
+          "duration_beats": 1,
+          "pitch": "C2",
+          "dynamic": "f",
+          "event_id": "event-000098"
+        },
+        {
+          "bar": 3,
+          "beat": 3,
+          "duration_beats": 1,
+          "pitch": "C2",
+          "dynamic": "mf",
+          "event_id": "event-000099"
+        },
+        {
+          "bar": 3,
+          "beat": 2,
+          "duration_beats": 1,
+          "pitch": "D2",
+          "dynamic": "mf",
+          "event_id": "event-000100"
+        },
+        {
+          "bar": 3,
+          "beat": 4,
+          "duration_beats": 1,
+          "pitch": "D2",
+          "dynamic": "mf",
+          "event_id": "event-000101"
+        },
+        {
+          "bar": 3,
+          "beat": 1.0,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "mp",
+          "event_id": "event-000102"
+        },
+        {
+          "bar": 3,
+          "beat": 1.5,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "p",
+          "event_id": "event-000103"
+        },
+        {
+          "bar": 3,
+          "beat": 2.0,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "mp",
+          "event_id": "event-000104"
+        },
+        {
+          "bar": 3,
+          "beat": 2.5,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "p",
+          "event_id": "event-000105"
+        },
+        {
+          "bar": 3,
+          "beat": 3.0,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "mp",
+          "event_id": "event-000106"
+        },
+        {
+          "bar": 3,
+          "beat": 3.5,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "p",
+          "event_id": "event-000107"
+        },
+        {
+          "bar": 3,
+          "beat": 4.0,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "mp",
+          "event_id": "event-000108"
+        },
+        {
+          "bar": 3,
+          "beat": 4.5,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "p",
+          "event_id": "event-000109"
+        },
+        {
+          "bar": 4,
+          "beat": 1,
+          "duration_beats": 1,
+          "pitch": "C2",
+          "dynamic": "f",
+          "event_id": "event-000110"
+        },
+        {
+          "bar": 4,
+          "beat": 3,
+          "duration_beats": 1,
+          "pitch": "C2",
+          "dynamic": "mf",
+          "event_id": "event-000111"
+        },
+        {
+          "bar": 4,
+          "beat": 2,
+          "duration_beats": 1,
+          "pitch": "D2",
+          "dynamic": "mf",
+          "event_id": "event-000112"
+        },
+        {
+          "bar": 4,
+          "beat": 4,
+          "duration_beats": 1,
+          "pitch": "D2",
+          "dynamic": "mf",
+          "event_id": "event-000113"
+        },
+        {
+          "bar": 4,
+          "beat": 1.0,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "mp",
+          "event_id": "event-000114"
+        },
+        {
+          "bar": 4,
+          "beat": 1.5,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "p",
+          "event_id": "event-000115"
+        },
+        {
+          "bar": 4,
+          "beat": 2.0,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "mp",
+          "event_id": "event-000116"
+        },
+        {
+          "bar": 4,
+          "beat": 2.5,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "p",
+          "event_id": "event-000117"
+        },
+        {
+          "bar": 4,
+          "beat": 3.0,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "mp",
+          "event_id": "event-000118"
+        },
+        {
+          "bar": 4,
+          "beat": 3.5,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "p",
+          "event_id": "event-000119"
+        },
+        {
+          "bar": 4,
+          "beat": 4.0,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "mp",
+          "event_id": "event-000120"
+        },
+        {
+          "bar": 4,
+          "beat": 4.5,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "p",
+          "event_id": "event-000121"
+        },
+        {
+          "bar": 5,
+          "beat": 1,
+          "duration_beats": 1,
+          "pitch": "C2",
+          "dynamic": "f",
+          "event_id": "event-000122"
+        },
+        {
+          "bar": 5,
+          "beat": 3,
+          "duration_beats": 1,
+          "pitch": "C2",
+          "dynamic": "mf",
+          "event_id": "event-000123"
+        },
+        {
+          "bar": 5,
+          "beat": 2,
+          "duration_beats": 1,
+          "pitch": "D2",
+          "dynamic": "mf",
+          "event_id": "event-000124"
+        },
+        {
+          "bar": 5,
+          "beat": 4,
+          "duration_beats": 1,
+          "pitch": "D2",
+          "dynamic": "mf",
+          "event_id": "event-000125"
+        },
+        {
+          "bar": 5,
+          "beat": 1.0,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "mp",
+          "event_id": "event-000126"
+        },
+        {
+          "bar": 5,
+          "beat": 1.5,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "p",
+          "event_id": "event-000127"
+        },
+        {
+          "bar": 5,
+          "beat": 2.0,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "mp",
+          "event_id": "event-000128"
+        },
+        {
+          "bar": 5,
+          "beat": 2.5,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "p",
+          "event_id": "event-000129"
+        },
+        {
+          "bar": 5,
+          "beat": 3.0,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "mp",
+          "event_id": "event-000130"
+        },
+        {
+          "bar": 5,
+          "beat": 3.5,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "p",
+          "event_id": "event-000131"
+        },
+        {
+          "bar": 5,
+          "beat": 4.0,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "mp",
+          "event_id": "event-000132"
+        },
+        {
+          "bar": 5,
+          "beat": 4.5,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "p",
+          "event_id": "event-000133"
+        },
+        {
+          "bar": 6,
+          "beat": 1,
+          "duration_beats": 1,
+          "pitch": "C2",
+          "dynamic": "f",
+          "event_id": "event-000134"
+        },
+        {
+          "bar": 6,
+          "beat": 3,
+          "duration_beats": 1,
+          "pitch": "C2",
+          "dynamic": "mf",
+          "event_id": "event-000135"
+        },
+        {
+          "bar": 6,
+          "beat": 2,
+          "duration_beats": 1,
+          "pitch": "D2",
+          "dynamic": "mf",
+          "event_id": "event-000136"
+        },
+        {
+          "bar": 6,
+          "beat": 4,
+          "duration_beats": 1,
+          "pitch": "D2",
+          "dynamic": "mf",
+          "event_id": "event-000137"
+        },
+        {
+          "bar": 6,
+          "beat": 1.0,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "mp",
+          "event_id": "event-000138"
+        },
+        {
+          "bar": 6,
+          "beat": 1.5,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "p",
+          "event_id": "event-000139"
+        },
+        {
+          "bar": 6,
+          "beat": 2.0,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "mp",
+          "event_id": "event-000140"
+        },
+        {
+          "bar": 6,
+          "beat": 2.5,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "p",
+          "event_id": "event-000141"
+        },
+        {
+          "bar": 6,
+          "beat": 3.0,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "mp",
+          "event_id": "event-000142"
+        },
+        {
+          "bar": 6,
+          "beat": 3.5,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "p",
+          "event_id": "event-000143"
+        },
+        {
+          "bar": 6,
+          "beat": 4.0,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "mp",
+          "event_id": "event-000144"
+        },
+        {
+          "bar": 6,
+          "beat": 4.5,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "p",
+          "event_id": "event-000145"
+        },
+        {
+          "bar": 7,
+          "beat": 1,
+          "duration_beats": 1,
+          "pitch": "C2",
+          "dynamic": "f",
+          "event_id": "event-000146"
+        },
+        {
+          "bar": 7,
+          "beat": 3,
+          "duration_beats": 1,
+          "pitch": "C2",
+          "dynamic": "mf",
+          "event_id": "event-000147"
+        },
+        {
+          "bar": 7,
+          "beat": 2,
+          "duration_beats": 1,
+          "pitch": "D2",
+          "dynamic": "mf",
+          "event_id": "event-000148"
+        },
+        {
+          "bar": 7,
+          "beat": 4,
+          "duration_beats": 1,
+          "pitch": "D2",
+          "dynamic": "mf",
+          "event_id": "event-000149"
+        },
+        {
+          "bar": 7,
+          "beat": 1.0,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "mp",
+          "event_id": "event-000150"
+        },
+        {
+          "bar": 7,
+          "beat": 1.5,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "p",
+          "event_id": "event-000151"
+        },
+        {
+          "bar": 7,
+          "beat": 2.0,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "mp",
+          "event_id": "event-000152"
+        },
+        {
+          "bar": 7,
+          "beat": 2.5,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "p",
+          "event_id": "event-000153"
+        },
+        {
+          "bar": 7,
+          "beat": 3.0,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "mp",
+          "event_id": "event-000154"
+        },
+        {
+          "bar": 7,
+          "beat": 3.5,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "p",
+          "event_id": "event-000155"
+        },
+        {
+          "bar": 7,
+          "beat": 4.0,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "mp",
+          "event_id": "event-000156"
+        },
+        {
+          "bar": 7,
+          "beat": 4.5,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "p",
+          "event_id": "event-000157"
+        },
+        {
+          "bar": 8,
+          "beat": 1,
+          "duration_beats": 1,
+          "pitch": "C2",
+          "dynamic": "f",
+          "event_id": "event-000158"
+        },
+        {
+          "bar": 8,
+          "beat": 3,
+          "duration_beats": 1,
+          "pitch": "C2",
+          "dynamic": "mf",
+          "event_id": "event-000159"
+        },
+        {
+          "bar": 8,
+          "beat": 2,
+          "duration_beats": 1,
+          "pitch": "D2",
+          "dynamic": "mf",
+          "event_id": "event-000160"
+        },
+        {
+          "bar": 8,
+          "beat": 4,
+          "duration_beats": 1,
+          "pitch": "D2",
+          "dynamic": "mf",
+          "event_id": "event-000161"
+        },
+        {
+          "bar": 8,
+          "beat": 1.0,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "mp",
+          "event_id": "event-000162"
+        },
+        {
+          "bar": 8,
+          "beat": 1.5,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "p",
+          "event_id": "event-000163"
+        },
+        {
+          "bar": 8,
+          "beat": 2.0,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "mp",
+          "event_id": "event-000164"
+        },
+        {
+          "bar": 8,
+          "beat": 2.5,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "p",
+          "event_id": "event-000165"
+        },
+        {
+          "bar": 8,
+          "beat": 3.0,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "mp",
+          "event_id": "event-000166"
+        },
+        {
+          "bar": 8,
+          "beat": 3.5,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "p",
+          "event_id": "event-000167"
+        },
+        {
+          "bar": 8,
+          "beat": 4.0,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "mp",
+          "event_id": "event-000168"
+        },
+        {
+          "bar": 8,
+          "beat": 4.5,
+          "duration_beats": 0.5,
+          "pitch": "F#2",
+          "dynamic": "p",
+          "event_id": "event-000169"
+        }
+      ]
+    }
+  ],
+  "schema_version": 1
+}

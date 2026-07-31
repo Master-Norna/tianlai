@@ -1,0 +1,48 @@
+{
+  "status": "machine_pass_human_pending",
+  "rendered_at": "2026-07-26",
+  "platform": "Windows Chinese-path workspace",
+  "sample_rate": 48000,
+  "channels": 2,
+  "subtype": "PCM_24",
+  "frame_count": 521760,
+  "duration_seconds": 10.87,
+  "peak_active_voices": 3,
+  "peak": 0.343115,
+  "rms": 0.023003,
+  "clipped_samples": 0,
+  "wav": "output/全音域试音/管弦乐/打击乐组/小军鼓.wav",
+  "wav_persistence": "temporary",
+  "wav_sha256": "206eb6bf99a488ca65c591cd1d4702f3b33d4d29294bbdc4777c51558f7e5fd9",
+  "hash_algorithm": "SHA-256",
+  "canonicalization": "tianlai-json-v1",
+  "manifest_canonical_sha256": "95d65652e5de83a913e024dd55275be4f657a861d27984184da10168521c6c51",
+  "events": "examples/全音域上行/管弦乐/打击乐组/小军鼓_全音域上行.events.json",
+  "events_canonical_sha256": "b98cb9791eb6f0b349d0c59336e4a7ac17e06318878422219867f737bcc26d0b",
+  "identity_migration": {
+    "status": "superseded_by_canonical_json_v1",
+    "hash_algorithm": "SHA-256",
+    "hash_semantics": "source-file-bytes",
+    "manifest_sha256": "2c8b76d81a57ac74dd0086ed59c536255bff3bc29ffda1db952b6416976d29df",
+    "events_sha256": "58edd1b478c49789defbda4fd33689c4268f249e9cac0313c91e6be97abfbe69"
+  },
+  "audition_profile": "ascending-scale",
+  "audition_protocol": "full-range-chromatic-ascending-v1",
+  "coverage": [
+    "全声明合法键升序：MIDI 48-50、MIDI 52-57（9 键，9 次触发）",
+    "固定力度 0.72、常规时值 0.48s、音间隔 0.12s；本乐器按协议使用独立 gate/gap/tail；note 事件不重叠，是否隔离声音尾部以本乐器协议例外说明为准",
+    "声明音域空洞未触发：MIDI 51",
+    "协议例外：VPO 无音高打击按全部奏法的固定源键升序；roll/crescendo 使用延长时值"
+  ],
+  "human_review": "pending",
+  "previous_protocol_evidence": {
+    "status": "superseded_event_bound_machine_evidence",
+    "events_sha256": "8f4bda901a7315c0c85b9e4304b3de0e0e9a8dfb690f63dca6048fa83e3181ac",
+    "wav_sha256": "da8816242ca50fedbc16a95fef78c277b4db8b715b3146fc59dd59c3faf14dc3",
+    "fields": {
+      "wav_persistence": "temporary"
+    }
+  },
+  "specialized_machine_evidence_status": "previous_protocol_only_not_current_measurement",
+  "review_evidence_status": "pending_new_review_old_hash_bound_reviews_do_not_apply"
+}

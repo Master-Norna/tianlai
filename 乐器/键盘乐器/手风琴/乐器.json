@@ -1,0 +1,35 @@
+{
+  "name": "FreePats 手风琴 bounded-range",
+  "type": "dedicated_sfz",
+  "quality_tier": "formal",
+  "collaboration_review_status": "untested",
+  "upgrade_status": "freepats_dedicated_multisample_bounded_high_extension",
+  "fallback_policy": "explicit_only_no_silent_gm",
+  "asset_root": "../../../音源/FreePats/ButtonAccordionHN",
+  "upstream": "FreePats project: Button Accordion HN",
+  "origin": "https://freepats.zenvoid.org/Organ/accordion.html",
+  "upstream_version": "2024-03-29",
+  "license": "CC0-1.0",
+  "evidence_files": [
+    "LICENSE.txt",
+    "README.txt"
+  ],
+  "resource_verification": "资源核验.json",
+  "pitch_calibration": "音准校准.json",
+  "articulations": {
+    "sustain": "PRESET Button Accordion HN tuned.sfz"
+  },
+  "default_articulation": "sustain",
+  "pitch_mode": "pitched",
+  "gain": 0.4576,
+  "velocity_exponent": 0.72,
+  "auxiliary_note_id_base": 1840000000,
+  "release_seconds": 0.25,
+  "note_min": 50,
+  "note_max": 82,
+  "sampled_range": "D3-A#5 playable; D3-G5 core plus a bounded G#5-A#5 extension",
+  "sampled_range_note": "MIDI 80-82 is transposed upward by at most 3 semitones from the highest real attack root G5 (MIDI 79). MIDI 83-91 from the former 12-semitone extension is intentionally rejected.",
+  "range_evidence": "资源核验.json",
+  "modeling_rationale": "The source has real attack roots MIDI 47-79. Runtime MIDI 50-79 is the core range; MIDI 80-82 is a bounded extension from root 79 with at most +3 semitones, matching the largest upward stretch already used inside the core. MIDI 83-91 is rejected because no admissible higher-root source with equally clear licensing and sustain/release structure was found.",
+  "license_status": "approved"
+}

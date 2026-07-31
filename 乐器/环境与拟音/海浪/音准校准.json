@@ -1,0 +1,7 @@
+{
+  "applicable": false,
+  "pitch_mode": "not_pitched",
+  "reason": "涌浪与泡沫为宽带噪声过程,无固定音高;MIDI 音高被主动忽略,不做校准",
+  "samples": {},
+  "generated_at": "2026-07-22"
+}

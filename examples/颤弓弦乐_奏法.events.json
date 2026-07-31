@@ -1,0 +1,24 @@
+{
+  "sample_rate": 48000,
+  "channels": 2,
+  "tuning": { "temperament": "equal", "a4_hz": 440.0 },
+  "tail_seconds": 1.4,
+  "events": [
+    { "time": 0.0, "type": "articulation", "name": "tremolo" },
+    { "time": 0.0, "type": "control", "name": "expression", "value": 0.52 },
+    { "time": 0.0, "type": "note_on", "note_id": 1, "midi_note": 24, "velocity": 0.48 },
+    { "time": 1.0, "type": "note_off", "note_id": 1 },
+    { "time": 1.35, "type": "control", "name": "expression", "value": 0.72 },
+    { "time": 1.35, "type": "note_on", "note_id": 2, "midi_note": 42, "velocity": 0.66 },
+    { "time": 2.45, "type": "note_off", "note_id": 2 },
+    { "time": 2.8, "type": "control", "name": "sustain_pedal", "value": 1.0 },
+    { "time": 2.8, "type": "note_on", "note_id": 3, "midi_note": 60.5, "velocity": 0.82 },
+    { "time": 4.0, "type": "note_off", "note_id": 3 },
+    { "time": 4.3, "type": "control", "name": "sustain_pedal", "value": 0.0 },
+    { "time": 4.65, "type": "control", "name": "expression", "value": 0.88 },
+    { "time": 4.65, "type": "note_on", "note_id": 4, "midi_note": 84, "velocity": 0.9 },
+    { "time": 5.75, "type": "note_off", "note_id": 4 },
+    { "time": 6.1, "type": "note_on", "note_id": 5, "midi_note": 105, "velocity": 0.7 },
+    { "time": 6.9, "type": "note_off", "note_id": 5 }
+  ]
+}

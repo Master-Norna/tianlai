@@ -1,0 +1,661 @@
+{
+  "applicable": true,
+  "pitch_mode": "pitched",
+  "reference_a4_hz": 440.0,
+  "playback_calibration": "upstream SFZ pitch_keycenter plus tune opcodes",
+  "measurement_role": "diagnostic; playback follows the audited upstream map, and the residual column records how far each source sample deviates after that map",
+  "measurement_algorithm": "harmonic-constrained FFT of the raw source audio near the mapped pitch, start=0.08s, search +/-180 cents",
+  "summary": {
+    "sample_count": 92,
+    "median_measured_detune_cents": 2.554469,
+    "maximum_absolute_measured_detune_cents": 56.252784,
+    "median_residual_cents": 3.114315,
+    "maximum_absolute_residual_cents": 43.331389
+  },
+  "samples": {
+    "libs/NoBudgetOrch/SoloViolin/PizzicatoVib/3_A-PB.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 220.875261,
+      "measured_detune_cents": 6.873979,
+      "residual_after_upstream_map_cents": 6.873979
+    },
+    "libs/NoBudgetOrch/SoloViolin/PizzicatoVib/3_B-PB.wav": {
+      "root_midi": 59.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 246.381324,
+      "measured_detune_cents": -3.932746,
+      "residual_after_upstream_map_cents": -3.932746
+    },
+    "libs/NoBudgetOrch/SoloViolin/PizzicatoVib/3_Bb-PB.wav": {
+      "root_midi": 58.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 234.609109,
+      "measured_detune_cents": 11.306609,
+      "residual_after_upstream_map_cents": 11.306609
+    },
+    "libs/NoBudgetOrch/SoloViolin/PizzicatoVib/4_Ab-PB.wav": {
+      "root_midi": 68.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 422.463348,
+      "measured_detune_cents": 29.58719,
+      "residual_after_upstream_map_cents": 29.58719
+    },
+    "libs/NoBudgetOrch/SoloViolin/PizzicatoVib/4_B-PB.wav": {
+      "root_midi": 71.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 496.927879,
+      "measured_detune_cents": 10.639553,
+      "residual_after_upstream_map_cents": 10.639553
+    },
+    "libs/NoBudgetOrch/SoloViolin/PizzicatoVib/4_Bb-PB.wav": {
+      "root_midi": 70.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 465.67475,
+      "measured_detune_cents": -1.817037,
+      "residual_after_upstream_map_cents": -1.817037
+    },
+    "libs/NoBudgetOrch/SoloViolin/PizzicatoVib/4_C-PB.wav": {
+      "root_midi": 60.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 266.303327,
+      "measured_detune_cents": 30.680312,
+      "residual_after_upstream_map_cents": 30.680312
+    },
+    "libs/NoBudgetOrch/SoloViolin/PizzicatoVib/4_D-PB.wav": {
+      "root_midi": 62.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 293.271517,
+      "measured_detune_cents": -2.319878,
+      "residual_after_upstream_map_cents": -2.319878
+    },
+    "libs/NoBudgetOrch/SoloViolin/PizzicatoVib/4_Db-PB.wav": {
+      "root_midi": 61.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 277.774141,
+      "measured_detune_cents": 3.69053,
+      "residual_after_upstream_map_cents": 3.69053
+    },
+    "libs/NoBudgetOrch/SoloViolin/PizzicatoVib/4_E-PB.wav": {
+      "root_midi": 64.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 327.781714,
+      "measured_detune_cents": -9.721782,
+      "residual_after_upstream_map_cents": -9.721782
+    },
+    "libs/NoBudgetOrch/SoloViolin/PizzicatoVib/4_Eb-PB.wav": {
+      "root_midi": 63.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 311.765673,
+      "measured_detune_cents": 3.550276,
+      "residual_after_upstream_map_cents": 3.550276
+    },
+    "libs/NoBudgetOrch/SoloViolin/PizzicatoVib/4_F-PB.wav": {
+      "root_midi": 65.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 352.960332,
+      "measured_detune_cents": 18.403033,
+      "residual_after_upstream_map_cents": 18.403033
+    },
+    "libs/NoBudgetOrch/SoloViolin/PizzicatoVib/4_G-PB.wav": {
+      "root_midi": 67.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 393.146895,
+      "measured_detune_cents": 5.077924,
+      "residual_after_upstream_map_cents": 5.077924
+    },
+    "libs/NoBudgetOrch/SoloViolin/PizzicatoVib/4_Gb-PB.wav": {
+      "root_midi": 66.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 369.073374,
+      "measured_detune_cents": -4.315034,
+      "residual_after_upstream_map_cents": -4.315034
+    },
+    "libs/NoBudgetOrch/SoloViolin/PizzicatoVib/5_A-PB.wav": {
+      "root_midi": 81.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 880.863612,
+      "measured_detune_cents": 1.698161,
+      "residual_after_upstream_map_cents": 1.698161
+    },
+    "libs/NoBudgetOrch/SoloViolin/PizzicatoVib/5_Ab-PB.wav": {
+      "root_midi": 80.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 835.321778,
+      "measured_detune_cents": 9.794234,
+      "residual_after_upstream_map_cents": 9.794234
+    },
+    "libs/NoBudgetOrch/SoloViolin/PizzicatoVib/5_B-PB.wav": {
+      "root_midi": 83.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 981.718602,
+      "measured_detune_cents": -10.632765,
+      "residual_after_upstream_map_cents": -10.632765
+    },
+    "libs/NoBudgetOrch/SoloViolin/PizzicatoVib/5_Bb-PB.wav": {
+      "root_midi": 82.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 931.775384,
+      "measured_detune_cents": -1.025567,
+      "residual_after_upstream_map_cents": -1.025567
+    },
+    "libs/NoBudgetOrch/SoloViolin/PizzicatoVib/5_D-PB.wav": {
+      "root_midi": 74.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 587.894504,
+      "measured_detune_cents": 1.664519,
+      "residual_after_upstream_map_cents": 1.664519
+    },
+    "libs/NoBudgetOrch/SoloViolin/PizzicatoVib/5_Db-PB.wav": {
+      "root_midi": 73.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 559.767486,
+      "measured_detune_cents": 16.789,
+      "residual_after_upstream_map_cents": 16.789
+    },
+    "libs/NoBudgetOrch/SoloViolin/PizzicatoVib/5_Eb-PB.wav": {
+      "root_midi": 75.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 631.977512,
+      "measured_detune_cents": 26.843638,
+      "residual_after_upstream_map_cents": 26.843638
+    },
+    "libs/NoBudgetOrch/SoloViolin/PizzicatoVib/5_F-PB.wav": {
+      "root_midi": 77.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 703.167782,
+      "measured_detune_cents": 11.638537,
+      "residual_after_upstream_map_cents": 11.638537
+    },
+    "libs/NoBudgetOrch/SoloViolin/PizzicatoVib/5_G-PB.wav": {
+      "root_midi": 79.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 783.397507,
+      "measured_detune_cents": -1.310784,
+      "residual_after_upstream_map_cents": -1.310784
+    },
+    "libs/NoBudgetOrch/SoloViolin/PizzicatoVib/5_Gb-PB.wav": {
+      "root_midi": 78.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 745.859816,
+      "measured_detune_cents": 13.681174,
+      "residual_after_upstream_map_cents": 13.681174
+    },
+    "libs/NoBudgetOrch/SoloViolin/PizzicatoVib/6_A-PB.wav": {
+      "root_midi": 93.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1798.297946,
+      "measured_detune_cents": 37.267969,
+      "residual_after_upstream_map_cents": 37.267969
+    },
+    "libs/NoBudgetOrch/SoloViolin/PizzicatoVib/6_Ab-PB.wav": {
+      "root_midi": 92.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1680.88225,
+      "measured_detune_cents": 20.371881,
+      "residual_after_upstream_map_cents": 20.371881
+    },
+    "libs/NoBudgetOrch/SoloViolin/PizzicatoVib/6_B-PB.wav": {
+      "root_midi": 95.0,
+      "upstream_claimed_detune_cents": 30.0,
+      "measured_hz": 2040.778232,
+      "measured_detune_cents": 56.252784,
+      "residual_after_upstream_map_cents": 26.252784
+    },
+    "libs/NoBudgetOrch/SoloViolin/PizzicatoVib/6_Bb-PB.wav": {
+      "root_midi": 94.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1900.06458,
+      "measured_detune_cents": 32.56763,
+      "residual_after_upstream_map_cents": 32.56763
+    },
+    "libs/NoBudgetOrch/SoloViolin/PizzicatoVib/6_C-PB.wav": {
+      "root_midi": 84.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1057.022255,
+      "measured_detune_cents": 17.316389,
+      "residual_after_upstream_map_cents": 17.316389
+    },
+    "libs/NoBudgetOrch/SoloViolin/PizzicatoVib/6_D-PB.wav": {
+      "root_midi": 86.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1178.194805,
+      "measured_detune_cents": 5.203202,
+      "residual_after_upstream_map_cents": 5.203202
+    },
+    "libs/NoBudgetOrch/SoloViolin/PizzicatoVib/6_Db-PB.wav": {
+      "root_midi": 85.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1110.931293,
+      "measured_detune_cents": 3.432999,
+      "residual_after_upstream_map_cents": 3.432999
+    },
+    "libs/NoBudgetOrch/SoloViolin/PizzicatoVib/6_E-PB.wav": {
+      "root_midi": 88.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1338.213385,
+      "measured_detune_cents": 25.679301,
+      "residual_after_upstream_map_cents": 25.679301
+    },
+    "libs/NoBudgetOrch/SoloViolin/PizzicatoVib/6_Eb-PB.wav": {
+      "root_midi": 87.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1259.70736,
+      "measured_detune_cents": 21.015833,
+      "residual_after_upstream_map_cents": 21.015833
+    },
+    "libs/NoBudgetOrch/SoloViolin/PizzicatoVib/6_F-PB.wav": {
+      "root_midi": 89.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1411.792225,
+      "measured_detune_cents": 18.342823,
+      "residual_after_upstream_map_cents": 18.342823
+    },
+    "libs/NoBudgetOrch/SoloViolin/PizzicatoVib/6_G-PB.wav": {
+      "root_midi": 91.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1607.722322,
+      "measured_detune_cents": 43.331389,
+      "residual_after_upstream_map_cents": 43.331389
+    },
+    "libs/NoBudgetOrch/SoloViolin/PizzicatoVib/6_Gb-PB.wav": {
+      "root_midi": 90.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1497.720972,
+      "measured_detune_cents": 20.632132,
+      "residual_after_upstream_map_cents": 20.632132
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/3_A-PB-loop.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -8.0,
+      "measured_hz": 220.043794,
+      "measured_detune_cents": 0.344591,
+      "residual_after_upstream_map_cents": 8.344591
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/3_Ab-PB-loop.wav": {
+      "root_midi": 56.0,
+      "upstream_claimed_detune_cents": -4.0,
+      "measured_hz": 207.635218,
+      "measured_detune_cents": -0.142829,
+      "residual_after_upstream_map_cents": 3.857171
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/3_B-PB-loop.wav": {
+      "root_midi": 59.0,
+      "upstream_claimed_detune_cents": 2.0,
+      "measured_hz": 246.914587,
+      "measured_detune_cents": -0.189745,
+      "residual_after_upstream_map_cents": -2.189745
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/3_G-PB-loop.wav": {
+      "root_midi": 55.0,
+      "upstream_claimed_detune_cents": -3.0,
+      "measured_hz": 195.986738,
+      "measured_detune_cents": -0.096986,
+      "residual_after_upstream_map_cents": 2.903014
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/4_A-PB.wav": {
+      "root_midi": 69.0,
+      "upstream_claimed_detune_cents": 2.0,
+      "measured_hz": 439.93409,
+      "measured_detune_cents": -0.259352,
+      "residual_after_upstream_map_cents": -2.259352
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/4_Ab-PB.wav": {
+      "root_midi": 68.0,
+      "upstream_claimed_detune_cents": -8.0,
+      "measured_hz": 415.246159,
+      "measured_detune_cents": -0.244041,
+      "residual_after_upstream_map_cents": 7.755959
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/4_C-PB.wav": {
+      "root_midi": 60.0,
+      "upstream_claimed_detune_cents": -6.0,
+      "measured_hz": 261.614899,
+      "measured_detune_cents": -0.070581,
+      "residual_after_upstream_map_cents": 5.929419
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/4_D-PB.wav": {
+      "root_midi": 62.0,
+      "upstream_claimed_detune_cents": 2.0,
+      "measured_hz": 293.650496,
+      "measured_detune_cents": -0.084137,
+      "residual_after_upstream_map_cents": -2.084137
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/4_Db-PB.wav": {
+      "root_midi": 61.0,
+      "upstream_claimed_detune_cents": -6.0,
+      "measured_hz": 277.210225,
+      "measured_detune_cents": 0.172339,
+      "residual_after_upstream_map_cents": 6.172339
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/4_Eb-PB.wav": {
+      "root_midi": 63.0,
+      "upstream_claimed_detune_cents": 2.0,
+      "measured_hz": 311.140537,
+      "measured_detune_cents": 0.075416,
+      "residual_after_upstream_map_cents": -1.924584
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/4_F-PB.wav": {
+      "root_midi": 65.0,
+      "upstream_claimed_detune_cents": -6.0,
+      "measured_hz": 349.342932,
+      "measured_detune_cents": 0.568515,
+      "residual_after_upstream_map_cents": 6.568515
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/4_G-PB.wav": {
+      "root_midi": 67.0,
+      "upstream_claimed_detune_cents": 2.0,
+      "measured_hz": 392.006731,
+      "measured_detune_cents": 0.049882,
+      "residual_after_upstream_map_cents": -1.950118
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/4_Gb-PB.wav": {
+      "root_midi": 66.0,
+      "upstream_claimed_detune_cents": 2.0,
+      "measured_hz": 370.041561,
+      "measured_detune_cents": 0.220549,
+      "residual_after_upstream_map_cents": -1.779451
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/5_Ab-PB.wav": {
+      "root_midi": 80.0,
+      "upstream_claimed_detune_cents": 12.0,
+      "measured_hz": 837.33072,
+      "measured_detune_cents": 13.952839,
+      "residual_after_upstream_map_cents": 1.952839
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/5_B-PB.wav": {
+      "root_midi": 83.0,
+      "upstream_claimed_detune_cents": 2.0,
+      "measured_hz": 987.840063,
+      "measured_detune_cents": 0.128748,
+      "residual_after_upstream_map_cents": -1.871252
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/5_Bb-PB.wav": {
+      "root_midi": 82.0,
+      "upstream_claimed_detune_cents": 12.0,
+      "measured_hz": 939.533371,
+      "measured_detune_cents": 13.329057,
+      "residual_after_upstream_map_cents": 1.329057
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/5_C-PB.wav": {
+      "root_midi": 72.0,
+      "upstream_claimed_detune_cents": -6.0,
+      "measured_hz": 521.75805,
+      "measured_detune_cents": -4.947084,
+      "residual_after_upstream_map_cents": 1.052916
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/5_D-PB.wav": {
+      "root_midi": 74.0,
+      "upstream_claimed_detune_cents": -6.0,
+      "measured_hz": 586.989795,
+      "measured_detune_cents": -1.001723,
+      "residual_after_upstream_map_cents": 4.998277
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/5_Db-PB.wav": {
+      "root_midi": 73.0,
+      "upstream_claimed_detune_cents": 2.0,
+      "measured_hz": 554.323717,
+      "measured_detune_cents": -0.129747,
+      "residual_after_upstream_map_cents": -2.129747
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/5_E-PB.wav": {
+      "root_midi": 76.0,
+      "upstream_claimed_detune_cents": -6.0,
+      "measured_hz": 656.930843,
+      "measured_detune_cents": -6.114427,
+      "residual_after_upstream_map_cents": -0.114427
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/5_Eb-PB.wav": {
+      "root_midi": 75.0,
+      "upstream_claimed_detune_cents": 2.0,
+      "measured_hz": 624.806727,
+      "measured_detune_cents": 7.087756,
+      "residual_after_upstream_map_cents": 5.087756
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/5_F-PB.wav": {
+      "root_midi": 77.0,
+      "upstream_claimed_detune_cents": 2.0,
+      "measured_hz": 698.485425,
+      "measured_detune_cents": 0.071786,
+      "residual_after_upstream_map_cents": -1.928214
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/5_G-PB.wav": {
+      "root_midi": 79.0,
+      "upstream_claimed_detune_cents": 2.0,
+      "measured_hz": 783.997308,
+      "measured_detune_cents": 0.014212,
+      "residual_after_upstream_map_cents": -1.985788
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/5_Gb-PB.wav": {
+      "root_midi": 78.0,
+      "upstream_claimed_detune_cents": 2.0,
+      "measured_hz": 739.88743,
+      "measured_detune_cents": -0.237281,
+      "residual_after_upstream_map_cents": -2.237281
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/6_Ab-PB.wav": {
+      "root_midi": 92.0,
+      "upstream_claimed_detune_cents": 27.0,
+      "measured_hz": 1679.834046,
+      "measured_detune_cents": 19.291942,
+      "residual_after_upstream_map_cents": -7.708058
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/6_Bb-PB-loop.wav": {
+      "root_midi": 94.0,
+      "upstream_claimed_detune_cents": -8.0,
+      "measured_hz": 1870.920682,
+      "measured_detune_cents": 5.807561,
+      "residual_after_upstream_map_cents": 13.807561
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/6_C-PB.wav": {
+      "root_midi": 84.0,
+      "upstream_claimed_detune_cents": 2.0,
+      "measured_hz": 1048.667939,
+      "measured_detune_cents": 3.57899,
+      "residual_after_upstream_map_cents": 1.57899
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/6_D-PB.wav": {
+      "root_midi": 86.0,
+      "upstream_claimed_detune_cents": 2.0,
+      "measured_hz": 1179.532723,
+      "measured_detune_cents": 7.168017,
+      "residual_after_upstream_map_cents": 5.168017
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/6_Db-PB.wav": {
+      "root_midi": 85.0,
+      "upstream_claimed_detune_cents": 2.0,
+      "measured_hz": 1098.186724,
+      "measured_detune_cents": -16.542464,
+      "residual_after_upstream_map_cents": -18.542464
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/6_Gb-PB.wav": {
+      "root_midi": 90.0,
+      "upstream_claimed_detune_cents": 32.0,
+      "measured_hz": 1502.88206,
+      "measured_detune_cents": 26.587642,
+      "residual_after_upstream_map_cents": -5.412358
+    },
+    "libs/VSCO2-CE/Strings/Solo Violin/spic/LLVln_spic_A3_v2_rr1-PB.wav": {
+      "root_midi": 69.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 439.79137,
+      "measured_detune_cents": -0.821074,
+      "residual_after_upstream_map_cents": -0.821074
+    },
+    "libs/VSCO2-CE/Strings/Solo Violin/spic/LLVln_spic_A3_v2_rr2-PB.wav": {
+      "root_midi": 69.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 439.932127,
+      "measured_detune_cents": -0.267076,
+      "residual_after_upstream_map_cents": -0.267076
+    },
+    "libs/VSCO2-CE/Strings/Solo Violin/spic/LLVln_spic_A4_v2_rr1-PB.wav": {
+      "root_midi": 81.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 876.723211,
+      "measured_detune_cents": -6.458497,
+      "residual_after_upstream_map_cents": -6.458497
+    },
+    "libs/VSCO2-CE/Strings/Solo Violin/spic/LLVln_spic_A4_v2_rr2-PB.wav": {
+      "root_midi": 81.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 882.660342,
+      "measured_detune_cents": 5.225827,
+      "residual_after_upstream_map_cents": 5.225827
+    },
+    "libs/VSCO2-CE/Strings/Solo Violin/spic/LLVln_spic_A5_v2_rr1-PB.wav": {
+      "root_midi": 93.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1758.664148,
+      "measured_detune_cents": -1.314518,
+      "residual_after_upstream_map_cents": -1.314518
+    },
+    "libs/VSCO2-CE/Strings/Solo Violin/spic/LLVln_spic_A5_v2_rr2-PB.wav": {
+      "root_midi": 93.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1758.184101,
+      "measured_detune_cents": -1.787142,
+      "residual_after_upstream_map_cents": -1.787142
+    },
+    "libs/VSCO2-CE/Strings/Solo Violin/spic/LLVln_spic_C3_v2_rr1-PB.wav": {
+      "root_midi": 60.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 261.979672,
+      "measured_detune_cents": 2.341617,
+      "residual_after_upstream_map_cents": 2.341617
+    },
+    "libs/VSCO2-CE/Strings/Solo Violin/spic/LLVln_spic_C3_v2_rr2-PB.wav": {
+      "root_midi": 60.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 261.202196,
+      "measured_detune_cents": -2.803797,
+      "residual_after_upstream_map_cents": -2.803797
+    },
+    "libs/VSCO2-CE/Strings/Solo Violin/spic/LLVln_spic_C4_v2_rr1-PB.wav": {
+      "root_midi": 72.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 524.169192,
+      "measured_detune_cents": 3.034847,
+      "residual_after_upstream_map_cents": 3.034847
+    },
+    "libs/VSCO2-CE/Strings/Solo Violin/spic/LLVln_spic_C4_v2_rr2-PB.wav": {
+      "root_midi": 72.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 525.977914,
+      "measured_detune_cents": 8.998438,
+      "residual_after_upstream_map_cents": 8.998438
+    },
+    "libs/VSCO2-CE/Strings/Solo Violin/spic/LLVln_spic_C5_v2_rr1-PB.wav": {
+      "root_midi": 84.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1049.929599,
+      "measured_detune_cents": 5.660598,
+      "residual_after_upstream_map_cents": 5.660598
+    },
+    "libs/VSCO2-CE/Strings/Solo Violin/spic/LLVln_spic_C5_v2_rr2-PB.wav": {
+      "root_midi": 84.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1045.495905,
+      "measured_detune_cents": -1.665621,
+      "residual_after_upstream_map_cents": -1.665621
+    },
+    "libs/VSCO2-CE/Strings/Solo Violin/spic/LLVln_spic_C6_v2_rr1-PB.wav": {
+      "root_midi": 96.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 2096.352796,
+      "measured_detune_cents": 2.76732,
+      "residual_after_upstream_map_cents": 2.76732
+    },
+    "libs/VSCO2-CE/Strings/Solo Violin/spic/LLVln_spic_C6_v2_rr2-PB.wav": {
+      "root_midi": 96.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 2096.869263,
+      "measured_detune_cents": 3.193782,
+      "residual_after_upstream_map_cents": 3.193782
+    },
+    "libs/VSCO2-CE/Strings/Solo Violin/spic/LLVln_spic_E3_v2_rr1-PB.wav": {
+      "root_midi": 64.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 330.754744,
+      "measured_detune_cents": 5.909992,
+      "residual_after_upstream_map_cents": 5.909992
+    },
+    "libs/VSCO2-CE/Strings/Solo Violin/spic/LLVln_spic_E3_v2_rr2-PB.wav": {
+      "root_midi": 64.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 329.976054,
+      "measured_detune_cents": 1.829372,
+      "residual_after_upstream_map_cents": 1.829372
+    },
+    "libs/VSCO2-CE/Strings/Solo Violin/spic/LLVln_spic_E4_v2_rr1-PB.wav": {
+      "root_midi": 76.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 660.739307,
+      "measured_detune_cents": 3.893177,
+      "residual_after_upstream_map_cents": 3.893177
+    },
+    "libs/VSCO2-CE/Strings/Solo Violin/spic/LLVln_spic_E4_v2_rr2-PB.wav": {
+      "root_midi": 76.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 661.241866,
+      "measured_detune_cents": 5.209457,
+      "residual_after_upstream_map_cents": 5.209457
+    },
+    "libs/VSCO2-CE/Strings/Solo Violin/spic/LLVln_spic_E5_v2_rr1-PB.wav": {
+      "root_midi": 88.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1319.722582,
+      "measured_detune_cents": 1.591118,
+      "residual_after_upstream_map_cents": 1.591118
+    },
+    "libs/VSCO2-CE/Strings/Solo Violin/spic/LLVln_spic_E5_v2_rr2-PB.wav": {
+      "root_midi": 88.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1323.665741,
+      "measured_detune_cents": 6.756107,
+      "residual_after_upstream_map_cents": 6.756107
+    },
+    "libs/VSCO2-CE/Strings/Solo Violin/spic/LLVln_spic_G3_v2_rr1-PB.wav": {
+      "root_midi": 67.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 392.129209,
+      "measured_detune_cents": 0.590705,
+      "residual_after_upstream_map_cents": 0.590705
+    },
+    "libs/VSCO2-CE/Strings/Solo Violin/spic/LLVln_spic_G3_v2_rr2-PB.wav": {
+      "root_midi": 67.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 392.301258,
+      "measured_detune_cents": 1.350127,
+      "residual_after_upstream_map_cents": 1.350127
+    },
+    "libs/VSCO2-CE/Strings/Solo Violin/spic/LLVln_spic_G4_v2_rr1-PB.wav": {
+      "root_midi": 79.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 785.934385,
+      "measured_detune_cents": 4.286417,
+      "residual_after_upstream_map_cents": 4.286417
+    },
+    "libs/VSCO2-CE/Strings/Solo Violin/spic/LLVln_spic_G4_v2_rr2-PB.wav": {
+      "root_midi": 79.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 784.030549,
+      "measured_detune_cents": 0.087614,
+      "residual_after_upstream_map_cents": 0.087614
+    },
+    "libs/VSCO2-CE/Strings/Solo Violin/spic/LLVln_spic_G5_v2_rr1-PB.wav": {
+      "root_midi": 91.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1571.045335,
+      "measured_detune_cents": 3.37926,
+      "residual_after_upstream_map_cents": 3.37926
+    },
+    "libs/VSCO2-CE/Strings/Solo Violin/spic/LLVln_spic_G5_v2_rr2-PB.wav": {
+      "root_midi": 91.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1569.267501,
+      "measured_detune_cents": 1.419044,
+      "residual_after_upstream_map_cents": 1.419044
+    }
+  }
+}

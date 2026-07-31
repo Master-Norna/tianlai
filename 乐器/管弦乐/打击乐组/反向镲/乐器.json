@@ -1,0 +1,36 @@
+{
+  "name": "VCSL 反向镲",
+  "type": "reversed_cymbal",
+  "quality_tier": "formal",
+  "collaboration_review_status": "untested",
+  "upgrade_status": "vcsl_reversed_sample_transform",
+  "fallback_policy": "explicit_only_no_silent_gm",
+  "asset_root": "../../../../音源/VCSL",
+  "upstream": "sgossner/VCSL (Versilian Community Sample Library)",
+  "origin": "https://github.com/sgossner/VCSL",
+  "upstream_version": "1.2.2-RC",
+  "license": "CC0-1.0",
+  "evidence_files": [
+    "README.md"
+  ],
+  "resource_verification": "资源核验.json",
+  "pitch_calibration": "音准校准.json",
+  "calibration_not_applicable_reason": "反向镲为镲片采样确定性倒放,键 60-62 仅选择上升沿长度/音色变体,无十二平均律音高可校准",
+  "variants": {
+    "60": {
+      "sample": "Idiophones/Struck Idiophones/Suspended Cymbal 2/susCymb2_hit_fff1.wav"
+    },
+    "61": {
+      "sample": "Idiophones/Struck Idiophones/Suspended Cymbal 1/susCymb1_hit_fff1.wav"
+    },
+    "62": {
+      "sample": "Idiophones/Struck Idiophones/Suspended Cymbal 2/susCymb2_roll_fff1_nloop.wav"
+    }
+  },
+  "note_min": 60,
+  "note_max": 62,
+  "gain": 2.1174,
+  "velocity_exponent": 0.72,
+  "stop_fade_seconds": 0.012,
+  "license_status": "approved"
+}

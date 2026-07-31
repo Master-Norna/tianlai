@@ -1,0 +1,1886 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tianlai.local/schemas/mix-report.schema.json",
+  "title": "Tianlai Advisory Ensemble Mix Report",
+  "description": "由 collaboration_report 对后置声部增益、前置声像/空间/主控/归一的干分轨生成的只读协奏诊断。active RMS 是透明的窗口门控 RMS，不是 LUFS；报告不授权修改音频或写回协奏验收状态。",
+  "type": "object",
+  "required": [
+    "format",
+    "version",
+    "scope",
+    "relation_audio_stage",
+    "relation_sample_stage",
+    "stage_metrics_sample_stage",
+    "mode",
+    "audio_modified",
+    "analysis",
+    "stems",
+    "balance_relations",
+    "orchestration_topology",
+    "stage_metrics",
+    "summary",
+    "warnings",
+    "notice"
+  ],
+  "properties": {
+    "format": { "const": "tianlai.mix_report" },
+    "version": { "const": 2 },
+    "scope": { "const": "machine_triage_only" },
+    "relation_audio_stage": {
+      "const": "post_assignment_gain_pre_pan_pre_space_pre_master_pre_normalize"
+    },
+    "relation_sample_stage": { "const": "float32_pre_pcm24" },
+    "stage_metrics_sample_stage": { "const": "float64_pre_pcm24" },
+    "mode": { "enum": ["analyze", "suggest"] },
+    "audio_modified": { "const": false },
+    "analysis": {
+      "type": "object",
+      "required": [
+        "metric",
+        "window_ms",
+        "hop_ms",
+        "gate_dbfs",
+        "relative_gate_db",
+        "minimum_overlap_seconds",
+        "minimum_shared_window_count",
+        "spectral_screening",
+        "temporal_screening",
+        "stage_screening",
+        "relation_buffer_storage",
+        "workload"
+      ],
+      "properties": {
+        "metric": { "const": "overlap_active_rms" },
+        "window_ms": {
+          "type": "number",
+          "minimum": 20,
+          "maximum": 2000
+        },
+        "hop_ms": {
+          "type": "number",
+          "minimum": 10,
+          "maximum": 2000
+        },
+        "gate_dbfs": {
+          "type": "number",
+          "minimum": -300,
+          "maximum": 0
+        },
+        "relative_gate_db": {
+          "type": "number",
+          "minimum": -300,
+          "maximum": 0
+        },
+        "minimum_overlap_seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "minimum_shared_window_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "spectral_screening": {
+          "type": "object",
+          "required": [
+            "overlap_coefficient_min",
+            "minimum_band_energy_ratio"
+          ],
+          "properties": {
+            "overlap_coefficient_min": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "minimum_band_energy_ratio": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "relation_buffer_storage": {
+          "enum": ["memory_float32", "scratch_float32_memmap"]
+        },
+        "temporal_screening": {
+          "type": "object",
+          "required": ["criterion"],
+          "properties": {
+            "criterion": {
+              "const": "robust_span_db_greater_than_2x_relation_tolerance"
+            }
+          },
+          "additionalProperties": false
+        },
+        "stage_screening": {
+          "type": "object",
+          "required": [
+            "mono_fold_delta_db_below",
+            "tail_peak_relative_db_above",
+            "tail_window_seconds"
+          ],
+          "properties": {
+            "mono_fold_delta_db_below": { "type": "number" },
+            "tail_peak_relative_db_above": { "type": "number" },
+            "tail_window_seconds": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          },
+          "additionalProperties": false
+        },
+        "workload": {
+          "type": "object",
+          "required": [
+            "executor_count",
+            "relation_count",
+            "unique_relation_part_count",
+            "window_frames",
+            "stem_window_count",
+            "stem_active_fft_window_count",
+            "relation_shared_active_window_count",
+            "relation_pair_fft_window_count",
+            "fft_input_frame_visits",
+            "relation_buffer_bytes"
+          ],
+          "properties": {
+            "executor_count": { "type": "integer", "minimum": 0 },
+            "relation_count": { "type": "integer", "minimum": 0 },
+            "unique_relation_part_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "window_frames": { "type": "integer", "minimum": 8 },
+            "stem_window_count": { "type": "integer", "minimum": 0 },
+            "stem_active_fft_window_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "relation_shared_active_window_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "relation_pair_fft_window_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "fft_input_frame_visits": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "relation_buffer_bytes": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "stems": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/stem" }
+    },
+    "balance_relations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/balanceRelationResult" }
+    },
+    "orchestration_topology": {
+      "$ref": "#/$defs/orchestrationTopology"
+    },
+    "stage_metrics": {
+      "type": "object",
+      "required": [
+        "post_pan_pre_space",
+        "post_space_pre_master",
+        "final"
+      ],
+      "properties": {
+        "post_pan_pre_space": {
+          "$ref": "#/$defs/stereoStageMetrics"
+        },
+        "post_space_pre_master": {
+          "$ref": "#/$defs/stereoStageMetrics"
+        },
+        "final": {
+          "$ref": "#/$defs/stereoStageMetrics"
+        }
+      },
+      "additionalProperties": false
+    },
+    "summary": {
+      "type": "object",
+      "required": [
+        "stem_count",
+        "relation_count",
+        "within_tolerance",
+        "outside_tolerance",
+        "insufficient_overlap",
+        "spectral_overlap_candidates",
+        "temporal_balance_drift_candidates",
+        "automation_draft_relation_count",
+        "automation_draft_segment_count",
+        "same_source_unison_phase_candidates",
+        "same_source_exact_unison_level_stack_candidates",
+        "stage_candidate_count",
+        "warning_count"
+      ],
+      "properties": {
+        "stem_count": { "type": "integer", "minimum": 0 },
+        "relation_count": { "type": "integer", "minimum": 0 },
+        "within_tolerance": { "type": "integer", "minimum": 0 },
+        "outside_tolerance": { "type": "integer", "minimum": 0 },
+        "insufficient_overlap": { "type": "integer", "minimum": 0 },
+        "spectral_overlap_candidates": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "temporal_balance_drift_candidates": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "automation_draft_relation_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "automation_draft_segment_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "same_source_unison_phase_candidates": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "same_source_exact_unison_level_stack_candidates": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "stage_candidate_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "warning_count": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          { "$ref": "#/$defs/insufficientOverlapWarning" },
+          { "$ref": "#/$defs/outsideToleranceWarning" },
+          { "$ref": "#/$defs/spectralOverlapWarning" },
+          { "$ref": "#/$defs/temporalBalanceWarning" },
+          { "$ref": "#/$defs/sameSourceUnisonPhaseWarning" },
+          {
+            "$ref": "#/$defs/sameSourceExactUnisonLevelStackWarning"
+          },
+          { "$ref": "#/$defs/monoFoldWarning" },
+          { "$ref": "#/$defs/spaceTailWarning" }
+        ]
+      }
+    },
+    "notice": {
+      "const": "机器报告只用于协奏排查；它不修改音频，也不能自动把乐器标记为协奏验收通过。"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "mode": { "const": "analyze" } },
+        "required": ["mode"]
+      },
+      "then": {
+        "properties": {
+          "balance_relations": {
+            "items": {
+              "not": {
+                "anyOf": [
+                  {
+                    "required": [
+                      "suggested_subject_gain_adjustment_db"
+                    ]
+                  },
+                  { "required": ["gain_automation_draft"] }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "mode": { "const": "suggest" } },
+        "required": ["mode"]
+      },
+      "then": {
+        "properties": {
+          "balance_relations": {
+            "items": {
+              "if": {
+                "properties": {
+                  "status": {
+                    "enum": ["within_tolerance", "outside_tolerance"]
+                  }
+                },
+                "required": ["status"]
+              },
+              "then": {
+                "required": [
+                  "suggested_subject_gain_adjustment_db",
+                  "gain_automation_draft"
+                ]
+              },
+              "else": {
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "suggested_subject_gain_adjustment_db"
+                      ]
+                    },
+                    { "required": ["gain_automation_draft"] }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "gate": {
+      "type": "object",
+      "required": [
+        "window_seconds",
+        "hop_seconds",
+        "absolute_gate_dbfs",
+        "relative_gate_db"
+      ],
+      "properties": {
+        "window_seconds": {
+          "type": "number",
+          "minimum": 0.02,
+          "maximum": 2
+        },
+        "hop_seconds": {
+          "type": "number",
+          "minimum": 0.01,
+          "maximum": 2
+        },
+        "absolute_gate_dbfs": {
+          "type": "number",
+          "minimum": -300,
+          "maximum": 0
+        },
+        "relative_gate_db": {
+          "type": "number",
+          "minimum": -300,
+          "maximum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "role": {
+      "type": "object",
+      "required": ["function", "prominence"],
+      "properties": {
+        "function": {
+          "enum": [
+            "lead",
+            "countermelody",
+            "harmony",
+            "pad",
+            "bass",
+            "rhythm",
+            "accent",
+            "texture",
+            "ambience",
+            "effect",
+            "other"
+          ]
+        },
+        "prominence": {
+          "enum": ["foreground", "midground", "background"]
+        },
+        "label": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "trackMetrics": {
+      "type": "object",
+      "required": [
+        "analysis_version",
+        "sample_rate_hz",
+        "frame_count",
+        "gate",
+        "sample_peak",
+        "peak_dbfs",
+        "rms_dbfs",
+        "active_rms_dbfs",
+        "crest_factor_db",
+        "active_ratio",
+        "active_window_count",
+        "window_count",
+        "band_energy_ratios",
+        "spectral_centroid_hz",
+        "stereo_correlation",
+        "stereo_width"
+      ],
+      "properties": {
+        "analysis_version": { "const": 1 },
+        "sample_rate_hz": {
+          "type": "integer",
+          "minimum": 8000,
+          "maximum": 384000
+        },
+        "frame_count": { "type": "integer", "minimum": 1 },
+        "gate": { "$ref": "#/$defs/gate" },
+        "sample_peak": { "type": "number", "minimum": 0 },
+        "peak_dbfs": { "type": ["number", "null"] },
+        "rms_dbfs": { "type": ["number", "null"] },
+        "active_rms_dbfs": { "type": ["number", "null"] },
+        "crest_factor_db": { "type": ["number", "null"] },
+        "active_ratio": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "active_window_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "window_count": { "type": "integer", "minimum": 1 },
+        "band_energy_ratios": {
+          "type": "object",
+          "required": [
+            "sub_bass",
+            "bass",
+            "low_mid",
+            "mid",
+            "presence",
+            "brilliance"
+          ],
+          "properties": {
+            "sub_bass": {
+              "type": ["number", "null"],
+              "minimum": 0,
+              "maximum": 1
+            },
+            "bass": {
+              "type": ["number", "null"],
+              "minimum": 0,
+              "maximum": 1
+            },
+            "low_mid": {
+              "type": ["number", "null"],
+              "minimum": 0,
+              "maximum": 1
+            },
+            "mid": {
+              "type": ["number", "null"],
+              "minimum": 0,
+              "maximum": 1
+            },
+            "presence": {
+              "type": ["number", "null"],
+              "minimum": 0,
+              "maximum": 1
+            },
+            "brilliance": {
+              "type": ["number", "null"],
+              "minimum": 0,
+              "maximum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "spectral_centroid_hz": {
+          "type": ["number", "null"],
+          "minimum": 0
+        },
+        "stereo_correlation": {
+          "type": ["number", "null"],
+          "minimum": -1,
+          "maximum": 1
+        },
+        "stereo_width": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "stem": {
+      "type": "object",
+      "required": [
+        "executor_id",
+        "part_id",
+        "instrument",
+        "gain_db",
+        "pan",
+        "role",
+        "metrics"
+      ],
+      "properties": {
+        "executor_id": { "type": "string", "minLength": 1 },
+        "part_id": { "type": "string", "minLength": 1 },
+        "instrument": { "type": "string", "minLength": 1 },
+        "gain_db": { "type": "number" },
+        "pan": {
+          "type": "number",
+          "minimum": -1,
+          "maximum": 1
+        },
+        "role": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/role" }
+          ]
+        },
+        "metrics": { "$ref": "#/$defs/trackMetrics" }
+      },
+      "additionalProperties": false
+    },
+    "overlapMeasurement": {
+      "type": "object",
+      "required": [
+        "analysis_version",
+        "sample_rate_hz",
+        "frame_count",
+        "gate",
+        "shared_active_window_count",
+        "window_count",
+        "overlap_ratio",
+        "first_active_rms_dbfs",
+        "second_active_rms_dbfs",
+        "first_minus_second_db"
+      ],
+      "properties": {
+        "analysis_version": { "const": 1 },
+        "sample_rate_hz": {
+          "type": "integer",
+          "minimum": 8000,
+          "maximum": 384000
+        },
+        "frame_count": { "type": "integer", "minimum": 1 },
+        "gate": { "$ref": "#/$defs/gate" },
+        "shared_active_window_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "window_count": { "type": "integer", "minimum": 1 },
+        "overlap_ratio": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "first_active_rms_dbfs": {
+          "type": ["number", "null"]
+        },
+        "second_active_rms_dbfs": {
+          "type": ["number", "null"]
+        },
+        "first_minus_second_db": {
+          "type": ["number", "null"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "relationEndpoint": {
+      "type": "object",
+      "required": ["endpoint_kind", "expanded_parts"],
+      "properties": {
+        "endpoint_kind": {
+          "enum": ["part", "part_group"]
+        },
+        "expanded_parts": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      },
+      "additionalProperties": false
+    },
+    "balanceRelationResult": {
+      "type": "object",
+      "required": [
+        "subject",
+        "reference",
+        "subject_endpoint",
+        "reference_endpoint",
+        "target_offset_db",
+        "tolerance_db",
+        "max_suggestion_db",
+        "measurement",
+        "overlap_evidence",
+        "spectral_overlap",
+        "spectral_screening",
+        "temporal_balance",
+        "status",
+        "deviation_db"
+      ],
+      "properties": {
+        "subject": { "type": "string", "minLength": 1 },
+        "reference": { "type": "string", "minLength": 1 },
+        "subject_endpoint": { "$ref": "#/$defs/relationEndpoint" },
+        "reference_endpoint": { "$ref": "#/$defs/relationEndpoint" },
+        "target_offset_db": { "type": "number" },
+        "tolerance_db": { "type": "number", "minimum": 0 },
+        "max_suggestion_db": { "type": "number", "minimum": 0 },
+        "measurement": { "$ref": "#/$defs/overlapMeasurement" },
+        "overlap_evidence": { "$ref": "#/$defs/overlapEvidence" },
+        "spectral_overlap": { "$ref": "#/$defs/spectralOverlap" },
+        "spectral_screening": {
+          "$ref": "#/$defs/spectralScreening"
+        },
+        "temporal_balance": {
+          "$ref": "#/$defs/temporalBalance"
+        },
+        "status": {
+          "enum": [
+            "within_tolerance",
+            "outside_tolerance",
+            "insufficient_overlap"
+          ]
+        },
+        "measured_offset_db": { "type": "number" },
+        "deviation_db": { "type": ["number", "null"] },
+        "suggested_subject_gain_adjustment_db": {
+          "type": "number"
+        },
+        "gain_automation_draft": {
+          "$ref": "#/$defs/gainAutomationDraft"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": { "const": "insufficient_overlap" }
+            },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {
+              "deviation_db": { "type": "null" }
+            },
+            "not": {
+              "anyOf": [
+                { "required": ["measured_offset_db"] },
+                {
+                  "required": [
+                    "suggested_subject_gain_adjustment_db"
+                  ]
+                },
+                { "required": ["gain_automation_draft"] }
+              ]
+            }
+          },
+          "else": {
+            "required": ["measured_offset_db"],
+            "properties": {
+              "deviation_db": { "type": "number" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": { "const": "insufficient_overlap" }
+            },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {
+              "overlap_evidence": {
+                "properties": {
+                  "status": { "const": "insufficient" }
+                }
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "overlap_evidence": {
+                "properties": {
+                  "status": { "const": "sufficient" }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "overlapEvidence": {
+      "type": "object",
+      "required": [
+        "metric",
+        "block_ms",
+        "effective_block_ms",
+        "shared_active_block_count",
+        "shared_active_seconds",
+        "minimum_seconds",
+        "shared_main_window_count",
+        "minimum_main_window_count",
+        "status",
+        "coverage_resolution"
+      ],
+      "properties": {
+        "metric": {
+          "const": "shared_active_non_overlapping_block_rms_coverage"
+        },
+        "block_ms": { "const": 10.0 },
+        "effective_block_ms": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "shared_active_block_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "shared_active_seconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "minimum_seconds": { "const": 0.5 },
+        "shared_main_window_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "minimum_main_window_count": { "const": 3 },
+        "status": {
+          "enum": ["sufficient", "insufficient"]
+        },
+        "coverage_resolution": {
+          "const": "non_overlapping_block_rms_not_sample_exact"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": { "const": "sufficient" }
+            },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {
+              "shared_active_seconds": { "minimum": 0.5 },
+              "shared_main_window_count": { "minimum": 3 }
+            }
+          },
+          "else": {
+            "not": {
+              "allOf": [
+                {
+                  "properties": {
+                    "shared_active_seconds": { "minimum": 0.5 }
+                  },
+                  "required": ["shared_active_seconds"]
+                },
+                {
+                  "properties": {
+                    "shared_main_window_count": { "minimum": 3 }
+                  },
+                  "required": ["shared_main_window_count"]
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "nullableBandNumbers": {
+      "type": "object",
+      "required": [
+        "sub_bass",
+        "bass",
+        "low_mid",
+        "mid",
+        "presence",
+        "brilliance"
+      ],
+      "properties": {
+        "sub_bass": { "type": ["number", "null"] },
+        "bass": { "type": ["number", "null"] },
+        "low_mid": { "type": ["number", "null"] },
+        "mid": { "type": ["number", "null"] },
+        "presence": { "type": ["number", "null"] },
+        "brilliance": { "type": ["number", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "spectralOverlap": {
+      "type": "object",
+      "required": [
+        "format",
+        "version",
+        "metric",
+        "sample_rate_hz",
+        "frame_count",
+        "gate",
+        "shared_active_window_count",
+        "window_count",
+        "overlap_ratio",
+        "first_band_energy_ratios",
+        "second_band_energy_ratios",
+        "band_first_minus_second_db",
+        "spectral_overlap_coefficient",
+        "audio_modified",
+        "notice"
+      ],
+      "properties": {
+        "format": { "const": "tianlai.spectral_overlap" },
+        "version": { "const": 1 },
+        "metric": {
+          "const": "shared_active_six_band_energy_overlap"
+        },
+        "sample_rate_hz": {
+          "type": "integer",
+          "minimum": 8000,
+          "maximum": 384000
+        },
+        "frame_count": { "type": "integer", "minimum": 1 },
+        "gate": { "$ref": "#/$defs/gate" },
+        "shared_active_window_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "window_count": { "type": "integer", "minimum": 1 },
+        "overlap_ratio": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "first_band_energy_ratios": {
+          "$ref": "#/$defs/trackMetrics/properties/band_energy_ratios"
+        },
+        "second_band_energy_ratios": {
+          "$ref": "#/$defs/trackMetrics/properties/band_energy_ratios"
+        },
+        "band_first_minus_second_db": {
+          "$ref": "#/$defs/nullableBandNumbers"
+        },
+        "spectral_overlap_coefficient": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "audio_modified": { "const": false },
+        "notice": {
+          "const": "该确定性指标只用于频带重叠排查；它不是心理声学 masking、LUFS 或 BS.1770 响度。"
+        }
+      },
+      "additionalProperties": false
+    },
+    "spectralScreening": {
+      "type": "object",
+      "required": ["status", "candidate_bands"],
+      "properties": {
+        "status": {
+          "enum": ["clear", "candidate", "insufficient_overlap"]
+        },
+        "candidate_bands": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "sub_bass",
+              "bass",
+              "low_mid",
+              "mid",
+              "presence",
+              "brilliance"
+            ]
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "temporalBalance": {
+      "type": "object",
+      "required": [
+        "format",
+        "version",
+        "metric",
+        "offset_definition",
+        "sample_rate_hz",
+        "frame_count",
+        "gate",
+        "target_offset_db",
+        "tolerance_db",
+        "minimum_shared_window_count",
+        "shared_active_window_count",
+        "window_count",
+        "overlap_ratio",
+        "p10_db",
+        "median_db",
+        "p90_db",
+        "robust_span_db",
+        "within_tolerance_window_ratio",
+        "below_tolerance_window_count",
+        "above_tolerance_window_count",
+        "status",
+        "status_rule",
+        "candidate_segment_policy",
+        "candidate_segment_count",
+        "candidate_segments_truncated",
+        "candidate_segments",
+        "quantization",
+        "window_sequence_included",
+        "audio_modified",
+        "notice"
+      ],
+      "properties": {
+        "format": { "const": "tianlai.temporal_balance" },
+        "version": { "const": 2 },
+        "metric": {
+          "const": "shared_active_window_rms_offset_distribution"
+        },
+        "offset_definition": { "const": "first_minus_second_db" },
+        "sample_rate_hz": {
+          "type": "integer",
+          "minimum": 8000,
+          "maximum": 384000
+        },
+        "frame_count": { "type": "integer", "minimum": 1 },
+        "gate": { "$ref": "#/$defs/gate" },
+        "target_offset_db": { "type": "number" },
+        "tolerance_db": { "type": "number", "minimum": 0 },
+        "minimum_shared_window_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "shared_active_window_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "window_count": { "type": "integer", "minimum": 1 },
+        "overlap_ratio": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "p10_db": { "type": ["number", "null"] },
+        "median_db": { "type": ["number", "null"] },
+        "p90_db": { "type": ["number", "null"] },
+        "robust_span_db": {
+          "type": ["number", "null"],
+          "minimum": 0
+        },
+        "within_tolerance_window_ratio": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "below_tolerance_window_count": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "above_tolerance_window_count": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "status": {
+          "enum": [
+            "stable_within_tolerance",
+            "varies_outside_tolerance",
+            "insufficient_overlap"
+          ]
+        },
+        "status_rule": {
+          "const": "p10_and_p90_must_both_be_within_target_tolerance"
+        },
+        "candidate_segment_policy": {
+          "$ref": "#/$defs/candidateSegmentPolicy"
+        },
+        "candidate_segment_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "candidate_segments_truncated": { "type": "boolean" },
+        "candidate_segments": {
+          "type": "array",
+          "maxItems": 128,
+          "items": { "$ref": "#/$defs/temporalBalanceSegment" }
+        },
+        "quantization": {
+          "type": "object",
+          "required": [
+            "derived_decimal_digits",
+            "percentile_method"
+          ],
+          "properties": {
+            "derived_decimal_digits": { "const": 6 },
+            "percentile_method": {
+              "const": "linear_(n-1)_interpolation"
+            }
+          },
+          "additionalProperties": false
+        },
+        "window_sequence_included": { "const": false },
+        "audio_modified": { "const": false },
+        "notice": {
+          "const": "该确定性窗口 RMS 指标只用于段落平衡排查；它不会自动调整增益，也不是心理声学响度或 masking 结论。"
+        }
+      },
+      "additionalProperties": false
+    },
+    "candidateSegmentPolicy": {
+      "type": "object",
+      "required": [
+        "time_basis",
+        "bucket_seconds",
+        "minimum_shared_window_count_per_bucket",
+        "minimum_shared_window_coverage_seconds_per_bucket",
+        "bucket_statistic",
+        "segment_boundaries",
+        "merge_rule",
+        "raw_window_sequence_included"
+      ],
+      "properties": {
+        "time_basis": { "const": "seconds" },
+        "bucket_seconds": { "const": 1.0 },
+        "minimum_shared_window_count_per_bucket": { "const": 3 },
+        "minimum_shared_window_coverage_seconds_per_bucket": {
+          "const": 0.5
+        },
+        "bucket_statistic": {
+          "const": "median_of_quantized_shared_active_window_offsets"
+        },
+        "segment_boundaries": {
+          "const": "union_evidence_bounds_not_full_bucket_bounds"
+        },
+        "merge_rule": {
+          "const": "adjacent_candidate_buckets_with_same_direction"
+        },
+        "raw_window_sequence_included": { "const": false }
+      },
+      "additionalProperties": false
+    },
+    "temporalBalanceSegment": {
+      "type": "object",
+      "required": [
+        "start_seconds",
+        "end_seconds",
+        "shared_active_window_count",
+        "shared_active_coverage_seconds",
+        "median_offset_db",
+        "deviation_db",
+        "direction"
+      ],
+      "properties": {
+        "start_seconds": { "type": "number", "minimum": 0 },
+        "end_seconds": { "type": "number", "exclusiveMinimum": 0 },
+        "shared_active_window_count": {
+          "type": "integer",
+          "minimum": 3
+        },
+        "shared_active_coverage_seconds": {
+          "type": "number",
+          "minimum": 0.5
+        },
+        "median_offset_db": { "type": "number" },
+        "deviation_db": { "type": "number" },
+        "direction": {
+          "enum": ["subject_too_quiet", "subject_too_loud"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "gainAutomationDraftSegment": {
+      "type": "object",
+      "required": [
+        "start_seconds",
+        "end_seconds",
+        "shared_active_window_count",
+        "shared_active_coverage_seconds",
+        "median_offset_db",
+        "deviation_db",
+        "direction",
+        "suggested_subject_gain_adjustment_db"
+      ],
+      "properties": {
+        "start_seconds": { "type": "number", "minimum": 0 },
+        "end_seconds": { "type": "number", "exclusiveMinimum": 0 },
+        "shared_active_window_count": {
+          "type": "integer",
+          "minimum": 3
+        },
+        "shared_active_coverage_seconds": {
+          "type": "number",
+          "minimum": 0.5
+        },
+        "median_offset_db": { "type": "number" },
+        "deviation_db": { "type": "number" },
+        "direction": {
+          "enum": ["subject_too_quiet", "subject_too_loud"]
+        },
+        "suggested_subject_gain_adjustment_db": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false
+    },
+    "gainAutomationDraft": {
+      "type": "object",
+      "required": [
+        "format",
+        "version",
+        "status",
+        "executable",
+        "audio_modified",
+        "subject",
+        "reference",
+        "subject_endpoint",
+        "reference_endpoint",
+        "time_basis",
+        "adjustment_semantics",
+        "maximum_absolute_adjustment_db",
+        "source_candidate_segment_count",
+        "segments_truncated",
+        "segments",
+        "workflow",
+        "notice"
+      ],
+      "properties": {
+        "format": { "const": "tianlai.gain_automation_draft" },
+        "version": { "const": 1 },
+        "status": { "const": "creator_review_required" },
+        "executable": { "const": false },
+        "audio_modified": { "const": false },
+        "subject": { "type": "string", "minLength": 1 },
+        "reference": { "type": "string", "minLength": 1 },
+        "subject_endpoint": { "$ref": "#/$defs/relationEndpoint" },
+        "reference_endpoint": { "$ref": "#/$defs/relationEndpoint" },
+        "time_basis": { "const": "seconds" },
+        "adjustment_semantics": {
+          "const": "additive_subject_gain_offset_db_not_absolute_gain"
+        },
+        "maximum_absolute_adjustment_db": {
+          "type": "number",
+          "minimum": 0
+        },
+        "source_candidate_segment_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "segments_truncated": { "type": "boolean" },
+        "segments": {
+          "type": "array",
+          "maxItems": 128,
+          "items": { "$ref": "#/$defs/gainAutomationDraftSegment" }
+        },
+        "workflow": {
+          "$ref": "#/$defs/gainAutomationDraftWorkflow"
+        },
+        "notice": {
+          "const": "该草稿只把粗粒度诊断转换为有界的相对增益建议；它不会执行、不会修改音频或 roster，创作者应先按乐句意图审阅并用 locate 把秒数边界映射到小节与拍位；subject 若为 part_group，roster 中不存在同名组级 assignment，必须由创作者把变化分配或统一应用到 expanded_parts。"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "subject_endpoint": {
+                "properties": {
+                  "endpoint_kind": { "const": "part_group" }
+                },
+                "required": ["endpoint_kind"]
+              }
+            },
+            "required": ["subject_endpoint"]
+          },
+          "then": {
+            "properties": {
+              "workflow": {
+                "properties": {
+                  "subject_application": {
+                    "const": "creator_distributes_or_uniformly_applies_to_expanded_parts"
+                  }
+                }
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "workflow": {
+                "properties": {
+                  "subject_application": {
+                    "const": "review_then_write_subject_part"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "gainAutomationDraftWorkflow": {
+      "type": "object",
+      "required": [
+        "locate_boundaries_with",
+        "creator_review_required",
+        "write_target",
+        "write_target_parts",
+        "subject_application"
+      ],
+      "properties": {
+        "locate_boundaries_with": {
+          "const": "MCP locate(at_seconds=...)"
+        },
+        "creator_review_required": { "const": true },
+        "write_target": {
+          "const": "roster.assignments[].gain_automation"
+        },
+        "write_target_parts": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "subject_application": {
+          "enum": [
+            "review_then_write_subject_part",
+            "creator_distributes_or_uniformly_applies_to_expanded_parts"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "topologyExecutor": {
+      "type": "object",
+      "required": [
+        "executor_id",
+        "part_id",
+        "instrument",
+        "sample_variant"
+      ],
+      "properties": {
+        "executor_id": { "type": "string", "minLength": 1 },
+        "part_id": { "type": "string", "minLength": 1 },
+        "instrument": { "type": "string", "minLength": 1 },
+        "sample_variant": {
+          "type": ["string", "null"],
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "orchestrationTopologyPair": {
+      "type": "object",
+      "required": [
+        "first",
+        "second",
+        "same_source",
+        "first_note_count",
+        "second_note_count",
+        "same_pitch_same_score_position_count",
+        "same_pitch_coverage_of_shorter_part",
+        "octave_same_score_position_count",
+        "exact_simultaneous_same_pitch_count",
+        "exact_simultaneous_same_pitch_ratio",
+        "short_delay_same_pitch_count",
+        "short_delay_same_pitch_ratio",
+        "near_simultaneous_same_pitch_count",
+        "near_simultaneous_same_pitch_ratio",
+        "median_scheduled_start_delta_ms",
+        "maximum_scheduled_start_delta_ms",
+        "status"
+      ],
+      "properties": {
+        "first": { "$ref": "#/$defs/topologyExecutor" },
+        "second": { "$ref": "#/$defs/topologyExecutor" },
+        "same_source": { "type": "boolean" },
+        "first_note_count": { "type": "integer", "minimum": 1 },
+        "second_note_count": { "type": "integer", "minimum": 1 },
+        "same_pitch_same_score_position_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "same_pitch_coverage_of_shorter_part": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "octave_same_score_position_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "exact_simultaneous_same_pitch_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "exact_simultaneous_same_pitch_ratio": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "short_delay_same_pitch_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "short_delay_same_pitch_ratio": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "near_simultaneous_same_pitch_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "near_simultaneous_same_pitch_ratio": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "median_scheduled_start_delta_ms": {
+          "type": ["number", "null"],
+          "minimum": 0
+        },
+        "maximum_scheduled_start_delta_ms": {
+          "type": ["number", "null"],
+          "minimum": 0
+        },
+        "status": {
+          "enum": [
+            "same_source_unison_phase_candidate",
+            "same_source_exact_unison_level_stack_candidate",
+            "context_only"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "same_source_unison_phase_candidate"
+              }
+            },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {
+              "same_source": { "const": true },
+              "same_pitch_same_score_position_count": {
+                "minimum": 8
+              },
+              "same_pitch_coverage_of_shorter_part": {
+                "minimum": 0.5
+              },
+              "short_delay_same_pitch_ratio": {
+                "minimum": 0.8
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "same_source_exact_unison_level_stack_candidate"
+              }
+            },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {
+              "same_source": { "const": true },
+              "same_pitch_same_score_position_count": {
+                "minimum": 8
+              },
+              "same_pitch_coverage_of_shorter_part": {
+                "minimum": 0.5
+              },
+              "exact_simultaneous_same_pitch_ratio": {
+                "minimum": 0.8
+              }
+            }
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "orchestrationTopologyAnalysis": {
+      "type": "object",
+      "required": [
+        "same_score_position_resolution",
+        "same_source_identity",
+        "minimum_unison_event_count",
+        "minimum_shorter_part_coverage",
+        "near_simultaneous_ms",
+        "minimum_nonzero_phase_delay_ms",
+        "minimum_near_simultaneous_ratio",
+        "octave_doubling_is_phase_candidate",
+        "maximum_reported_pairs",
+        "maximum_reported_warnings",
+        "truncation_priority"
+      ],
+      "properties": {
+        "same_score_position_resolution": {
+          "const": "bar_beat_and_sounding_pitch"
+        },
+        "same_source_identity": {
+          "const": "instrument_path_and_explicit_sample_variant"
+        },
+        "minimum_unison_event_count": { "const": 8 },
+        "minimum_shorter_part_coverage": { "const": 0.5 },
+        "near_simultaneous_ms": { "const": 15.0 },
+        "minimum_nonzero_phase_delay_ms": { "const": 0.001 },
+        "minimum_near_simultaneous_ratio": { "const": 0.8 },
+        "octave_doubling_is_phase_candidate": { "const": false },
+        "maximum_reported_pairs": { "const": 128 },
+        "maximum_reported_warnings": { "const": 128 },
+        "truncation_priority": {
+          "const": "phase_candidate_then_exact_stack_then_context"
+        }
+      },
+      "additionalProperties": false
+    },
+    "orchestrationTopologySummary": {
+      "type": "object",
+      "required": [
+        "pair_count",
+        "reported_pair_count",
+        "pairs_truncated",
+        "same_pitch_same_score_position_count",
+        "octave_same_score_position_count",
+        "same_source_unison_phase_candidate_count",
+        "same_source_exact_unison_level_stack_candidate_count",
+        "reported_warning_count",
+        "warnings_truncated"
+      ],
+      "properties": {
+        "pair_count": { "type": "integer", "minimum": 0 },
+        "reported_pair_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        },
+        "pairs_truncated": { "type": "boolean" },
+        "same_pitch_same_score_position_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "octave_same_score_position_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "same_source_unison_phase_candidate_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "same_source_exact_unison_level_stack_candidate_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "reported_warning_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        },
+        "warnings_truncated": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "orchestrationTopology": {
+      "type": "object",
+      "required": [
+        "format",
+        "version",
+        "scope",
+        "audio_modified",
+        "analysis",
+        "pairs",
+        "summary",
+        "warnings",
+        "notice"
+      ],
+      "properties": {
+        "format": { "const": "tianlai.orchestration_topology" },
+        "version": { "const": 1 },
+        "scope": { "const": "machine_triage_only" },
+        "audio_modified": { "const": false },
+        "analysis": {
+          "$ref": "#/$defs/orchestrationTopologyAnalysis"
+        },
+        "pairs": {
+          "type": "array",
+          "maxItems": 128,
+          "items": { "$ref": "#/$defs/orchestrationTopologyPair" }
+        },
+        "summary": {
+          "$ref": "#/$defs/orchestrationTopologySummary"
+        },
+        "warnings": {
+          "type": "array",
+          "maxItems": 128,
+          "items": {
+            "oneOf": [
+              { "$ref": "#/$defs/sameSourceUnisonPhaseWarning" },
+              {
+                "$ref": "#/$defs/sameSourceExactUnisonLevelStackWarning"
+              }
+            ]
+          }
+        },
+        "notice": {
+          "const": "编配拓扑只做机器筛查；异源同音和八度叠奏不会被当成相位故障，候选也不会触发自动换源、微移、失谐、删音或改音频。"
+        }
+      },
+      "additionalProperties": false
+    },
+    "tailWindowMetrics": {
+      "type": "object",
+      "required": [
+        "requested_seconds",
+        "effective_frame_count",
+        "effective_seconds",
+        "sample_peak",
+        "sample_peak_dbfs",
+        "stereo_rms_dbfs",
+        "peak_relative_to_full_track_db",
+        "silent"
+      ],
+      "properties": {
+        "requested_seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "effective_frame_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "effective_seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "sample_peak": { "type": "number", "minimum": 0 },
+        "sample_peak_dbfs": { "type": ["number", "null"] },
+        "stereo_rms_dbfs": { "type": ["number", "null"] },
+        "peak_relative_to_full_track_db": {
+          "type": ["number", "null"],
+          "maximum": 0
+        },
+        "silent": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "stereoStageMetrics": {
+      "type": "object",
+      "required": [
+        "format",
+        "version",
+        "metric",
+        "sample_rate_hz",
+        "frame_count",
+        "left_peak",
+        "left_peak_dbfs",
+        "right_peak",
+        "right_peak_dbfs",
+        "sample_peak",
+        "sample_peak_dbfs",
+        "stereo_rms_dbfs",
+        "mono_fold_rms_dbfs",
+        "mono_fold_delta_db",
+        "mono_fold_delta_definition",
+        "mono_fold_silent",
+        "normalized_ms_width",
+        "left_right_correlation",
+        "tail_window",
+        "audio_modified",
+        "notice"
+      ],
+      "properties": {
+        "format": { "const": "tianlai.stereo_stage_metrics" },
+        "version": { "const": 1 },
+        "metric": {
+          "const": "full_track_stereo_sample_peak_and_rms"
+        },
+        "sample_rate_hz": {
+          "type": "integer",
+          "minimum": 8000,
+          "maximum": 384000
+        },
+        "frame_count": { "type": "integer", "minimum": 1 },
+        "left_peak": { "type": "number", "minimum": 0 },
+        "left_peak_dbfs": { "type": ["number", "null"] },
+        "right_peak": { "type": "number", "minimum": 0 },
+        "right_peak_dbfs": { "type": ["number", "null"] },
+        "sample_peak": { "type": "number", "minimum": 0 },
+        "sample_peak_dbfs": { "type": ["number", "null"] },
+        "stereo_rms_dbfs": { "type": ["number", "null"] },
+        "mono_fold_rms_dbfs": { "type": ["number", "null"] },
+        "mono_fold_delta_db": { "type": ["number", "null"] },
+        "mono_fold_delta_definition": {
+          "const": "mono_fold_minus_stereo_db"
+        },
+        "mono_fold_silent": { "type": "boolean" },
+        "normalized_ms_width": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "left_right_correlation": {
+          "type": ["number", "null"],
+          "minimum": -1,
+          "maximum": 1
+        },
+        "tail_window": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/tailWindowMetrics" }
+          ]
+        },
+        "audio_modified": { "const": false },
+        "notice": {
+          "const": "These are sample-peak and ordinary unweighted RMS diagnostics; they are not true-peak, LUFS, or ITU-R BS.1770 loudness measurements."
+        }
+      },
+      "additionalProperties": false
+    },
+    "insufficientOverlapWarning": {
+      "type": "object",
+      "required": ["code", "subject", "reference", "message"],
+      "properties": {
+        "code": {
+          "const": "balance_relation_insufficient_overlap"
+        },
+        "subject": { "type": "string", "minLength": 1 },
+        "reference": { "type": "string", "minLength": 1 },
+        "message": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "outsideToleranceWarning": {
+      "type": "object",
+      "required": [
+        "code",
+        "subject",
+        "reference",
+        "measured_offset_db",
+        "target_offset_db",
+        "deviation_db",
+        "message"
+      ],
+      "properties": {
+        "code": {
+          "const": "balance_relation_outside_tolerance"
+        },
+        "subject": { "type": "string", "minLength": 1 },
+        "reference": { "type": "string", "minLength": 1 },
+        "measured_offset_db": { "type": "number" },
+        "target_offset_db": { "type": "number" },
+        "deviation_db": { "type": "number" },
+        "message": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "spectralOverlapWarning": {
+      "type": "object",
+      "required": [
+        "code",
+        "subject",
+        "reference",
+        "spectral_overlap_coefficient",
+        "candidate_bands",
+        "message"
+      ],
+      "properties": {
+        "code": { "const": "spectral_overlap_candidate" },
+        "subject": { "type": "string", "minLength": 1 },
+        "reference": { "type": "string", "minLength": 1 },
+        "spectral_overlap_coefficient": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "candidate_bands": {
+          "$ref": "#/$defs/spectralScreening/properties/candidate_bands"
+        },
+        "message": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "temporalBalanceWarning": {
+      "type": "object",
+      "required": [
+        "code",
+        "subject",
+        "reference",
+        "p10_db",
+        "p90_db",
+        "robust_span_db",
+        "allowed_robust_span_db",
+        "message"
+      ],
+      "properties": {
+        "code": { "const": "temporal_balance_drift_candidate" },
+        "subject": { "type": "string", "minLength": 1 },
+        "reference": { "type": "string", "minLength": 1 },
+        "p10_db": { "type": "number" },
+        "p90_db": { "type": "number" },
+        "robust_span_db": { "type": "number", "minimum": 0 },
+        "allowed_robust_span_db": {
+          "type": "number",
+          "minimum": 0
+        },
+        "message": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "sameSourceUnisonPhaseWarning": {
+      "type": "object",
+      "required": [
+        "code",
+        "first_executor_id",
+        "second_executor_id",
+        "instrument",
+        "same_pitch_same_score_position_count",
+        "same_pitch_coverage_of_shorter_part",
+        "short_delay_same_pitch_ratio",
+        "near_simultaneous_same_pitch_ratio",
+        "median_scheduled_start_delta_ms",
+        "message"
+      ],
+      "properties": {
+        "code": {
+          "const": "same_source_unison_phase_candidate"
+        },
+        "first_executor_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "second_executor_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "instrument": { "type": "string", "minLength": 1 },
+        "same_pitch_same_score_position_count": {
+          "type": "integer",
+          "minimum": 8
+        },
+        "same_pitch_coverage_of_shorter_part": {
+          "type": "number",
+          "minimum": 0.5,
+          "maximum": 1
+        },
+        "short_delay_same_pitch_ratio": {
+          "type": "number",
+          "minimum": 0.8,
+          "maximum": 1
+        },
+        "near_simultaneous_same_pitch_ratio": {
+          "type": "number",
+          "minimum": 0.8,
+          "maximum": 1
+        },
+        "median_scheduled_start_delta_ms": {
+          "type": "number",
+          "minimum": 0.001,
+          "maximum": 15
+        },
+        "message": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "sameSourceExactUnisonLevelStackWarning": {
+      "type": "object",
+      "required": [
+        "code",
+        "first_executor_id",
+        "second_executor_id",
+        "instrument",
+        "same_pitch_same_score_position_count",
+        "same_pitch_coverage_of_shorter_part",
+        "exact_simultaneous_same_pitch_ratio",
+        "message"
+      ],
+      "properties": {
+        "code": {
+          "const": "same_source_exact_unison_level_stack_candidate"
+        },
+        "first_executor_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "second_executor_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "instrument": { "type": "string", "minLength": 1 },
+        "same_pitch_same_score_position_count": {
+          "type": "integer",
+          "minimum": 8
+        },
+        "same_pitch_coverage_of_shorter_part": {
+          "type": "number",
+          "minimum": 0.5,
+          "maximum": 1
+        },
+        "exact_simultaneous_same_pitch_ratio": {
+          "type": "number",
+          "minimum": 0.8,
+          "maximum": 1
+        },
+        "message": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "monoFoldWarning": {
+      "type": "object",
+      "required": [
+        "code",
+        "mono_fold_silent",
+        "mono_fold_delta_db",
+        "threshold_db",
+        "message"
+      ],
+      "properties": {
+        "code": { "const": "final_mix_mono_fold_candidate" },
+        "mono_fold_silent": { "type": "boolean" },
+        "mono_fold_delta_db": { "type": ["number", "null"] },
+        "threshold_db": { "type": "number" },
+        "message": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "spaceTailWarning": {
+      "type": "object",
+      "required": [
+        "code",
+        "peak_relative_to_full_track_db",
+        "threshold_db",
+        "tail_window_seconds",
+        "message"
+      ],
+      "properties": {
+        "code": { "const": "space_tail_cutoff_candidate" },
+        "peak_relative_to_full_track_db": {
+          "type": "number",
+          "maximum": 0
+        },
+        "threshold_db": { "type": "number" },
+        "tail_window_seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "message": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    }
+  }
+}

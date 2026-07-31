@@ -1,0 +1,42 @@
+{
+  "name": "程序建模 编钟",
+  "type": "modeled_bianzhong",
+  "implementation": "乐器.py",
+  "instrument_name": "天籁代表性双音编钟模型",
+  "quality_tier": "formal",
+  "collaboration_review_status": "untested",
+  "upgrade_status": "standalone_listening_passed_2026-07-26",
+  "fallback_policy": "explicit_only_no_silent_gm",
+  "provenance_kind": "project_authored_dsp",
+  "implementation_license": "Apache-2.0",
+  "external_audio_assets": [],
+  "audio_asset_license": "not_applicable",
+  "license_status": "approved",
+  "onset_overlap_policy": "polyphonic_independent",
+  "articulation_auto_default": false,
+  "engine_version": "1.0.0",
+  "model_family": "representative_double_tone_bell_modal_bank",
+  "modeling_rationale": "公开且许可清晰、覆盖完整音域与双击位的编钟采样难以取得，因此以项目自研的确定性非谐模态模型建立程序化入口；它表达代表性的双音钟发声机理，不宣称复刻任何特定出土编钟。",
+  "resource_verification": "资源核验.json",
+  "pitch_calibration": "音准校准.json",
+  "external_assets": [],
+  "seed": 41038,
+  "note_min": 36,
+  "note_max": 98,
+  "sampled_range": "C2-D7（MIDI 36-98，程序建模目标音域）",
+  "input_pitch_semantics": "concert_pitch",
+  "pitch_semantics": "sounding_pitch_nonharmonic_modal",
+  "allowed_articulations": [
+    "zhenggu",
+    "cegu"
+  ],
+  "default_articulation": "zhenggu",
+  "supported_controls": [
+    "expression",
+    "modulation"
+  ],
+  "gain": 0.145,
+  "velocity_exponent": 0.78,
+  "expression_smoothing_seconds": 0.015,
+  "modulation_smoothing_seconds": 0.025
+}

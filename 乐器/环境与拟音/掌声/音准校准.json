@@ -1,0 +1,7 @@
+{
+  "applicable": false,
+  "pitch_mode": "not_pitched",
+  "reason": "掌声为群体宽带脉冲,无固定音高;MIDI 音高被主动忽略,不做十二平均律校准",
+  "samples": {},
+  "generated_at": "2026-07-22"
+}

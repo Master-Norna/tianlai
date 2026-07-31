@@ -1,0 +1,115 @@
+{
+  "applicable": true,
+  "profile": "celesta",
+  "method": "harmonic-constrained FFT of raw source WAV; A4=440 Hz",
+  "source_sfz": [
+    "Keys/celesta.sfz"
+  ],
+  "summary": {
+    "sample_count": 20,
+    "median_detune_cents": 4.6005,
+    "maximum_absolute_detune_cents": 40.698668
+  },
+  "samples": {
+    "libs/stamperadam/samples/celesta/c4-hard-PB.wav": {
+      "root_midi": 60.0,
+      "measured_hz": 263.002995,
+      "detune_cents": 9.090846
+    },
+    "libs/stamperadam/samples/celesta/c6-hard-PB.wav": {
+      "root_midi": 84.0,
+      "measured_hz": 1048.734147,
+      "detune_cents": 3.688288
+    },
+    "libs/stamperadam/samples/celesta/c6-soft-PB.wav": {
+      "root_midi": 84.0,
+      "measured_hz": 1048.926215,
+      "detune_cents": 4.005323
+    },
+    "libs/stamperadam/samples/celesta/c7-hard-PB.wav": {
+      "root_midi": 96.0,
+      "measured_hz": 2122.898713,
+      "detune_cents": 24.552133
+    },
+    "libs/stamperadam/samples/celesta/c7-soft-PB.wav": {
+      "root_midi": 96.0,
+      "measured_hz": 2122.53117,
+      "detune_cents": 24.252374
+    },
+    "libs/stamperadam/samples/celesta/e4-hard-PB.wav": {
+      "root_midi": 64.0,
+      "measured_hz": 328.641283,
+      "detune_cents": -5.187767
+    },
+    "libs/stamperadam/samples/celesta/e4-soft-PB.wav": {
+      "root_midi": 64.0,
+      "measured_hz": 328.88297,
+      "detune_cents": -3.915061
+    },
+    "libs/stamperadam/samples/celesta/e5-hard-PB.wav": {
+      "root_midi": 76.0,
+      "measured_hz": 661.615117,
+      "detune_cents": 6.18641
+    },
+    "libs/stamperadam/samples/celesta/e5-soft-PB.wav": {
+      "root_midi": 76.0,
+      "measured_hz": 661.781194,
+      "detune_cents": 6.620925
+    },
+    "libs/stamperadam/samples/celesta/e6-hard-PB.wav": {
+      "root_midi": 88.0,
+      "measured_hz": 1322.473206,
+      "detune_cents": 5.195677
+    },
+    "libs/stamperadam/samples/celesta/e6-soft-PB.wav": {
+      "root_midi": 88.0,
+      "measured_hz": 1322.56191,
+      "detune_cents": 5.311794
+    },
+    "libs/stamperadam/samples/celesta/e7-hard-PB.wav": {
+      "root_midi": 100.0,
+      "measured_hz": 2699.747194,
+      "detune_cents": 40.698668
+    },
+    "libs/stamperadam/samples/celesta/e7-soft-PB.wav": {
+      "root_midi": 100.0,
+      "measured_hz": 2699.61468,
+      "detune_cents": 40.61369
+    },
+    "libs/stamperadam/samples/celesta/g4-hard-PB.wav": {
+      "root_midi": 68.0,
+      "measured_hz": 414.585046,
+      "detune_cents": -3.002531
+    },
+    "libs/stamperadam/samples/celesta/g4-soft-PB.wav": {
+      "root_midi": 68.0,
+      "measured_hz": 414.84927,
+      "detune_cents": -1.899532
+    },
+    "libs/stamperadam/samples/celesta/g5-hard-PB.wav": {
+      "root_midi": 80.0,
+      "measured_hz": 832.266791,
+      "detune_cents": 3.451057
+    },
+    "libs/stamperadam/samples/celesta/g5-soft-PB.wav": {
+      "root_midi": 80.0,
+      "measured_hz": 832.408305,
+      "detune_cents": 3.745402
+    },
+    "libs/stamperadam/samples/celesta/g6-soft-PB.wav": {
+      "root_midi": 92.0,
+      "measured_hz": 1688.179696,
+      "detune_cents": 27.871659
+    },
+    "libs/stamperadam/samples/celesta/g7-hard-PB.wav": {
+      "root_midi": 105.0,
+      "measured_hz": 3442.255843,
+      "detune_cents": -38.665321
+    },
+    "libs/stamperadam/samples/celesta/g7-soft-PB.wav": {
+      "root_midi": 105.0,
+      "measured_hz": 3442.531279,
+      "detune_cents": -38.526799
+    }
+  }
+}

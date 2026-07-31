@@ -1,0 +1,55 @@
+{
+  "description": "FFT measurement of raw sustained flute samples; A4=440 Hz",
+  "samples": {
+    "libs/VSCO2-CE/Woodwinds/Flute/susvib-PB/LDFlute_susvib_A3_v1_1-PB-loop.wav": {
+      "root_midi": 69.0,
+      "measured_hz": 439.384158,
+      "detune_cents": -2.424804
+    },
+    "libs/VSCO2-CE/Woodwinds/Flute/susvib-PB/LDFlute_susvib_A4_v1_1-PB-loop.wav": {
+      "root_midi": 81.0,
+      "measured_hz": 873.838273,
+      "detune_cents": -12.164674
+    },
+    "libs/VSCO2-CE/Woodwinds/Flute/susvib-PB/LDFlute_susvib_A5_v1_1-PB-loop.wav": {
+      "root_midi": 93.0,
+      "measured_hz": 1751.002042,
+      "detune_cents": -8.873595
+    },
+    "libs/VSCO2-CE/Woodwinds/Flute/susvib-PB/LDFlute_susvib_C3-PB-loop.wav": {
+      "root_midi": 60.0,
+      "measured_hz": 261.140542,
+      "detune_cents": -3.212488
+    },
+    "libs/VSCO2-CE/Woodwinds/Flute/susvib-PB/LDFlute_susvib_C4_v1_2-PB-loop.wav": {
+      "root_midi": 72.0,
+      "measured_hz": 528.146248,
+      "detune_cents": 16.120747
+    },
+    "libs/VSCO2-CE/Woodwinds/Flute/susvib-PB/LDFlute_susvib_C5_v1_1-PB-loop.wav": {
+      "root_midi": 84.0,
+      "measured_hz": 1048.385074,
+      "detune_cents": 3.111948
+    },
+    "libs/VSCO2-CE/Woodwinds/Flute/susvib-PB/LDFlute_susvib_C6_v1_1-PB-loop.wav": {
+      "root_midi": 96.0,
+      "measured_hz": 2097.082128,
+      "detune_cents": 3.369521
+    },
+    "libs/VSCO2-CE/Woodwinds/Flute/susvib-PB/LDFlute_susvib_E3-PB-loop.wav": {
+      "root_midi": 64.0,
+      "measured_hz": 329.085369,
+      "detune_cents": -2.849967
+    },
+    "libs/VSCO2-CE/Woodwinds/Flute/susvib-PB/LDFlute_susvib_E4_v1_2-PB-loop.wav": {
+      "root_midi": 76.0,
+      "measured_hz": 658.801274,
+      "detune_cents": -1.192215
+    },
+    "libs/VSCO2-CE/Woodwinds/Flute/susvib-PB/LDFlute_susvib_E5_v1_2-PB-loop.wav": {
+      "root_midi": 88.0,
+      "measured_hz": 1322.920761,
+      "detune_cents": 5.781467
+    }
+  }
+}

@@ -1,0 +1,286 @@
+{
+  "scope": "VCSL v1.2.2-RC local timpani A/B machine comparison",
+  "license_gate": {
+    "license": "CC0-1.0",
+    "evidence": "README.md",
+    "evidence_sha256": "e360f24c120c9ad734cc8508695e09a61ddc4cae5a59c6c9af33fe501b6c9a5b",
+    "passed": true
+  },
+  "candidates": {
+    "timpani_1_hit": {
+      "sfz": "Membranophones/Struck Membranophones/Timpani 1 - Hit.sfz",
+      "source_file_sha256": {
+        "Membranophones/Struck Membranophones/Timpani 1 - Hit.sfz": "3db28a9c43fee25c4f6927112f631feb30c26cc017b951fe3d5a6e06af4b8f6d"
+      },
+      "region_count": 30,
+      "unique_sample_count": 30,
+      "coverage_midi": [
+        41,
+        55
+      ],
+      "physical_recorded_pitch_group_count": 5,
+      "physical_recorded_pitch_groups": [
+        "Timpani1",
+        "Timpani2",
+        "Timpani3",
+        "Timpani4",
+        "Timpani5"
+      ],
+      "mapped_root_count": 5,
+      "mapped_root_midi": [
+        42.0,
+        46.0,
+        49.0,
+        52.0,
+        54.0
+      ],
+      "recorded_velocity_layer_count": 3,
+      "source_filename_velocity_labels": [
+        2,
+        3,
+        4
+      ],
+      "true_round_robin_count": 2,
+      "round_robin_family_count": 15,
+      "velocity_crossfade_region_count": 0,
+      "sample_formats": {
+        ".wav:44100Hz:2ch:PCM_16": 30
+      },
+      "source_clipped_sample_count": 0,
+      "silent_sample_count": 0,
+      "duration_seconds": {
+        "minimum": 3.404717,
+        "median": 8.577392,
+        "maximum": 13.264807
+      },
+      "onset_seconds": {
+        "minimum": 2.3e-05,
+        "median": 0.000227,
+        "maximum": 0.000839
+      },
+      "tail_250ms_rms": {
+        "maximum": 0.0,
+        "maximum_dbfs": null,
+        "maximum_endpoint_peak": 0.0
+      },
+      "offsets": {
+        "nonzero_region_count": 0,
+        "maximum_frames": 0,
+        "maximum_discarded_peak_ratio": 0.0,
+        "discarded_peak_ratio_over_1_percent_count": 0,
+        "discarded_peak_ratio_over_5_percent_count": 0
+      },
+      "embedded_loop_sample_count": 0,
+      "maximum_upstream_mapped_peak": 2.072266275,
+      "maximum_upstream_mapped_peak_dbfs": 6.328911,
+      "inharmonic_pitch_diagnostic": {
+        "method": "strongest low spectral mode within +/-300 cents of the SFZ-mapped raw center; diagnostic only",
+        "median_residual_cents": 22.237664,
+        "maximum_absolute_residual_cents": 117.011486,
+        "automatic_correction_count": 0,
+        "rr_pair_low_mode_difference_cents": {
+          "pair_count": 15,
+          "median": 10.247223,
+          "maximum": 66.127783
+        }
+      }
+    },
+    "timpani_1_roll": {
+      "sfz": "Membranophones/Struck Membranophones/Timpani 1 - Roll.sfz",
+      "source_file_sha256": {
+        "Membranophones/Struck Membranophones/Timpani 1 - Roll.sfz": "3ec91e9eee1d8614889380b1a5581fdc5191baaf7598eac6d3c038811dd5c1e5"
+      },
+      "region_count": 10,
+      "unique_sample_count": 10,
+      "coverage_midi": [
+        41,
+        55
+      ],
+      "physical_recorded_pitch_group_count": 5,
+      "physical_recorded_pitch_groups": [
+        "Timpani1",
+        "Timpani2",
+        "Timpani3",
+        "Timpani4",
+        "Timpani5"
+      ],
+      "mapped_root_count": 5,
+      "mapped_root_midi": [
+        42.0,
+        46.0,
+        49.0,
+        52.0,
+        54.0
+      ],
+      "recorded_velocity_layer_count": 2,
+      "source_filename_velocity_labels": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "true_round_robin_count": 0,
+      "round_robin_family_count": 0,
+      "velocity_crossfade_region_count": 0,
+      "sample_formats": {
+        ".wav:44100Hz:2ch:PCM_16": 10
+      },
+      "source_clipped_sample_count": 0,
+      "silent_sample_count": 0,
+      "duration_seconds": {
+        "minimum": 15.679297,
+        "median": 22.467914,
+        "maximum": 29.458163
+      },
+      "onset_seconds": {
+        "minimum": 0.000136,
+        "median": 0.000283,
+        "maximum": 0.000975
+      },
+      "tail_250ms_rms": {
+        "maximum": 0.0,
+        "maximum_dbfs": null,
+        "maximum_endpoint_peak": 0.0
+      },
+      "offsets": {
+        "nonzero_region_count": 0,
+        "maximum_frames": 0,
+        "maximum_discarded_peak_ratio": 0.0,
+        "discarded_peak_ratio_over_1_percent_count": 0,
+        "discarded_peak_ratio_over_5_percent_count": 0
+      },
+      "embedded_loop_sample_count": 0,
+      "maximum_upstream_mapped_peak": 1.793100429,
+      "maximum_upstream_mapped_peak_dbfs": 5.072092,
+      "inharmonic_pitch_diagnostic": {
+        "method": "strongest low spectral mode within +/-300 cents of the SFZ-mapped raw center; diagnostic only",
+        "median_residual_cents": -5.742683,
+        "maximum_absolute_residual_cents": 277.120026,
+        "automatic_correction_count": 0,
+        "rr_pair_low_mode_difference_cents": {
+          "pair_count": 0,
+          "median": null,
+          "maximum": null
+        }
+      }
+    },
+    "timpani_2_scale": {
+      "sfz": "Membranophones/Struck Membranophones/Timpani 2 - Scale.sfz",
+      "source_file_sha256": {
+        "Membranophones/Struck Membranophones/Timpani 2 - Scale.sfz": "2e1953d4c3c79c187d312f4f93a7249f3024dbc5b4b69b8190c9d68925fb5ab4"
+      },
+      "region_count": 54,
+      "unique_sample_count": 54,
+      "coverage_midi": [
+        38,
+        59
+      ],
+      "physical_recorded_pitch_group_count": 9,
+      "physical_recorded_pitch_groups": [
+        "Timpani1B",
+        "Timpani1C",
+        "Timpani3A",
+        "Timpani3B",
+        "Timpani3C",
+        "Timpani4A",
+        "Timpani5B",
+        "Timpani7A",
+        "Timpani7B"
+      ],
+      "mapped_root_count": 10,
+      "mapped_root_midi": [
+        39.0,
+        41.0,
+        44.0,
+        46.0,
+        47.0,
+        48.0,
+        49.0,
+        50.0,
+        54.0,
+        58.0
+      ],
+      "recorded_velocity_layer_count": 3,
+      "source_filename_velocity_labels": [
+        2,
+        3,
+        5
+      ],
+      "true_round_robin_count": 2,
+      "round_robin_family_count": 27,
+      "velocity_crossfade_region_count": 54,
+      "sample_formats": {
+        ".wav:44100Hz:2ch:PCM_24": 54
+      },
+      "source_clipped_sample_count": 0,
+      "silent_sample_count": 0,
+      "duration_seconds": {
+        "minimum": 1.972653,
+        "median": 5.564161,
+        "maximum": 14.915374
+      },
+      "onset_seconds": {
+        "minimum": 0.0,
+        "median": 0.0,
+        "maximum": 0.000363
+      },
+      "tail_250ms_rms": {
+        "maximum": 0.000120973,
+        "maximum_dbfs": -78.346234,
+        "maximum_endpoint_peak": 2.146e-06
+      },
+      "offsets": {
+        "nonzero_region_count": 40,
+        "maximum_frames": 398,
+        "maximum_discarded_peak_ratio": 0.02874333,
+        "discarded_peak_ratio_over_1_percent_count": 13,
+        "discarded_peak_ratio_over_5_percent_count": 0
+      },
+      "embedded_loop_sample_count": 0,
+      "maximum_upstream_mapped_peak": 1.623271455,
+      "maximum_upstream_mapped_peak_dbfs": 4.207823,
+      "inharmonic_pitch_diagnostic": {
+        "method": "strongest low spectral mode within +/-300 cents of the SFZ-mapped raw center; diagnostic only",
+        "median_residual_cents": -38.186886,
+        "maximum_absolute_residual_cents": 225.412733,
+        "automatic_correction_count": 0,
+        "rr_pair_low_mode_difference_cents": {
+          "pair_count": 27,
+          "median": 11.947018,
+          "maximum": 134.524731
+        }
+      }
+    }
+  },
+  "decision": {
+    "hit": "timpani_2_scale",
+    "hit_reasons": [
+      "MIDI 38-59 coverage versus 41-55",
+      "9 physical recorded pitch groups versus 5",
+      "54 unique PCM24 samples versus 30 PCM16 samples",
+      "3 real recorded velocity layers and true RR2 are preserved",
+      "40 short upstream offsets remove at most 2.9% of each sample peak; none remove 5%"
+    ],
+    "roll": "timpani_1_roll",
+    "roll_reasons": [
+      "only reviewed candidate containing actual roll performances",
+      "5 physical pitch groups and 2 real velocity layers",
+      "10 finite natural 15.7-29.5 second recordings"
+    ],
+    "declared_limitations": [
+      "hit and roll come from different VCSL recording sets and may have a timbral seam",
+      "roll has no recorded round robin",
+      "roll has no loop and is not advertised as infinite",
+      "roll range is MIDI 41-55 while hit range is MIDI 38-59",
+      "inharmonic low-mode diagnostics never become automatic tuning corrections"
+    ],
+    "forbidden_synthetic_claims": {
+      "pitch_random_cents": 0,
+      "amplitude_random_db": 0,
+      "delay_random_seconds": 0,
+      "manufactured_velocity_layers": 0,
+      "manufactured_round_robins": 0,
+      "manufactured_loops": 0
+    }
+  }
+}

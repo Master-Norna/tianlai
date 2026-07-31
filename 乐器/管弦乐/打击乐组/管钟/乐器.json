@@ -1,0 +1,41 @@
+{
+  "name": "VCSL Tubular Bells 2 管钟",
+  "type": "vpo_percussion",
+  "quality_tier": "formal",
+  "collaboration_review_status": "untested",
+  "upgrade_status": "vcsl_tubular_bells_2_strict_cc0",
+  "fallback_policy": "explicit_only_no_silent_gm",
+  "implementation": "乐器.py",
+  "instrument_name": "管钟",
+  "profile": "vcsl_tubular_bells_2",
+  "asset_root": "../../../../音源/VCSL",
+  "pitch_calibration": "音准校准.json",
+  "resource_verification": "资源核验.json",
+  "pitch_semantics": "sounding_pitch_inharmonic",
+  "note_min": 60,
+  "note_max": 79,
+  "sampled_range": "C4-G5 (MIDI 60-79)",
+  "sampled_range_note": "11 个真实根音、2 个真实录音力度层；相邻键伸展最多 2 个半音",
+  "written_range": "C4-G5",
+  "default_articulation": "open",
+  "gain": 0.35,
+  "velocity_exponent": 0.72,
+  "release_seconds": 30.0,
+  "open_release_seconds": 30.0,
+  "dampened_release_seconds": 0.12,
+  "expression_smoothing_seconds": 0.012,
+  "auxiliary_note_id_base": 1780000000,
+  "articulation_gain": {
+    "open": 1.0,
+    "damped": 1.0
+  },
+  "upstream": "sgossner/VCSL (Versilian Community Sample Library)",
+  "origin": "https://github.com/sgossner/VCSL",
+  "upstream_version": "1.2.2-RC",
+  "upstream_commit": "b6e6ac82d22248edee98a0bde185eb9ef6d439ad",
+  "license": "CC0-1.0",
+  "evidence_files": [
+    "README.md"
+  ],
+  "license_status": "approved"
+}

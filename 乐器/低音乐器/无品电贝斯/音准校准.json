@@ -1,0 +1,2348 @@
+{
+  "applicable": true,
+  "pitch_mode": "pitched",
+  "reference_a4_hz": 440.0,
+  "playback_calibration": "upstream SFZ pitch_keycenter plus tune opcodes",
+  "measurement_role": "diagnostic; playback follows the audited upstream map, and the residual column records how far each source sample deviates after that map",
+  "measurement_algorithm": "harmonic-constrained FFT of the raw source audio near the mapped pitch, start=0.08s, search +/-180 cents",
+  "summary": {
+    "sample_count": 333,
+    "median_measured_detune_cents": -3.546626,
+    "maximum_absolute_measured_detune_cents": 65.686391,
+    "median_residual_cents": -3.546626,
+    "maximum_absolute_residual_cents": 65.686391
+  },
+  "samples": {
+    "ergo/arco/A0_1_f.wav": {
+      "root_midi": 21.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 27.392288,
+      "measured_detune_cents": -6.794203,
+      "residual_after_upstream_map_cents": -6.794203
+    },
+    "ergo/arco/A0_1_mf.wav": {
+      "root_midi": 21.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 27.396744,
+      "measured_detune_cents": -6.512611,
+      "residual_after_upstream_map_cents": -6.512611
+    },
+    "ergo/arco/A0_1_p.wav": {
+      "root_midi": 21.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 27.320653,
+      "measured_detune_cents": -11.327576,
+      "residual_after_upstream_map_cents": -11.327576
+    },
+    "ergo/arco/A0_2_f.wav": {
+      "root_midi": 21.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 27.365048,
+      "measured_detune_cents": -8.516708,
+      "residual_after_upstream_map_cents": -8.516708
+    },
+    "ergo/arco/A0_2_mf.wav": {
+      "root_midi": 21.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 27.336853,
+      "measured_detune_cents": -10.301313,
+      "residual_after_upstream_map_cents": -10.301313
+    },
+    "ergo/arco/A0_2_p.wav": {
+      "root_midi": 21.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 27.319388,
+      "measured_detune_cents": -11.407754,
+      "residual_after_upstream_map_cents": -11.407754
+    },
+    "ergo/arco/A0_3_mf.wav": {
+      "root_midi": 21.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 27.337442,
+      "measured_detune_cents": -10.26404,
+      "residual_after_upstream_map_cents": -10.26404
+    },
+    "ergo/arco/A0_3_p.wav": {
+      "root_midi": 21.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 27.387439,
+      "measured_detune_cents": -7.100707,
+      "residual_after_upstream_map_cents": -7.100707
+    },
+    "ergo/arco/A0_4_mf.wav": {
+      "root_midi": 21.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 27.349447,
+      "measured_detune_cents": -9.503978,
+      "residual_after_upstream_map_cents": -9.503978
+    },
+    "ergo/arco/A0_4_p.wav": {
+      "root_midi": 21.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 27.337083,
+      "measured_detune_cents": -10.286767,
+      "residual_after_upstream_map_cents": -10.286767
+    },
+    "ergo/arco/A1_1_f.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 55.203171,
+      "measured_detune_cents": 6.383421,
+      "residual_after_upstream_map_cents": 6.383421
+    },
+    "ergo/arco/A1_1_mf.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 54.968941,
+      "measured_detune_cents": -0.977913,
+      "residual_after_upstream_map_cents": -0.977913
+    },
+    "ergo/arco/A1_1_p.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 54.987823,
+      "measured_detune_cents": -0.383334,
+      "residual_after_upstream_map_cents": -0.383334
+    },
+    "ergo/arco/A1_2_f.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 55.043889,
+      "measured_detune_cents": 1.380944,
+      "residual_after_upstream_map_cents": 1.380944
+    },
+    "ergo/arco/A1_2_mf.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 55.052494,
+      "measured_detune_cents": 1.651566,
+      "residual_after_upstream_map_cents": 1.651566
+    },
+    "ergo/arco/A1_2_p.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 55.010517,
+      "measured_detune_cents": 0.331014,
+      "residual_after_upstream_map_cents": 0.331014
+    },
+    "ergo/arco/A1_3_f.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 55.002451,
+      "measured_detune_cents": 0.077157,
+      "residual_after_upstream_map_cents": 0.077157
+    },
+    "ergo/arco/A1_3_mf.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 54.988796,
+      "measured_detune_cents": -0.352699,
+      "residual_after_upstream_map_cents": -0.352699
+    },
+    "ergo/arco/A1_3_p.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 54.987646,
+      "measured_detune_cents": -0.388921,
+      "residual_after_upstream_map_cents": -0.388921
+    },
+    "ergo/arco/A1_4_f.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 54.851927,
+      "measured_detune_cents": -4.667181,
+      "residual_after_upstream_map_cents": -4.667181
+    },
+    "ergo/arco/A1_4_mf.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 54.966157,
+      "measured_detune_cents": -1.065597,
+      "residual_after_upstream_map_cents": -1.065597
+    },
+    "ergo/arco/A1_4_p.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 54.953785,
+      "measured_detune_cents": -1.45531,
+      "residual_after_upstream_map_cents": -1.45531
+    },
+    "ergo/arco/A2_1_f.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 109.644684,
+      "measured_detune_cents": -5.601194,
+      "residual_after_upstream_map_cents": -5.601194
+    },
+    "ergo/arco/A2_1_mf.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 109.450458,
+      "measured_detune_cents": -8.670635,
+      "residual_after_upstream_map_cents": -8.670635
+    },
+    "ergo/arco/A2_1_p.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 109.41502,
+      "measured_detune_cents": -9.231276,
+      "residual_after_upstream_map_cents": -9.231276
+    },
+    "ergo/arco/A2_2_f.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 109.390715,
+      "measured_detune_cents": -9.615888,
+      "residual_after_upstream_map_cents": -9.615888
+    },
+    "ergo/arco/A2_2_mf.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 109.185148,
+      "measured_detune_cents": -12.87227,
+      "residual_after_upstream_map_cents": -12.87227
+    },
+    "ergo/arco/A2_2_p.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 108.385677,
+      "measured_detune_cents": -25.595291,
+      "residual_after_upstream_map_cents": -25.595291
+    },
+    "ergo/arco/A2_3_f.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 109.406677,
+      "measured_detune_cents": -9.36329,
+      "residual_after_upstream_map_cents": -9.36329
+    },
+    "ergo/arco/A2_3_mf.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 109.498387,
+      "measured_detune_cents": -7.912689,
+      "residual_after_upstream_map_cents": -7.912689
+    },
+    "ergo/arco/A2_3_p.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 109.31117,
+      "measured_detune_cents": -10.875235,
+      "residual_after_upstream_map_cents": -10.875235
+    },
+    "ergo/arco/A2_4_f.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 109.409637,
+      "measured_detune_cents": -9.316446,
+      "residual_after_upstream_map_cents": -9.316446
+    },
+    "ergo/arco/A2_4_mf.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 109.228231,
+      "measured_detune_cents": -12.189294,
+      "residual_after_upstream_map_cents": -12.189294
+    },
+    "ergo/arco/A2_4_p.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 108.462856,
+      "measured_detune_cents": -24.362956,
+      "residual_after_upstream_map_cents": -24.362956
+    },
+    "ergo/arco/A3_1_f.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 220.387359,
+      "measured_detune_cents": 3.045546,
+      "residual_after_upstream_map_cents": 3.045546
+    },
+    "ergo/arco/A3_1_mf.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 219.693628,
+      "measured_detune_cents": -2.4126,
+      "residual_after_upstream_map_cents": -2.4126
+    },
+    "ergo/arco/A3_1_p.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 219.508382,
+      "measured_detune_cents": -3.872994,
+      "residual_after_upstream_map_cents": -3.872994
+    },
+    "ergo/arco/A3_2_f.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 221.152368,
+      "measured_detune_cents": 9.044601,
+      "residual_after_upstream_map_cents": 9.044601
+    },
+    "ergo/arco/A3_2_mf.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 218.769008,
+      "measured_detune_cents": -9.714178,
+      "residual_after_upstream_map_cents": -9.714178
+    },
+    "ergo/arco/A3_2_p.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 219.487674,
+      "measured_detune_cents": -4.036323,
+      "residual_after_upstream_map_cents": -4.036323
+    },
+    "ergo/arco/A3_3_f.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 220.544148,
+      "measured_detune_cents": 4.276749,
+      "residual_after_upstream_map_cents": 4.276749
+    },
+    "ergo/arco/A3_3_mf.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 218.972211,
+      "measured_detune_cents": -8.106878,
+      "residual_after_upstream_map_cents": -8.106878
+    },
+    "ergo/arco/A3_3_p.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 219.702867,
+      "measured_detune_cents": -2.339794,
+      "residual_after_upstream_map_cents": -2.339794
+    },
+    "ergo/arco/A3_4_f.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 220.690406,
+      "measured_detune_cents": 5.424471,
+      "residual_after_upstream_map_cents": 5.424471
+    },
+    "ergo/arco/A3_4_mf.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 219.212691,
+      "measured_detune_cents": -6.206643,
+      "residual_after_upstream_map_cents": -6.206643
+    },
+    "ergo/arco/A3_4_p.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 219.315682,
+      "measured_detune_cents": -5.39346,
+      "residual_after_upstream_map_cents": -5.39346
+    },
+    "ergo/arco/C1_1_f.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.680246,
+      "measured_detune_cents": -1.215347,
+      "residual_after_upstream_map_cents": -1.215347
+    },
+    "ergo/arco/C1_1_mf.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.588125,
+      "measured_detune_cents": -6.102337,
+      "residual_after_upstream_map_cents": -6.102337
+    },
+    "ergo/arco/C1_1_p.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.552772,
+      "measured_detune_cents": -7.981465,
+      "residual_after_upstream_map_cents": -7.981465
+    },
+    "ergo/arco/C1_2_f.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.713277,
+      "measured_detune_cents": 0.533585,
+      "residual_after_upstream_map_cents": 0.533585
+    },
+    "ergo/arco/C1_2_mf.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.588071,
+      "measured_detune_cents": -6.105181,
+      "residual_after_upstream_map_cents": -6.105181
+    },
+    "ergo/arco/C1_2_p.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.588875,
+      "measured_detune_cents": -6.06249,
+      "residual_after_upstream_map_cents": -6.06249
+    },
+    "ergo/arco/C1_3_f.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.678363,
+      "measured_detune_cents": -1.315099,
+      "residual_after_upstream_map_cents": -1.315099
+    },
+    "ergo/arco/C1_3_mf.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.72094,
+      "measured_detune_cents": 0.939104,
+      "residual_after_upstream_map_cents": 0.939104
+    },
+    "ergo/arco/C1_3_p.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.635988,
+      "measured_detune_cents": -3.561465,
+      "residual_after_upstream_map_cents": -3.561465
+    },
+    "ergo/arco/C1_4_f.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.626786,
+      "measured_detune_cents": -4.049692,
+      "residual_after_upstream_map_cents": -4.049692
+    },
+    "ergo/arco/C1_4_mf.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.635987,
+      "measured_detune_cents": -3.561551,
+      "residual_after_upstream_map_cents": -3.561551
+    },
+    "ergo/arco/C1_4_p.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.5685,
+      "measured_detune_cents": -7.145231,
+      "residual_after_upstream_map_cents": -7.145231
+    },
+    "ergo/arco/C2_1_f.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.438827,
+      "measured_detune_cents": 0.858326,
+      "residual_after_upstream_map_cents": 0.858326
+    },
+    "ergo/arco/C2_1_mf.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.244428,
+      "measured_detune_cents": -4.2923,
+      "residual_after_upstream_map_cents": -4.2923
+    },
+    "ergo/arco/C2_1_p.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.271853,
+      "measured_detune_cents": -3.564734,
+      "residual_after_upstream_map_cents": -3.564734
+    },
+    "ergo/arco/C2_2_f.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.007244,
+      "measured_detune_cents": -10.597349,
+      "residual_after_upstream_map_cents": -10.597349
+    },
+    "ergo/arco/C2_2_mf.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.239778,
+      "measured_detune_cents": -4.415686,
+      "residual_after_upstream_map_cents": -4.415686
+    },
+    "ergo/arco/C2_2_p.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.272642,
+      "measured_detune_cents": -3.543818,
+      "residual_after_upstream_map_cents": -3.543818
+    },
+    "ergo/arco/C2_3_f.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.208807,
+      "measured_detune_cents": -5.237742,
+      "residual_after_upstream_map_cents": -5.237742
+    },
+    "ergo/arco/C2_3_mf.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.159521,
+      "measured_detune_cents": -6.546737,
+      "residual_after_upstream_map_cents": -6.546737
+    },
+    "ergo/arco/C2_3_p.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.188729,
+      "measured_detune_cents": -5.770896,
+      "residual_after_upstream_map_cents": -5.770896
+    },
+    "ergo/arco/C2_4_f.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.047554,
+      "measured_detune_cents": -9.524172,
+      "residual_after_upstream_map_cents": -9.524172
+    },
+    "ergo/arco/C2_4_mf.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.118716,
+      "measured_detune_cents": -7.631239,
+      "residual_after_upstream_map_cents": -7.631239
+    },
+    "ergo/arco/C2_4_p.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.272897,
+      "measured_detune_cents": -3.537059,
+      "residual_after_upstream_map_cents": -3.537059
+    },
+    "ergo/arco/C3_1_f.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.864337,
+      "measured_detune_cents": 0.682158,
+      "residual_after_upstream_map_cents": 0.682158
+    },
+    "ergo/arco/C3_1_mf.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.628765,
+      "measured_detune_cents": -2.437082,
+      "residual_after_upstream_map_cents": -2.437082
+    },
+    "ergo/arco/C3_1_p.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.545072,
+      "measured_detune_cents": -3.546626,
+      "residual_after_upstream_map_cents": -3.546626
+    },
+    "ergo/arco/C3_2_f.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.883862,
+      "measured_detune_cents": 0.940434,
+      "residual_after_upstream_map_cents": 0.940434
+    },
+    "ergo/arco/C3_2_mf.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.354627,
+      "measured_detune_cents": -6.074078,
+      "residual_after_upstream_map_cents": -6.074078
+    },
+    "ergo/arco/C3_2_p.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.461982,
+      "measured_detune_cents": -4.648887,
+      "residual_after_upstream_map_cents": -4.648887
+    },
+    "ergo/arco/C3_3_mf.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.476712,
+      "measured_detune_cents": -4.45343,
+      "residual_after_upstream_map_cents": -4.45343
+    },
+    "ergo/arco/C3_3_p.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.273057,
+      "measured_detune_cents": -7.157746,
+      "residual_after_upstream_map_cents": -7.157746
+    },
+    "ergo/arco/C3_4_mf.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.543192,
+      "measured_detune_cents": -3.571569,
+      "residual_after_upstream_map_cents": -3.571569
+    },
+    "ergo/arco/C3_4_p.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.591989,
+      "measured_detune_cents": -2.924547,
+      "residual_after_upstream_map_cents": -2.924547
+    },
+    "ergo/arco/Eb1_1_f.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 39.028933,
+      "measured_detune_cents": 6.134877,
+      "residual_after_upstream_map_cents": 6.134877
+    },
+    "ergo/arco/Eb1_1_mf.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 38.917165,
+      "measured_detune_cents": 1.169985,
+      "residual_after_upstream_map_cents": 1.169985
+    },
+    "ergo/arco/Eb1_1_p.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 39.029671,
+      "measured_detune_cents": 6.167604,
+      "residual_after_upstream_map_cents": 6.167604
+    },
+    "ergo/arco/Eb1_2_f.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 39.028944,
+      "measured_detune_cents": 6.135382,
+      "residual_after_upstream_map_cents": 6.135382
+    },
+    "ergo/arco/Eb1_2_mf.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 38.972547,
+      "measured_detune_cents": 3.63193,
+      "residual_after_upstream_map_cents": 3.63193
+    },
+    "ergo/arco/Eb1_2_p.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 39.028796,
+      "measured_detune_cents": 6.128808,
+      "residual_after_upstream_map_cents": 6.128808
+    },
+    "ergo/arco/Eb1_3_f.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 39.029708,
+      "measured_detune_cents": 6.169263,
+      "residual_after_upstream_map_cents": 6.169263
+    },
+    "ergo/arco/Eb1_3_mf.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 38.987668,
+      "measured_detune_cents": 4.303514,
+      "residual_after_upstream_map_cents": 4.303514
+    },
+    "ergo/arco/Eb1_3_p.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 39.11239,
+      "measured_detune_cents": 9.832899,
+      "residual_after_upstream_map_cents": 9.832899
+    },
+    "ergo/arco/Eb1_4_f.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 39.048407,
+      "measured_detune_cents": 6.998504,
+      "residual_after_upstream_map_cents": 6.998504
+    },
+    "ergo/arco/Eb1_4_mf.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 38.953965,
+      "measured_detune_cents": 2.806285,
+      "residual_after_upstream_map_cents": 2.806285
+    },
+    "ergo/arco/Eb1_4_p.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 39.028949,
+      "measured_detune_cents": 6.135585,
+      "residual_after_upstream_map_cents": 6.135585
+    },
+    "ergo/arco/Eb2_1_f.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 78.297331,
+      "measured_detune_cents": 11.437818,
+      "residual_after_upstream_map_cents": 11.437818
+    },
+    "ergo/arco/Eb2_1_mf.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 77.999873,
+      "measured_detune_cents": 4.84819,
+      "residual_after_upstream_map_cents": 4.84819
+    },
+    "ergo/arco/Eb2_1_p.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 77.87177,
+      "measured_detune_cents": 2.00257,
+      "residual_after_upstream_map_cents": 2.00257
+    },
+    "ergo/arco/Eb2_2_f.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 77.993358,
+      "measured_detune_cents": 4.703572,
+      "residual_after_upstream_map_cents": 4.703572
+    },
+    "ergo/arco/Eb2_2_mf.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 77.960971,
+      "measured_detune_cents": 3.984523,
+      "residual_after_upstream_map_cents": 3.984523
+    },
+    "ergo/arco/Eb2_2_p.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 77.806602,
+      "measured_detune_cents": 0.553158,
+      "residual_after_upstream_map_cents": 0.553158
+    },
+    "ergo/arco/Eb2_3_f.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 77.975965,
+      "measured_detune_cents": 4.317468,
+      "residual_after_upstream_map_cents": 4.317468
+    },
+    "ergo/arco/Eb2_3_mf.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 77.877833,
+      "measured_detune_cents": 2.137346,
+      "residual_after_upstream_map_cents": 2.137346
+    },
+    "ergo/arco/Eb2_3_p.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 77.907608,
+      "measured_detune_cents": 2.799117,
+      "residual_after_upstream_map_cents": 2.799117
+    },
+    "ergo/arco/Eb2_4_f.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 78.03656,
+      "measured_detune_cents": 5.662273,
+      "residual_after_upstream_map_cents": 5.662273
+    },
+    "ergo/arco/Eb2_4_mf.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 77.880718,
+      "measured_detune_cents": 2.201486,
+      "residual_after_upstream_map_cents": 2.201486
+    },
+    "ergo/arco/Eb2_4_p.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 77.922684,
+      "measured_detune_cents": 3.134094,
+      "residual_after_upstream_map_cents": 3.134094
+    },
+    "ergo/arco/Eb3_1_f.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 155.535881,
+      "measured_detune_cents": -0.307307,
+      "residual_after_upstream_map_cents": -0.307307
+    },
+    "ergo/arco/Eb3_1_mf.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 154.718242,
+      "measured_detune_cents": -9.432257,
+      "residual_after_upstream_map_cents": -9.432257
+    },
+    "ergo/arco/Eb3_1_p.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 155.105089,
+      "measured_detune_cents": -5.109004,
+      "residual_after_upstream_map_cents": -5.109004
+    },
+    "ergo/arco/Eb3_2_f.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 155.93221,
+      "measured_detune_cents": 4.098535,
+      "residual_after_upstream_map_cents": 4.098535
+    },
+    "ergo/arco/Eb3_2_mf.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 154.981957,
+      "measured_detune_cents": -6.483906,
+      "residual_after_upstream_map_cents": -6.483906
+    },
+    "ergo/arco/Eb3_2_p.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 155.217,
+      "measured_detune_cents": -3.860343,
+      "residual_after_upstream_map_cents": -3.860343
+    },
+    "ergo/arco/Eb3_3_f.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 155.768826,
+      "measured_detune_cents": 2.283616,
+      "residual_after_upstream_map_cents": 2.283616
+    },
+    "ergo/arco/Eb3_3_mf.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 154.87651,
+      "measured_detune_cents": -7.662208,
+      "residual_after_upstream_map_cents": -7.662208
+    },
+    "ergo/arco/Eb3_3_p.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 155.027487,
+      "measured_detune_cents": -5.975387,
+      "residual_after_upstream_map_cents": -5.975387
+    },
+    "ergo/arco/Eb3_4_f.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 155.993148,
+      "measured_detune_cents": 4.774965,
+      "residual_after_upstream_map_cents": 4.774965
+    },
+    "ergo/arco/Eb3_4_mf.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 154.928387,
+      "measured_detune_cents": -7.082424,
+      "residual_after_upstream_map_cents": -7.082424
+    },
+    "ergo/arco/Eb3_4_p.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 155.038524,
+      "measured_detune_cents": -5.852143,
+      "residual_after_upstream_map_cents": -5.852143
+    },
+    "ergo/arco/Gb0_1_f.wav": {
+      "root_midi": 18.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 23.1667,
+      "measured_detune_cents": 3.145086,
+      "residual_after_upstream_map_cents": 3.145086
+    },
+    "ergo/arco/Gb0_1_mf.wav": {
+      "root_midi": 18.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 22.935062,
+      "measured_detune_cents": -14.252165,
+      "residual_after_upstream_map_cents": -14.252165
+    },
+    "ergo/arco/Gb0_1_p.wav": {
+      "root_midi": 18.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 22.963897,
+      "measured_detune_cents": -12.076935,
+      "residual_after_upstream_map_cents": -12.076935
+    },
+    "ergo/arco/Gb0_2_f.wav": {
+      "root_midi": 18.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 23.071554,
+      "measured_detune_cents": -3.979721,
+      "residual_after_upstream_map_cents": -3.979721
+    },
+    "ergo/arco/Gb0_2_mf.wav": {
+      "root_midi": 18.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 22.963889,
+      "measured_detune_cents": -12.07755,
+      "residual_after_upstream_map_cents": -12.07755
+    },
+    "ergo/arco/Gb0_2_p.wav": {
+      "root_midi": 18.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 22.879724,
+      "measured_detune_cents": -18.434337,
+      "residual_after_upstream_map_cents": -18.434337
+    },
+    "ergo/arco/Gb0_3_f.wav": {
+      "root_midi": 18.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 23.080729,
+      "measured_detune_cents": -3.291362,
+      "residual_after_upstream_map_cents": -3.291362
+    },
+    "ergo/arco/Gb0_3_mf.wav": {
+      "root_midi": 18.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 22.946601,
+      "measured_detune_cents": -13.381375,
+      "residual_after_upstream_map_cents": -13.381375
+    },
+    "ergo/arco/Gb0_3_p.wav": {
+      "root_midi": 18.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 22.946441,
+      "measured_detune_cents": -13.393446,
+      "residual_after_upstream_map_cents": -13.393446
+    },
+    "ergo/arco/Gb0_4_f.wav": {
+      "root_midi": 18.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 22.974829,
+      "measured_detune_cents": -11.252969,
+      "residual_after_upstream_map_cents": -11.252969
+    },
+    "ergo/arco/Gb0_4_mf.wav": {
+      "root_midi": 18.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 22.927188,
+      "measured_detune_cents": -14.846622,
+      "residual_after_upstream_map_cents": -14.846622
+    },
+    "ergo/arco/Gb0_4_p.wav": {
+      "root_midi": 18.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 22.912527,
+      "measured_detune_cents": -15.954063,
+      "residual_after_upstream_map_cents": -15.954063
+    },
+    "ergo/arco/Gb1_1_f.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 45.960318,
+      "measured_detune_cents": -10.851415,
+      "residual_after_upstream_map_cents": -10.851415
+    },
+    "ergo/arco/Gb1_1_mf.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 45.906665,
+      "measured_detune_cents": -12.873604,
+      "residual_after_upstream_map_cents": -12.873604
+    },
+    "ergo/arco/Gb1_1_p.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 46.094509,
+      "measured_detune_cents": -5.804079,
+      "residual_after_upstream_map_cents": -5.804079
+    },
+    "ergo/arco/Gb1_2_f.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 45.930227,
+      "measured_detune_cents": -11.985238,
+      "residual_after_upstream_map_cents": -11.985238
+    },
+    "ergo/arco/Gb1_2_mf.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 45.824828,
+      "measured_detune_cents": -15.962574,
+      "residual_after_upstream_map_cents": -15.962574
+    },
+    "ergo/arco/Gb1_2_p.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 46.019713,
+      "measured_detune_cents": -8.615558,
+      "residual_after_upstream_map_cents": -8.615558
+    },
+    "ergo/arco/Gb1_3_f.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 45.934763,
+      "measured_detune_cents": -11.814298,
+      "residual_after_upstream_map_cents": -11.814298
+    },
+    "ergo/arco/Gb1_3_mf.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 46.095013,
+      "measured_detune_cents": -5.785139,
+      "residual_after_upstream_map_cents": -5.785139
+    },
+    "ergo/arco/Gb1_3_p.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 45.884235,
+      "measured_detune_cents": -13.719671,
+      "residual_after_upstream_map_cents": -13.719671
+    },
+    "ergo/arco/Gb1_4_f.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 46.042137,
+      "measured_detune_cents": -7.772176,
+      "residual_after_upstream_map_cents": -7.772176
+    },
+    "ergo/arco/Gb1_4_mf.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 45.981978,
+      "measured_detune_cents": -10.035715,
+      "residual_after_upstream_map_cents": -10.035715
+    },
+    "ergo/arco/Gb1_4_p.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 45.927235,
+      "measured_detune_cents": -12.09802,
+      "residual_after_upstream_map_cents": -12.09802
+    },
+    "ergo/arco/Gb2_1_f.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.482689,
+      "measured_detune_cents": -0.297919,
+      "residual_after_upstream_map_cents": -0.297919
+    },
+    "ergo/arco/Gb2_1_mf.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.292278,
+      "measured_detune_cents": -3.866,
+      "residual_after_upstream_map_cents": -3.866
+    },
+    "ergo/arco/Gb2_1_p.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.19028,
+      "measured_detune_cents": -5.78036,
+      "residual_after_upstream_map_cents": -5.78036
+    },
+    "ergo/arco/Gb2_2_f.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.161555,
+      "measured_detune_cents": -6.319877,
+      "residual_after_upstream_map_cents": -6.319877
+    },
+    "ergo/arco/Gb2_2_mf.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.156662,
+      "measured_detune_cents": -6.411789,
+      "residual_after_upstream_map_cents": -6.411789
+    },
+    "ergo/arco/Gb2_2_p.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.226294,
+      "measured_detune_cents": -5.104185,
+      "residual_after_upstream_map_cents": -5.104185
+    },
+    "ergo/arco/Gb2_3_f.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.244897,
+      "measured_detune_cents": -4.755022,
+      "residual_after_upstream_map_cents": -4.755022
+    },
+    "ergo/arco/Gb2_3_mf.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.26864,
+      "measured_detune_cents": -4.309473,
+      "residual_after_upstream_map_cents": -4.309473
+    },
+    "ergo/arco/Gb2_3_p.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.189756,
+      "measured_detune_cents": -5.790207,
+      "residual_after_upstream_map_cents": -5.790207
+    },
+    "ergo/arco/Gb2_4_f.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.231956,
+      "measured_detune_cents": -4.997916,
+      "residual_after_upstream_map_cents": -4.997916
+    },
+    "ergo/arco/Gb2_4_mf.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.166821,
+      "measured_detune_cents": -6.220959,
+      "residual_after_upstream_map_cents": -6.220959
+    },
+    "ergo/arco/Gb2_4_p.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.13586,
+      "measured_detune_cents": -6.802621,
+      "residual_after_upstream_map_cents": -6.802621
+    },
+    "ergo/arco/Gb3_1_f.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 185.642118,
+      "measured_detune_cents": 6.024649,
+      "residual_after_upstream_map_cents": 6.024649
+    },
+    "ergo/arco/Gb3_1_mf.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 184.727579,
+      "measured_detune_cents": -2.525109,
+      "residual_after_upstream_map_cents": -2.525109
+    },
+    "ergo/arco/Gb3_1_p.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 185.049584,
+      "measured_detune_cents": 0.490041,
+      "residual_after_upstream_map_cents": 0.490041
+    },
+    "ergo/arco/Gb3_2_f.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 184.691794,
+      "measured_detune_cents": -2.860512,
+      "residual_after_upstream_map_cents": -2.860512
+    },
+    "ergo/arco/Gb3_2_mf.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 185.120237,
+      "measured_detune_cents": 1.150913,
+      "residual_after_upstream_map_cents": 1.150913
+    },
+    "ergo/arco/Gb3_2_p.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 184.716439,
+      "measured_detune_cents": -2.62951,
+      "residual_after_upstream_map_cents": -2.62951
+    },
+    "ergo/arco/Gb3_3_f.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 184.8037,
+      "measured_detune_cents": -1.811856,
+      "residual_after_upstream_map_cents": -1.811856
+    },
+    "ergo/arco/Gb3_3_mf.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 184.891993,
+      "measured_detune_cents": -0.984926,
+      "residual_after_upstream_map_cents": -0.984926
+    },
+    "ergo/arco/Gb3_3_p.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 184.918473,
+      "measured_detune_cents": -0.737005,
+      "residual_after_upstream_map_cents": -0.737005
+    },
+    "ergo/arco/Gb3_4_f.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 184.67278,
+      "measured_detune_cents": -3.038742,
+      "residual_after_upstream_map_cents": -3.038742
+    },
+    "ergo/arco/Gb3_4_mf.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 184.877948,
+      "measured_detune_cents": -1.11645,
+      "residual_after_upstream_map_cents": -1.11645
+    },
+    "ergo/arco/Gb3_4_p.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 184.836392,
+      "measured_detune_cents": -1.505626,
+      "residual_after_upstream_map_cents": -1.505626
+    },
+    "ergo/arco/e0_1_f.wav": {
+      "root_midi": 16.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 21.196902,
+      "measured_detune_cents": 49.306144,
+      "residual_after_upstream_map_cents": 49.306144
+    },
+    "ergo/arco/e0_1_mf.wav": {
+      "root_midi": 16.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 20.972726,
+      "measured_detune_cents": 30.899303,
+      "residual_after_upstream_map_cents": 30.899303
+    },
+    "ergo/arco/e0_1_p.wav": {
+      "root_midi": 16.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 20.860073,
+      "measured_detune_cents": 21.575073,
+      "residual_after_upstream_map_cents": 21.575073
+    },
+    "ergo/arco/e0_2_f.wav": {
+      "root_midi": 16.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 21.128907,
+      "measured_detune_cents": 43.743858,
+      "residual_after_upstream_map_cents": 43.743858
+    },
+    "ergo/arco/e0_2_mf.wav": {
+      "root_midi": 16.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 20.860556,
+      "measured_detune_cents": 21.615178,
+      "residual_after_upstream_map_cents": 21.615178
+    },
+    "ergo/arco/e0_2_p.wav": {
+      "root_midi": 16.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 20.860087,
+      "measured_detune_cents": 21.576273,
+      "residual_after_upstream_map_cents": 21.576273
+    },
+    "ergo/arco/e0_3_f.wav": {
+      "root_midi": 16.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 21.39841,
+      "measured_detune_cents": 65.686391,
+      "residual_after_upstream_map_cents": 65.686391
+    },
+    "ergo/arco/e0_4_f.wav": {
+      "root_midi": 16.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 21.196779,
+      "measured_detune_cents": 49.296123,
+      "residual_after_upstream_map_cents": 49.296123
+    },
+    "ergo/pizz/A0_1_f.wav": {
+      "root_midi": 21.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 27.300551,
+      "measured_detune_cents": -12.601837,
+      "residual_after_upstream_map_cents": -12.601837
+    },
+    "ergo/pizz/A0_1_mf.wav": {
+      "root_midi": 21.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 27.336488,
+      "measured_detune_cents": -10.324435,
+      "residual_after_upstream_map_cents": -10.324435
+    },
+    "ergo/pizz/A0_1_p.wav": {
+      "root_midi": 21.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 27.301687,
+      "measured_detune_cents": -12.529838,
+      "residual_after_upstream_map_cents": -12.529838
+    },
+    "ergo/pizz/A0_2_f.wav": {
+      "root_midi": 21.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 27.300396,
+      "measured_detune_cents": -12.611695,
+      "residual_after_upstream_map_cents": -12.611695
+    },
+    "ergo/pizz/A0_2_mf.wav": {
+      "root_midi": 21.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 27.253072,
+      "measured_detune_cents": -15.615336,
+      "residual_after_upstream_map_cents": -15.615336
+    },
+    "ergo/pizz/A0_2_p.wav": {
+      "root_midi": 21.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 27.320444,
+      "measured_detune_cents": -11.340822,
+      "residual_after_upstream_map_cents": -11.340822
+    },
+    "ergo/pizz/A0_3_f.wav": {
+      "root_midi": 21.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 27.301405,
+      "measured_detune_cents": -12.547708,
+      "residual_after_upstream_map_cents": -12.547708
+    },
+    "ergo/pizz/A0_3_mf.wav": {
+      "root_midi": 21.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 27.25319,
+      "measured_detune_cents": -15.607787,
+      "residual_after_upstream_map_cents": -15.607787
+    },
+    "ergo/pizz/A0_3_p.wav": {
+      "root_midi": 21.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 27.319964,
+      "measured_detune_cents": -11.37126,
+      "residual_after_upstream_map_cents": -11.37126
+    },
+    "ergo/pizz/A0_4_f.wav": {
+      "root_midi": 21.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 27.253188,
+      "measured_detune_cents": -15.607911,
+      "residual_after_upstream_map_cents": -15.607911
+    },
+    "ergo/pizz/A0_4_p.wav": {
+      "root_midi": 21.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 27.31997,
+      "measured_detune_cents": -11.370874,
+      "residual_after_upstream_map_cents": -11.370874
+    },
+    "ergo/pizz/A1_1_f.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 55.104982,
+      "measured_detune_cents": 3.301354,
+      "residual_after_upstream_map_cents": 3.301354
+    },
+    "ergo/pizz/A1_1_mf.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 55.24524,
+      "measured_detune_cents": 7.702264,
+      "residual_after_upstream_map_cents": 7.702264
+    },
+    "ergo/pizz/A1_1_p.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 55.103954,
+      "measured_detune_cents": 3.269054,
+      "residual_after_upstream_map_cents": 3.269054
+    },
+    "ergo/pizz/A1_2_f.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 55.103913,
+      "measured_detune_cents": 3.267792,
+      "residual_after_upstream_map_cents": 3.267792
+    },
+    "ergo/pizz/A1_2_mf.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 55.236271,
+      "measured_detune_cents": 7.421163,
+      "residual_after_upstream_map_cents": 7.421163
+    },
+    "ergo/pizz/A1_2_p.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 55.102643,
+      "measured_detune_cents": 3.22788,
+      "residual_after_upstream_map_cents": 3.22788
+    },
+    "ergo/pizz/A1_3_f.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 55.132308,
+      "measured_detune_cents": 4.159658,
+      "residual_after_upstream_map_cents": 4.159658
+    },
+    "ergo/pizz/A1_3_mf.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 55.178162,
+      "measured_detune_cents": 5.598929,
+      "residual_after_upstream_map_cents": 5.598929
+    },
+    "ergo/pizz/A1_3_p.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 55.103075,
+      "measured_detune_cents": 3.241459,
+      "residual_after_upstream_map_cents": 3.241459
+    },
+    "ergo/pizz/A1_4_f.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 55.177528,
+      "measured_detune_cents": 5.579035,
+      "residual_after_upstream_map_cents": 5.579035
+    },
+    "ergo/pizz/A1_4_mf.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 55.180133,
+      "measured_detune_cents": 5.660789,
+      "residual_after_upstream_map_cents": 5.660789
+    },
+    "ergo/pizz/A1_4_p.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 55.095834,
+      "measured_detune_cents": 3.013935,
+      "residual_after_upstream_map_cents": 3.013935
+    },
+    "ergo/pizz/A2_1_f.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 109.94568,
+      "measured_detune_cents": -0.855123,
+      "residual_after_upstream_map_cents": -0.855123
+    },
+    "ergo/pizz/A2_1_mf.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 109.896919,
+      "measured_detune_cents": -1.623098,
+      "residual_after_upstream_map_cents": -1.623098
+    },
+    "ergo/pizz/A2_1_p.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 109.236245,
+      "measured_detune_cents": -12.062269,
+      "residual_after_upstream_map_cents": -12.062269
+    },
+    "ergo/pizz/A2_2_f.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 109.906761,
+      "measured_detune_cents": -1.468058,
+      "residual_after_upstream_map_cents": -1.468058
+    },
+    "ergo/pizz/A2_2_mf.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 109.939239,
+      "measured_detune_cents": -0.956557,
+      "residual_after_upstream_map_cents": -0.956557
+    },
+    "ergo/pizz/A2_2_p.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 109.69252,
+      "measured_detune_cents": -4.846043,
+      "residual_after_upstream_map_cents": -4.846043
+    },
+    "ergo/pizz/A2_3_f.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 109.853119,
+      "measured_detune_cents": -2.313229,
+      "residual_after_upstream_map_cents": -2.313229
+    },
+    "ergo/pizz/A2_3_mf.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 109.861521,
+      "measured_detune_cents": -2.180822,
+      "residual_after_upstream_map_cents": -2.180822
+    },
+    "ergo/pizz/A2_3_p.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 109.952535,
+      "measured_detune_cents": -0.747191,
+      "residual_after_upstream_map_cents": -0.747191
+    },
+    "ergo/pizz/A2_4_f.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 109.853128,
+      "measured_detune_cents": -2.313087,
+      "residual_after_upstream_map_cents": -2.313087
+    },
+    "ergo/pizz/A2_4_mf.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 109.892098,
+      "measured_detune_cents": -1.699042,
+      "residual_after_upstream_map_cents": -1.699042
+    },
+    "ergo/pizz/A2_4_p.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 109.85288,
+      "measured_detune_cents": -2.316998,
+      "residual_after_upstream_map_cents": -2.316998
+    },
+    "ergo/pizz/C1_1_f.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.509771,
+      "measured_detune_cents": -10.269872,
+      "residual_after_upstream_map_cents": -10.269872
+    },
+    "ergo/pizz/C1_1_mf.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.594853,
+      "measured_detune_cents": -5.744948,
+      "residual_after_upstream_map_cents": -5.744948
+    },
+    "ergo/pizz/C1_1_p.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.524546,
+      "measured_detune_cents": -9.483239,
+      "residual_after_upstream_map_cents": -9.483239
+    },
+    "ergo/pizz/C1_2_f.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.468042,
+      "measured_detune_cents": -12.493492,
+      "residual_after_upstream_map_cents": -12.493492
+    },
+    "ergo/pizz/C1_2_mf.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.635753,
+      "measured_detune_cents": -3.573975,
+      "residual_after_upstream_map_cents": -3.573975
+    },
+    "ergo/pizz/C1_2_p.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.552372,
+      "measured_detune_cents": -8.002738,
+      "residual_after_upstream_map_cents": -8.002738
+    },
+    "ergo/pizz/C1_3_f.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.467995,
+      "measured_detune_cents": -12.496001,
+      "residual_after_upstream_map_cents": -12.496001
+    },
+    "ergo/pizz/C1_3_mf.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.593528,
+      "measured_detune_cents": -5.815294,
+      "residual_after_upstream_map_cents": -5.815294
+    },
+    "ergo/pizz/C1_3_p.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.540661,
+      "measured_detune_cents": -8.625695,
+      "residual_after_upstream_map_cents": -8.625695
+    },
+    "ergo/pizz/C1_4_f.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.435275,
+      "measured_detune_cents": -14.241552,
+      "residual_after_upstream_map_cents": -14.241552
+    },
+    "ergo/pizz/C1_4_mf.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.579889,
+      "measured_detune_cents": -6.539923,
+      "residual_after_upstream_map_cents": -6.539923
+    },
+    "ergo/pizz/C1_4_p.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.524657,
+      "measured_detune_cents": -9.477325,
+      "residual_after_upstream_map_cents": -9.477325
+    },
+    "ergo/pizz/C2_1_f.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.470237,
+      "measured_detune_cents": 1.689106,
+      "residual_after_upstream_map_cents": 1.689106
+    },
+    "ergo/pizz/C2_1_mf.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.341231,
+      "measured_detune_cents": -1.72559,
+      "residual_after_upstream_map_cents": -1.72559
+    },
+    "ergo/pizz/C2_1_p.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.010838,
+      "measured_detune_cents": -10.501641,
+      "residual_after_upstream_map_cents": -10.501641
+    },
+    "ergo/pizz/C2_2_f.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.421747,
+      "measured_detune_cents": 0.406411,
+      "residual_after_upstream_map_cents": 0.406411
+    },
+    "ergo/pizz/C2_2_mf.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.424157,
+      "measured_detune_cents": 0.470173,
+      "residual_after_upstream_map_cents": 0.470173
+    },
+    "ergo/pizz/C2_2_p.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.205927,
+      "measured_detune_cents": -5.314212,
+      "residual_after_upstream_map_cents": -5.314212
+    },
+    "ergo/pizz/C2_3_f.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.357559,
+      "measured_detune_cents": -1.293029,
+      "residual_after_upstream_map_cents": -1.293029
+    },
+    "ergo/pizz/C2_3_mf.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.481081,
+      "measured_detune_cents": 1.975837,
+      "residual_after_upstream_map_cents": 1.975837
+    },
+    "ergo/pizz/C2_3_p.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.187307,
+      "measured_detune_cents": -5.808654,
+      "residual_after_upstream_map_cents": -5.808654
+    },
+    "ergo/pizz/C2_4_f.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.369784,
+      "measured_detune_cents": -0.969222,
+      "residual_after_upstream_map_cents": -0.969222
+    },
+    "ergo/pizz/C2_4_mf.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.482213,
+      "measured_detune_cents": 2.005747,
+      "residual_after_upstream_map_cents": 2.005747
+    },
+    "ergo/pizz/C2_4_p.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.196399,
+      "measured_detune_cents": -5.567208,
+      "residual_after_upstream_map_cents": -5.567208
+    },
+    "ergo/pizz/C3_1_f.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.386876,
+      "measured_detune_cents": -5.645834,
+      "residual_after_upstream_map_cents": -5.645834
+    },
+    "ergo/pizz/C3_1_mf.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.271051,
+      "measured_detune_cents": -7.1844,
+      "residual_after_upstream_map_cents": -7.1844
+    },
+    "ergo/pizz/C3_1_p.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.259645,
+      "measured_detune_cents": -7.335982,
+      "residual_after_upstream_map_cents": -7.335982
+    },
+    "ergo/pizz/C3_2_f.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.331604,
+      "measured_detune_cents": -6.379873,
+      "residual_after_upstream_map_cents": -6.379873
+    },
+    "ergo/pizz/C3_2_mf.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.300706,
+      "measured_detune_cents": -6.790353,
+      "residual_after_upstream_map_cents": -6.790353
+    },
+    "ergo/pizz/C3_2_p.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.251792,
+      "measured_detune_cents": -7.440365,
+      "residual_after_upstream_map_cents": -7.440365
+    },
+    "ergo/pizz/C3_3_f.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.319948,
+      "measured_detune_cents": -6.534715,
+      "residual_after_upstream_map_cents": -6.534715
+    },
+    "ergo/pizz/C3_3_mf.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.331226,
+      "measured_detune_cents": -6.384894,
+      "residual_after_upstream_map_cents": -6.384894
+    },
+    "ergo/pizz/C3_3_p.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.308382,
+      "measured_detune_cents": -6.688368,
+      "residual_after_upstream_map_cents": -6.688368
+    },
+    "ergo/pizz/C3_4_p.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.34961,
+      "measured_detune_cents": -6.140712,
+      "residual_after_upstream_map_cents": -6.140712
+    },
+    "ergo/pizz/Eb1_1_f.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 38.837405,
+      "measured_detune_cents": -2.381769,
+      "residual_after_upstream_map_cents": -2.381769
+    },
+    "ergo/pizz/Eb1_1_mf.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 38.944818,
+      "measured_detune_cents": 2.399706,
+      "residual_after_upstream_map_cents": 2.399706
+    },
+    "ergo/pizz/Eb1_1_p.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 38.843155,
+      "measured_detune_cents": -2.1255,
+      "residual_after_upstream_map_cents": -2.1255
+    },
+    "ergo/pizz/Eb1_2_f.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 38.748977,
+      "measured_detune_cents": -6.328086,
+      "residual_after_upstream_map_cents": -6.328086
+    },
+    "ergo/pizz/Eb1_2_mf.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 38.944546,
+      "measured_detune_cents": 2.387599,
+      "residual_after_upstream_map_cents": 2.387599
+    },
+    "ergo/pizz/Eb1_2_p.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 38.879353,
+      "measured_detune_cents": -0.512899,
+      "residual_after_upstream_map_cents": -0.512899
+    },
+    "ergo/pizz/Eb1_3_f.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 38.767477,
+      "measured_detune_cents": -5.50173,
+      "residual_after_upstream_map_cents": -5.50173
+    },
+    "ergo/pizz/Eb1_3_mf.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 38.945286,
+      "measured_detune_cents": 2.420519,
+      "residual_after_upstream_map_cents": 2.420519
+    },
+    "ergo/pizz/Eb1_3_p.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 38.883682,
+      "measured_detune_cents": -0.320146,
+      "residual_after_upstream_map_cents": -0.320146
+    },
+    "ergo/pizz/Eb1_4_f.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 38.789292,
+      "measured_detune_cents": -4.527791,
+      "residual_after_upstream_map_cents": -4.527791
+    },
+    "ergo/pizz/Eb1_4_mf.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 38.945136,
+      "measured_detune_cents": 2.413837,
+      "residual_after_upstream_map_cents": 2.413837
+    },
+    "ergo/pizz/Eb1_4_p.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 38.88454,
+      "measured_detune_cents": -0.281939,
+      "residual_after_upstream_map_cents": -0.281939
+    },
+    "ergo/pizz/Eb2_1_f.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 77.653743,
+      "measured_detune_cents": -2.851393,
+      "residual_after_upstream_map_cents": -2.851393
+    },
+    "ergo/pizz/Eb2_1_mf.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 77.807095,
+      "measured_detune_cents": 0.56412,
+      "residual_after_upstream_map_cents": 0.56412
+    },
+    "ergo/pizz/Eb2_1_p.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 77.65458,
+      "measured_detune_cents": -2.83273,
+      "residual_after_upstream_map_cents": -2.83273
+    },
+    "ergo/pizz/Eb2_2_f.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 77.608668,
+      "measured_detune_cents": -3.856587,
+      "residual_after_upstream_map_cents": -3.856587
+    },
+    "ergo/pizz/Eb2_2_mf.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 77.788835,
+      "measured_detune_cents": 0.157773,
+      "residual_after_upstream_map_cents": 0.157773
+    },
+    "ergo/pizz/Eb2_2_p.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 77.63835,
+      "measured_detune_cents": -3.194592,
+      "residual_after_upstream_map_cents": -3.194592
+    },
+    "ergo/pizz/Eb2_3_f.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 77.620671,
+      "measured_detune_cents": -3.588848,
+      "residual_after_upstream_map_cents": -3.588848
+    },
+    "ergo/pizz/Eb2_3_mf.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 77.770621,
+      "measured_detune_cents": -0.247636,
+      "residual_after_upstream_map_cents": -0.247636
+    },
+    "ergo/pizz/Eb2_3_p.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 77.620643,
+      "measured_detune_cents": -3.589475,
+      "residual_after_upstream_map_cents": -3.589475
+    },
+    "ergo/pizz/Eb2_4_f.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 77.595241,
+      "measured_detune_cents": -4.156131,
+      "residual_after_upstream_map_cents": -4.156131
+    },
+    "ergo/pizz/Eb2_4_mf.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 77.720683,
+      "measured_detune_cents": -1.359646,
+      "residual_after_upstream_map_cents": -1.359646
+    },
+    "ergo/pizz/Eb2_4_p.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 77.638567,
+      "measured_detune_cents": -3.189762,
+      "residual_after_upstream_map_cents": -3.189762
+    },
+    "ergo/pizz/Eb3_1_f.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 155.476124,
+      "measured_detune_cents": -0.972569,
+      "residual_after_upstream_map_cents": -0.972569
+    },
+    "ergo/pizz/Eb3_1_mf.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 155.090917,
+      "measured_detune_cents": -5.267198,
+      "residual_after_upstream_map_cents": -5.267198
+    },
+    "ergo/pizz/Eb3_1_p.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 155.037068,
+      "measured_detune_cents": -5.868403,
+      "residual_after_upstream_map_cents": -5.868403
+    },
+    "ergo/pizz/Eb3_2_f.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 155.45366,
+      "measured_detune_cents": -1.222726,
+      "residual_after_upstream_map_cents": -1.222726
+    },
+    "ergo/pizz/Eb3_2_mf.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 155.162822,
+      "measured_detune_cents": -4.464723,
+      "residual_after_upstream_map_cents": -4.464723
+    },
+    "ergo/pizz/Eb3_2_p.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 155.178918,
+      "measured_detune_cents": -4.285145,
+      "residual_after_upstream_map_cents": -4.285145
+    },
+    "ergo/pizz/Eb3_3_mf.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 155.398898,
+      "measured_detune_cents": -1.832706,
+      "residual_after_upstream_map_cents": -1.832706
+    },
+    "ergo/pizz/Eb3_3_p.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 155.213288,
+      "measured_detune_cents": -3.901738,
+      "residual_after_upstream_map_cents": -3.901738
+    },
+    "ergo/pizz/Eb3_4_mf.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 155.13753,
+      "measured_detune_cents": -4.746944,
+      "residual_after_upstream_map_cents": -4.746944
+    },
+    "ergo/pizz/Eb3_4_p.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 155.056671,
+      "measured_detune_cents": -5.649514,
+      "residual_after_upstream_map_cents": -5.649514
+    },
+    "ergo/pizz/Gb0_1_f.wav": {
+      "root_midi": 18.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 22.845559,
+      "measured_detune_cents": -21.021429,
+      "residual_after_upstream_map_cents": -21.021429
+    },
+    "ergo/pizz/Gb0_1_mf.wav": {
+      "root_midi": 18.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 22.878674,
+      "measured_detune_cents": -18.513828,
+      "residual_after_upstream_map_cents": -18.513828
+    },
+    "ergo/pizz/Gb0_1_p.wav": {
+      "root_midi": 18.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 22.878741,
+      "measured_detune_cents": -18.508783,
+      "residual_after_upstream_map_cents": -18.508783
+    },
+    "ergo/pizz/Gb0_2_f.wav": {
+      "root_midi": 18.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 22.845966,
+      "measured_detune_cents": -20.990575,
+      "residual_after_upstream_map_cents": -20.990575
+    },
+    "ergo/pizz/Gb0_2_mf.wav": {
+      "root_midi": 18.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 22.878841,
+      "measured_detune_cents": -18.501174,
+      "residual_after_upstream_map_cents": -18.501174
+    },
+    "ergo/pizz/Gb0_2_p.wav": {
+      "root_midi": 18.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 22.778077,
+      "measured_detune_cents": -26.142763,
+      "residual_after_upstream_map_cents": -26.142763
+    },
+    "ergo/pizz/Gb0_3_f.wav": {
+      "root_midi": 18.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 22.812038,
+      "measured_detune_cents": -23.563551,
+      "residual_after_upstream_map_cents": -23.563551
+    },
+    "ergo/pizz/Gb0_3_mf.wav": {
+      "root_midi": 18.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 22.79538,
+      "measured_detune_cents": -24.828221,
+      "residual_after_upstream_map_cents": -24.828221
+    },
+    "ergo/pizz/Gb0_3_p.wav": {
+      "root_midi": 18.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 22.795054,
+      "measured_detune_cents": -24.852962,
+      "residual_after_upstream_map_cents": -24.852962
+    },
+    "ergo/pizz/Gb0_4_f.wav": {
+      "root_midi": 18.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 22.812503,
+      "measured_detune_cents": -23.528274,
+      "residual_after_upstream_map_cents": -23.528274
+    },
+    "ergo/pizz/Gb0_4_mf.wav": {
+      "root_midi": 18.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 22.794857,
+      "measured_detune_cents": -24.867943,
+      "residual_after_upstream_map_cents": -24.867943
+    },
+    "ergo/pizz/Gb0_4_p.wav": {
+      "root_midi": 18.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 22.795358,
+      "measured_detune_cents": -24.829832,
+      "residual_after_upstream_map_cents": -24.829832
+    },
+    "ergo/pizz/Gb1_1_f.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 46.196526,
+      "measured_detune_cents": -1.976714,
+      "residual_after_upstream_map_cents": -1.976714
+    },
+    "ergo/pizz/Gb1_1_mf.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 46.160637,
+      "measured_detune_cents": -3.322178,
+      "residual_after_upstream_map_cents": -3.322178
+    },
+    "ergo/pizz/Gb1_1_p.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 46.161685,
+      "measured_detune_cents": -3.282895,
+      "residual_after_upstream_map_cents": -3.282895
+    },
+    "ergo/pizz/Gb1_2_f.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 46.13605,
+      "measured_detune_cents": -4.244568,
+      "residual_after_upstream_map_cents": -4.244568
+    },
+    "ergo/pizz/Gb1_2_mf.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 46.150621,
+      "measured_detune_cents": -3.697871,
+      "residual_after_upstream_map_cents": -3.697871
+    },
+    "ergo/pizz/Gb1_2_p.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 46.094583,
+      "measured_detune_cents": -5.801295,
+      "residual_after_upstream_map_cents": -5.801295
+    },
+    "ergo/pizz/Gb1_3_f.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 46.190149,
+      "measured_detune_cents": -2.215704,
+      "residual_after_upstream_map_cents": -2.215704
+    },
+    "ergo/pizz/Gb1_3_mf.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 46.238289,
+      "measured_detune_cents": -0.412334,
+      "residual_after_upstream_map_cents": -0.412334
+    },
+    "ergo/pizz/Gb1_3_p.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 46.039195,
+      "measured_detune_cents": -7.882808,
+      "residual_after_upstream_map_cents": -7.882808
+    },
+    "ergo/pizz/Gb1_4_f.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 46.169688,
+      "measured_detune_cents": -2.982773,
+      "residual_after_upstream_map_cents": -2.982773
+    },
+    "ergo/pizz/Gb1_4_mf.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 46.229656,
+      "measured_detune_cents": -0.735577,
+      "residual_after_upstream_map_cents": -0.735577
+    },
+    "ergo/pizz/Gb1_4_p.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 46.094373,
+      "measured_detune_cents": -5.80917,
+      "residual_after_upstream_map_cents": -5.80917
+    },
+    "ergo/pizz/Gb2_1_f.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.318804,
+      "measured_detune_cents": -3.368499,
+      "residual_after_upstream_map_cents": -3.368499
+    },
+    "ergo/pizz/Gb2_1_mf.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.378959,
+      "measured_detune_cents": -2.240793,
+      "residual_after_upstream_map_cents": -2.240793
+    },
+    "ergo/pizz/Gb2_1_p.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.241207,
+      "measured_detune_cents": -4.824276,
+      "residual_after_upstream_map_cents": -4.824276
+    },
+    "ergo/pizz/Gb2_2_f.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.338511,
+      "measured_detune_cents": -2.998989,
+      "residual_after_upstream_map_cents": -2.998989
+    },
+    "ergo/pizz/Gb2_2_mf.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.376245,
+      "measured_detune_cents": -2.291654,
+      "residual_after_upstream_map_cents": -2.291654
+    },
+    "ergo/pizz/Gb2_2_p.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.141908,
+      "measured_detune_cents": -6.688971,
+      "residual_after_upstream_map_cents": -6.688971
+    },
+    "ergo/pizz/Gb2_3_f.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.332585,
+      "measured_detune_cents": -3.110093,
+      "residual_after_upstream_map_cents": -3.110093
+    },
+    "ergo/pizz/Gb2_3_mf.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.439146,
+      "measured_detune_cents": -1.113226,
+      "residual_after_upstream_map_cents": -1.113226
+    },
+    "ergo/pizz/Gb2_3_p.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.128434,
+      "measured_detune_cents": -6.942152,
+      "residual_after_upstream_map_cents": -6.942152
+    },
+    "ergo/pizz/Gb2_4_f.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.329661,
+      "measured_detune_cents": -3.164916,
+      "residual_after_upstream_map_cents": -3.164916
+    },
+    "ergo/pizz/Gb2_4_mf.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.329028,
+      "measured_detune_cents": -3.176779,
+      "residual_after_upstream_map_cents": -3.176779
+    },
+    "ergo/pizz/Gb2_4_p.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.190031,
+      "measured_detune_cents": -5.785046,
+      "residual_after_upstream_map_cents": -5.785046
+    },
+    "ergo/pizz/Gb3_1_f.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 185.400634,
+      "measured_detune_cents": 3.771186,
+      "residual_after_upstream_map_cents": 3.771186
+    },
+    "ergo/pizz/Gb3_1_mf.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 184.898028,
+      "measured_detune_cents": -0.928427,
+      "residual_after_upstream_map_cents": -0.928427
+    },
+    "ergo/pizz/Gb3_1_p.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 185.01206,
+      "measured_detune_cents": 0.138953,
+      "residual_after_upstream_map_cents": 0.138953
+    },
+    "ergo/pizz/Gb3_2_f.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 185.228441,
+      "measured_detune_cents": 2.162531,
+      "residual_after_upstream_map_cents": 2.162531
+    },
+    "ergo/pizz/Gb3_2_mf.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 184.995601,
+      "measured_detune_cents": -0.015066,
+      "residual_after_upstream_map_cents": -0.015066
+    },
+    "ergo/pizz/Gb3_2_p.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 184.984348,
+      "measured_detune_cents": -0.120386,
+      "residual_after_upstream_map_cents": -0.120386
+    },
+    "ergo/pizz/Gb3_3_f.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 185.092521,
+      "measured_detune_cents": 0.891689,
+      "residual_after_upstream_map_cents": 0.891689
+    },
+    "ergo/pizz/Gb3_3_mf.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 184.933049,
+      "measured_detune_cents": -0.600545,
+      "residual_after_upstream_map_cents": -0.600545
+    },
+    "ergo/pizz/Gb3_3_p.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 185.159514,
+      "measured_detune_cents": 1.518192,
+      "residual_after_upstream_map_cents": 1.518192
+    },
+    "ergo/pizz/Gb3_4_f.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 185.154487,
+      "measured_detune_cents": 1.471185,
+      "residual_after_upstream_map_cents": 1.471185
+    },
+    "ergo/pizz/e0_1_f.wav": {
+      "root_midi": 16.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 20.860673,
+      "measured_detune_cents": 21.624914,
+      "residual_after_upstream_map_cents": 21.624914
+    },
+    "ergo/pizz/e0_1_mf.wav": {
+      "root_midi": 16.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 20.860124,
+      "measured_detune_cents": 21.579355,
+      "residual_after_upstream_map_cents": 21.579355
+    },
+    "ergo/pizz/e0_1_p.wav": {
+      "root_midi": 16.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 20.710963,
+      "measured_detune_cents": 9.155614,
+      "residual_after_upstream_map_cents": 9.155614
+    },
+    "ergo/pizz/e0_2_f.wav": {
+      "root_midi": 16.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 20.916468,
+      "measured_detune_cents": 26.249151,
+      "residual_after_upstream_map_cents": 26.249151
+    },
+    "ergo/pizz/e0_2_mf.wav": {
+      "root_midi": 16.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 20.860191,
+      "measured_detune_cents": 21.584915,
+      "residual_after_upstream_map_cents": 21.584915
+    },
+    "ergo/pizz/e0_2_p.wav": {
+      "root_midi": 16.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 20.725645,
+      "measured_detune_cents": 10.382425,
+      "residual_after_upstream_map_cents": 10.382425
+    },
+    "ergo/pizz/e0_3_f.wav": {
+      "root_midi": 16.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 20.860212,
+      "measured_detune_cents": 21.586631,
+      "residual_after_upstream_map_cents": 21.586631
+    },
+    "ergo/pizz/e0_3_mf.wav": {
+      "root_midi": 16.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 20.860195,
+      "measured_detune_cents": 21.585236,
+      "residual_after_upstream_map_cents": 21.585236
+    },
+    "ergo/pizz/e0_3_p.wav": {
+      "root_midi": 16.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 20.792972,
+      "measured_detune_cents": 15.997228,
+      "residual_after_upstream_map_cents": 15.997228
+    },
+    "ergo/pizz/e0_4_f.wav": {
+      "root_midi": 16.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 20.793079,
+      "measured_detune_cents": 16.006136,
+      "residual_after_upstream_map_cents": 16.006136
+    },
+    "ergo/pizz/e0_4_mf.wav": {
+      "root_midi": 16.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 20.860148,
+      "measured_detune_cents": 21.581338,
+      "residual_after_upstream_map_cents": 21.581338
+    },
+    "ergo/pizz/e0_4_p.wav": {
+      "root_midi": 16.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 20.726059,
+      "measured_detune_cents": 10.417071,
+      "residual_after_upstream_map_cents": 10.417071
+    }
+  }
+}

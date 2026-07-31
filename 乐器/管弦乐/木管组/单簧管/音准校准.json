@@ -1,0 +1,141 @@
+{
+  "description": "FFT measurement of raw clarinet samples; A4=440 Hz",
+  "sfz_prefix": "clarinet",
+  "summary": {
+    "sample_count": 26,
+    "median_detune_cents": -0.035426,
+    "maximum_absolute_detune_cents": 0.320177
+  },
+  "samples": {
+    "libs/NoBudgetOrch/SoloClarinet/Sustain/3_A_f-PB.wav": {
+      "root_midi": 57.0,
+      "measured_hz": 219.995547,
+      "detune_cents": -0.035045
+    },
+    "libs/NoBudgetOrch/SoloClarinet/Sustain/3_A_mf-PB-loop.wav": {
+      "root_midi": 57.0,
+      "measured_hz": 219.994549,
+      "detune_cents": -0.042897
+    },
+    "libs/NoBudgetOrch/SoloClarinet/Sustain/3_B_f-PB.wav": {
+      "root_midi": 59.0,
+      "measured_hz": 246.9558,
+      "detune_cents": 0.099195
+    },
+    "libs/NoBudgetOrch/SoloClarinet/Sustain/3_B_mf-PB-loop.wav": {
+      "root_midi": 59.0,
+      "measured_hz": 246.956934,
+      "detune_cents": 0.107145
+    },
+    "libs/NoBudgetOrch/SoloClarinet/Sustain/3_F_f-PB.wav": {
+      "root_midi": 53.0,
+      "measured_hz": 174.604952,
+      "detune_cents": -0.090853
+    },
+    "libs/NoBudgetOrch/SoloClarinet/Sustain/3_F_mf-PB.wav": {
+      "root_midi": 53.0,
+      "measured_hz": 174.605283,
+      "detune_cents": -0.087578
+    },
+    "libs/NoBudgetOrch/SoloClarinet/Sustain/3_G_f-PB.wav": {
+      "root_midi": 55.0,
+      "measured_hz": 195.993929,
+      "detune_cents": -0.033471
+    },
+    "libs/NoBudgetOrch/SoloClarinet/Sustain/3_G_mf-PB.wav": {
+      "root_midi": 55.0,
+      "measured_hz": 196.000531,
+      "detune_cents": 0.024847
+    },
+    "libs/NoBudgetOrch/SoloClarinet/Sustain/4_A_f-PB-loop.wav": {
+      "root_midi": 69.0,
+      "measured_hz": 439.952244,
+      "detune_cents": -0.187912
+    },
+    "libs/NoBudgetOrch/SoloClarinet/Sustain/4_A_mf-PB.wav": {
+      "root_midi": 69.0,
+      "measured_hz": 440.01604,
+      "detune_cents": 0.063111
+    },
+    "libs/NoBudgetOrch/SoloClarinet/Sustain/4_B_mf-PB.wav": {
+      "root_midi": 71.0,
+      "measured_hz": 493.828627,
+      "detune_cents": -0.191663
+    },
+    "libs/NoBudgetOrch/SoloClarinet/Sustain/4_Db_f-PB.wav": {
+      "root_midi": 61.0,
+      "measured_hz": 277.18109,
+      "detune_cents": -0.009622
+    },
+    "libs/NoBudgetOrch/SoloClarinet/Sustain/4_Eb_mf-PB.wav": {
+      "root_midi": 63.0,
+      "measured_hz": 311.087891,
+      "detune_cents": -0.217542
+    },
+    "libs/NoBudgetOrch/SoloClarinet/Sustain/4_F_f-PB.wav": {
+      "root_midi": 65.0,
+      "measured_hz": 349.234926,
+      "detune_cents": 0.033189
+    },
+    "libs/NoBudgetOrch/SoloClarinet/Sustain/4_F_mf-PB.wav": {
+      "root_midi": 65.0,
+      "measured_hz": 349.27206,
+      "detune_cents": 0.217257
+    },
+    "libs/NoBudgetOrch/SoloClarinet/Sustain/4_G_mf-PB.wav": {
+      "root_midi": 67.0,
+      "measured_hz": 391.99242,
+      "detune_cents": -0.013319
+    },
+    "libs/NoBudgetOrch/SoloClarinet/Sustain/5_B_f-PB.wav": {
+      "root_midi": 83.0,
+      "measured_hz": 987.607363,
+      "detune_cents": -0.279118
+    },
+    "libs/NoBudgetOrch/SoloClarinet/Sustain/5_B_mf-PB.wav": {
+      "root_midi": 83.0,
+      "measured_hz": 987.846286,
+      "detune_cents": 0.139653
+    },
+    "libs/NoBudgetOrch/SoloClarinet/Sustain/5_Db_mf-PB.wav": {
+      "root_midi": 73.0,
+      "measured_hz": 554.341529,
+      "detune_cents": -0.074117
+    },
+    "libs/NoBudgetOrch/SoloClarinet/Sustain/5_F_f-PB.wav": {
+      "root_midi": 77.0,
+      "measured_hz": 698.442017,
+      "detune_cents": -0.035807
+    },
+    "libs/NoBudgetOrch/SoloClarinet/Sustain/5_F_mf-PB.wav": {
+      "root_midi": 77.0,
+      "measured_hz": 698.357788,
+      "detune_cents": -0.244599
+    },
+    "libs/NoBudgetOrch/SoloClarinet/Sustain/5_G_f-PB.wav": {
+      "root_midi": 79.0,
+      "measured_hz": 783.927373,
+      "detune_cents": -0.140227
+    },
+    "libs/NoBudgetOrch/SoloClarinet/Sustain/6_Db_mf-PB.wav": {
+      "root_midi": 85.0,
+      "measured_hz": 1108.525493,
+      "detune_cents": -0.320177
+    },
+    "libs/NoBudgetOrch/SoloClarinet/Sustain/6_Eb_f-PB.wav": {
+      "root_midi": 87.0,
+      "measured_hz": 1244.492491,
+      "detune_cents": -0.021485
+    },
+    "libs/NoBudgetOrch/SoloClarinet/Sustain/6_F_mf-PB.wav": {
+      "root_midi": 89.0,
+      "measured_hz": 1396.89739,
+      "detune_cents": -0.019254
+    },
+    "libs/NoBudgetOrch/SoloClarinet/Sustain/6_G_mf-PB.wav": {
+      "root_midi": 91.0,
+      "measured_hz": 1567.846557,
+      "detune_cents": -0.149269
+    }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "upstream": "sgossner/VCSL (Versilian Community Sample Library)",
+  "origin": "https://github.com/sgossner/VCSL",
+  "upstream_version": "1.2.2-RC",
+  "license": "CC0-1.0",
+  "transform": "each source sample is reversed sample-exactly at load time; no other processing, no random source",
+  "evidence_sha256": {
+    "README.md": "e360f24c120c9ad734cc8508695e09a61ddc4cae5a59c6c9af33fe501b6c9a5b"
+  },
+  "sample_count": 3,
+  "sample_bytes": 8761638,
+  "sample_formats": {
+    ".wav:44100Hz:2ch": 3
+  },
+  "variants": {
+    "60": {
+      "sample": "Idiophones/Struck Idiophones/Suspended Cymbal 2/susCymb2_hit_fff1.wav",
+      "sha256": "715edddcffc1e5aa7395c9ebe91b6396aa7665fa854b26d37e20953f046ac6f1",
+      "swell_seconds": 15.80771,
+      "transform": "deterministic full time reversal in memory"
+    },
+    "61": {
+      "sample": "Idiophones/Struck Idiophones/Suspended Cymbal 1/susCymb1_hit_fff1.wav",
+      "sha256": "993ceb041adaad19c88042e9d6e66707c30eda6e44a5a263d68bb4a3cdb2ca02",
+      "swell_seconds": 12.9539,
+      "transform": "deterministic full time reversal in memory"
+    },
+    "62": {
+      "sample": "Idiophones/Struck Idiophones/Suspended Cymbal 2/susCymb2_roll_fff1_nloop.wav",
+      "sha256": "0d8eec4bda0c3e214de1a442cd2e3c06e2e6962085de2439e56630f3bc8288ef",
+      "swell_seconds": 20.906757,
+      "transform": "deterministic full time reversal in memory"
+    }
+  },
+  "sample_set_sha256": "435d25a203589054b08dcae4071477f6ad062d0a673b3b86180d5dbee374b7c8",
+  "sample_set_hash_algorithm": "sort unique asset-root-relative UTF-8 paths; concatenate lowercase '<sha256>  <path>\\n>'; SHA-256 the UTF-8 bytes",
+  "generated_at": "2026-07-22"
+}

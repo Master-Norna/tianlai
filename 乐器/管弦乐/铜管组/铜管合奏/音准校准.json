@@ -1,0 +1,391 @@
+{
+  "description": "FFT measurement of raw sustained 铜管合奏 samples; A4=440 Hz",
+  "source_sfz": "Brass/all-brass-SEC-sustain.sfz",
+  "summary": {
+    "sample_count": 76,
+    "median_detune_cents": 0.206442,
+    "maximum_absolute_detune_cents": 20.877071
+  },
+  "samples": {
+    "libs/SSO/Samples/Tuba/tuba-sus-e1-PB-loop.wav": {
+      "root_midi": 28.0,
+      "measured_hz": 41.433154,
+      "detune_cents": 9.624812
+    },
+    "libs/SSO/Samples/Tuba/tuba-sus-g1-PB-loop.wav": {
+      "root_midi": 31.0,
+      "measured_hz": 48.821803,
+      "detune_cents": -6.287239
+    },
+    "libs/SSO/Samples/Tuba/tuba-sus-a#1-PB-loop.wav": {
+      "root_midi": 34.0,
+      "measured_hz": 58.342787,
+      "detune_cents": 2.147209
+    },
+    "libs/SSO/Samples/Tuba/tuba-sus-c#2-PB-loop.wav": {
+      "root_midi": 37.0,
+      "measured_hz": 69.207811,
+      "detune_cents": -2.19609
+    },
+    "libs/SSO/Samples/Tuba/tuba-sus-e2-PB-loop.wav": {
+      "root_midi": 40.0,
+      "measured_hz": 82.347125,
+      "detune_cents": -1.255995
+    },
+    "libs/SSO/Samples/Tuba/tuba-sus-g2-PB-loop.wav": {
+      "root_midi": 43.0,
+      "measured_hz": 97.965015,
+      "detune_cents": -0.597988
+    },
+    "libs/SSO/Samples/Tuba/tuba-sus-a#2-PB-loop.wav": {
+      "root_midi": 46.0,
+      "measured_hz": 116.590176,
+      "detune_cents": 0.73125
+    },
+    "libs/SSO/Samples/Tuba/tuba-sus-c#3-PB-loop.wav": {
+      "root_midi": 49.0,
+      "measured_hz": 137.701362,
+      "detune_cents": -11.152827
+    },
+    "libs/SSO/Samples/Tuba/tuba-sus-e3-PB-loop.wav": {
+      "root_midi": 52.0,
+      "measured_hz": 164.67352,
+      "detune_cents": -1.473931
+    },
+    "libs/Mattias-Westlund/Horns/Samples/horns-sus-ff-e2-PB-loop.wav": {
+      "root_midi": 40.0,
+      "measured_hz": 82.495947,
+      "detune_cents": 1.869954
+    },
+    "libs/Mattias-Westlund/Horns/Samples/horns-sus-ff-g2-PB-loop.wav": {
+      "root_midi": 43.0,
+      "measured_hz": 97.896117,
+      "detune_cents": -1.815982
+    },
+    "libs/Mattias-Westlund/Horns/Samples/horns-sus-ff-a#2-PB-loop.wav": {
+      "root_midi": 46.0,
+      "measured_hz": 116.058573,
+      "detune_cents": -7.180507
+    },
+    "libs/Mattias-Westlund/Horns/Samples/horns-sus-ff-c#3-PB-loop.wav": {
+      "root_midi": 49.0,
+      "measured_hz": 138.556043,
+      "detune_cents": -0.440669
+    },
+    "libs/Mattias-Westlund/Horns/Samples/horns-sus-ff-e3-PB-loop.wav": {
+      "root_midi": 52.0,
+      "measured_hz": 165.704851,
+      "detune_cents": 9.334779
+    },
+    "libs/Mattias-Westlund/Horns/Samples/horns-sus-ff-g3-PB-loop.wav": {
+      "root_midi": 55.0,
+      "measured_hz": 195.660294,
+      "detune_cents": -2.983013
+    },
+    "libs/Mattias-Westlund/Horns/Samples/horns-sus-ff-a#3-PB-loop.wav": {
+      "root_midi": 58.0,
+      "measured_hz": 233.498487,
+      "detune_cents": 3.091612
+    },
+    "libs/Mattias-Westlund/Horns/Samples/horns-sus-ff-c#4-PB-loop.wav": {
+      "root_midi": 61.0,
+      "measured_hz": 276.819687,
+      "detune_cents": -2.268372
+    },
+    "libs/Mattias-Westlund/Horns/Samples/horns-sus-ff-e4-PB-loop.wav": {
+      "root_midi": 64.0,
+      "measured_hz": 331.008162,
+      "detune_cents": 7.235924
+    },
+    "libs/Mattias-Westlund/Horns/Samples/horns-sus-ff-g4-PB-loop.wav": {
+      "root_midi": 67.0,
+      "measured_hz": 392.39725,
+      "detune_cents": 1.77369
+    },
+    "libs/Mattias-Westlund/Horns/Samples/horns-sus-ff-a#4-PB-loop.wav": {
+      "root_midi": 70.0,
+      "measured_hz": 466.424573,
+      "detune_cents": 0.968328
+    },
+    "libs/Mattias-Westlund/Horns/Samples/horns-sus-ff-c#5-PB-loop.wav": {
+      "root_midi": 73.0,
+      "measured_hz": 551.14907,
+      "detune_cents": -10.073133
+    },
+    "libs/Mattias-Westlund/Horns/Samples/horns-sus-ff-e5-PB-loop.wav": {
+      "root_midi": 76.0,
+      "measured_hz": 657.994024,
+      "detune_cents": -3.314851
+    },
+    "libs/Mattias-Westlund/Horns/Samples/horns-sus-mp-e2-PB-loop.wav": {
+      "root_midi": 40.0,
+      "measured_hz": 82.17628,
+      "detune_cents": -4.85151
+    },
+    "libs/Mattias-Westlund/Horns/Samples/horns-sus-mp-g2-PB-loop.wav": {
+      "root_midi": 43.0,
+      "measured_hz": 97.763535,
+      "detune_cents": -4.162195
+    },
+    "libs/Mattias-Westlund/Horns/Samples/horns-sus-mp-a#2-PB-loop.wav": {
+      "root_midi": 46.0,
+      "measured_hz": 116.150757,
+      "detune_cents": -5.805963
+    },
+    "libs/Mattias-Westlund/Horns/Samples/horns-sus-mp-c#3-PB-loop.wav": {
+      "root_midi": 49.0,
+      "measured_hz": 138.533036,
+      "detune_cents": -0.728162
+    },
+    "libs/Mattias-Westlund/Horns/Samples/horns-sus-mp-e3-PB-loop.wav": {
+      "root_midi": 52.0,
+      "measured_hz": 164.785095,
+      "detune_cents": -0.301322
+    },
+    "libs/Mattias-Westlund/Horns/Samples/horns-sus-mp-g3-PB-loop.wav": {
+      "root_midi": 55.0,
+      "measured_hz": 196.135324,
+      "detune_cents": 1.215034
+    },
+    "libs/Mattias-Westlund/Horns/Samples/horns-sus-mp-a#3-PB-loop.wav": {
+      "root_midi": 58.0,
+      "measured_hz": 233.147446,
+      "detune_cents": 0.48692
+    },
+    "libs/Mattias-Westlund/Horns/Samples/horns-sus-mp-c#4-PB-loop.wav": {
+      "root_midi": 61.0,
+      "measured_hz": 277.048645,
+      "detune_cents": -0.837054
+    },
+    "libs/Mattias-Westlund/Horns/Samples/horns-sus-mp-e4-PB-loop.wav": {
+      "root_midi": 64.0,
+      "measured_hz": 329.368755,
+      "detune_cents": -1.359786
+    },
+    "libs/Mattias-Westlund/Horns/Samples/horns-sus-mp-g4-PB-loop.wav": {
+      "root_midi": 67.0,
+      "measured_hz": 392.086509,
+      "detune_cents": 0.402173
+    },
+    "libs/Mattias-Westlund/Horns/Samples/horns-sus-mp-a#4-PB-loop.wav": {
+      "root_midi": 70.0,
+      "measured_hz": 466.165471,
+      "detune_cents": 0.00635
+    },
+    "libs/Mattias-Westlund/Horns/Samples/horns-sus-mp-c#5-PB-loop.wav": {
+      "root_midi": 73.0,
+      "measured_hz": 554.502766,
+      "detune_cents": 0.429361
+    },
+    "libs/Mattias-Westlund/Horns/Samples/horns-sus-mp-e5-PB-loop.wav": {
+      "root_midi": 76.0,
+      "measured_hz": 659.422805,
+      "detune_cents": 0.440308
+    },
+    "libs/NoBudgetOrch2/Trombone/TromboneSect/Sustain/2_F.wav": {
+      "root_midi": 41.0,
+      "measured_hz": 86.989017,
+      "detune_cents": -6.318035
+    },
+    "libs/NoBudgetOrch2/Trombone/TromboneSect/Sustain/2_A.wav": {
+      "root_midi": 45.0,
+      "measured_hz": 109.547498,
+      "detune_cents": -7.136382
+    },
+    "libs/NoBudgetOrch2/Trombone/TromboneSect/Sustain/3_C.wav": {
+      "root_midi": 48.0,
+      "measured_hz": 130.934732,
+      "detune_cents": 1.613178
+    },
+    "libs/NoBudgetOrch2/Trombone/TromboneSect/Sustain/3_Eb.wav": {
+      "root_midi": 51.0,
+      "measured_hz": 155.726862,
+      "detune_cents": 1.817154
+    },
+    "libs/NoBudgetOrch2/Trombone/TromboneSect/Sustain/3_Gb.wav": {
+      "root_midi": 54.0,
+      "measured_hz": 185.321986,
+      "detune_cents": 3.036628
+    },
+    "libs/NoBudgetOrch2/Trombone/TromboneSect/Sustain/3_A.wav": {
+      "root_midi": 57.0,
+      "measured_hz": 219.394514,
+      "detune_cents": -4.771289
+    },
+    "libs/NoBudgetOrch2/Trombone/TromboneSect/Sustain/4_C.wav": {
+      "root_midi": 60.0,
+      "measured_hz": 262.828983,
+      "detune_cents": 7.945024
+    },
+    "libs/NoBudgetOrch2/Trombone/TromboneSect/Sustain/4_Eb.wav": {
+      "root_midi": 63.0,
+      "measured_hz": 311.474738,
+      "detune_cents": 1.933965
+    },
+    "libs/NoBudgetOrch2/Trombone/TromboneSect/Sustain/4_Gb.wav": {
+      "root_midi": 66.0,
+      "measured_hz": 370.036431,
+      "detune_cents": 0.196549
+    },
+    "libs/NoBudgetOrch2/Trombone/TromboneSect/Sustain/4_A.wav": {
+      "root_midi": 69.0,
+      "measured_hz": 438.581799,
+      "detune_cents": -5.589098
+    },
+    "libs/NoBudgetOrch2/Trombone/TromboneSect/Sustain/5_C.wav": {
+      "root_midi": 72.0,
+      "measured_hz": 523.254171,
+      "detune_cents": 0.01006
+    },
+    "libs/NoBudgetOrch2/Trombone/TromboneSect/Sustain/2_F_p.wav": {
+      "root_midi": 41.0,
+      "measured_hz": 87.447984,
+      "detune_cents": 2.792217
+    },
+    "libs/NoBudgetOrch2/Trombone/TromboneSect/Sustain/2_Bb_p.wav": {
+      "root_midi": 46.0,
+      "measured_hz": 117.143291,
+      "detune_cents": 8.924965
+    },
+    "libs/NoBudgetOrch2/Trombone/TromboneSect/Sustain/3_Eb_p-PB-loop.wav": {
+      "root_midi": 51.0,
+      "measured_hz": 156.477573,
+      "detune_cents": 10.142853
+    },
+    "libs/NoBudgetOrch2/Trombone/TromboneSect/Sustain/3_Ab_p.wav": {
+      "root_midi": 56.0,
+      "measured_hz": 208.939916,
+      "detune_cents": 10.701526
+    },
+    "libs/NoBudgetOrch2/Trombone/TromboneSect/Sustain/4_Db_p.wav": {
+      "root_midi": 61.0,
+      "measured_hz": 278.06268,
+      "detune_cents": 5.487927
+    },
+    "libs/NoBudgetOrch2/Trombone/TromboneSect/Sustain/4_Gb_p.wav": {
+      "root_midi": 66.0,
+      "measured_hz": 374.483222,
+      "detune_cents": 20.877071
+    },
+    "libs/NoBudgetOrch2/Trombone/TromboneSect/Sustain/4_B_p.wav": {
+      "root_midi": 71.0,
+      "measured_hz": 493.849293,
+      "detune_cents": -0.119214
+    },
+    "libs/NoBudgetOrch2/Trumpet/TrumpetSect/Sustain/3_G.wav": {
+      "root_midi": 55.0,
+      "measured_hz": 196.11167,
+      "detune_cents": 1.006237
+    },
+    "libs/NoBudgetOrch2/Trumpet/TrumpetSect/Sustain/3_Ab.wav": {
+      "root_midi": 56.0,
+      "measured_hz": 207.92397,
+      "detune_cents": 2.263077
+    },
+    "libs/NoBudgetOrch2/Trumpet/TrumpetSect/Sustain/3_Bb.wav": {
+      "root_midi": 58.0,
+      "measured_hz": 233.927632,
+      "detune_cents": 6.270517
+    },
+    "libs/NoBudgetOrch2/Trumpet/TrumpetSect/Sustain/4_C.wav": {
+      "root_midi": 60.0,
+      "measured_hz": 262.625356,
+      "detune_cents": 6.603225
+    },
+    "libs/NoBudgetOrch2/Trumpet/TrumpetSect/Sustain/4_D.wav": {
+      "root_midi": 62.0,
+      "measured_hz": 293.826437,
+      "detune_cents": 0.952822
+    },
+    "libs/NoBudgetOrch2/Trumpet/TrumpetSect/Sustain/4_E.wav": {
+      "root_midi": 64.0,
+      "measured_hz": 329.462716,
+      "detune_cents": -0.865975
+    },
+    "libs/NoBudgetOrch2/Trumpet/TrumpetSect/Sustain/4_F.wav": {
+      "root_midi": 65.0,
+      "measured_hz": 350.095085,
+      "detune_cents": 4.29194
+    },
+    "libs/NoBudgetOrch2/Trumpet/TrumpetSect/Sustain/4_G.wav": {
+      "root_midi": 67.0,
+      "measured_hz": 391.981809,
+      "detune_cents": -0.060186
+    },
+    "libs/NoBudgetOrch2/Trumpet/TrumpetSect/Sustain/4_A.wav": {
+      "root_midi": 69.0,
+      "measured_hz": 440.054985,
+      "detune_cents": 0.216334
+    },
+    "libs/NoBudgetOrch2/Trumpet/TrumpetSect/Sustain/4_Bb.wav": {
+      "root_midi": 70.0,
+      "measured_hz": 466.65232,
+      "detune_cents": 1.813454
+    },
+    "libs/NoBudgetOrch2/Trumpet/TrumpetSect/Sustain/5_C.wav": {
+      "root_midi": 72.0,
+      "measured_hz": 523.331399,
+      "detune_cents": 0.265556
+    },
+    "libs/NoBudgetOrch2/Trumpet/TrumpetSect/Sustain/5_D.wav": {
+      "root_midi": 74.0,
+      "measured_hz": 587.215102,
+      "detune_cents": -0.337343
+    },
+    "libs/NoBudgetOrch2/Trumpet/TrumpetSect/Sustain/5_Eb.wav": {
+      "root_midi": 75.0,
+      "measured_hz": 622.087712,
+      "detune_cents": -0.462617
+    },
+    "libs/NoBudgetOrch2/Trumpet/TrumpetSect/Sustain/5_F.wav": {
+      "root_midi": 77.0,
+      "measured_hz": 704.563126,
+      "detune_cents": 15.070538
+    },
+    "libs/NoBudgetOrch2/Trumpet/TrumpetSect/Sustain/5_G.wav": {
+      "root_midi": 79.0,
+      "measured_hz": 790.755004,
+      "detune_cents": 14.872709
+    },
+    "libs/NoBudgetOrch2/Trumpet/TrumpetSect/Sustain/5_A.wav": {
+      "root_midi": 81.0,
+      "measured_hz": 879.980447,
+      "detune_cents": -0.038467
+    },
+    "libs/NoBudgetOrch2/Trumpet/TrumpetSect/Sustain/5_B.wav": {
+      "root_midi": 83.0,
+      "measured_hz": 987.732022,
+      "detune_cents": -0.060609
+    },
+    "libs/NoBudgetOrch2/Trumpet/TrumpetSect/Sustain/6_Db.wav": {
+      "root_midi": 85.0,
+      "measured_hz": 1108.359024,
+      "detune_cents": -0.580177
+    },
+    "libs/NoBudgetOrch2/Trumpet/TrumpetSect/Sustain/3_Bb_p.wav": {
+      "root_midi": 58.0,
+      "measured_hz": 233.048247,
+      "detune_cents": -0.249833
+    },
+    "libs/NoBudgetOrch2/Trumpet/TrumpetSect/Sustain/4_Eb_p.wav": {
+      "root_midi": 63.0,
+      "measured_hz": 311.119378,
+      "detune_cents": -0.042324
+    },
+    "libs/NoBudgetOrch2/Trumpet/TrumpetSect/Sustain/4_Ab_p.wav": {
+      "root_midi": 68.0,
+      "measured_hz": 415.13308,
+      "detune_cents": -0.715552
+    },
+    "libs/NoBudgetOrch2/Trumpet/TrumpetSect/Sustain/5_Db_p.wav": {
+      "root_midi": 73.0,
+      "measured_hz": 554.495921,
+      "detune_cents": 0.40799
+    },
+    "libs/NoBudgetOrch2/Trumpet/TrumpetSect/Sustain/5_Ab_p.wav": {
+      "root_midi": 80.0,
+      "measured_hz": 830.753331,
+      "detune_cents": 0.299978
+    }
+  }
+}

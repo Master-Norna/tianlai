@@ -1,0 +1,36 @@
+{
+  "name": "Virtual Playing Orchestra 独奏大提琴",
+  "type": "cello",
+  "implementation": "乐器.py",
+  "asset_root": "../../../../音源/VirtualPlayingOrchestra/Virtual-Playing-Orchestra3",
+  "pitch_calibration": "音准校准.json",
+  "note_min": 36,
+  "note_max": 81,
+  "range_evidence": "实测采样区覆盖 MIDI 36..81,下限 C2 正是大提琴空弦最低音",
+  "default_articulation": "sustain",
+  "gain": 0.62,
+  "velocity_exponent": 0.72,
+  "release_seconds": 0.72,
+  "release_tail_gain": 0.52,
+  "fast_attack_seconds": 0.03,
+  "expression_smoothing_seconds": 0.014,
+  "articulation_gain": {
+    "sustain": 1.0,
+    "slow_sustain": 1.0,
+    "staccato": 0.9,
+    "pizzicato": 0.92
+  },
+  "quality_tier": "formal",
+  "collaboration_review_status": "untested",
+  "upgrade_status": "cello_dedicated_multisample",
+  "fallback_policy": "explicit_only_no_silent_gm",
+  "upstream": "Virtual Playing Orchestra 3(Standard 3.3 / Wave 3.2)",
+  "origin": "http://virtualplaying.com",
+  "upstream_version": "Standard 3.3 / Wave 3.2",
+  "license": "混合公开许可:SSO Sampling Plus 1.0、No Budget Orchestra/Mattias CC BY-SA 4.0、VSCO2-CE CC0 等,见 Documentation/license.htm",
+  "resource_verification": "资源核验.json",
+  "evidence_files": [
+    "Documentation/license.htm"
+  ],
+  "license_status": "grandfathered"
+}

@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tianlai.local/schemas/score.schema.json",
+  "title": "Tianlai Score Document",
+  "description": "乐谱层:只描述音乐本身,不含任何乐器知识。bpm 恒按四分音符计,beat 与 duration_beats 按该小节拍号的拍单位计。",
+  "type": "object",
+  "required": ["tempo_map", "parts"],
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "description": "显式 v1 文档要求每个音符带有稳定且全谱唯一的 event_id；省略此字段时沿用 legacy 行为。"
+    },
+    "title": { "type": "string" },
+    "sample_rate": { "type": "integer", "minimum": 8000, "maximum": 384000 },
+    "tail_seconds": { "type": "number", "minimum": 0 },
+    "tuning": {
+      "type": "object",
+      "properties": {
+        "temperament": { "const": "equal" },
+        "a4_hz": { "type": "number", "exclusiveMinimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "tempo_map": {
+      "type": "array",
+      "minItems": 1,
+      "description": "首条必须位于第 1 小节第 1 拍并声明 bpm/beats_per_bar/beat_unit;其后按 (小节,拍) 递增,未写的字段沿用前一条。速度可落在小节中途(rubato 需要),拍号只能在小节线上改变。",
+      "items": {
+        "type": "object",
+        "properties": {
+          "bar": { "type": "integer", "minimum": 1 },
+          "beat": { "type": "number", "minimum": 1 },
+          "bpm": { "type": "number", "minimum": 1, "maximum": 600 },
+          "beats_per_bar": { "type": "integer", "minimum": 1 },
+          "beat_unit": { "enum": [1, 2, 4, 8, 16, 32] }
+        },
+        "additionalProperties": false
+      }
+    },
+    "parts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "notes"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "name": { "type": "string" },
+          "default_dynamic": { "enum": ["ppp", "pp", "p", "mp", "mf", "f", "ff", "fff"] },
+          "default_articulation": { "type": "string" },
+          "phrases": {
+            "type": "array",
+            "description": "显式乐句划分;不写时由指挥层按休止推断。",
+            "items": {
+              "type": "object",
+              "required": ["start_bar", "end_bar"],
+              "properties": {
+                "start_bar": { "type": "integer", "minimum": 1 },
+                "start_beat": { "type": "number", "minimum": 1 },
+                "end_bar": { "type": "integer", "minimum": 1 },
+                "end_beat": { "type": "number", "minimum": 1 }
+              },
+              "additionalProperties": false
+            }
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["bar", "beat", "duration_beats", "pitch"],
+              "properties": {
+                "bar": { "type": "integer", "minimum": 1 },
+                "beat": { "type": "number", "minimum": 1 },
+                "duration_beats": { "type": "number", "exclusiveMinimum": 0 },
+                "event_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "\\S",
+                  "description": "文档内稳定且唯一的音符身份；编辑音高、位置或时值时必须保留。"
+                },
+                "pitch": {
+                  "oneOf": [
+                    { "type": "number" },
+                    { "type": "string", "pattern": "^[A-Ga-g][#b♯♭]*-?[0-9]+$" }
+                  ]
+                },
+                "dynamic": { "enum": ["ppp", "pp", "p", "mp", "mf", "f", "ff", "fff"] },
+                "velocity": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "maximum": 1,
+                  "description": "导入的演奏自带逐音力度;存在时取代力度记号的查表值,指挥层其余各档仍在其上叠加。手写乐谱应当只写 dynamic 记号。"
+                },
+                "articulation": { "type": "string" },
+                "tie": { "type": "boolean" },
+                "staff": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "可选谱表身份；与 voice 一起保留 MusicXML 多谱表连音归属，不参与乐器路由。"
+                },
+                "voice": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "\\S",
+                  "description": "可选谱内声部身份；MusicXML 中其作用域由 staff 限定，不等同于 roster part。"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "required": ["schema_version"] },
+      "then": {
+        "properties": {
+          "parts": {
+            "items": {
+              "properties": {
+                "notes": {
+                  "items": { "required": ["event_id"] }
+                }
+              }
+            }
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "parts": {
+            "items": {
+              "properties": {
+                "notes": {
+                  "items": {
+                    "not": { "required": ["event_id"] }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "additionalProperties": false
+}

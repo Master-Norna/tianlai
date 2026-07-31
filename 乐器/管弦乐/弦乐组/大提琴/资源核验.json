@@ -1,0 +1,19 @@
+{
+  "upstream": "Virtual Playing Orchestra 3(Standard 3.3 / Wave 3.2)",
+  "origin": "http://virtualplaying.com",
+  "upstream_version": "Standard 3.3 / Wave 3.2",
+  "license": "混合公开许可:SSO Sampling Plus 1.0、No Budget Orchestra/Mattias CC BY-SA 4.0、VSCO2-CE CC0 等,见 Documentation/license.htm",
+  "evidence_sha256": {
+    "Documentation/license.htm": "852e3be507b193625eaf76bd18f4740209287781fb95f2a06d78ae9205d4682e"
+  },
+  "sample_count": 88,
+  "sample_bytes": 14321132,
+  "sample_formats": {
+    ".wav:44100Hz:1ch": 78,
+    ".wav:44100Hz:2ch": 10
+  },
+  "sample_enumeration": "constructed the instrument and walked its loaded sample regions; hashes cover exactly the files the engine reads at run time",
+  "sample_set_sha256": "7efc64a28931c457ccda15d0f0486a9aac3709cfb45b99ae5605382954ff7a06",
+  "sample_set_hash_algorithm": "sort unique asset-root-relative UTF-8 paths; concatenate lowercase '<sha256>  <path>\\n>'; SHA-256 the UTF-8 bytes",
+  "generated_at": "2026-07-22"
+}

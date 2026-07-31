@@ -1,0 +1,31 @@
+{
+  "name": "VCSL 叮叮镲",
+  "type": "dedicated_sfz",
+  "quality_tier": "formal",
+  "collaboration_review_status": "untested",
+  "upgrade_status": "vcsl_dedicated_multisample",
+  "fallback_policy": "explicit_only_no_silent_gm",
+  "asset_root": "../../../音源/VCSL",
+  "upstream": "sgossner/VCSL (Versilian Community Sample Library)",
+  "origin": "https://github.com/sgossner/VCSL",
+  "upstream_version": "1.2.2-RC",
+  "license": "CC0-1.0",
+  "evidence_files": [
+    "README.md"
+  ],
+  "resource_verification": "资源核验.json",
+  "pitch_calibration": "音准校准.json",
+  "articulations": {
+    "hit": "Idiophones/Struck Idiophones/Suspended Cymbal 1.sfz"
+  },
+  "default_articulation": "hit",
+  "pitch_mode": "ignore",
+  "gain": 0.3303,
+  "velocity_exponent": 0.72,
+  "auxiliary_note_id_base": 1849000000,
+  "release_seconds": 1.0,
+  "calibration_not_applicable_reason": "悬吊镲为金属体鸣打击,键 69-71 选择镲帽/棒尖/滚奏,不做音高校准",
+  "note_min": 69,
+  "note_max": 71,
+  "license_status": "approved"
+}

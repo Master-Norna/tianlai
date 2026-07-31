@@ -1,0 +1,290 @@
+{
+  "applicable": true,
+  "pitch_mode": "pitched",
+  "reference_a4_hz": 440.0,
+  "playback_calibration": "upstream SFZ pitch_keycenter plus tune opcodes",
+  "measurement_role": "diagnostic; playback follows the audited upstream map, and the residual column records how far each source sample deviates after that map",
+  "measurement_algorithm": "harmonic-constrained FFT of the raw source audio near the mapped pitch, start=0.08s, search +/-180 cents",
+  "summary": {
+    "sample_count": 39,
+    "median_measured_detune_cents": -0.396477,
+    "maximum_absolute_measured_detune_cents": 7.897381,
+    "median_residual_cents": -0.31821,
+    "maximum_absolute_residual_cents": 4.897381
+  },
+  "samples": {
+    "Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Accented/Hohner-Super64_Accented_C2.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.782828,
+      "measured_detune_cents": -0.396477,
+      "residual_after_upstream_map_cents": -0.396477
+    },
+    "Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Accented/Hohner-Super64_Accented_C3.wav": {
+      "root_midi": 60.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 261.763109,
+      "measured_detune_cents": 0.909919,
+      "residual_after_upstream_map_cents": 0.909919
+    },
+    "Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Accented/Hohner-Super64_Accented_C4.wav": {
+      "root_midi": 72.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 523.188276,
+      "measured_detune_cents": -0.207975,
+      "residual_after_upstream_map_cents": -0.207975
+    },
+    "Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Accented/Hohner-Super64_Accented_C5.wav": {
+      "root_midi": 84.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1046.134721,
+      "measured_detune_cents": -0.608131,
+      "residual_after_upstream_map_cents": -0.608131
+    },
+    "Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Accented/Hohner-Super64_Accented_C6.wav": {
+      "root_midi": 96.0,
+      "upstream_claimed_detune_cents": 1.0,
+      "measured_hz": 2097.590724,
+      "measured_detune_cents": 3.789339,
+      "residual_after_upstream_map_cents": 2.789339
+    },
+    "Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Accented/Hohner-Super64_Accented_E2.wav": {
+      "root_midi": 52.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 164.695447,
+      "measured_detune_cents": -1.243419,
+      "residual_after_upstream_map_cents": -1.243419
+    },
+    "Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Accented/Hohner-Super64_Accented_E3.wav": {
+      "root_midi": 64.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 329.391428,
+      "measured_detune_cents": -1.240613,
+      "residual_after_upstream_map_cents": -1.240613
+    },
+    "Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Accented/Hohner-Super64_Accented_E4.wav": {
+      "root_midi": 76.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 659.29673,
+      "measured_detune_cents": 0.109283,
+      "residual_after_upstream_map_cents": 0.109283
+    },
+    "Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Accented/Hohner-Super64_Accented_E5.wav": {
+      "root_midi": 88.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1318.003396,
+      "measured_detune_cents": -0.665609,
+      "residual_after_upstream_map_cents": -0.665609
+    },
+    "Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Accented/Hohner-Super64_Accented_G2.wav": {
+      "root_midi": 55.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 195.733738,
+      "measured_detune_cents": -2.333284,
+      "residual_after_upstream_map_cents": -2.333284
+    },
+    "Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Accented/Hohner-Super64_Accented_G3.wav": {
+      "root_midi": 67.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 391.974088,
+      "measured_detune_cents": -0.094286,
+      "residual_after_upstream_map_cents": -0.094286
+    },
+    "Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Accented/Hohner-Super64_Accented_G4.wav": {
+      "root_midi": 79.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 783.800192,
+      "measured_detune_cents": -0.421117,
+      "residual_after_upstream_map_cents": -0.421117
+    },
+    "Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Accented/Hohner-Super64_Accented_G5.wav": {
+      "root_midi": 91.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1568.177977,
+      "measured_detune_cents": 0.216651,
+      "residual_after_upstream_map_cents": 0.216651
+    },
+    "Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Normal/Hohner-Super64_Normal _C2.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.631589,
+      "measured_detune_cents": -2.399659,
+      "residual_after_upstream_map_cents": -2.399659
+    },
+    "Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Normal/Hohner-Super64_Normal _C3.wav": {
+      "root_midi": 60.0,
+      "upstream_claimed_detune_cents": -1.0,
+      "measured_hz": 261.432565,
+      "measured_detune_cents": -1.277596,
+      "residual_after_upstream_map_cents": -0.277596
+    },
+    "Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Normal/Hohner-Super64_Normal _C4.wav": {
+      "root_midi": 72.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 523.00883,
+      "measured_detune_cents": -0.801863,
+      "residual_after_upstream_map_cents": -0.801863
+    },
+    "Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Normal/Hohner-Super64_Normal _C5.wav": {
+      "root_midi": 84.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1046.176282,
+      "measured_detune_cents": -0.539354,
+      "residual_after_upstream_map_cents": -0.539354
+    },
+    "Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Normal/Hohner-Super64_Normal _C6.wav": {
+      "root_midi": 96.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 2092.340655,
+      "measured_detune_cents": -0.549207,
+      "residual_after_upstream_map_cents": -0.549207
+    },
+    "Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Normal/Hohner-Super64_Normal _E2.wav": {
+      "root_midi": 52.0,
+      "upstream_claimed_detune_cents": -1.0,
+      "measured_hz": 164.751216,
+      "measured_detune_cents": -0.657292,
+      "residual_after_upstream_map_cents": 0.342708
+    },
+    "Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Normal/Hohner-Super64_Normal _E3.wav": {
+      "root_midi": 64.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 329.642226,
+      "measured_detune_cents": 0.077043,
+      "residual_after_upstream_map_cents": 0.077043
+    },
+    "Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Normal/Hohner-Super64_Normal _E4.wav": {
+      "root_midi": 76.0,
+      "upstream_claimed_detune_cents": -1.0,
+      "measured_hz": 658.777229,
+      "measured_detune_cents": -1.255402,
+      "residual_after_upstream_map_cents": -0.255402
+    },
+    "Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Normal/Hohner-Super64_Normal _E5.wav": {
+      "root_midi": 88.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1318.908591,
+      "measured_detune_cents": 0.522982,
+      "residual_after_upstream_map_cents": 0.522982
+    },
+    "Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Normal/Hohner-Super64_Normal _G2.wav": {
+      "root_midi": 55.0,
+      "upstream_claimed_detune_cents": -3.0,
+      "measured_hz": 195.10567,
+      "measured_detune_cents": -7.897381,
+      "residual_after_upstream_map_cents": -4.897381
+    },
+    "Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Normal/Hohner-Super64_Normal _G3.wav": {
+      "root_midi": 67.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 391.857629,
+      "measured_detune_cents": -0.608727,
+      "residual_after_upstream_map_cents": -0.608727
+    },
+    "Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Normal/Hohner-Super64_Normal _G4.wav": {
+      "root_midi": 79.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 784.149647,
+      "measured_detune_cents": 0.350577,
+      "residual_after_upstream_map_cents": 0.350577
+    },
+    "Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Normal/Hohner-Super64_Normal _G5.wav": {
+      "root_midi": 91.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1567.693567,
+      "measured_detune_cents": -0.31821,
+      "residual_after_upstream_map_cents": -0.31821
+    },
+    "Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Vib/Hohner-Super64_Vib_C2.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.78386,
+      "measured_detune_cents": -0.382822,
+      "residual_after_upstream_map_cents": -0.382822
+    },
+    "Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Vib/Hohner-Super64_Vib_C3.wav": {
+      "root_midi": 60.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 261.428203,
+      "measured_detune_cents": -1.30648,
+      "residual_after_upstream_map_cents": -1.30648
+    },
+    "Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Vib/Hohner-Super64_Vib_C4.wav": {
+      "root_midi": 72.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 523.487304,
+      "measured_detune_cents": 0.781228,
+      "residual_after_upstream_map_cents": 0.781228
+    },
+    "Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Vib/Hohner-Super64_Vib_C5.wav": {
+      "root_midi": 84.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1046.552268,
+      "measured_detune_cents": 0.082725,
+      "residual_after_upstream_map_cents": 0.082725
+    },
+    "Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Vib/Hohner-Super64_Vib_C6.wav": {
+      "root_midi": 96.0,
+      "upstream_claimed_detune_cents": 1.0,
+      "measured_hz": 2094.624019,
+      "measured_detune_cents": 1.339053,
+      "residual_after_upstream_map_cents": 0.339053
+    },
+    "Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Vib/Hohner-Super64_Vib_E2.wav": {
+      "root_midi": 52.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 164.81369,
+      "measured_detune_cents": -0.000927,
+      "residual_after_upstream_map_cents": -0.000927
+    },
+    "Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Vib/Hohner-Super64_Vib_E3.wav": {
+      "root_midi": 64.0,
+      "upstream_claimed_detune_cents": -1.0,
+      "measured_hz": 329.793056,
+      "measured_detune_cents": 0.868996,
+      "residual_after_upstream_map_cents": 1.868996
+    },
+    "Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Vib/Hohner-Super64_Vib_E4.wav": {
+      "root_midi": 76.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 659.065863,
+      "measured_detune_cents": -0.497053,
+      "residual_after_upstream_map_cents": -0.497053
+    },
+    "Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Vib/Hohner-Super64_Vib_E5.wav": {
+      "root_midi": 88.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 1318.185621,
+      "measured_detune_cents": -0.426269,
+      "residual_after_upstream_map_cents": -0.426269
+    },
+    "Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Vib/Hohner-Super64_Vib_G2.wav": {
+      "root_midi": 55.0,
+      "upstream_claimed_detune_cents": -1.0,
+      "measured_hz": 195.766143,
+      "measured_detune_cents": -2.046697,
+      "residual_after_upstream_map_cents": -1.046697
+    },
+    "Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Vib/Hohner-Super64_Vib_G3.wav": {
+      "root_midi": 67.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 392.085219,
+      "measured_detune_cents": 0.396479,
+      "residual_after_upstream_map_cents": 0.396479
+    },
+    "Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Vib/Hohner-Super64_Vib_G4.wav": {
+      "root_midi": 79.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 784.089851,
+      "measured_detune_cents": 0.218555,
+      "residual_after_upstream_map_cents": 0.218555
+    },
+    "Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Vib/Hohner-Super64_Vib_G5.wav": {
+      "root_midi": 91.0,
+      "upstream_claimed_detune_cents": 1.0,
+      "measured_hz": 1568.141402,
+      "measured_detune_cents": 0.176272,
+      "residual_after_upstream_map_cents": -0.823728
+    }
+  }
+}

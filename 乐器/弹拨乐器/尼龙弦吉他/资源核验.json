@@ -1,0 +1,32 @@
+{
+  "upstream": "FreePats project: Spanish Classical Guitar",
+  "origin": "https://freepats.zenvoid.org/Guitar/acoustic-guitar.html",
+  "upstream_version": "2019-06-18",
+  "license": "CC0-1.0",
+  "source_file_count": 1,
+  "source_file_sha256": {
+    "SpanishClassicalGuitar-20190618.sfz": "7edec559c98c0658e9ad9e38156ef16346f81049fab96c6166fbb872f3f7d92e"
+  },
+  "evidence_sha256": {
+    "cc0.txt": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499",
+    "readme.txt": "4791887358f865119705b0c2dd9b604be626a06462d37d287edd1b2607d80efb"
+  },
+  "sample_count": 48,
+  "sample_bytes": 5287842,
+  "sample_formats": {
+    ".flac:44100Hz:1ch": 48
+  },
+  "articulations": {
+    "normal": {
+      "attack_regions": 48,
+      "release_regions": 0,
+      "round_robin_regions": 0,
+      "velocity_bounded_regions": 0,
+      "random_variant_regions": 0,
+      "looped_regions": 0
+    }
+  },
+  "region_count": 48,
+  "sample_set_sha256": "8eea7a8ce070ecec9bd727c0dbfc68ae493b42f5aa519f4a5ab9354d781125b2",
+  "sample_set_hash_algorithm": "sort unique asset-root-relative UTF-8 paths; concatenate lowercase '<sha256>  <path>\\n>'; SHA-256 the UTF-8 bytes"
+}

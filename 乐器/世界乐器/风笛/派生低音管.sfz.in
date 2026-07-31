@@ -1,0 +1,12 @@
+// Tianlai FreePats bagpipe lower drone v1.
+
+<global>
+ampeg_release=0.5
+loop_mode=loop_continuous
+
+<region>
+key=43
+pitch_keycenter=43
+volume=-11
+loop_start=1858 loop_end=106496
+sample=../../FreePats/Bagpipe/samples/drone_G2_1.flac

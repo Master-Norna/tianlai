@@ -1,0 +1,104 @@
+{
+  "name": "Virtual Playing Orchestra 小提琴(独奏/声部合一)",
+  "type": "violin",
+  "implementation": "乐器.py",
+  "asset_root": "../../../../音源/VirtualPlayingOrchestra/Virtual-Playing-Orchestra3",
+  "pitch_calibration": "音准校准.json",
+  "note_min": 55,
+  "note_max": 105,
+  "range_evidence": "上游映射键区覆盖 MIDI 55..105,但 SOLO/SEC 持续音的最高原生根采样均只到 MIDI 94(Bb6);95..105 是同一最高样本的升调扩展,不计入当前高仿核心区",
+  "range_profiles": {
+    "schema_version": 1,
+    "pitch_unit": "concert_midi_note",
+    "unknown_value_semantics": "null_means_unreviewed",
+    "fallback_policy": "reject_unknown_configuration_or_final_articulation",
+    "profiles": [
+      {
+        "profile_id": "SOLO__sustain__native_roots",
+        "selector": {
+          "resolved_runtime_configuration": {
+            "release_seconds": 0.7,
+            "sample_variant": "SOLO"
+          },
+          "final_articulation": "sustain"
+        },
+        "physical": {
+          "hard_playable_ranges": [
+            [
+              55,
+              105
+            ]
+          ],
+          "idiomatic_ranges": null,
+          "extended_ranges": [
+            [
+              95,
+              105
+            ]
+          ]
+        },
+        "render_quality": {
+          "current_high_quality_render_ranges": [
+            [
+              55,
+              94
+            ]
+          ],
+          "status": "contract_candidate",
+          "approval_evidence": null
+        }
+      }
+    ]
+  },
+  "sample_variant": "SOLO",
+  "sample_variant_note": "SOLO=一位独奏者(NoBudgetOrch 独奏采样,细而有个性);SEC=第一小提琴声部齐奏(SSO 1st Violins 采样,厚而稳)。在编制表里写 overrides: {\"sample_variant\": \"SEC\"} 即可整轨切到齐奏,不必换乐器。",
+  "default_articulation": "sustain",
+  "duration_articulation_rules": [
+    {
+      "rule_id": "violin_short_neutral_bow_v1",
+      "source_articulation": "sustain",
+      "target_articulation": "accent",
+      "below_seconds": 1.2
+    }
+  ],
+  "gain": 0.58,
+  "variant_gain": {
+    "SOLO": 0.58,
+    "SEC": 0.42
+  },
+  "variant_gain_note": "两套采样的原始电平不同,各自按项目惯例标定到同一峰值(≈0.42):SOLO(NoBudgetOrch 独奏)用 0.58,SEC(SSO 声部)用 0.42。由乐器自己吸收这个差异,换变体时编制表不必重新配平。",
+  "velocity_exponent": 0.72,
+  "release_seconds": 0.7,
+  "expression_smoothing_seconds": 0.012,
+  "articulation_gain": {
+    "sustain": 1.0,
+    "slow_sustain": 1.0,
+    "staccato": 0.92,
+    "pizzicato": 0.95,
+    "tremolo": 0.9
+  },
+  "variant_articulation_gain_note": "两套采样各奏法的原始电平关系不同,需各自配平。SEC 一组沿用合并前第一小提琴组的实测值(尤其 accent 0.68——上游声部 accent patch 本身就带音头,不压会明显冲出来)。",
+  "variant_articulation_gain": {
+    "SEC": {
+      "sustain": 1.0,
+      "slow_sustain": 0.96,
+      "staccato": 0.72,
+      "pizzicato": 0.9,
+      "tremolo": 0.9,
+      "accent": 0.68
+    }
+  },
+  "quality_tier": "formal",
+  "collaboration_review_status": "untested",
+  "upgrade_status": "violin_dedicated_multisample",
+  "fallback_policy": "explicit_only_no_silent_gm",
+  "upstream": "Virtual Playing Orchestra 3(Standard 3.3 / Wave 3.2)",
+  "origin": "http://virtualplaying.com",
+  "upstream_version": "Standard 3.3 / Wave 3.2",
+  "license": "混合公开许可:SSO Sampling Plus 1.0(SEC 声部采样)、No Budget Orchestra/Mattias CC BY-SA 4.0(SOLO 独奏采样)、VSCO2-CE CC0 等,见 Documentation/license.htm",
+  "resource_verification": "资源核验.json",
+  "evidence_files": [
+    "Documentation/license.htm"
+  ],
+  "license_status": "grandfathered"
+}

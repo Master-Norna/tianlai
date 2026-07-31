@@ -1,0 +1,23 @@
+{
+  "upstream": "Virtual Playing Orchestra",
+  "sfz_version": "Standard Orchestra 3.3 (2026-06-27)",
+  "wave_version": "Wave Files 3.2 (2026-06-27)",
+  "source_sfz_sha256": {
+    "Woodwinds/bassoon-SOLO-normal-mod-wheel.sfz": "eab290d6f22f06dbefc33207ba28906e820ec50457c4f4e2858e82482d7e985e",
+    "Woodwinds/bassoon-SOLO-sustain.sfz": "71952b2befe843fd830dc5213a6b29e1c8060af82c73bd1eeb6ba05bbc6cbe54",
+    "Woodwinds/bassoon-SOLO-staccato.sfz": "ee79db509f0f4f487982c649c758b9626a1fc6778620dd2e900c97faef52752c",
+    "Woodwinds/bassoon-SOLO-accent.sfz": "ab4ff634818bd1b0d7e8ff40cbe195d45621df3fb0289614844a5a0b26e694a3"
+  },
+  "sample_count": 79,
+  "sample_bytes": 16343146,
+  "sample_set_sha256": "9c8b7cce1c97808e33490357eacde8f965879a0fdbe4ef2a527c7f839b2abc7e",
+  "sample_set_algorithm": "Sort unique VPO-relative UTF-8 paths; for each write '<lowercase file sha256>  <path>\\n'; SHA-256 the concatenated UTF-8 bytes.",
+  "license_file_sha256": {
+    "Documentation/license.htm": "852e3be507b193625eaf76bd18f4740209287781fb95f2a06d78ae9205d4682e",
+    "libs/Iowa/license.txt": "a23314bef428a8fb3f506cf096431eaf7aaee5595a06cbd1f277ae55c8c14f14"
+  },
+  "version_evidence_sha256": {
+    "Documentation/change-log-Standard-Orchestra.txt": "e74cf4054b94bf0549d9c4b1fd3fa1816bd8a54ab3ae8847dd254725b52b4667",
+    "Documentation/change-log-Wave-Files.txt": "c62001d37b9e9fb076784fad2cb339e98a7c1e5918369f2b4f4f68c9112c6db5"
+  }
+}

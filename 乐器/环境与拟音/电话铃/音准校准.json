@@ -1,0 +1,7 @@
+{
+  "applicable": false,
+  "pitch_mode": "not_pitched",
+  "reason": "机电双钟为 820/1040 Hz 固定频率对,非旋律入口;频率由模型固定,不做移调校准",
+  "samples": {},
+  "generated_at": "2026-07-22"
+}

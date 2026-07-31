@@ -1,0 +1,31 @@
+{
+  "name": "VCSL 阿哥哥铃",
+  "type": "dedicated_sfz",
+  "quality_tier": "formal",
+  "collaboration_review_status": "untested",
+  "upgrade_status": "vcsl_dedicated_multisample",
+  "fallback_policy": "explicit_only_no_silent_gm",
+  "asset_root": "../../../../音源/VCSL",
+  "upstream": "sgossner/VCSL (Versilian Community Sample Library)",
+  "origin": "https://github.com/sgossner/VCSL",
+  "upstream_version": "1.2.2-RC",
+  "license": "CC0-1.0",
+  "evidence_files": [
+    "README.md"
+  ],
+  "resource_verification": "资源核验.json",
+  "pitch_calibration": "音准校准.json",
+  "articulations": {
+    "hit": "Idiophones/Struck Idiophones/Agogo Bells.sfz"
+  },
+  "default_articulation": "hit",
+  "pitch_mode": "ignore",
+  "gain": 1.3892,
+  "velocity_exponent": 0.72,
+  "auxiliary_note_id_base": 1852000000,
+  "release_seconds": 0.4,
+  "calibration_not_applicable_reason": "阿哥哥铃为一对相对高低音金属铃,键 60 高铃、键 61 低铃,不伪造绝对音高校准",
+  "note_min": 60,
+  "note_max": 61,
+  "license_status": "approved"
+}

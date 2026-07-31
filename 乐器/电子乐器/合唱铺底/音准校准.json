@@ -1,0 +1,44 @@
+{
+  "applicable": true,
+  "method": "self-test: render probe notes with the released synthesizer engine, FFT the sustained segment, then judge the peak against the patch's designed unison detune spread rather than against a bare equal-temperament target",
+  "reference_a4_hz": 440.0,
+  "summary": {
+    "probe_count": 3,
+    "maximum_absolute_error_cents": 7.004337,
+    "maximum_fft_bin_width_cents": 5.285699,
+    "designed_spread_cents": 7.0,
+    "tolerance_cents": 12.285699,
+    "within_designed_spread": true,
+    "verdict": "峰值落在补丁设计失谐与测量分辨率之内,非走音"
+  },
+  "probes": {
+    "36": {
+      "expected_hz": 65.406391,
+      "measured_hz": 65.249639,
+      "error_cents": -4.154036,
+      "fft_bin_width_cents": 5.285699,
+      "analysis_seconds": 5.0
+    },
+    "70": {
+      "expected_hz": 466.163762,
+      "measured_hz": 464.285279,
+      "error_cents": -6.990382,
+      "fft_bin_width_cents": 2.474091,
+      "analysis_seconds": 1.5
+    },
+    "104": {
+      "expected_hz": 3322.437581,
+      "measured_hz": 3309.022606,
+      "error_cents": -7.004337,
+      "fft_bin_width_cents": 0.347347,
+      "analysis_seconds": 1.5
+    }
+  },
+  "generated_at": "2026-07-22",
+  "designed_unison": {
+    "patch": "choir_pad",
+    "unison_voices": 3,
+    "detune_cents_half_spread": 7.0,
+    "note": "unison 声部按 ±detune_cents 均匀铺开,FFT 峰值可能落在任一声部上;判定阈值另加该频率下的 FFT 频点宽度作为测量下限"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "upstream": "Virtual Playing Orchestra",
+  "sfz_version": "Standard Orchestra 3.3 (2026-06-27)",
+  "wave_version": "Wave Files 3.2 (2026-06-27)",
+  "source_sfz_sha256": {
+    "Woodwinds/oboe-SOLO-normal-mod-wheel.sfz": "07ad0c98386c055c6773758cbf7b03aba312efe31b93151ec4d43b17b16c8d37",
+    "Woodwinds/oboe-SOLO-sustain.sfz": "c4e1d855bd555d5a80a5ff1b1b2d9ba792319141653b4d7f1c7e7b68fb64a964",
+    "Woodwinds/oboe-SOLO-staccato.sfz": "fe720c0b20a51c3ed2fef45ce935189ade408c5aeee96bdd9315b934fbde0665",
+    "Woodwinds/oboe-SOLO-accent.sfz": "d4afe9d3a28b9b5d99ada8f1eb1d1ab2e0f9bc4a7eeb22c966e9130a415a8be6"
+  },
+  "sample_count": 9,
+  "sample_bytes": 2045196,
+  "sample_set_sha256": "2fd5e1de0fa72de04dbe350ab2b1994ed5efdbbab06e199e8bdb20ff0e2aed09",
+  "sample_set_algorithm": "Sort unique VPO-relative UTF-8 paths; for each write '<lowercase file sha256>  <path>\\n'; SHA-256 the concatenated UTF-8 bytes.",
+  "license_file_sha256": {
+    "Documentation/license.htm": "852e3be507b193625eaf76bd18f4740209287781fb95f2a06d78ae9205d4682e"
+  },
+  "version_evidence_sha256": {
+    "Documentation/change-log-Standard-Orchestra.txt": "e74cf4054b94bf0549d9c4b1fd3fa1816bd8a54ab3ae8847dd254725b52b4667",
+    "Documentation/change-log-Wave-Files.txt": "c62001d37b9e9fb076784fad2cb339e98a7c1e5918369f2b4f4f68c9112c6db5"
+  }
+}

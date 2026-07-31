@@ -1,0 +1,8 @@
+{
+  "applicable": false,
+  "pitch_mode": "keymap",
+  "engine_version": "1.1.0",
+  "reason": "太鼓为膜鸣打击,键 60/61/62 选择 don 中心击/边缘击/ka 鼓边木击,不做十二平均律校准",
+  "samples": {},
+  "generated_at": "2026-07-26"
+}

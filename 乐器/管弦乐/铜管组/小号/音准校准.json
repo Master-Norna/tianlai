@@ -1,0 +1,281 @@
+{
+  "description": "FFT measurement of raw sustained 小号 samples; A4=440 Hz",
+  "source_sfz": "Brass/trumpet-SOLO-sustain.sfz",
+  "summary": {
+    "sample_count": 54,
+    "median_detune_cents": -1.693293,
+    "maximum_absolute_detune_cents": 2.328836
+  },
+  "samples": {
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.ff.G#3-PB-loop.wav": {
+      "root_midi": 56.0,
+      "measured_hz": 207.448892,
+      "detune_cents": -1.697086
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.ff.A3-PB-loop.wav": {
+      "root_midi": 57.0,
+      "measured_hz": 219.803575,
+      "detune_cents": -1.54641
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.ff.A#3-PB-loop.wav": {
+      "root_midi": 58.0,
+      "measured_hz": 232.800513,
+      "detune_cents": -2.091147
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.ff.B3-PB-loop.wav": {
+      "root_midi": 59.0,
+      "measured_hz": 246.726225,
+      "detune_cents": -1.510942
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.ff.C#4-PB-loop.wav": {
+      "root_midi": 61.0,
+      "measured_hz": 276.944652,
+      "detune_cents": -1.487011
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.ff.D4-PB-loop.wav": {
+      "root_midi": 62.0,
+      "measured_hz": 293.338396,
+      "detune_cents": -1.925119
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.ff.E4-PB-loop.wav": {
+      "root_midi": 64.0,
+      "measured_hz": 329.36149,
+      "detune_cents": -1.397972
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.ff.F4-PB-loop.wav": {
+      "root_midi": 65.0,
+      "measured_hz": 348.876158,
+      "detune_cents": -1.746221
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.ff.F#4-PB-loop.wav": {
+      "root_midi": 66.0,
+      "measured_hz": 369.584103,
+      "detune_cents": -1.920986
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.ff.G4-PB-loop.wav": {
+      "root_midi": 67.0,
+      "measured_hz": 391.638595,
+      "detune_cents": -1.576694
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.ff.G#4-PB-loop.wav": {
+      "root_midi": 68.0,
+      "measured_hz": 414.896721,
+      "detune_cents": -1.70152
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.ff.A4-PB-loop.wav": {
+      "root_midi": 69.0,
+      "measured_hz": 439.504775,
+      "detune_cents": -1.949621
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.ff.A#4-PB-loop.wav": {
+      "root_midi": 70.0,
+      "measured_hz": 465.796943,
+      "detune_cents": -1.362823
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.ff.B4-PB-loop.wav": {
+      "root_midi": 71.0,
+      "measured_hz": 493.420009,
+      "detune_cents": -1.624766
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.ff.C5-PB-loop.wav": {
+      "root_midi": 72.0,
+      "measured_hz": 522.767708,
+      "detune_cents": -1.600197
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.ff.C#5-PB-loop.wav": {
+      "root_midi": 73.0,
+      "measured_hz": 553.731207,
+      "detune_cents": -1.981231
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.ff.D5-PB-loop.wav": {
+      "root_midi": 74.0,
+      "measured_hz": 586.912605,
+      "detune_cents": -1.229396
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.ff.D#5-PB-loop.wav": {
+      "root_midi": 75.0,
+      "measured_hz": 621.687668,
+      "detune_cents": -1.576274
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.ff.E5-PB-loop.wav": {
+      "root_midi": 76.0,
+      "measured_hz": 658.714626,
+      "detune_cents": -1.419928
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.ff.F5-PB-loop.wav": {
+      "root_midi": 77.0,
+      "measured_hz": 697.740703,
+      "detune_cents": -1.775032
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.ff.F#5-PB-loop.wav": {
+      "root_midi": 78.0,
+      "measured_hz": 739.31377,
+      "detune_cents": -1.580087
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.ff.G5-PB-loop.wav": {
+      "root_midi": 79.0,
+      "measured_hz": 783.117874,
+      "detune_cents": -1.928856
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.ff.G#5-PB-loop.wav": {
+      "root_midi": 80.0,
+      "measured_hz": 829.70715,
+      "detune_cents": -1.881567
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.ff.A5-PB-loop.wav": {
+      "root_midi": 81.0,
+      "measured_hz": 878.985928,
+      "detune_cents": -1.996146
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.ff.A#5-PB-loop.wav": {
+      "root_midi": 82.0,
+      "measured_hz": 931.292591,
+      "detune_cents": -1.922827
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.ff.B5-PB-loop.wav": {
+      "root_midi": 83.0,
+      "measured_hz": 986.69771,
+      "detune_cents": -1.874435
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.ff.C6-PB-loop.wav": {
+      "root_midi": 84.0,
+      "measured_hz": 1045.095465,
+      "detune_cents": -2.328836
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.mf.G#3-PB-loop.wav": {
+      "root_midi": 56.0,
+      "measured_hz": 207.48707,
+      "detune_cents": -1.378509
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.mf.A3-PB-loop.wav": {
+      "root_midi": 57.0,
+      "measured_hz": 219.804124,
+      "detune_cents": -1.54208
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.mf.A#3-PB-loop.wav": {
+      "root_midi": 58.0,
+      "measured_hz": 232.876347,
+      "detune_cents": -1.527291
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.mf.B3-PB-loop.wav": {
+      "root_midi": 59.0,
+      "measured_hz": 246.659329,
+      "detune_cents": -1.980405
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.mf.C#4-PB-loop.wav": {
+      "root_midi": 61.0,
+      "measured_hz": 276.914399,
+      "detune_cents": -1.676141
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.mf.D4-PB-loop.wav": {
+      "root_midi": 62.0,
+      "measured_hz": 293.396683,
+      "detune_cents": -1.581153
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.mf.E4-PB-loop.wav": {
+      "root_midi": 64.0,
+      "measured_hz": 329.302755,
+      "detune_cents": -1.70673
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.mf.F4-PB-loop.wav": {
+      "root_midi": 65.0,
+      "measured_hz": 348.947064,
+      "detune_cents": -1.394396
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.mf.F#4-PB-loop.wav": {
+      "root_midi": 66.0,
+      "measured_hz": 369.636292,
+      "detune_cents": -1.676536
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.mf.G4-PB-loop.wav": {
+      "root_midi": 67.0,
+      "measured_hz": 391.548917,
+      "detune_cents": -1.973161
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.mf.G#4-PB-loop.wav": {
+      "root_midi": 68.0,
+      "measured_hz": 414.946863,
+      "detune_cents": -1.492306
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.mf.A4-PB-loop.wav": {
+      "root_midi": 69.0,
+      "measured_hz": 439.572525,
+      "detune_cents": -1.682771
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.mf.A#4-PB-loop.wav": {
+      "root_midi": 70.0,
+      "measured_hz": 465.703806,
+      "detune_cents": -1.709022
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.mf.B4-PB-loop.wav": {
+      "root_midi": 71.0,
+      "measured_hz": 493.326238,
+      "detune_cents": -1.953803
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.mf.C5-PB-loop.wav": {
+      "root_midi": 72.0,
+      "measured_hz": 522.789089,
+      "detune_cents": -1.52939
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.mf.C#5-PB-loop.wav": {
+      "root_midi": 73.0,
+      "measured_hz": 553.806927,
+      "detune_cents": -1.744511
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.mf.D5-PB-loop.wav": {
+      "root_midi": 74.0,
+      "measured_hz": 586.888032,
+      "detune_cents": -1.301881
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.mf.D#5-PB-loop.wav": {
+      "root_midi": 75.0,
+      "measured_hz": 621.608454,
+      "detune_cents": -1.796879
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.mf.E5-PB-loop.wav": {
+      "root_midi": 76.0,
+      "measured_hz": 658.594535,
+      "detune_cents": -1.735579
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.mf.F5-PB-loop.wav": {
+      "root_midi": 77.0,
+      "measured_hz": 697.775176,
+      "detune_cents": -1.6895
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.mf.F#5-PB-loop.wav": {
+      "root_midi": 78.0,
+      "measured_hz": 739.398072,
+      "detune_cents": -1.38269
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.mf.G5-PB-loop.wav": {
+      "root_midi": 79.0,
+      "measured_hz": 783.06406,
+      "detune_cents": -2.047827
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.mf.G#5-PB-loop.wav": {
+      "root_midi": 80.0,
+      "measured_hz": 829.833423,
+      "detune_cents": -1.61811
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.mf.A5-PB-loop.wav": {
+      "root_midi": 81.0,
+      "measured_hz": 879.272299,
+      "detune_cents": -1.432207
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.mf.A#5-PB-loop.wav": {
+      "root_midi": 82.0,
+      "measured_hz": 931.367659,
+      "detune_cents": -1.783284
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.mf.B5-PB-loop.wav": {
+      "root_midi": 83.0,
+      "measured_hz": 986.675106,
+      "detune_cents": -1.914097
+    },
+    "libs/Iowa/samples/Trumpet-solo/Trumpet.novib.mf.C6-PB-loop.wav": {
+      "root_midi": 84.0,
+      "measured_hz": 1045.295077,
+      "detune_cents": -1.998204
+    }
+  }
+}

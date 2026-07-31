@@ -1,0 +1,718 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tianlai.local/schemas/onset-candidate-report.schema.json",
+  "title": "Tianlai Per-Articulation Onset Candidate Report",
+  "type": "object",
+  "required": [
+    "$schema",
+    "schema_version",
+    "kind",
+    "candidate_sha256",
+    "automatic_approval",
+    "created_at",
+    "instrument",
+    "runtime_fingerprint",
+    "protocol",
+    "observations"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "https://tianlai.local/schemas/onset-candidate-report.schema.json"
+    },
+    "schema_version": { "const": 1 },
+    "kind": { "const": "onset_candidate_report" },
+    "candidate_sha256": { "$ref": "#/$defs/sha256" },
+    "automatic_approval": { "const": false },
+    "created_at": { "type": "string", "format": "date-time" },
+    "instrument": { "$ref": "#/$defs/instrument" },
+    "runtime_fingerprint": { "$ref": "#/$defs/runtimeFingerprint" },
+    "protocol": {
+      "type": "object",
+      "required": [
+        "anchor",
+        "context",
+        "variant_coverage",
+        "signal_stage",
+        "pre_roll_frames",
+        "sample_rate_hz",
+        "algorithm_sha256",
+        "window_ms",
+        "hop_ms",
+        "threshold_policy"
+      ],
+      "properties": {
+        "anchor": { "const": "performance_note_on_output_frame" },
+        "context": { "const": "isolated_attack" },
+        "variant_coverage": {
+          "enum": ["runtime_default_only", "all_runtime_variants"]
+        },
+        "condition_coverage": { "$ref": "#/$defs/conditionCoverage" },
+        "signal_stage": { "const": "instrument_direct_output_no_space" },
+        "pre_roll_frames": { "type": "integer", "minimum": 1 },
+        "sample_rate_hz": {
+          "type": "integer",
+          "minimum": 8000,
+          "maximum": 384000
+        },
+        "algorithm_sha256": { "$ref": "#/$defs/sha256" },
+        "window_ms": { "type": "number", "exclusiveMinimum": 0 },
+        "hop_ms": { "type": "number", "exclusiveMinimum": 0 },
+        "threshold_policy": { "$ref": "#/$defs/nonEmptyString" }
+      },
+      "additionalProperties": false
+    },
+    "observations": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/observation" }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "protocol": {
+            "properties": {
+              "variant_coverage": { "const": "all_runtime_variants" }
+            },
+            "required": ["variant_coverage"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "protocol": { "required": ["condition_coverage"] },
+          "observations": {
+            "items": {
+              "required": [
+                "condition_id",
+                "variation_slot",
+                "variant_catalog_proof",
+                "selection_receipt"
+              ],
+              "properties": {
+                "variant_catalog_proof": {
+                  "$ref": "#/$defs/variantProof"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "projectPath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\)(?!.*:).+$"
+    },
+    "nullableSha256": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/sha256" }
+      ]
+    },
+    "nullablePath": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/projectPath" }
+      ]
+    },
+    "boundFile": {
+      "type": "object",
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "$ref": "#/$defs/nullablePath" },
+        "sha256": { "$ref": "#/$defs/nullableSha256" }
+      },
+      "additionalProperties": false
+    },
+    "instrument": {
+      "type": "object",
+      "required": ["manifest_path", "manifest_sha256"],
+      "properties": {
+        "manifest_path": { "$ref": "#/$defs/projectPath" },
+        "manifest_sha256": { "$ref": "#/$defs/sha256" }
+      },
+      "additionalProperties": false
+    },
+    "manifestBinding": {
+      "type": "object",
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "$ref": "#/$defs/projectPath" },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      },
+      "additionalProperties": false
+    },
+    "runtimeFingerprint": {
+      "type": "object",
+      "required": [
+        "algorithm",
+        "manifest",
+        "render_python_closure",
+        "runtime_dependencies",
+        "local_implementation",
+        "resource_verification",
+        "pitch_calibration",
+        "runtime_asset_graph"
+      ],
+      "properties": {
+        "algorithm": { "const": "sha256-path-content-v1" },
+        "manifest": { "$ref": "#/$defs/manifestBinding" },
+        "render_python_closure": {
+          "$ref": "#/$defs/renderPythonClosure"
+        },
+        "runtime_dependencies": {
+          "$ref": "#/$defs/runtimeDependencies"
+        },
+        "local_implementation": { "$ref": "#/$defs/boundFile" },
+        "resource_verification": { "$ref": "#/$defs/boundFile" },
+        "pitch_calibration": { "$ref": "#/$defs/boundFile" },
+        "runtime_asset_graph": { "$ref": "#/$defs/runtimeAssetGraph" }
+      },
+      "additionalProperties": false
+    },
+    "renderPythonClosure": {
+      "type": "object",
+      "required": [
+        "algorithm",
+        "entry_modules",
+        "file_count",
+        "files",
+        "sha256"
+      ],
+      "properties": {
+        "algorithm": { "const": "ast-render-import-closure-v1" },
+        "entry_modules": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^tianlai(?:\\.[A-Za-z_][A-Za-z0-9_]*)*$"
+          }
+        },
+        "file_count": { "type": "integer", "minimum": 1 },
+        "files": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["path", "sha256"],
+            "properties": {
+              "path": {
+                "allOf": [
+                  { "$ref": "#/$defs/projectPath" },
+                  { "pattern": "^tianlai/.+\\.py$" }
+                ]
+              },
+              "sha256": { "$ref": "#/$defs/sha256" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      },
+      "additionalProperties": false
+    },
+    "runtimeDependencies": {
+      "type": "object",
+      "required": ["python", "numpy", "soundfile", "pyfluidsynth"],
+      "properties": {
+        "python": {
+          "type": "object",
+          "required": [
+            "implementation",
+            "version",
+            "system",
+            "machine",
+            "byteorder"
+          ],
+          "properties": {
+            "implementation": { "$ref": "#/$defs/nonEmptyString" },
+            "version": { "$ref": "#/$defs/nonEmptyString" },
+            "system": { "$ref": "#/$defs/nonEmptyString" },
+            "machine": { "$ref": "#/$defs/nonEmptyString" },
+            "byteorder": { "enum": ["little", "big"] }
+          },
+          "additionalProperties": false
+        },
+        "numpy": {
+          "type": "object",
+          "required": ["version"],
+          "properties": {
+            "version": { "$ref": "#/$defs/nonEmptyString" }
+          },
+          "additionalProperties": false
+        },
+        "soundfile": {
+          "type": "object",
+          "required": ["version", "libsndfile_version"],
+          "properties": {
+            "version": { "$ref": "#/$defs/nonEmptyString" },
+            "libsndfile_version": { "$ref": "#/$defs/nonEmptyString" }
+          },
+          "additionalProperties": false
+        },
+        "pyfluidsynth": {
+          "type": "object",
+          "required": [
+            "applicable",
+            "package_version",
+            "api_version",
+            "native_identifier",
+            "native_sha256",
+            "native_version"
+          ],
+          "properties": {
+            "applicable": { "type": "boolean" },
+            "package_version": {
+              "oneOf": [
+                { "type": "null" },
+                { "$ref": "#/$defs/nonEmptyString" }
+              ]
+            },
+            "api_version": {
+              "oneOf": [
+                { "type": "null" },
+                { "$ref": "#/$defs/nonEmptyString" }
+              ]
+            },
+            "native_identifier": {
+              "oneOf": [
+                { "type": "null" },
+                { "$ref": "#/$defs/nonEmptyString" }
+              ]
+            },
+            "native_sha256": { "$ref": "#/$defs/nullableSha256" },
+            "native_version": {
+              "oneOf": [
+                { "type": "null" },
+                { "$ref": "#/$defs/nonEmptyString" }
+              ]
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": { "applicable": { "const": false } },
+                "required": ["applicable"]
+              },
+              "then": {
+                "properties": {
+                  "package_version": { "type": "null" },
+                  "api_version": { "type": "null" },
+                  "native_identifier": { "type": "null" },
+                  "native_sha256": { "type": "null" },
+                  "native_version": { "type": "null" }
+                }
+              },
+              "else": {
+                "properties": {
+                  "package_version": { "$ref": "#/$defs/nonEmptyString" },
+                  "api_version": { "$ref": "#/$defs/nonEmptyString" },
+                  "native_identifier": { "$ref": "#/$defs/nonEmptyString" },
+                  "native_version": { "$ref": "#/$defs/nonEmptyString" }
+                }
+              }
+            }
+          ],
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "runtimeAssetGraph": {
+      "type": "object",
+      "required": [
+        "algorithm",
+        "sample_rate_hz",
+        "file_count",
+        "total_bytes",
+        "region_count",
+        "sha256"
+      ],
+      "properties": {
+        "algorithm": { "const": "constructed-runtime-asset-graph-v1" },
+        "sample_rate_hz": { "const": 48000 },
+        "file_count": { "type": "integer", "minimum": 0 },
+        "total_bytes": { "type": "integer", "minimum": 0 },
+        "region_count": { "type": "integer", "minimum": 0 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      },
+      "additionalProperties": false
+    },
+    "nullableFrame": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "integer", "minimum": 0 }
+      ]
+    },
+    "nullableNumber": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "number" }
+      ]
+    },
+    "analysis": {
+      "type": "object",
+      "required": [
+        "status",
+        "candidate_onset_frame",
+        "t10_frame",
+        "t50_frame",
+        "t90_frame",
+        "peak_frame",
+        "snr_db",
+        "pre_roll_leak",
+        "clipped",
+        "reason",
+        "noise_floor_rms",
+        "threshold_rms",
+        "peak_rms",
+        "clipping_sample_count",
+        "pre_roll_peak_rms"
+      ],
+      "properties": {
+        "status": { "enum": ["proposed", "unresolved"] },
+        "candidate_onset_frame": { "$ref": "#/$defs/nullableFrame" },
+        "t10_frame": { "$ref": "#/$defs/nullableFrame" },
+        "t50_frame": { "$ref": "#/$defs/nullableFrame" },
+        "t90_frame": { "$ref": "#/$defs/nullableFrame" },
+        "peak_frame": { "$ref": "#/$defs/nullableFrame" },
+        "snr_db": { "$ref": "#/$defs/nullableNumber" },
+        "pre_roll_leak": { "type": "boolean" },
+        "clipped": { "type": "boolean" },
+        "reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/nonEmptyString" }
+          ]
+        },
+        "noise_floor_rms": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "number", "minimum": 0 }
+          ]
+        },
+        "threshold_rms": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "number", "minimum": 0 }
+          ]
+        },
+        "peak_rms": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "number", "minimum": 0 }
+          ]
+        },
+        "clipping_sample_count": { "type": "integer", "minimum": 0 },
+        "pre_roll_peak_rms": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "number", "minimum": 0 }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "conditionCoverage": {
+      "type": "object",
+      "required": [
+        "kind",
+        "condition_id_algorithm",
+        "unique_condition_count",
+        "condition_ids"
+      ],
+      "properties": {
+        "kind": { "const": "sampled_conditions" },
+        "condition_id_algorithm": {
+          "const": "onset-isolated-sampled-condition-v1"
+        },
+        "unique_condition_count": { "type": "integer", "minimum": 1 },
+        "condition_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/sha256" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "sampledCondition": {
+      "type": "object",
+      "required": [
+        "context",
+        "final_articulation",
+        "midi_note",
+        "velocity",
+        "sample_rate_hz",
+        "tuning",
+        "event_contract"
+      ],
+      "properties": {
+        "context": { "const": "isolated_attack" },
+        "final_articulation": { "$ref": "#/$defs/nonEmptyString" },
+        "midi_note": { "type": "integer", "minimum": 0, "maximum": 127 },
+        "velocity": { "type": "integer", "minimum": 1, "maximum": 127 },
+        "sample_rate_hz": {
+          "type": "integer",
+          "minimum": 8000,
+          "maximum": 384000
+        },
+        "tuning": { "const": "equal_temperament_a4_440" },
+        "event_contract": {
+          "const": "isolated_note_id_1_no_private_sampler_controls"
+        }
+      },
+      "additionalProperties": false
+    },
+    "topLevelVariantContract": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "kind",
+        "backend",
+        "audio_selection_model",
+        "capture_completeness",
+        "expected_component_sha256s",
+        "expected_selection_count",
+        "manifest_type",
+        "factory_route"
+      ],
+      "properties": {
+        "schema_version": { "const": 1 },
+        "kind": { "const": "top_level_runtime_variant_contract" },
+        "backend": {
+          "enum": [
+            "builtin_oscillator",
+            "builtin_sample_instrument",
+            "builtin_dedicated_sfz"
+          ]
+        },
+        "audio_selection_model": {
+          "enum": [
+            "code_deterministic_no_runtime_choices",
+            "sample_region_selector_v1",
+            "dedicated_sfz_attack_layer_bundle_v1",
+            "dedicated_sfz_finite_rr_attack_bundle_v1"
+          ]
+        },
+        "capture_completeness": {
+          "enum": [
+            "no_audio_selection_components",
+            "all_audio_selection_delegated_to_runtime_variant_capture",
+            "all_note_on_attack_layer_selectors_and_retained_bundle_reconstructed"
+          ]
+        },
+        "expected_component_sha256s": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/sha256" }
+        },
+        "expected_selection_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "manifest_type": {
+          "enum": ["oscillator", "sample", "dedicated_sfz"]
+        },
+        "factory_route": {
+          "const": "builtin_manifest_dispatch_no_implementation"
+        },
+        "attack_phase_contract": { "type": "object" },
+        "finite_rr_cycle_contract": { "type": "object" }
+      },
+      "additionalProperties": false
+    },
+    "selectionReceipt": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "kind",
+        "claim",
+        "selection_count",
+        "all_conditions_deterministic_single",
+        "catalogs",
+        "selections",
+        "receipt_sha256"
+      ],
+      "properties": {
+        "schema_version": { "const": 1 },
+        "kind": { "const": "runtime_variant_selection_receipt" },
+        "claim": { "const": "capture_only_not_variant_certification" },
+        "selection_count": { "type": "integer", "minimum": 0 },
+        "all_conditions_deterministic_single": { "type": "boolean" },
+        "catalogs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["catalog_sha256", "catalog"],
+            "properties": {
+              "catalog_sha256": { "$ref": "#/$defs/sha256" },
+              "catalog": { "type": "object" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "selections": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "selection_index",
+              "component_sha256",
+              "condition_sha256",
+              "choice_sha256",
+              "catalog_sha256",
+              "deterministic_single",
+              "unexhausted_domains",
+              "actual_selector",
+              "wrapper_outcome"
+            ],
+            "properties": {
+              "selection_index": { "type": "integer", "minimum": 0 },
+              "component_sha256": { "$ref": "#/$defs/sha256" },
+              "condition_sha256": { "$ref": "#/$defs/sha256" },
+              "choice_sha256": { "$ref": "#/$defs/sha256" },
+              "catalog_sha256": { "$ref": "#/$defs/sha256" },
+              "deterministic_single": { "type": "boolean" },
+              "unexhausted_domains": {
+                "type": "array",
+                "uniqueItems": true,
+                "items": { "$ref": "#/$defs/nonEmptyString" }
+              },
+              "actual_selector": { "type": "object" },
+              "wrapper_outcome": {
+                "type": ["object", "null"]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "receipt_sha256": { "$ref": "#/$defs/sha256" }
+      },
+      "additionalProperties": false
+    },
+    "variantProof": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "kind",
+        "certification_protocol",
+        "claim",
+        "condition_id",
+        "sampled_condition",
+        "variation_slot",
+        "top_level_contract",
+        "top_level_contract_sha256",
+        "selection_receipt_sha256",
+        "catalog_sha256s",
+        "component_sha256s",
+        "choice_sha256s",
+        "proof_sha256"
+      ],
+      "properties": {
+        "schema_version": { "const": 1 },
+        "kind": {
+          "enum": [
+            "deterministic_single_runtime_variant_proof",
+            "finite_rr_runtime_variant_proof"
+          ]
+        },
+        "certification_protocol": {
+          "enum": [
+            "tianlai-deterministic-single-v1",
+            "tianlai-natural-finite-rr-cycle-v1"
+          ]
+        },
+        "claim": {
+          "enum": [
+            "all_runtime_variants_at_one_sampled_condition",
+            "one_rendered_slot_of_complete_finite_rr_cycle"
+          ]
+        },
+        "condition_id": { "$ref": "#/$defs/sha256" },
+        "sampled_condition": { "$ref": "#/$defs/sampledCondition" },
+        "variation_slot": { "type": "integer", "minimum": 0 },
+        "variation_period": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 64
+        },
+        "slot_bundle_sha256": { "$ref": "#/$defs/sha256" },
+        "top_level_contract": {
+          "$ref": "#/$defs/topLevelVariantContract"
+        },
+        "top_level_contract_sha256": { "$ref": "#/$defs/sha256" },
+        "selection_receipt_sha256": { "$ref": "#/$defs/sha256" },
+        "catalog_sha256s": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/sha256" }
+        },
+        "component_sha256s": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/sha256" }
+        },
+        "choice_sha256s": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/sha256" }
+        },
+        "proof_sha256": { "$ref": "#/$defs/sha256" }
+      },
+      "additionalProperties": false
+    },
+    "observation": {
+      "type": "object",
+      "required": [
+        "observation_id",
+        "final_articulation",
+        "midi_note",
+        "velocity",
+        "performance_path",
+        "performance_sha256",
+        "wav_path",
+        "wav_sha256",
+        "note_on_frame",
+        "analysis"
+      ],
+      "properties": {
+        "observation_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+        },
+        "final_articulation": { "$ref": "#/$defs/nonEmptyString" },
+        "midi_note": { "type": "integer", "minimum": 0, "maximum": 127 },
+        "velocity": { "type": "integer", "minimum": 1, "maximum": 127 },
+        "performance_path": { "$ref": "#/$defs/projectPath" },
+        "performance_sha256": { "$ref": "#/$defs/sha256" },
+        "wav_path": { "$ref": "#/$defs/projectPath" },
+        "wav_sha256": { "$ref": "#/$defs/sha256" },
+        "note_on_frame": { "type": "integer", "minimum": 0 },
+        "condition_id": { "$ref": "#/$defs/sha256" },
+        "variation_slot": { "type": "integer", "minimum": 0 },
+        "variant_catalog_proof": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/variantProof" }
+          ]
+        },
+        "selection_receipt": { "$ref": "#/$defs/selectionReceipt" },
+        "analysis": { "$ref": "#/$defs/analysis" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

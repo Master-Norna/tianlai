@@ -1,0 +1,1522 @@
+{
+  "schema_version": 1,
+  "status": "passed",
+  "applicable": true,
+  "reference_a4_hz": 440.0,
+  "source_subtree": "libs/VSCO2-CE/Strings/Viola Section",
+  "measurement_algorithm": "three post-attack harmonic-constrained FFT windows per raw mapped sample; median becomes the runtime source-root detune",
+  "calibration_semantics": "SampleInstrument treats expected_hz * 2^(measured_detune/1200) as the recording's actual root, so playback applies the inverse correction without modifying the source WAV",
+  "source_filename_octave_semantics": "VSCO/VPO filename octave is one below project MIDI/C4=60 naming; roots are frozen explicitly by the mapping module",
+  "summary": {
+    "declared_sample_count": 36,
+    "accepted_sample_count": 36,
+    "rejected_sample_count": 0,
+    "sustain_sample_count": 12,
+    "spiccato_sample_count": 24,
+    "recorded_velocity_layers": {
+      "sustain": 1,
+      "spiccato": 1
+    },
+    "recorded_round_robins": {
+      "sustain": 1,
+      "spiccato": 2
+    },
+    "median_measured_detune_cents": 1.99726,
+    "maximum_absolute_measured_detune_cents": 13.842244,
+    "maximum_window_range_cents": 20.287196,
+    "maximum_spiccato_rr_pair_spread_cents": 10.838514
+  },
+  "spiccato_rr_pair_spread_cents": {
+    "48": 3.542273,
+    "52": 6.865971,
+    "55": 10.838514,
+    "59": 5.308354,
+    "62": 3.410408,
+    "65": 8.675404,
+    "69": 0.327071,
+    "72": 0.848353,
+    "76": 1.952292,
+    "79": 0.866179,
+    "83": 4.754789,
+    "86": 8.086243
+  },
+  "samples": {
+    "libs/VSCO2-CE/Strings/Viola Section/spic/Violas_spic_A3_v2_rr1-PB.wav": {
+      "articulation": "spiccato",
+      "root_midi": 69,
+      "expected_hz": 440.0,
+      "recorded_velocity": "v2 (single retained recorded tier)",
+      "round_robin_position": 1,
+      "windows": [
+        {
+          "logical_start_seconds": 0.02,
+          "file_start_seconds": 0.02,
+          "analysis_frames": 32768,
+          "harmonic_count": 10,
+          "measured_hz": 440.994325,
+          "detune_cents": 3.90788,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.06,
+          "file_start_seconds": 0.06,
+          "analysis_frames": 32768,
+          "harmonic_count": 10,
+          "measured_hz": 440.680873,
+          "detune_cents": 2.676907,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.12,
+          "file_start_seconds": 0.12,
+          "analysis_frames": 32768,
+          "harmonic_count": 10,
+          "measured_hz": 440.76706,
+          "detune_cents": 3.015464,
+          "status": "accepted"
+        }
+      ],
+      "measured_hz": 440.76706,
+      "measured_detune_cents": 3.015464,
+      "window_range_cents": 1.230973,
+      "maximum_allowed_window_range_cents": 12.0,
+      "status": "accepted"
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/spic/Violas_spic_A3_v2_rr2-PB.wav": {
+      "articulation": "spiccato",
+      "root_midi": 69,
+      "expected_hz": 440.0,
+      "recorded_velocity": "v2 (single retained recorded tier)",
+      "round_robin_position": 2,
+      "windows": [
+        {
+          "logical_start_seconds": 0.02,
+          "file_start_seconds": 0.02,
+          "analysis_frames": 32768,
+          "harmonic_count": 10,
+          "measured_hz": 440.768708,
+          "detune_cents": 3.021939,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.06,
+          "file_start_seconds": 0.06,
+          "analysis_frames": 32768,
+          "harmonic_count": 10,
+          "measured_hz": 440.850339,
+          "detune_cents": 3.342535,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.12,
+          "file_start_seconds": 0.12,
+          "analysis_frames": 32768,
+          "harmonic_count": 10,
+          "measured_hz": 440.927213,
+          "detune_cents": 3.644394,
+          "status": "accepted"
+        }
+      ],
+      "measured_hz": 440.850339,
+      "measured_detune_cents": 3.342535,
+      "window_range_cents": 0.622455,
+      "maximum_allowed_window_range_cents": 12.0,
+      "status": "accepted"
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/spic/Violas_spic_B2_v2_rr1-PB.wav": {
+      "articulation": "spiccato",
+      "root_midi": 59,
+      "expected_hz": 246.941651,
+      "recorded_velocity": "v2 (single retained recorded tier)",
+      "round_robin_position": 1,
+      "windows": [
+        {
+          "logical_start_seconds": 0.02,
+          "file_start_seconds": 0.02,
+          "analysis_frames": 32768,
+          "harmonic_count": 10,
+          "measured_hz": 246.866533,
+          "detune_cents": -0.526711,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.06,
+          "file_start_seconds": 0.06,
+          "analysis_frames": 32768,
+          "harmonic_count": 10,
+          "measured_hz": 246.288394,
+          "detune_cents": -4.585853,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.12,
+          "file_start_seconds": 0.12,
+          "analysis_frames": 32768,
+          "harmonic_count": 10,
+          "measured_hz": 246.96604,
+          "detune_cents": 0.17098,
+          "status": "accepted"
+        }
+      ],
+      "measured_hz": 246.866533,
+      "measured_detune_cents": -0.526711,
+      "window_range_cents": 4.756832,
+      "maximum_allowed_window_range_cents": 12.0,
+      "status": "accepted"
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/spic/Violas_spic_B2_v2_rr2-PB.wav": {
+      "articulation": "spiccato",
+      "root_midi": 59,
+      "expected_hz": 246.941651,
+      "recorded_velocity": "v2 (single retained recorded tier)",
+      "round_robin_position": 2,
+      "windows": [
+        {
+          "logical_start_seconds": 0.02,
+          "file_start_seconds": 0.02,
+          "analysis_frames": 32768,
+          "harmonic_count": 10,
+          "measured_hz": 247.624643,
+          "detune_cents": 4.781643,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.06,
+          "file_start_seconds": 0.06,
+          "analysis_frames": 32768,
+          "harmonic_count": 10,
+          "measured_hz": 247.62596,
+          "detune_cents": 4.790851,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.12,
+          "file_start_seconds": 0.12,
+          "analysis_frames": 32768,
+          "harmonic_count": 10,
+          "measured_hz": 246.288165,
+          "detune_cents": -4.587465,
+          "status": "accepted"
+        }
+      ],
+      "measured_hz": 247.624643,
+      "measured_detune_cents": 4.781643,
+      "window_range_cents": 9.378316,
+      "maximum_allowed_window_range_cents": 12.0,
+      "status": "accepted"
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/spic/Violas_spic_B4_v2_rr1-PB.wav": {
+      "articulation": "spiccato",
+      "root_midi": 83,
+      "expected_hz": 987.766603,
+      "recorded_velocity": "v2 (single retained recorded tier)",
+      "round_robin_position": 1,
+      "windows": [
+        {
+          "logical_start_seconds": 0.02,
+          "file_start_seconds": 0.02,
+          "analysis_frames": 32768,
+          "harmonic_count": 5,
+          "measured_hz": 989.200307,
+          "detune_cents": 2.510996,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.06,
+          "file_start_seconds": 0.06,
+          "analysis_frames": 32768,
+          "harmonic_count": 5,
+          "measured_hz": 989.192896,
+          "detune_cents": 2.498026,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.12,
+          "file_start_seconds": 0.12,
+          "analysis_frames": 32768,
+          "harmonic_count": 5,
+          "measured_hz": 990.542588,
+          "detune_cents": 4.858577,
+          "status": "accepted"
+        }
+      ],
+      "measured_hz": 989.200307,
+      "measured_detune_cents": 2.510996,
+      "window_range_cents": 2.360551,
+      "maximum_allowed_window_range_cents": 12.0,
+      "status": "accepted"
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/spic/Violas_spic_B4_v2_rr2-PB.wav": {
+      "articulation": "spiccato",
+      "root_midi": 83,
+      "expected_hz": 987.766603,
+      "recorded_velocity": "v2 (single retained recorded tier)",
+      "round_robin_position": 2,
+      "windows": [
+        {
+          "logical_start_seconds": 0.02,
+          "file_start_seconds": 0.02,
+          "analysis_frames": 32768,
+          "harmonic_count": 5,
+          "measured_hz": 993.235745,
+          "detune_cents": 9.559191,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.06,
+          "file_start_seconds": 0.06,
+          "analysis_frames": 32768,
+          "harmonic_count": 5,
+          "measured_hz": 986.479848,
+          "detune_cents": -2.256732,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.12,
+          "file_start_seconds": 0.12,
+          "analysis_frames": 32768,
+          "harmonic_count": 5,
+          "measured_hz": 986.487222,
+          "detune_cents": -2.243793,
+          "status": "accepted"
+        }
+      ],
+      "measured_hz": 986.487222,
+      "measured_detune_cents": -2.243793,
+      "window_range_cents": 11.815924,
+      "maximum_allowed_window_range_cents": 12.0,
+      "status": "accepted"
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/spic/Violas_spic_C2_v2_rr1-PB.wav": {
+      "articulation": "spiccato",
+      "root_midi": 48,
+      "expected_hz": 130.812783,
+      "recorded_velocity": "v2 (single retained recorded tier)",
+      "round_robin_position": 1,
+      "windows": [
+        {
+          "logical_start_seconds": 0.02,
+          "file_start_seconds": 0.02,
+          "analysis_frames": 32768,
+          "harmonic_count": 10,
+          "measured_hz": 131.488021,
+          "detune_cents": 8.913417,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.06,
+          "file_start_seconds": 0.06,
+          "analysis_frames": 32768,
+          "harmonic_count": 10,
+          "measured_hz": 131.485671,
+          "detune_cents": 8.882475,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.12,
+          "file_start_seconds": 0.12,
+          "analysis_frames": 32768,
+          "harmonic_count": 10,
+          "measured_hz": 131.38827,
+          "detune_cents": 7.599544,
+          "status": "accepted"
+        }
+      ],
+      "measured_hz": 131.485671,
+      "measured_detune_cents": 8.882475,
+      "window_range_cents": 1.313874,
+      "maximum_allowed_window_range_cents": 12.0,
+      "status": "accepted"
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/spic/Violas_spic_C2_v2_rr2-PB.wav": {
+      "articulation": "spiccato",
+      "root_midi": 48,
+      "expected_hz": 130.812783,
+      "recorded_velocity": "v2 (single retained recorded tier)",
+      "round_robin_position": 2,
+      "windows": [
+        {
+          "logical_start_seconds": 0.02,
+          "file_start_seconds": 0.02,
+          "analysis_frames": 32768,
+          "harmonic_count": 10,
+          "measured_hz": 131.216784,
+          "detune_cents": 5.338487,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.06,
+          "file_start_seconds": 0.06,
+          "analysis_frames": 32768,
+          "harmonic_count": 10,
+          "measured_hz": 131.216914,
+          "detune_cents": 5.340202,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.12,
+          "file_start_seconds": 0.12,
+          "analysis_frames": 32768,
+          "harmonic_count": 10,
+          "measured_hz": 131.217622,
+          "detune_cents": 5.349554,
+          "status": "accepted"
+        }
+      ],
+      "measured_hz": 131.216914,
+      "measured_detune_cents": 5.340202,
+      "window_range_cents": 0.011067,
+      "maximum_allowed_window_range_cents": 12.0,
+      "status": "accepted"
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/spic/Violas_spic_C4_v2_rr1-PB.wav": {
+      "articulation": "spiccato",
+      "root_midi": 72,
+      "expected_hz": 523.251131,
+      "recorded_velocity": "v2 (single retained recorded tier)",
+      "round_robin_position": 1,
+      "windows": [
+        {
+          "logical_start_seconds": 0.02,
+          "file_start_seconds": 0.02,
+          "analysis_frames": 32768,
+          "harmonic_count": 9,
+          "measured_hz": 525.067575,
+          "detune_cents": 5.999498,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.06,
+          "file_start_seconds": 0.06,
+          "analysis_frames": 32768,
+          "harmonic_count": 9,
+          "measured_hz": 525.121881,
+          "detune_cents": 6.178544,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.12,
+          "file_start_seconds": 0.12,
+          "analysis_frames": 32768,
+          "harmonic_count": 9,
+          "measured_hz": 525.537362,
+          "detune_cents": 7.54777,
+          "status": "accepted"
+        }
+      ],
+      "measured_hz": 525.121881,
+      "measured_detune_cents": 6.178544,
+      "window_range_cents": 1.548272,
+      "maximum_allowed_window_range_cents": 12.0,
+      "status": "accepted"
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/spic/Violas_spic_C4_v2_rr2-PB.wav": {
+      "articulation": "spiccato",
+      "root_midi": 72,
+      "expected_hz": 523.251131,
+      "recorded_velocity": "v2 (single retained recorded tier)",
+      "round_robin_position": 2,
+      "windows": [
+        {
+          "logical_start_seconds": 0.02,
+          "file_start_seconds": 0.02,
+          "analysis_frames": 32768,
+          "harmonic_count": 9,
+          "measured_hz": 524.864315,
+          "detune_cents": 5.329187,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.06,
+          "file_start_seconds": 0.06,
+          "analysis_frames": 32768,
+          "harmonic_count": 9,
+          "measured_hz": 524.864619,
+          "detune_cents": 5.330191,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.12,
+          "file_start_seconds": 0.12,
+          "analysis_frames": 32768,
+          "harmonic_count": 9,
+          "measured_hz": 524.875289,
+          "detune_cents": 5.365384,
+          "status": "accepted"
+        }
+      ],
+      "measured_hz": 524.864619,
+      "measured_detune_cents": 5.330191,
+      "window_range_cents": 0.036197,
+      "maximum_allowed_window_range_cents": 12.0,
+      "status": "accepted"
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/spic/Violas_spic_D3_v2_rr1-PB.wav": {
+      "articulation": "spiccato",
+      "root_midi": 62,
+      "expected_hz": 293.664768,
+      "recorded_velocity": "v2 (single retained recorded tier)",
+      "round_robin_position": 1,
+      "windows": [
+        {
+          "logical_start_seconds": 0.02,
+          "file_start_seconds": 0.02,
+          "analysis_frames": 32768,
+          "harmonic_count": 10,
+          "measured_hz": 294.065919,
+          "detune_cents": 2.36328,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.06,
+          "file_start_seconds": 0.06,
+          "analysis_frames": 32768,
+          "harmonic_count": 10,
+          "measured_hz": 293.243819,
+          "detune_cents": -2.483391,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.12,
+          "file_start_seconds": 0.12,
+          "analysis_frames": 32768,
+          "harmonic_count": 10,
+          "measured_hz": 293.554705,
+          "detune_cents": -0.64897,
+          "status": "accepted"
+        }
+      ],
+      "measured_hz": 293.554705,
+      "measured_detune_cents": -0.64897,
+      "window_range_cents": 4.846671,
+      "maximum_allowed_window_range_cents": 12.0,
+      "status": "accepted"
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/spic/Violas_spic_D3_v2_rr2-PB.wav": {
+      "articulation": "spiccato",
+      "root_midi": 62,
+      "expected_hz": 293.664768,
+      "recorded_velocity": "v2 (single retained recorded tier)",
+      "round_robin_position": 2,
+      "windows": [
+        {
+          "logical_start_seconds": 0.02,
+          "file_start_seconds": 0.02,
+          "analysis_frames": 32768,
+          "harmonic_count": 10,
+          "measured_hz": 294.283731,
+          "detune_cents": 3.645116,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.06,
+          "file_start_seconds": 0.06,
+          "analysis_frames": 32768,
+          "harmonic_count": 10,
+          "measured_hz": 294.133557,
+          "detune_cents": 2.761438,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.12,
+          "file_start_seconds": 0.12,
+          "analysis_frames": 32768,
+          "harmonic_count": 10,
+          "measured_hz": 294.063053,
+          "detune_cents": 2.346407,
+          "status": "accepted"
+        }
+      ],
+      "measured_hz": 294.133557,
+      "measured_detune_cents": 2.761438,
+      "window_range_cents": 1.298709,
+      "maximum_allowed_window_range_cents": 12.0,
+      "status": "accepted"
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/spic/Violas_spic_D5_v2_rr1-PB.wav": {
+      "articulation": "spiccato",
+      "root_midi": 86,
+      "expected_hz": 1174.659072,
+      "recorded_velocity": "v2 (single retained recorded tier)",
+      "round_robin_position": 1,
+      "windows": [
+        {
+          "logical_start_seconds": 0.02,
+          "file_start_seconds": 0.02,
+          "analysis_frames": 27044,
+          "harmonic_count": 4,
+          "measured_hz": 1167.551,
+          "detune_cents": -10.50783,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.06,
+          "file_start_seconds": 0.06,
+          "analysis_frames": 25280,
+          "harmonic_count": 4,
+          "measured_hz": 1165.304423,
+          "detune_cents": -13.842244,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.12,
+          "file_start_seconds": 0.12,
+          "analysis_frames": 22634,
+          "harmonic_count": 4,
+          "measured_hz": 1164.659093,
+          "detune_cents": -14.801244,
+          "status": "accepted"
+        }
+      ],
+      "measured_hz": 1165.304423,
+      "measured_detune_cents": -13.842244,
+      "window_range_cents": 4.293414,
+      "maximum_allowed_window_range_cents": 12.0,
+      "status": "accepted"
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/spic/Violas_spic_D5_v2_rr2-PB.wav": {
+      "articulation": "spiccato",
+      "root_midi": 86,
+      "expected_hz": 1174.659072,
+      "recorded_velocity": "v2 (single retained recorded tier)",
+      "round_robin_position": 2,
+      "windows": [
+        {
+          "logical_start_seconds": 0.02,
+          "file_start_seconds": 0.02,
+          "analysis_frames": 25438,
+          "harmonic_count": 4,
+          "measured_hz": 1170.19097,
+          "detune_cents": -6.597726,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.06,
+          "file_start_seconds": 0.06,
+          "analysis_frames": 23674,
+          "harmonic_count": 4,
+          "measured_hz": 1170.760054,
+          "detune_cents": -5.756001,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.12,
+          "file_start_seconds": 0.12,
+          "analysis_frames": 21028,
+          "harmonic_count": 4,
+          "measured_hz": 1171.655046,
+          "detune_cents": -4.433059,
+          "status": "accepted"
+        }
+      ],
+      "measured_hz": 1170.760054,
+      "measured_detune_cents": -5.756001,
+      "window_range_cents": 2.164666,
+      "maximum_allowed_window_range_cents": 12.0,
+      "status": "accepted"
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/spic/Violas_spic_E2_v2_rr1-PB.wav": {
+      "articulation": "spiccato",
+      "root_midi": 52,
+      "expected_hz": 164.813778,
+      "recorded_velocity": "v2 (single retained recorded tier)",
+      "round_robin_position": 1,
+      "windows": [
+        {
+          "logical_start_seconds": 0.02,
+          "file_start_seconds": 0.02,
+          "analysis_frames": 32768,
+          "harmonic_count": 10,
+          "measured_hz": 163.229945,
+          "detune_cents": -16.717328,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.06,
+          "file_start_seconds": 0.06,
+          "analysis_frames": 32768,
+          "harmonic_count": 10,
+          "measured_hz": 163.806953,
+          "detune_cents": -10.608318,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.12,
+          "file_start_seconds": 0.12,
+          "analysis_frames": 32768,
+          "harmonic_count": 10,
+          "measured_hz": 163.85312,
+          "detune_cents": -10.120456,
+          "status": "accepted"
+        }
+      ],
+      "measured_hz": 163.806953,
+      "measured_detune_cents": -10.608318,
+      "window_range_cents": 6.596872,
+      "maximum_allowed_window_range_cents": 12.0,
+      "status": "accepted"
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/spic/Violas_spic_E2_v2_rr2-PB.wav": {
+      "articulation": "spiccato",
+      "root_midi": 52,
+      "expected_hz": 164.813778,
+      "recorded_velocity": "v2 (single retained recorded tier)",
+      "round_robin_position": 2,
+      "windows": [
+        {
+          "logical_start_seconds": 0.02,
+          "file_start_seconds": 0.02,
+          "analysis_frames": 32768,
+          "harmonic_count": 10,
+          "measured_hz": 164.384173,
+          "detune_cents": -4.518541,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.06,
+          "file_start_seconds": 0.06,
+          "analysis_frames": 32768,
+          "harmonic_count": 10,
+          "measured_hz": 164.457891,
+          "detune_cents": -3.742347,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.12,
+          "file_start_seconds": 0.12,
+          "analysis_frames": 32768,
+          "harmonic_count": 10,
+          "measured_hz": 164.458661,
+          "detune_cents": -3.734246,
+          "status": "accepted"
+        }
+      ],
+      "measured_hz": 164.457891,
+      "measured_detune_cents": -3.742347,
+      "window_range_cents": 0.784295,
+      "maximum_allowed_window_range_cents": 12.0,
+      "status": "accepted"
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/spic/Violas_spic_E4_v2_rr1-PB.wav": {
+      "articulation": "spiccato",
+      "root_midi": 76,
+      "expected_hz": 659.255114,
+      "recorded_velocity": "v2 (single retained recorded tier)",
+      "round_robin_position": 1,
+      "windows": [
+        {
+          "logical_start_seconds": 0.02,
+          "file_start_seconds": 0.02,
+          "analysis_frames": 32768,
+          "harmonic_count": 7,
+          "measured_hz": 661.939875,
+          "detune_cents": 7.035988,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.06,
+          "file_start_seconds": 0.06,
+          "analysis_frames": 32768,
+          "harmonic_count": 7,
+          "measured_hz": 661.92873,
+          "detune_cents": 7.00684,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.12,
+          "file_start_seconds": 0.12,
+          "analysis_frames": 32768,
+          "harmonic_count": 7,
+          "measured_hz": 658.499248,
+          "detune_cents": -1.986078,
+          "status": "accepted"
+        }
+      ],
+      "measured_hz": 661.92873,
+      "measured_detune_cents": 7.00684,
+      "window_range_cents": 9.022066,
+      "maximum_allowed_window_range_cents": 12.0,
+      "status": "accepted"
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/spic/Violas_spic_E4_v2_rr2-PB.wav": {
+      "articulation": "spiccato",
+      "root_midi": 76,
+      "expected_hz": 659.255114,
+      "recorded_velocity": "v2 (single retained recorded tier)",
+      "round_robin_position": 2,
+      "windows": [
+        {
+          "logical_start_seconds": 0.02,
+          "file_start_seconds": 0.02,
+          "analysis_frames": 32768,
+          "harmonic_count": 7,
+          "measured_hz": 661.462874,
+          "detune_cents": 5.787993,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.06,
+          "file_start_seconds": 0.06,
+          "analysis_frames": 32768,
+          "harmonic_count": 7,
+          "measured_hz": 661.182702,
+          "detune_cents": 5.054548,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.12,
+          "file_start_seconds": 0.12,
+          "analysis_frames": 32768,
+          "harmonic_count": 7,
+          "measured_hz": 660.800998,
+          "detune_cents": 4.05481,
+          "status": "accepted"
+        }
+      ],
+      "measured_hz": 661.182702,
+      "measured_detune_cents": 5.054548,
+      "window_range_cents": 1.733183,
+      "maximum_allowed_window_range_cents": 12.0,
+      "status": "accepted"
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/spic/Violas_spic_F3_v2_rr1-PB.wav": {
+      "articulation": "spiccato",
+      "root_midi": 65,
+      "expected_hz": 349.228231,
+      "recorded_velocity": "v2 (single retained recorded tier)",
+      "round_robin_position": 1,
+      "windows": [
+        {
+          "logical_start_seconds": 0.02,
+          "file_start_seconds": 0.02,
+          "analysis_frames": 32768,
+          "harmonic_count": 10,
+          "measured_hz": 350.858265,
+          "detune_cents": 8.061787,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.06,
+          "file_start_seconds": 0.06,
+          "analysis_frames": 32768,
+          "harmonic_count": 10,
+          "measured_hz": 350.877938,
+          "detune_cents": 8.15886,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.12,
+          "file_start_seconds": 0.12,
+          "analysis_frames": 32768,
+          "harmonic_count": 10,
+          "measured_hz": 350.257524,
+          "detune_cents": 5.09502,
+          "status": "accepted"
+        }
+      ],
+      "measured_hz": 350.858265,
+      "measured_detune_cents": 8.061787,
+      "window_range_cents": 3.06384,
+      "maximum_allowed_window_range_cents": 12.0,
+      "status": "accepted"
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/spic/Violas_spic_F3_v2_rr2-PB.wav": {
+      "articulation": "spiccato",
+      "root_midi": 65,
+      "expected_hz": 349.228231,
+      "recorded_velocity": "v2 (single retained recorded tier)",
+      "round_robin_position": 2,
+      "windows": [
+        {
+          "logical_start_seconds": 0.02,
+          "file_start_seconds": 0.02,
+          "analysis_frames": 32768,
+          "harmonic_count": 10,
+          "measured_hz": 349.104473,
+          "detune_cents": -0.613617,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.06,
+          "file_start_seconds": 0.06,
+          "analysis_frames": 32273,
+          "harmonic_count": 10,
+          "measured_hz": 349.038803,
+          "detune_cents": -0.939312,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.12,
+          "file_start_seconds": 0.12,
+          "analysis_frames": 29627,
+          "harmonic_count": 10,
+          "measured_hz": 350.014665,
+          "detune_cents": 3.894216,
+          "status": "accepted"
+        }
+      ],
+      "measured_hz": 349.104473,
+      "measured_detune_cents": -0.613617,
+      "window_range_cents": 4.833528,
+      "maximum_allowed_window_range_cents": 12.0,
+      "status": "accepted"
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/spic/Violas_spic_G2_v2_rr1-PB.wav": {
+      "articulation": "spiccato",
+      "root_midi": 55,
+      "expected_hz": 195.997718,
+      "recorded_velocity": "v2 (single retained recorded tier)",
+      "round_robin_position": 1,
+      "windows": [
+        {
+          "logical_start_seconds": 0.02,
+          "file_start_seconds": 0.02,
+          "analysis_frames": 32768,
+          "harmonic_count": 10,
+          "measured_hz": 196.271366,
+          "detune_cents": 2.415424,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.06,
+          "file_start_seconds": 0.06,
+          "analysis_frames": 32768,
+          "harmonic_count": 10,
+          "measured_hz": 196.271263,
+          "detune_cents": 2.414517,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.12,
+          "file_start_seconds": 0.12,
+          "analysis_frames": 32768,
+          "harmonic_count": 10,
+          "measured_hz": 196.296905,
+          "detune_cents": 2.640687,
+          "status": "accepted"
+        }
+      ],
+      "measured_hz": 196.271366,
+      "measured_detune_cents": 2.415424,
+      "window_range_cents": 0.226169,
+      "maximum_allowed_window_range_cents": 12.0,
+      "status": "accepted"
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/spic/Violas_spic_G2_v2_rr2-PB.wav": {
+      "articulation": "spiccato",
+      "root_midi": 55,
+      "expected_hz": 195.997718,
+      "recorded_velocity": "v2 (single retained recorded tier)",
+      "round_robin_position": 2,
+      "windows": [
+        {
+          "logical_start_seconds": 0.02,
+          "file_start_seconds": 0.02,
+          "analysis_frames": 32768,
+          "harmonic_count": 10,
+          "measured_hz": 197.503991,
+          "detune_cents": 13.253938,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.06,
+          "file_start_seconds": 0.06,
+          "analysis_frames": 32768,
+          "harmonic_count": 10,
+          "measured_hz": 197.564482,
+          "detune_cents": 13.784096,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.12,
+          "file_start_seconds": 0.12,
+          "analysis_frames": 32768,
+          "harmonic_count": 10,
+          "measured_hz": 196.784875,
+          "detune_cents": 6.938975,
+          "status": "accepted"
+        }
+      ],
+      "measured_hz": 197.503991,
+      "measured_detune_cents": 13.253938,
+      "window_range_cents": 6.845121,
+      "maximum_allowed_window_range_cents": 12.0,
+      "status": "accepted"
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/spic/Violas_spic_G4_v2_rr1-PB.wav": {
+      "articulation": "spiccato",
+      "root_midi": 79,
+      "expected_hz": 783.990872,
+      "recorded_velocity": "v2 (single retained recorded tier)",
+      "round_robin_position": 1,
+      "windows": [
+        {
+          "logical_start_seconds": 0.02,
+          "file_start_seconds": 0.02,
+          "analysis_frames": 32768,
+          "harmonic_count": 6,
+          "measured_hz": 784.358079,
+          "detune_cents": 0.81069,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.06,
+          "file_start_seconds": 0.06,
+          "analysis_frames": 31461,
+          "harmonic_count": 6,
+          "measured_hz": 784.425926,
+          "detune_cents": 0.960434,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.12,
+          "file_start_seconds": 0.12,
+          "analysis_frames": 28815,
+          "harmonic_count": 6,
+          "measured_hz": 787.037006,
+          "detune_cents": 6.713537,
+          "status": "accepted"
+        }
+      ],
+      "measured_hz": 784.425926,
+      "measured_detune_cents": 0.960434,
+      "window_range_cents": 5.902848,
+      "maximum_allowed_window_range_cents": 12.0,
+      "status": "accepted"
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/spic/Violas_spic_G4_v2_rr2-PB.wav": {
+      "articulation": "spiccato",
+      "root_midi": 79,
+      "expected_hz": 783.990872,
+      "recorded_velocity": "v2 (single retained recorded tier)",
+      "round_robin_position": 2,
+      "windows": [
+        {
+          "logical_start_seconds": 0.02,
+          "file_start_seconds": 0.02,
+          "analysis_frames": 32768,
+          "harmonic_count": 6,
+          "measured_hz": 784.818492,
+          "detune_cents": 1.826613,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.06,
+          "file_start_seconds": 0.06,
+          "analysis_frames": 32180,
+          "harmonic_count": 6,
+          "measured_hz": 784.774167,
+          "detune_cents": 1.728835,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.12,
+          "file_start_seconds": 0.12,
+          "analysis_frames": 29534,
+          "harmonic_count": 6,
+          "measured_hz": 787.897464,
+          "detune_cents": 8.605242,
+          "status": "accepted"
+        }
+      ],
+      "measured_hz": 784.818492,
+      "measured_detune_cents": 1.826613,
+      "window_range_cents": 6.876407,
+      "maximum_allowed_window_range_cents": 12.0,
+      "status": "accepted"
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/susvib/ViolaEns_susvib_A3_v2_1-PB-loop.wav": {
+      "articulation": "sustain",
+      "root_midi": 69,
+      "expected_hz": 440.0,
+      "recorded_velocity": "v2 (single retained recorded tier)",
+      "round_robin_position": null,
+      "windows": [
+        {
+          "logical_start_seconds": 0.2,
+          "file_start_seconds": 0.2,
+          "analysis_frames": 65536,
+          "harmonic_count": 10,
+          "measured_hz": 439.04061,
+          "detune_cents": -3.778959,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.8,
+          "file_start_seconds": 0.8,
+          "analysis_frames": 65536,
+          "harmonic_count": 10,
+          "measured_hz": 439.079274,
+          "detune_cents": -3.626504,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 1.4,
+          "file_start_seconds": 1.4,
+          "analysis_frames": 65536,
+          "harmonic_count": 10,
+          "measured_hz": 437.501473,
+          "detune_cents": -9.858779,
+          "status": "accepted"
+        }
+      ],
+      "measured_hz": 439.04061,
+      "measured_detune_cents": -3.778959,
+      "window_range_cents": 6.232275,
+      "maximum_allowed_window_range_cents": 30.0,
+      "status": "accepted"
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/susvib/ViolaEns_susvib_B2_v2_1-PB-loop.wav": {
+      "articulation": "sustain",
+      "root_midi": 59,
+      "expected_hz": 246.941651,
+      "recorded_velocity": "v2 (single retained recorded tier)",
+      "round_robin_position": null,
+      "windows": [
+        {
+          "logical_start_seconds": 0.2,
+          "file_start_seconds": 0.2,
+          "analysis_frames": 65536,
+          "harmonic_count": 10,
+          "measured_hz": 247.211106,
+          "detune_cents": 1.888041,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.8,
+          "file_start_seconds": 0.8,
+          "analysis_frames": 65536,
+          "harmonic_count": 10,
+          "measured_hz": 247.336663,
+          "detune_cents": 2.767104,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 1.4,
+          "file_start_seconds": 1.4,
+          "analysis_frames": 65536,
+          "harmonic_count": 10,
+          "measured_hz": 247.127671,
+          "detune_cents": 1.303644,
+          "status": "accepted"
+        }
+      ],
+      "measured_hz": 247.211106,
+      "measured_detune_cents": 1.888041,
+      "window_range_cents": 1.46346,
+      "maximum_allowed_window_range_cents": 30.0,
+      "status": "accepted"
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/susvib/ViolaEns_susvib_B4_v2_1-PB-loop.wav": {
+      "articulation": "sustain",
+      "root_midi": 83,
+      "expected_hz": 987.766603,
+      "recorded_velocity": "v2 (single retained recorded tier)",
+      "round_robin_position": null,
+      "windows": [
+        {
+          "logical_start_seconds": 0.2,
+          "file_start_seconds": 0.249841,
+          "analysis_frames": 65536,
+          "harmonic_count": 5,
+          "measured_hz": 985.491627,
+          "detune_cents": -3.991893,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.8,
+          "file_start_seconds": 0.849841,
+          "analysis_frames": 65536,
+          "harmonic_count": 5,
+          "measured_hz": 997.107885,
+          "detune_cents": 16.295303,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 1.4,
+          "file_start_seconds": 1.449841,
+          "analysis_frames": 65536,
+          "harmonic_count": 5,
+          "measured_hz": 994.131197,
+          "detune_cents": 11.119282,
+          "status": "accepted"
+        }
+      ],
+      "measured_hz": 994.131197,
+      "measured_detune_cents": 11.119282,
+      "window_range_cents": 20.287196,
+      "maximum_allowed_window_range_cents": 30.0,
+      "status": "accepted"
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/susvib/ViolaEns_susvib_C4_v2_1-PB-loop.wav": {
+      "articulation": "sustain",
+      "root_midi": 72,
+      "expected_hz": 523.251131,
+      "recorded_velocity": "v2 (single retained recorded tier)",
+      "round_robin_position": null,
+      "windows": [
+        {
+          "logical_start_seconds": 0.2,
+          "file_start_seconds": 0.2,
+          "analysis_frames": 65536,
+          "harmonic_count": 9,
+          "measured_hz": 523.188386,
+          "detune_cents": -0.207609,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.8,
+          "file_start_seconds": 0.8,
+          "analysis_frames": 65536,
+          "harmonic_count": 9,
+          "measured_hz": 522.048593,
+          "detune_cents": -3.983306,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 1.4,
+          "file_start_seconds": 1.4,
+          "analysis_frames": 65536,
+          "harmonic_count": 9,
+          "measured_hz": 521.952423,
+          "detune_cents": -4.302259,
+          "status": "accepted"
+        }
+      ],
+      "measured_hz": 522.048593,
+      "measured_detune_cents": -3.983306,
+      "window_range_cents": 4.09465,
+      "maximum_allowed_window_range_cents": 30.0,
+      "status": "accepted"
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/susvib/ViolaEns_susvib_D2_v2_1-PB-loop.wav": {
+      "articulation": "sustain",
+      "root_midi": 50,
+      "expected_hz": 146.832384,
+      "recorded_velocity": "v2 (single retained recorded tier)",
+      "round_robin_position": null,
+      "windows": [
+        {
+          "logical_start_seconds": 0.2,
+          "file_start_seconds": 0.2,
+          "analysis_frames": 65536,
+          "harmonic_count": 10,
+          "measured_hz": 146.948676,
+          "detune_cents": 1.370607,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.8,
+          "file_start_seconds": 0.8,
+          "analysis_frames": 65536,
+          "harmonic_count": 10,
+          "measured_hz": 146.697301,
+          "detune_cents": -1.593431,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 1.4,
+          "file_start_seconds": 1.4,
+          "analysis_frames": 65536,
+          "harmonic_count": 10,
+          "measured_hz": 146.695085,
+          "detune_cents": -1.619588,
+          "status": "accepted"
+        }
+      ],
+      "measured_hz": 146.697301,
+      "measured_detune_cents": -1.593431,
+      "window_range_cents": 2.990196,
+      "maximum_allowed_window_range_cents": 30.0,
+      "status": "accepted"
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/susvib/ViolaEns_susvib_D3_v2_1-PB-loop.wav": {
+      "articulation": "sustain",
+      "root_midi": 62,
+      "expected_hz": 293.664768,
+      "recorded_velocity": "v2 (single retained recorded tier)",
+      "round_robin_position": null,
+      "windows": [
+        {
+          "logical_start_seconds": 0.2,
+          "file_start_seconds": 0.2,
+          "analysis_frames": 65536,
+          "harmonic_count": 10,
+          "measured_hz": 294.063949,
+          "detune_cents": 2.351681,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.8,
+          "file_start_seconds": 0.8,
+          "analysis_frames": 65536,
+          "harmonic_count": 10,
+          "measured_hz": 293.256366,
+          "detune_cents": -2.409318,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 1.4,
+          "file_start_seconds": 1.4,
+          "analysis_frames": 65536,
+          "harmonic_count": 10,
+          "measured_hz": 292.381386,
+          "detune_cents": -7.582465,
+          "status": "accepted"
+        }
+      ],
+      "measured_hz": 293.256366,
+      "measured_detune_cents": -2.409318,
+      "window_range_cents": 9.934146,
+      "maximum_allowed_window_range_cents": 30.0,
+      "status": "accepted"
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/susvib/ViolaEns_susvib_D5_v2_1-PB-loop.wav": {
+      "articulation": "sustain",
+      "root_midi": 86,
+      "expected_hz": 1174.659072,
+      "recorded_velocity": "v2 (single retained recorded tier)",
+      "round_robin_position": null,
+      "windows": [
+        {
+          "logical_start_seconds": 0.2,
+          "file_start_seconds": 0.2,
+          "analysis_frames": 65536,
+          "harmonic_count": 4,
+          "measured_hz": 1174.217976,
+          "detune_cents": -0.650217,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.8,
+          "file_start_seconds": 0.8,
+          "analysis_frames": 65536,
+          "harmonic_count": 4,
+          "measured_hz": 1171.551118,
+          "detune_cents": -4.58663,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 1.4,
+          "file_start_seconds": 1.4,
+          "analysis_frames": 65536,
+          "harmonic_count": 4,
+          "measured_hz": 1175.238897,
+          "detune_cents": 0.854346,
+          "status": "accepted"
+        }
+      ],
+      "measured_hz": 1174.217976,
+      "measured_detune_cents": -0.650217,
+      "window_range_cents": 5.440976,
+      "maximum_allowed_window_range_cents": 30.0,
+      "status": "accepted"
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/susvib/ViolaEns_susvib_E2_v2_1-PB-loop.wav": {
+      "articulation": "sustain",
+      "root_midi": 52,
+      "expected_hz": 164.813778,
+      "recorded_velocity": "v2 (single retained recorded tier)",
+      "round_robin_position": null,
+      "windows": [
+        {
+          "logical_start_seconds": 0.2,
+          "file_start_seconds": 0.2,
+          "analysis_frames": 65536,
+          "harmonic_count": 10,
+          "measured_hz": 164.86274,
+          "detune_cents": 0.51422,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.8,
+          "file_start_seconds": 0.8,
+          "analysis_frames": 65536,
+          "harmonic_count": 10,
+          "measured_hz": 165.130948,
+          "detune_cents": 3.328402,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 1.4,
+          "file_start_seconds": 1.4,
+          "analysis_frames": 65536,
+          "harmonic_count": 10,
+          "measured_hz": 164.997091,
+          "detune_cents": 1.924474,
+          "status": "accepted"
+        }
+      ],
+      "measured_hz": 164.997091,
+      "measured_detune_cents": 1.924474,
+      "window_range_cents": 2.814182,
+      "maximum_allowed_window_range_cents": 30.0,
+      "status": "accepted"
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/susvib/ViolaEns_susvib_E4_v2_1-PB-loop.wav": {
+      "articulation": "sustain",
+      "root_midi": 76,
+      "expected_hz": 659.255114,
+      "recorded_velocity": "v2 (single retained recorded tier)",
+      "round_robin_position": null,
+      "windows": [
+        {
+          "logical_start_seconds": 0.2,
+          "file_start_seconds": 0.2,
+          "analysis_frames": 65536,
+          "harmonic_count": 7,
+          "measured_hz": 661.608188,
+          "detune_cents": 6.168279,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.8,
+          "file_start_seconds": 0.8,
+          "analysis_frames": 65536,
+          "harmonic_count": 7,
+          "measured_hz": 662.822997,
+          "detune_cents": 9.344162,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 1.4,
+          "file_start_seconds": 1.4,
+          "analysis_frames": 65536,
+          "harmonic_count": 7,
+          "measured_hz": 661.56294,
+          "detune_cents": 6.049874,
+          "status": "accepted"
+        }
+      ],
+      "measured_hz": 661.608188,
+      "measured_detune_cents": 6.168279,
+      "window_range_cents": 3.294288,
+      "maximum_allowed_window_range_cents": 30.0,
+      "status": "accepted"
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/susvib/ViolaEns_susvib_F3_v2_1-PB-loop.wav": {
+      "articulation": "sustain",
+      "root_midi": 65,
+      "expected_hz": 349.228231,
+      "recorded_velocity": "v2 (single retained recorded tier)",
+      "round_robin_position": null,
+      "windows": [
+        {
+          "logical_start_seconds": 0.2,
+          "file_start_seconds": 0.2,
+          "analysis_frames": 65536,
+          "harmonic_count": 10,
+          "measured_hz": 349.338757,
+          "detune_cents": 0.547822,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.8,
+          "file_start_seconds": 0.8,
+          "analysis_frames": 65536,
+          "harmonic_count": 10,
+          "measured_hz": 349.843913,
+          "detune_cents": 3.049438,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 1.4,
+          "file_start_seconds": 1.4,
+          "analysis_frames": 65536,
+          "harmonic_count": 10,
+          "measured_hz": 349.646055,
+          "detune_cents": 2.070045,
+          "status": "accepted"
+        }
+      ],
+      "measured_hz": 349.646055,
+      "measured_detune_cents": 2.070045,
+      "window_range_cents": 2.501615,
+      "maximum_allowed_window_range_cents": 30.0,
+      "status": "accepted"
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/susvib/ViolaEns_susvib_G2_v2_1-PB-loop.wav": {
+      "articulation": "sustain",
+      "root_midi": 55,
+      "expected_hz": 195.997718,
+      "recorded_velocity": "v2 (single retained recorded tier)",
+      "round_robin_position": null,
+      "windows": [
+        {
+          "logical_start_seconds": 0.2,
+          "file_start_seconds": 0.2,
+          "analysis_frames": 65536,
+          "harmonic_count": 10,
+          "measured_hz": 196.344504,
+          "detune_cents": 3.060427,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.8,
+          "file_start_seconds": 0.8,
+          "analysis_frames": 65536,
+          "harmonic_count": 10,
+          "measured_hz": 195.818751,
+          "detune_cents": -1.581523,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 1.4,
+          "file_start_seconds": 1.4,
+          "analysis_frames": 65536,
+          "harmonic_count": 10,
+          "measured_hz": 196.084453,
+          "detune_cents": 0.765953,
+          "status": "accepted"
+        }
+      ],
+      "measured_hz": 196.084453,
+      "measured_detune_cents": 0.765953,
+      "window_range_cents": 4.641951,
+      "maximum_allowed_window_range_cents": 30.0,
+      "status": "accepted"
+    },
+    "libs/VSCO2-CE/Strings/Viola Section/susvib/ViolaEns_susvib_G4_v2_1-PB-loop.wav": {
+      "articulation": "sustain",
+      "root_midi": 79,
+      "expected_hz": 783.990872,
+      "recorded_velocity": "v2 (single retained recorded tier)",
+      "round_robin_position": null,
+      "windows": [
+        {
+          "logical_start_seconds": 0.2,
+          "file_start_seconds": 0.2,
+          "analysis_frames": 65536,
+          "harmonic_count": 6,
+          "measured_hz": 783.820779,
+          "detune_cents": -0.375645,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 0.8,
+          "file_start_seconds": 0.8,
+          "analysis_frames": 65536,
+          "harmonic_count": 6,
+          "measured_hz": 787.984346,
+          "detune_cents": 8.796136,
+          "status": "accepted"
+        },
+        {
+          "logical_start_seconds": 1.4,
+          "file_start_seconds": 1.4,
+          "analysis_frames": 65536,
+          "harmonic_count": 6,
+          "measured_hz": 789.058759,
+          "detune_cents": 11.155057,
+          "status": "accepted"
+        }
+      ],
+      "measured_hz": 787.984346,
+      "measured_detune_cents": 8.796136,
+      "window_range_cents": 11.530702,
+      "maximum_allowed_window_range_cents": 30.0,
+      "status": "accepted"
+    }
+  },
+  "failures": []
+}

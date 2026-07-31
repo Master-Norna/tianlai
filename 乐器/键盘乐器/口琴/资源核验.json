@@ -1,0 +1,49 @@
+{
+  "upstream": "sgossner/VCSL (Versilian Community Sample Library)",
+  "origin": "https://github.com/sgossner/VCSL",
+  "upstream_version": "1.2.2-RC",
+  "license": "CC0-1.0",
+  "source_file_count": 3,
+  "source_file_sha256": {
+    "Aerophones/Free Aerophones/Harmonica-Hohner-Super64 - Accented.sfz": "978f4dd24da80f9272aa9f907ce6eaa38509d93fdf915f8fd77179a2e851396d",
+    "Aerophones/Free Aerophones/Harmonica-Hohner-Super64 - Normal.sfz": "511d2267c1d7ee599b1e02f6632f86098a39fa1466fa1e1f5f0df0f60f90490d",
+    "Aerophones/Free Aerophones/Harmonica-Hohner-Super64 - Vib.sfz": "e6e84f6b37ddb7b0a829489ff88976aa61639fd3c9ffb53e4c5e6dfe3a4543f5"
+  },
+  "evidence_sha256": {
+    "README.md": "e360f24c120c9ad734cc8508695e09a61ddc4cae5a59c6c9af33fe501b6c9a5b"
+  },
+  "sample_count": 78,
+  "sample_bytes": 28924908,
+  "sample_formats": {
+    ".wav:44100Hz:1ch": 78
+  },
+  "articulations": {
+    "sustain": {
+      "attack_regions": 13,
+      "release_regions": 13,
+      "round_robin_regions": 0,
+      "velocity_bounded_regions": 0,
+      "random_variant_regions": 0,
+      "looped_regions": 0
+    },
+    "vibrato": {
+      "attack_regions": 13,
+      "release_regions": 13,
+      "round_robin_regions": 0,
+      "velocity_bounded_regions": 0,
+      "random_variant_regions": 0,
+      "looped_regions": 0
+    },
+    "accent": {
+      "attack_regions": 13,
+      "release_regions": 13,
+      "round_robin_regions": 0,
+      "velocity_bounded_regions": 0,
+      "random_variant_regions": 0,
+      "looped_regions": 0
+    }
+  },
+  "region_count": 78,
+  "sample_set_sha256": "3886eabb24d0b171e104c230c7cf732143152ec2ad2a32746caf851a4a3f2f91",
+  "sample_set_hash_algorithm": "sort unique asset-root-relative UTF-8 paths; concatenate lowercase '<sha256>  <path>\\n>'; SHA-256 the UTF-8 bytes"
+}

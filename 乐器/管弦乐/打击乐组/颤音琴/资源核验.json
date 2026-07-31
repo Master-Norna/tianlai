@@ -1,0 +1,65 @@
+{
+  "upstream": "sgossner/VCSL (Versilian Community Sample Library)",
+  "origin": "https://github.com/sgossner/VCSL",
+  "upstream_version": "1.2.2-RC",
+  "license": "CC0-1.0",
+  "source_file_count": 3,
+  "source_file_sha256": {
+    "Idiophones/Struck Idiophones/Vibraphone - Bowed.sfz": "304e09d434b181d9f1b48648cee246dc44568f36a92b81e7715098858c1f5245",
+    "Idiophones/Struck Idiophones/Vibraphone - Hard Mallets.sfz": "75413685fe26f2245c62932336e20a3b254bcb28d409a7f0ff37de2030087a1f",
+    "Idiophones/Struck Idiophones/Vibraphone - Soft Mallets.sfz": "92ff34fd739d14df29580f33421c54244121dc347e21d4263e58f3ce72c9b605"
+  },
+  "evidence_sha256": {
+    "README.md": "e360f24c120c9ad734cc8508695e09a61ddc4cae5a59c6c9af33fe501b6c9a5b"
+  },
+  "sample_count": 50,
+  "sample_bytes": 99488896,
+  "sample_formats": {
+    ".wav:44100Hz:2ch": 50
+  },
+  "articulations": {
+    "damped": {
+      "attack_regions": 22,
+      "release_regions": 0,
+      "round_robin_regions": 0,
+      "velocity_bounded_regions": 22,
+      "random_variant_regions": 0,
+      "looped_regions": 0
+    },
+    "open": {
+      "attack_regions": 22,
+      "release_regions": 0,
+      "round_robin_regions": 0,
+      "velocity_bounded_regions": 22,
+      "random_variant_regions": 0,
+      "looped_regions": 0
+    },
+    "hard_damped": {
+      "attack_regions": 22,
+      "release_regions": 0,
+      "round_robin_regions": 0,
+      "velocity_bounded_regions": 22,
+      "random_variant_regions": 0,
+      "looped_regions": 0
+    },
+    "hard_open": {
+      "attack_regions": 22,
+      "release_regions": 0,
+      "round_robin_regions": 0,
+      "velocity_bounded_regions": 22,
+      "random_variant_regions": 0,
+      "looped_regions": 0
+    },
+    "bowed": {
+      "attack_regions": 6,
+      "release_regions": 0,
+      "round_robin_regions": 0,
+      "velocity_bounded_regions": 0,
+      "random_variant_regions": 0,
+      "looped_regions": 0
+    }
+  },
+  "region_count": 94,
+  "sample_set_sha256": "9f51a385e6dd5d660c59ef1f2cfc7b636ff9953b6a7ab4daf371287ffc20777a",
+  "sample_set_hash_algorithm": "sort unique asset-root-relative UTF-8 paths; concatenate lowercase '<sha256>  <path>\\n>'; SHA-256 the UTF-8 bytes"
+}

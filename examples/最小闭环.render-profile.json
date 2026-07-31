@@ -1,0 +1,17 @@
+{
+  "kind": "tianlai.render_profile",
+  "schema_version": 1,
+  "name": "minimal-dry-v1",
+  "expression": "strict",
+  "range_mode": "compatibility",
+  "seed": 0,
+  "master_gain_db": 0,
+  "normalize_peak_db": -1,
+  "space": {
+    "enabled": false
+  },
+  "collaboration_mode": null,
+  "write_stems": true,
+  "use_stem_cache": true,
+  "refresh_stem_cache": false
+}

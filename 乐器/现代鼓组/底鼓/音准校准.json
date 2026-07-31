@@ -1,0 +1,6 @@
+{
+  "applicable": false,
+  "pitch_mode": "fixed",
+  "reason": "底鼓为无固定音高膜鸣打击,任意谱面音高都触发同一鼓,不做十二平均律校准",
+  "samples": {}
+}

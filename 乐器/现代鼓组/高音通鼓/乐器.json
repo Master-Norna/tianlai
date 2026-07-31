@@ -1,0 +1,31 @@
+{
+  "name": "VCSL 高音通鼓",
+  "type": "dedicated_sfz",
+  "quality_tier": "formal",
+  "collaboration_review_status": "untested",
+  "upgrade_status": "vcsl_dedicated_multisample",
+  "fallback_policy": "explicit_only_no_silent_gm",
+  "asset_root": "../../../音源/VCSL",
+  "upstream": "sgossner/VCSL (Versilian Community Sample Library)",
+  "origin": "https://github.com/sgossner/VCSL",
+  "upstream_version": "1.2.2-RC",
+  "license": "CC0-1.0",
+  "evidence_files": [
+    "README.md"
+  ],
+  "resource_verification": "资源核验.json",
+  "pitch_calibration": "音准校准.json",
+  "articulations": {
+    "hit": "Membranophones/Struck Membranophones/Tom 1.sfz"
+  },
+  "default_articulation": "hit",
+  "pitch_mode": "ignore",
+  "gain": 0.343,
+  "velocity_exponent": 0.72,
+  "auxiliary_note_id_base": 1844000000,
+  "release_seconds": 0.5,
+  "calibration_not_applicable_reason": "高音通鼓为膜鸣打击,键 60-65 分别选择边击/槌击/滚奏变体,不做十二平均律校准",
+  "note_min": 60,
+  "note_max": 65,
+  "license_status": "approved"
+}

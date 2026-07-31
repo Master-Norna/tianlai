@@ -1,0 +1,70 @@
+{
+  "applicable": true,
+  "method": "FFT peak inside the 55-350 Hz membrane fundamental band over the early decay; drum root = median of its hit samples; playback transposes from these measured roots, so scored pitches are accurate by construction",
+  "reference_a4_hz": 440.0,
+  "drums": {
+    "low": {
+      "root_midi": 41.268025,
+      "root_hz": 88.669241,
+      "spread_cents": 3.120191,
+      "samples": {
+        "Membranophones/Struck Membranophones/Tom 2/Stick/TomL_HitS_v2_rr1_Mid.wav": {
+          "fundamental_hz": 88.574337,
+          "fundamental_midi": 41.249486
+        },
+        "Membranophones/Struck Membranophones/Tom 2/Stick/TomL_HitS_v2_rr2_Mid.wav": {
+          "fundamental_hz": 88.580545,
+          "fundamental_midi": 41.250699
+        },
+        "Membranophones/Struck Membranophones/Tom 2/Stick/TomL_HitS_v3_rr1_Mid.wav": {
+          "fundamental_hz": 88.679371,
+          "fundamental_midi": 41.270003
+        },
+        "Membranophones/Struck Membranophones/Tom 2/Stick/TomL_HitS_v3_rr2_Mid.wav": {
+          "fundamental_hz": 88.659113,
+          "fundamental_midi": 41.266048
+        },
+        "Membranophones/Struck Membranophones/Tom 2/Stick/TomL_HitS_v4_rr1_Mid.wav": {
+          "fundamental_hz": 88.721785,
+          "fundamental_midi": 41.278281
+        },
+        "Membranophones/Struck Membranophones/Tom 2/Stick/TomL_HitS_v4_rr2_Mid.wav": {
+          "fundamental_hz": 88.734118,
+          "fundamental_midi": 41.280688
+        }
+      }
+    },
+    "high": {
+      "root_midi": 44.250445,
+      "root_hz": 105.339068,
+      "spread_cents": 4.699997,
+      "samples": {
+        "Membranophones/Struck Membranophones/Tom 1/Stick/TomH_HitS_v2_rr1_Mid.wav": {
+          "fundamental_hz": 105.213983,
+          "fundamental_midi": 44.229875
+        },
+        "Membranophones/Struck Membranophones/Tom 1/Stick/TomH_HitS_v2_rr2_Mid.wav": {
+          "fundamental_hz": 105.298618,
+          "fundamental_midi": 44.243796
+        },
+        "Membranophones/Struck Membranophones/Tom 1/Stick/TomH_HitS_v3_rr1_Mid.wav": {
+          "fundamental_hz": 105.500008,
+          "fundamental_midi": 44.276875
+        },
+        "Membranophones/Struck Membranophones/Tom 1/Stick/TomH_HitS_v3_rr2_Mid.wav": {
+          "fundamental_hz": 105.413238,
+          "fundamental_midi": 44.26263
+        },
+        "Membranophones/Struck Membranophones/Tom 1/Stick/TomH_HitS_v4_rr1_Mid.wav": {
+          "fundamental_hz": 105.284486,
+          "fundamental_midi": 44.241472
+        },
+        "Membranophones/Struck Membranophones/Tom 1/Stick/TomH_HitS_v4_rr2_Mid.wav": {
+          "fundamental_hz": 105.379533,
+          "fundamental_midi": 44.257094
+        }
+      }
+    }
+  },
+  "generated_at": "2026-07-22"
+}

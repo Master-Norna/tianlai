@@ -1,0 +1,19 @@
+{
+  "kind": "tianlai.score_patch",
+  "schema_version": 1,
+  "base_score_sha256": "050bf53207d6f388411eb9a3f9036bbeeac913abf1e26055378ea15dd2c5a513",
+  "operations": [
+    {
+      "op": "update_note",
+      "event_id": "event-000004",
+      "expect": {
+        "pitch": "G4",
+        "dynamic": "mf"
+      },
+      "changes": {
+        "pitch": "F4",
+        "dynamic": "f"
+      }
+    }
+  ]
+}

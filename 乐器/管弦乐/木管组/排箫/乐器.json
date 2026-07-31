@@ -1,0 +1,23 @@
+{
+  "name": "程序建模 排箫",
+  "type": "modeled_instrument",
+  "quality_tier": "formal",
+  "collaboration_review_status": "untested",
+  "upgrade_status": "deterministic_physical_model",
+  "fallback_policy": "explicit_only_no_silent_gm",
+  "provenance_kind": "project_authored_dsp",
+  "implementation_license": "Apache-2.0",
+  "external_audio_assets": [],
+  "audio_asset_license": "not_applicable",
+  "license_status": "approved",
+  "profile": "pan_flute",
+  "engine_version": "1.1.0",
+  "modeling_rationale": "未找到有明确公开许可的真实采样，先以确定性物理建模补位；当前模型已通过单音色试听，真实采样仍是后续保真升级方向",
+  "resource_verification": "资源核验.json",
+  "pitch_calibration": "音准校准.json",
+  "seed": 41040,
+  "note_min": 60,
+  "note_max": 91,
+  "gain": 0.4097,
+  "velocity_exponent": 0.72
+}

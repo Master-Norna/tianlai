@@ -1,0 +1,225 @@
+{
+  "description": "小提琴(独奏/声部合一)的实测音准校准。键为相对 asset_root 的采样路径,故 SOLO(NoBudgetOrch)与 SEC(SSO 1st Violins)两套采样共处一表、互不冲突:加载哪个变体就查到哪一套。detune_cents 为实测偏差,播放时据此校回十二平均律。",
+  "samples": {
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/3_A-PB-loop.wav": {
+      "root_midi": 57.0,
+      "measured_hz": 220.050443,
+      "detune_cents": 0.396906
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/3_Ab-PB-loop.wav": {
+      "root_midi": 56.0,
+      "measured_hz": 207.637052,
+      "detune_cents": -0.127534
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/3_B-PB-loop.wav": {
+      "root_midi": 59.0,
+      "measured_hz": 246.907002,
+      "detune_cents": -0.242926
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/3_G-PB-loop.wav": {
+      "root_midi": 55.0,
+      "measured_hz": 195.989077,
+      "detune_cents": -0.076324
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/4_A-PB.wav": {
+      "root_midi": 69.0,
+      "measured_hz": 439.931906,
+      "detune_cents": -0.267945
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/4_Ab-PB.wav": {
+      "root_midi": 68.0,
+      "measured_hz": 415.199028,
+      "detune_cents": -0.440548
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/4_C-PB.wav": {
+      "root_midi": 60.0,
+      "measured_hz": 261.612152,
+      "detune_cents": -0.088764
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/4_D-PB.wav": {
+      "root_midi": 62.0,
+      "measured_hz": 293.651315,
+      "detune_cents": -0.079309
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/4_Db-PB.wav": {
+      "root_midi": 61.0,
+      "measured_hz": 277.21872,
+      "detune_cents": 0.225388
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/4_Eb-PB.wav": {
+      "root_midi": 63.0,
+      "measured_hz": 311.127918,
+      "detune_cents": 0.005201
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/4_F-PB.wav": {
+      "root_midi": 65.0,
+      "measured_hz": 349.323645,
+      "detune_cents": 0.472928
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/4_G-PB.wav": {
+      "root_midi": 67.0,
+      "measured_hz": 392.001115,
+      "detune_cents": 0.025079
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/4_Gb-PB.wav": {
+      "root_midi": 66.0,
+      "measured_hz": 370.027507,
+      "detune_cents": 0.154798
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/5_Ab-PB.wav": {
+      "root_midi": 80.0,
+      "measured_hz": 837.423006,
+      "detune_cents": 14.143635
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/5_B-PB.wav": {
+      "root_midi": 83.0,
+      "measured_hz": 987.826025,
+      "detune_cents": 0.104145
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/5_Bb-PB.wav": {
+      "root_midi": 82.0,
+      "measured_hz": 939.669556,
+      "detune_cents": 13.579981
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/5_C-PB.wav": {
+      "root_midi": 72.0,
+      "measured_hz": 522.056644,
+      "detune_cents": -3.956608
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/5_D-PB.wav": {
+      "root_midi": 74.0,
+      "measured_hz": 592.212798,
+      "detune_cents": 14.334574
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/5_Db-PB.wav": {
+      "root_midi": 73.0,
+      "measured_hz": 554.351868,
+      "detune_cents": -0.041828
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/5_E-PB.wav": {
+      "root_midi": 76.0,
+      "measured_hz": 657.108172,
+      "detune_cents": -5.647167
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/5_Eb-PB.wav": {
+      "root_midi": 75.0,
+      "measured_hz": 624.823711,
+      "detune_cents": 7.134816
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/5_F-PB.wav": {
+      "root_midi": 77.0,
+      "measured_hz": 698.484746,
+      "detune_cents": 0.070103
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/5_G-PB.wav": {
+      "root_midi": 79.0,
+      "measured_hz": 783.900904,
+      "detune_cents": -0.198682
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/5_Gb-PB.wav": {
+      "root_midi": 78.0,
+      "measured_hz": 739.894118,
+      "detune_cents": -0.221633
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/6_Ab-PB.wav": {
+      "root_midi": 92.0,
+      "measured_hz": 1684.863376,
+      "detune_cents": 24.467417
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/6_Bb-PB-loop.wav": {
+      "root_midi": 94.0,
+      "measured_hz": 1870.066969,
+      "detune_cents": 5.017408
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/6_C-PB.wav": {
+      "root_midi": 84.0,
+      "measured_hz": 1048.619739,
+      "detune_cents": 3.499416
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/6_D-PB.wav": {
+      "root_midi": 86.0,
+      "measured_hz": 1179.524838,
+      "detune_cents": 7.156444
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/6_Db-PB.wav": {
+      "root_midi": 85.0,
+      "measured_hz": 1103.377197,
+      "detune_cents": -8.37923
+    },
+    "libs/NoBudgetOrch/SoloViolin/Vibrato/6_Gb-PB.wav": {
+      "root_midi": 90.0,
+      "measured_hz": 1504.910026,
+      "detune_cents": 28.922167
+    },
+    "libs/SSO/Samples/1st Violins/1st-violins-sus-a#3.wav": {
+      "root_midi": 58.0,
+      "measured_hz": 232.415394,
+      "detune_cents": -4.957475
+    },
+    "libs/SSO/Samples/1st Violins/1st-violins-sus-a#4.wav": {
+      "root_midi": 70.0,
+      "measured_hz": 466.158456,
+      "detune_cents": -0.019704
+    },
+    "libs/SSO/Samples/1st Violins/1st-violins-sus-a#5.wav": {
+      "root_midi": 82.0,
+      "measured_hz": 936.037869,
+      "detune_cents": 6.876049
+    },
+    "libs/SSO/Samples/1st Violins/1st-violins-sus-a#6.wav": {
+      "root_midi": 94.0,
+      "measured_hz": 1868.394047,
+      "detune_cents": 3.46799
+    },
+    "libs/SSO/Samples/1st Violins/1st-violins-sus-c#4.wav": {
+      "root_midi": 61.0,
+      "measured_hz": 277.173858,
+      "detune_cents": -0.054795
+    },
+    "libs/SSO/Samples/1st Violins/1st-violins-sus-c#5.wav": {
+      "root_midi": 73.0,
+      "measured_hz": 558.843591,
+      "detune_cents": 13.929241
+    },
+    "libs/SSO/Samples/1st Violins/1st-violins-sus-c#6.wav": {
+      "root_midi": 85.0,
+      "measured_hz": 1116.274464,
+      "detune_cents": 11.739638
+    },
+    "libs/SSO/Samples/1st Violins/1st-violins-sus-e4.wav": {
+      "root_midi": 64.0,
+      "measured_hz": 330.229603,
+      "detune_cents": 3.159118
+    },
+    "libs/SSO/Samples/1st Violins/1st-violins-sus-e5.wav": {
+      "root_midi": 76.0,
+      "measured_hz": 656.821421,
+      "detune_cents": -6.402815
+    },
+    "libs/SSO/Samples/1st Violins/1st-violins-sus-e6.wav": {
+      "root_midi": 88.0,
+      "measured_hz": 1310.688978,
+      "detune_cents": -10.30006
+    },
+    "libs/SSO/Samples/1st Violins/1st-violins-sus-g3.wav": {
+      "root_midi": 55.0,
+      "measured_hz": 196.44596,
+      "detune_cents": 3.954772
+    },
+    "libs/SSO/Samples/1st Violins/1st-violins-sus-g4.wav": {
+      "root_midi": 67.0,
+      "measured_hz": 391.576711,
+      "detune_cents": -1.850271
+    },
+    "libs/SSO/Samples/1st Violins/1st-violins-sus-g5.wav": {
+      "root_midi": 79.0,
+      "measured_hz": 785.962337,
+      "detune_cents": 4.347988
+    },
+    "libs/SSO/Samples/1st Violins/1st-violins-sus-g6.wav": {
+      "root_midi": 91.0,
+      "measured_hz": 1552.655708,
+      "detune_cents": -17.004968
+    }
+  }
+}

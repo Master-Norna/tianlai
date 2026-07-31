@@ -1,0 +1,281 @@
+{
+  "schema_version": 1,
+  "recipe_id": "vcsl-soprano-recorder-sustain-centered-v1",
+  "canonical_output_root": "音源/派生/竖笛-v1",
+  "receipt": "处理说明.json",
+  "license_inheritance": {
+    "source": "VCSL 1.2.2-RC, CC0-1.0",
+    "derivative": "CC0-1.0",
+    "notice": "派生文件仅做相位、声像、稳态响度及温和高频修整；原始 VCSL 文件保持不变。"
+  },
+  "verified_inputs": [
+    {
+      "path": "音源/VCSL/Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder - Sustain.sfz",
+      "sha256": "f56f6e1913e422a9d0acd439b03ba327848127e96614da8f1de2c7804a06e171"
+    }
+  ],
+  "audio_jobs": [
+    {
+      "source": "音源/VCSL/Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Sustain/SopRecorder_Sus_C4_rr1_Main.wav",
+      "output": "samples/SopRecorder_Sus_C4_rr1_Main.wav",
+      "sha256": "c46e47925b2551f5c4c4572fd9a789b483902f21a6162e9dd8868b10cf56bf9e",
+      "sample_rate": 48000,
+      "source_channels": 2,
+      "channel_mode": "stereo_phase_aligned_dual_mono",
+      "right_shift_frames": -5,
+      "right_polarity": 1,
+      "steady_window": {
+        "offset_frames": 854,
+        "start_seconds": 0.75,
+        "duration_seconds": 3.0
+      },
+      "target_rms_dbfs": -20.0
+    },
+    {
+      "source": "音源/VCSL/Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Sustain/SopRecorder_Sus_D4_rr1_Main.wav",
+      "output": "samples/SopRecorder_Sus_D4_rr1_Main.wav",
+      "sha256": "321ecc1920a1e7e2621110127ffba001c8fa9ff0946a8d28a73db350271bdc90",
+      "sample_rate": 48000,
+      "source_channels": 2,
+      "channel_mode": "stereo_phase_aligned_dual_mono",
+      "right_shift_frames": -5,
+      "right_polarity": 1,
+      "steady_window": {
+        "offset_frames": 371,
+        "start_seconds": 0.75,
+        "duration_seconds": 3.0
+      },
+      "target_rms_dbfs": -20.0
+    },
+    {
+      "source": "音源/VCSL/Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Sustain/SopRecorder_Sus_E4_rr1_Main.wav",
+      "output": "samples/SopRecorder_Sus_E4_rr1_Main.wav",
+      "sha256": "f87c85b53b30a52fa3036e56ab40518075638e426571b422d55854a9dbe0ba15",
+      "sample_rate": 48000,
+      "source_channels": 2,
+      "channel_mode": "stereo_phase_aligned_dual_mono",
+      "right_shift_frames": 4,
+      "right_polarity": 1,
+      "steady_window": {
+        "offset_frames": 325,
+        "start_seconds": 0.75,
+        "duration_seconds": 3.0
+      },
+      "target_rms_dbfs": -20.0
+    },
+    {
+      "source": "音源/VCSL/Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Sustain/SopRecorder_Sus_F#4_rr1_Main.wav",
+      "output": "samples/SopRecorder_Sus_F#4_rr1_Main.wav",
+      "sha256": "468f394362746c4af2842eddec6453594384653ebc819ee8f0f718942336117a",
+      "sample_rate": 48000,
+      "source_channels": 2,
+      "channel_mode": "stereo_phase_aligned_dual_mono",
+      "right_shift_frames": 5,
+      "right_polarity": 1,
+      "steady_window": {
+        "offset_frames": 132,
+        "start_seconds": 0.75,
+        "duration_seconds": 3.0
+      },
+      "target_rms_dbfs": -20.0
+    },
+    {
+      "source": "音源/VCSL/Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Sustain/SopRecorder_Sus_G#4_rr1_Main.wav",
+      "output": "samples/SopRecorder_Sus_G#4_rr1_Main.wav",
+      "sha256": "0bee2dfd3f26ebd148bcc70ccff1038f33f36809631b1feb06e8451f2b5dd0d7",
+      "sample_rate": 48000,
+      "source_channels": 2,
+      "channel_mode": "stereo_phase_aligned_dual_mono",
+      "right_shift_frames": -2,
+      "right_polarity": 1,
+      "steady_window": {
+        "offset_frames": 291,
+        "start_seconds": 0.75,
+        "duration_seconds": 3.0
+      },
+      "target_rms_dbfs": -20.0
+    },
+    {
+      "source": "音源/VCSL/Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Sustain/SopRecorder_Sus_A#4_rr1_Main.wav",
+      "output": "samples/SopRecorder_Sus_A#4_rr1_Main.wav",
+      "sha256": "907a663f8a614644f28779685086ec004e76eaba8e617e57b501e2c1d44c0b8c",
+      "sample_rate": 48000,
+      "source_channels": 2,
+      "channel_mode": "stereo_phase_aligned_dual_mono",
+      "right_shift_frames": -5,
+      "right_polarity": 1,
+      "steady_window": {
+        "offset_frames": 413,
+        "start_seconds": 0.75,
+        "duration_seconds": 3.0
+      },
+      "target_rms_dbfs": -20.0
+    },
+    {
+      "source": "音源/VCSL/Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Sustain/SopRecorder_Sus_C5_rr1_Main.wav",
+      "output": "samples/SopRecorder_Sus_C5_rr1_Main.wav",
+      "sha256": "64cc9153c32277171b0a699cc7376c7220b8744b6d18a149e250af767b6b7866",
+      "sample_rate": 48000,
+      "source_channels": 2,
+      "channel_mode": "stereo_phase_aligned_dual_mono",
+      "right_shift_frames": -8,
+      "right_polarity": 1,
+      "steady_window": {
+        "offset_frames": 202,
+        "start_seconds": 0.75,
+        "duration_seconds": 3.0
+      },
+      "target_rms_dbfs": -20.0
+    },
+    {
+      "source": "音源/VCSL/Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Sustain/SopRecorder_Sus_D5_rr1_Main.wav",
+      "output": "samples/SopRecorder_Sus_D5_rr1_Main.wav",
+      "sha256": "8cf755de8f1030bac07e0070e8a94022a3ffc58dfcac5fa3cceab74437c7b45c",
+      "sample_rate": 48000,
+      "source_channels": 2,
+      "channel_mode": "stereo_phase_aligned_dual_mono",
+      "right_shift_frames": -5,
+      "right_polarity": 1,
+      "steady_window": {
+        "offset_frames": 201,
+        "start_seconds": 0.75,
+        "duration_seconds": 3.0
+      },
+      "target_rms_dbfs": -20.0
+    },
+    {
+      "source": "音源/VCSL/Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Sustain/SopRecorder_Sus_E5_rr1_Main.wav",
+      "output": "samples/SopRecorder_Sus_E5_rr1_Main.wav",
+      "sha256": "1bb7d78b2ae3b7d849b4179a30bf4b2fda7a31f12c86524e12720c94a0895791",
+      "sample_rate": 48000,
+      "source_channels": 2,
+      "channel_mode": "stereo_phase_aligned_dual_mono",
+      "right_shift_frames": 6,
+      "right_polarity": -1,
+      "steady_window": {
+        "offset_frames": 194,
+        "start_seconds": 0.75,
+        "duration_seconds": 3.0
+      },
+      "target_rms_dbfs": -20.0,
+      "spectral_transitions": [
+        {
+          "start_hz": 6500,
+          "end_hz": 11000,
+          "gain_db": -1.5
+        },
+        {
+          "start_hz": 14000,
+          "end_hz": 22000,
+          "gain_db": -6.0
+        }
+      ]
+    },
+    {
+      "source": "音源/VCSL/Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Sustain/SopRecorder_Sus_F#5_rr1_Main.wav",
+      "output": "samples/SopRecorder_Sus_F#5_rr1_Main.wav",
+      "sha256": "ba5a05ad4dcddf06e31643c4f7da7717662f9b358d4d84633890b00f72250561",
+      "sample_rate": 48000,
+      "source_channels": 2,
+      "channel_mode": "stereo_phase_aligned_dual_mono",
+      "right_shift_frames": 8,
+      "right_polarity": -1,
+      "steady_window": {
+        "offset_frames": 305,
+        "start_seconds": 0.75,
+        "duration_seconds": 3.0
+      },
+      "target_rms_dbfs": -20.0,
+      "spectral_transitions": [
+        {
+          "start_hz": 7000,
+          "end_hz": 11500,
+          "gain_db": -1.5
+        },
+        {
+          "start_hz": 14500,
+          "end_hz": 22000,
+          "gain_db": -6.0
+        }
+      ]
+    },
+    {
+      "source": "音源/VCSL/Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Sustain/SopRecorder_Sus_G5_rr1_Main.wav",
+      "output": "samples/SopRecorder_Sus_G5_rr1_Main.wav",
+      "sha256": "f955e4cf5f26e6e8463e1867dc50fe17842f515a7ab124e5611ad3f66c984820",
+      "sample_rate": 48000,
+      "source_channels": 2,
+      "channel_mode": "stereo_phase_aligned_dual_mono",
+      "right_shift_frames": 3,
+      "right_polarity": 1,
+      "steady_window": {
+        "offset_frames": 419,
+        "start_seconds": 0.75,
+        "duration_seconds": 3.0
+      },
+      "target_rms_dbfs": -20.0
+    },
+    {
+      "source": "音源/VCSL/Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Sustain/SopRecorder_Sus_A#5_rr1_Main.wav",
+      "output": "samples/SopRecorder_Sus_A#5_rr1_Main.wav",
+      "sha256": "bac76e5a1971f1acd773a5b82936fb9e073eb1a795c381ee61dad25fff71b13b",
+      "sample_rate": 48000,
+      "source_channels": 2,
+      "channel_mode": "stereo_phase_aligned_dual_mono",
+      "right_shift_frames": -7,
+      "right_polarity": 1,
+      "steady_window": {
+        "offset_frames": 380,
+        "start_seconds": 0.75,
+        "duration_seconds": 3.0
+      },
+      "target_rms_dbfs": -20.0,
+      "spectral_transitions": [
+        {
+          "start_hz": 6000,
+          "end_hz": 10500,
+          "gain_db": -2.5
+        },
+        {
+          "start_hz": 13000,
+          "end_hz": 21000,
+          "gain_db": -8.0
+        }
+      ]
+    },
+    {
+      "source": "音源/VCSL/Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Sustain/SopRecorder_Sus_C6_rr1_Main.wav",
+      "output": "samples/SopRecorder_Sus_C6_rr1_Main.wav",
+      "sha256": "114c13ab2271d2214212cf15f1a4fc485e6f3d91de26fe277c70da7250c0ecc8",
+      "sample_rate": 48000,
+      "source_channels": 2,
+      "channel_mode": "stereo_phase_aligned_dual_mono",
+      "right_shift_frames": 0,
+      "right_polarity": 1,
+      "steady_window": {
+        "offset_frames": 248,
+        "start_seconds": 0.75,
+        "duration_seconds": 3.0
+      },
+      "target_rms_dbfs": -20.0,
+      "spectral_transitions": [
+        {
+          "start_hz": 6500,
+          "end_hz": 11000,
+          "gain_db": -3.0
+        },
+        {
+          "start_hz": 13000,
+          "end_hz": 21000,
+          "gain_db": -9.0
+        }
+      ]
+    }
+  ],
+  "text_outputs": [
+    {
+      "template": "派生持续.sfz.in",
+      "output": "sustain.sfz"
+    }
+  ]
+}

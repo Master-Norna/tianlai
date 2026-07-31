@@ -1,0 +1,21 @@
+{
+  "upstream": "Virtual Playing Orchestra",
+  "sfz_version": "Standard Orchestra 3.3 (2026-06-27)",
+  "wave_version": "Wave Files 3.2 (2026-06-27)",
+  "profile": "mixed_choir",
+  "source_sfz_sha256": {
+    "Vocals/choir-MIXED-sustain.sfz": "38594f6687b5d94b973810805efb5421058d1fdec4489307f4928d65b0103c2d",
+    "Vocals/choir-MIXED-normal-mod-wheel.sfz": "7c094cd15cd509c8b702483a7f1b891ce8a9bdfc273c333dddcf782070251166"
+  },
+  "sample_count": 37,
+  "sample_bytes": 57610556,
+  "sample_set_sha256": "cfa6307475053dab9d449efb1459db7c8932477dd5c9e590f67cc39548c826b9",
+  "sample_set_algorithm": "Sort unique VPO-relative UTF-8 paths; for each write '<lowercase file sha256>  <path>\\n'; SHA-256 the concatenated UTF-8 bytes.",
+  "license_file_sha256": {
+    "Documentation/license.htm": "852e3be507b193625eaf76bd18f4740209287781fb95f2a06d78ae9205d4682e"
+  },
+  "version_evidence_sha256": {
+    "Documentation/change-log-Standard-Orchestra.txt": "e74cf4054b94bf0549d9c4b1fd3fa1816bd8a54ab3ae8847dd254725b52b4667",
+    "Documentation/change-log-Wave-Files.txt": "c62001d37b9e9fb076784fad2cb339e98a7c1e5918369f2b4f4f68c9112c6db5"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "name": "VCSL 陶笛",
+  "type": "dedicated_sfz",
+  "quality_tier": "formal",
+  "collaboration_review_status": "untested",
+  "upgrade_status": "vcsl_dedicated_multisample",
+  "fallback_policy": "explicit_only_no_silent_gm",
+  "asset_root": "../../../../音源/VCSL",
+  "upstream": "sgossner/VCSL (Versilian Community Sample Library)",
+  "origin": "https://github.com/sgossner/VCSL",
+  "upstream_version": "1.2.2-RC",
+  "license": "CC0-1.0",
+  "evidence_files": [
+    "README.md"
+  ],
+  "resource_verification": "资源核验.json",
+  "pitch_calibration": "音准校准.json",
+  "articulations": {
+    "sustain": "Aerophones/Edge-blown Aerophones/Ocarina, Typical - Sus.sfz",
+    "vibrato": "Aerophones/Edge-blown Aerophones/Ocarina, Typical - SusVib.sfz"
+  },
+  "default_articulation": "sustain",
+  "pitch_mode": "pitched",
+  "gain": 1.2317,
+  "velocity_exponent": 0.72,
+  "auxiliary_note_id_base": 1833000000,
+  "release_seconds": 0.3,
+  "note_min": 69,
+  "note_max": 86,
+  "sampled_range": "A4-D6 sounding",
+  "license_status": "approved"
+}

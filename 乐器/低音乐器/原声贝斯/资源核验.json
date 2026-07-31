@@ -1,0 +1,56 @@
+{
+  "upstream": "Karoryfer Samples: Meatbass (1958 Otto Rubner 低音提琴)",
+  "origin": "https://github.com/sfzinstruments/karoryfer.meatbass",
+  "upstream_version": "master @ ac9e859564bd",
+  "license": "CC0-1.0",
+  "source_file_count": 17,
+  "source_file_sha256": {
+    "Programs/02_arco_3vel.sfz": "008cf9b04358b4e499104792956c7c8d9f926df233c84d5ac195910cf3b82631",
+    "Programs/04_pizz.sfz": "af95601d4be39dea012a10bdec49b72c376a68ad201e31c5dc37e5f21512a628",
+    "Programs/arco_looped_basic_legato_map.sfz": "5512d51d3b4a47d6a2932e471be13f563df58d5e0901b8cf35e03ccfd37799fe",
+    "Programs/arco_looped_basic_map.sfz": "72821c9cec3bdb4ab1cd63bce8b176a2efeb2353767fe252a39a22d77d173871",
+    "Programs/arco_looped_six_legato_first_map.sfz": "9c8b11b5d42e6ac7b651e05c7d118cd899b91a4b4edd6b3b6acbb4fb79b99259",
+    "Programs/arco_looped_six_legato_map.sfz": "1445a861d8c88869445ff047631041f5116543009cfce55caf2a5d660627cc0d",
+    "Programs/arco_looped_six_map.sfz": "f1947f61d69276ad02823447c2f52289a8cb12faaeee118d0b58172e93d6bc8a",
+    "Programs/arco_looped_three_legato_map.sfz": "9c4069a5491e922706bd8b6932b9bc56f9cab88f5c52bc7ed4caede0904b8541",
+    "Programs/arco_looped_three_map.sfz": "299b1beeafd4e2cdc2eea7f11b1bd0f74c5350f91c4796975785b5530370c89d",
+    "Programs/pizz_basic_legato_map.sfz": "f19051d926700589de487f8c75564c4c2a498aa0d392f09e3c2ede24129d2368",
+    "Programs/pizz_basic_map.sfz": "04c3dedab9c2b94f9be31fece2051d70272db8974a57745606d87a856c673701",
+    "Programs/pizz_six_legato_first_map.sfz": "c455fb371fa8544470359e0f2132b68c0cb25e7d5772abf8393454b81fde05ef",
+    "Programs/pizz_six_legato_map.sfz": "68183856a27c55f7d64bd81b46f61747c7a74cbdb9784529085fd2386fba7aa6",
+    "Programs/pizz_six_map.sfz": "cbfa9dfbd3be25c3f6e5854ce4f9995163e1c70aefa6016769a143a7193ce65b",
+    "Programs/pizz_three_legato_first_map.sfz": "b8adbc3c211de86dd0d6ca5b2e968d7df24d2ca880740fa7ecfe28f358406f79",
+    "Programs/pizz_three_legato_map.sfz": "54a2394ddc2c33cb1bd43a8233725fb235de7a8be9b023b50419211fda7cbd37",
+    "Programs/pizz_three_map.sfz": "646613d96442c0da7aa98083d86d3b0e7347809ab6dd0e89009ab622942508aa"
+  },
+  "evidence_sha256": {
+    "LICENSE": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499",
+    "readme.txt": "7d70e2dc92ff38cab3248fe6f40ed0830f98a2a3b51ba23dcf9b852775e83818"
+  },
+  "sample_count": 366,
+  "sample_bytes": 189826400,
+  "sample_formats": {
+    ".wav:44100Hz:1ch": 366
+  },
+  "articulations": {
+    "pizzicato": {
+      "attack_regions": 264,
+      "release_regions": 0,
+      "round_robin_regions": 0,
+      "velocity_bounded_regions": 224,
+      "random_variant_regions": 264,
+      "looped_regions": 0
+    },
+    "arco": {
+      "attack_regions": 102,
+      "release_regions": 0,
+      "round_robin_regions": 102,
+      "velocity_bounded_regions": 102,
+      "random_variant_regions": 0,
+      "looped_regions": 102
+    }
+  },
+  "region_count": 366,
+  "sample_set_sha256": "23c74c718b190c17ad1df2aa9c292b149944b4e331b31b3a989af8075feabaa1",
+  "sample_set_hash_algorithm": "sort unique asset-root-relative UTF-8 paths; concatenate lowercase '<sha256>  <path>\\n>'; SHA-256 the UTF-8 bytes"
+}

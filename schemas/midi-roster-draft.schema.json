@@ -1,0 +1,720 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tianlai.local/schemas/midi-roster-draft.schema.json",
+  "title": "Tianlai MIDI Roster Draft",
+  "description": "由标准 MIDI 与已导入 score 生成的不可执行编制草稿。它保留 Program Change、CC7、CC10、CC11 作为创作者线索，不自动选择乐器或把控制器猜成 dB。",
+  "type": "object",
+  "required": [
+    "format",
+    "version",
+    "status",
+    "executable",
+    "source",
+    "draft_roster",
+    "part_evidence",
+    "notice"
+  ],
+  "properties": {
+    "format": {
+      "const": "tianlai.midi_roster_draft"
+    },
+    "version": {
+      "const": 1
+    },
+    "status": {
+      "const": "requires_creator_confirmation"
+    },
+    "executable": {
+      "const": false
+    },
+    "source": {
+      "$ref": "#/$defs/source"
+    },
+    "draft_roster": {
+      "$ref": "#/$defs/draftRoster"
+    },
+    "part_evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/partEvidence"
+      }
+    },
+    "notice": {
+      "type": "array",
+      "minItems": 5,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "partId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source": {
+      "type": "object",
+      "required": [
+        "midi",
+        "score"
+      ],
+      "properties": {
+        "midi": {
+          "type": "object",
+          "required": [
+            "sha256",
+            "byte_length",
+            "smf_format",
+            "track_count",
+            "ticks_per_quarter"
+          ],
+          "properties": {
+            "sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "byte_length": {
+              "type": "integer",
+              "minimum": 14
+            },
+            "smf_format": {
+              "enum": [
+                0,
+                1
+              ]
+            },
+            "track_count": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "ticks_per_quarter": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 32767
+            }
+          },
+          "additionalProperties": false
+        },
+        "score": {
+          "type": "object",
+          "required": [
+            "canonical_sha256",
+            "canonicalization"
+          ],
+          "properties": {
+            "canonical_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "canonicalization": {
+              "const": "tianlai-json-v1"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "draftRoster": {
+      "type": "object",
+      "required": [
+        "name",
+        "assignments",
+        "collaboration"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "assignments": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/draftAssignment"
+          }
+        },
+        "collaboration": {
+          "type": "object",
+          "required": [
+            "mode",
+            "balance_relations"
+          ],
+          "properties": {
+            "mode": {
+              "const": "manual"
+            },
+            "balance_relations": {
+              "type": "array",
+              "maxItems": 0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "draftAssignment": {
+      "type": "object",
+      "properties": {
+        "part": {
+          "$ref": "#/$defs/partId"
+        },
+        "instrument": {
+          "type": "null"
+        },
+        "kit": {
+          "type": "null"
+        },
+        "gain_db": {
+          "type": "number",
+          "minimum": -60,
+          "maximum": 12,
+          "default": 0
+        },
+        "pan": {
+          "type": "number",
+          "minimum": -1,
+          "maximum": 1,
+          "default": 0
+        },
+        "role": {
+          "$ref": "#/$defs/role",
+          "default": {
+            "function": "other",
+            "prominence": "midground"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "required": [
+            "part",
+            "instrument"
+          ],
+          "not": {
+            "required": [
+              "kit"
+            ]
+          }
+        },
+        {
+          "required": [
+            "part",
+            "kit"
+          ],
+          "not": {
+            "required": [
+              "instrument"
+            ]
+          }
+        }
+      ]
+    },
+    "role": {
+      "type": "object",
+      "required": [
+        "function",
+        "prominence"
+      ],
+      "properties": {
+        "function": {
+          "enum": [
+            "lead",
+            "countermelody",
+            "harmony",
+            "pad",
+            "bass",
+            "rhythm",
+            "accent",
+            "texture",
+            "ambience",
+            "effect",
+            "other"
+          ],
+          "default": "other"
+        },
+        "prominence": {
+          "enum": [
+            "foreground",
+            "midground",
+            "background"
+          ],
+          "default": "midground"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "partEvidence": {
+      "type": "object",
+      "required": [
+        "part",
+        "source",
+        "note_velocity",
+        "program_changes",
+        "cc7_volume",
+        "cc10_pan",
+        "cc11_expression",
+        "cc42_pan_lsb",
+        "cc121_reset_all_controllers",
+        "unhandled_midi_messages",
+        "gain_db_candidate",
+        "pan_candidate",
+        "decisions"
+      ],
+      "properties": {
+        "part": {
+          "$ref": "#/$defs/partId"
+        },
+        "source": {
+          "$ref": "#/$defs/partSource"
+        },
+        "note_velocity": {
+          "const": "preserved_exactly_in_score"
+        },
+        "program_changes": {
+          "$ref": "#/$defs/programObservation"
+        },
+        "cc7_volume": {
+          "$ref": "#/$defs/controllerObservation"
+        },
+        "cc10_pan": {
+          "$ref": "#/$defs/panObservation"
+        },
+        "cc11_expression": {
+          "$ref": "#/$defs/controllerObservation"
+        },
+        "cc42_pan_lsb": {
+          "$ref": "#/$defs/controllerObservation"
+        },
+        "cc121_reset_all_controllers": {
+          "$ref": "#/$defs/controllerObservation"
+        },
+        "unhandled_midi_messages": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "gain_db_candidate": {
+          "$ref": "#/$defs/gainCandidate"
+        },
+        "pan_candidate": {
+          "$ref": "#/$defs/panCandidate"
+        },
+        "decisions": {
+          "$ref": "#/$defs/decisions"
+        }
+      },
+      "additionalProperties": false
+    },
+    "partSource": {
+      "type": "object",
+      "required": [
+        "track_index_0based",
+        "channel_1based",
+        "track_name",
+        "percussion"
+      ],
+      "properties": {
+        "track_index_0based": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "channel_1based": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16
+        },
+        "track_name": {
+          "type": "string"
+        },
+        "percussion": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "programEvent": {
+      "type": "object",
+      "required": [
+        "tick",
+        "track_event_index",
+        "bar",
+        "beat",
+        "program_0_127"
+      ],
+      "properties": {
+        "tick": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "track_event_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "bar": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "beat": {
+          "type": "number",
+          "minimum": 1
+        },
+        "program_0_127": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 127
+        }
+      },
+      "additionalProperties": false
+    },
+    "controllerEvent": {
+      "type": "object",
+      "required": [
+        "tick",
+        "track_event_index",
+        "bar",
+        "beat",
+        "value_0_127",
+        "normalized_0_1"
+      ],
+      "properties": {
+        "tick": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "track_event_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "bar": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "beat": {
+          "type": "number",
+          "minimum": 1
+        },
+        "value_0_127": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 127
+        },
+        "normalized_0_1": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "panEvent": {
+      "type": "object",
+      "required": [
+        "tick",
+        "track_event_index",
+        "bar",
+        "beat",
+        "value_0_127",
+        "normalized_0_1",
+        "normalized_pan"
+      ],
+      "properties": {
+        "tick": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "track_event_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "bar": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "beat": {
+          "type": "number",
+          "minimum": 1
+        },
+        "value_0_127": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 127
+        },
+        "normalized_0_1": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "normalized_pan": {
+          "type": "number",
+          "minimum": -1,
+          "maximum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "programObservation": {
+      "type": "object",
+      "required": [
+        "status",
+        "distinct_values",
+        "events"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "missing",
+            "static",
+            "varying"
+          ]
+        },
+        "distinct_values": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 127
+          }
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/programEvent"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "controllerObservation": {
+      "type": "object",
+      "required": [
+        "status",
+        "distinct_values",
+        "events"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "missing",
+            "static",
+            "varying"
+          ]
+        },
+        "distinct_values": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 127
+          }
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/controllerEvent"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "panObservation": {
+      "type": "object",
+      "required": [
+        "status",
+        "distinct_values",
+        "events"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "missing",
+            "static",
+            "varying"
+          ]
+        },
+        "distinct_values": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 127
+          }
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/panEvent"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "gainCandidate": {
+      "type": "object",
+      "required": [
+        "status",
+        "value",
+        "fallback_default_db",
+        "reason"
+      ],
+      "properties": {
+        "status": {
+          "const": "not_derived"
+        },
+        "value": {
+          "type": "null"
+        },
+        "fallback_default_db": {
+          "const": 0
+        },
+        "reason": {
+          "const": "cc7_cc11_have_no_portable_db_mapping"
+        }
+      },
+      "additionalProperties": false
+    },
+    "panCandidate": {
+      "type": "object",
+      "required": [
+        "status",
+        "value",
+        "source_value_0_127",
+        "reason",
+        "blockers"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "candidate",
+            "absent",
+            "requires_creator_decision"
+          ]
+        },
+        "value": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": -1,
+          "maximum": 1
+        },
+        "source_value_0_127": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 127
+        },
+        "reason": {
+          "enum": [
+            "constant_cc10_effective_before_first_note",
+            "no_cc10_event",
+            "cc10_changes_over_time",
+            "first_cc10_after_first_note",
+            "unsupported_pan_controller_semantics"
+          ]
+        },
+        "blockers": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "cc42_pan_lsb_present",
+              "cc121_reset_all_controllers_present"
+            ]
+          }
+        }
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "candidate"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "value": {
+                "type": "number"
+              },
+              "reason": {
+                "const": "constant_cc10_effective_before_first_note"
+              },
+              "source_value_0_127": {
+                "type": "integer"
+              },
+              "blockers": {
+                "maxItems": 0
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "value": {
+                "type": "null"
+              },
+              "source_value_0_127": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "decisions": {
+      "type": "object",
+      "required": [
+        "routing",
+        "gain_db",
+        "pan",
+        "role",
+        "balance_relations"
+      ],
+      "properties": {
+        "routing": {
+          "enum": [
+            "instrument_required",
+            "kit_required"
+          ]
+        },
+        "gain_db": {
+          "const": "default_zero_creator_may_override"
+        },
+        "pan": {
+          "enum": [
+            "default_from_midi_candidate_creator_may_override",
+            "default_center_creator_may_override"
+          ]
+        },
+        "role": {
+          "const": "default_other_midground_creator_may_override"
+        },
+        "balance_relations": {
+          "const": "optional_creator_owned"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

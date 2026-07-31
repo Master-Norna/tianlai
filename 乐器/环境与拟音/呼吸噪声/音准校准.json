@@ -1,0 +1,7 @@
+{
+  "applicable": false,
+  "pitch_mode": "not_pitched",
+  "reason": "呼吸为湍流噪声,无周期性基频;MIDI 音高被主动忽略,不做十二平均律校准",
+  "samples": {},
+  "generated_at": "2026-07-22"
+}

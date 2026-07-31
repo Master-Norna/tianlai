@@ -1,0 +1,67 @@
+{
+  "name": "小编制:钢琴 + 弦乐 + 贝斯 + 鼓组",
+  "assignments": [
+    {
+      "part": "piano",
+      "instrument": "键盘乐器/钢琴",
+      "gain_db": -3.0,
+      "seat": {
+        "azimuth_deg": -8,
+        "distance_m": 2.5
+      }
+    },
+    {
+      "part": "strings",
+      "instrument": "管弦乐/弦乐组/中提琴",
+      "gain_db": -9.0,
+      "gain_automation": [
+        {
+          "bar": 1,
+          "beat": 1,
+          "offset_db": 0
+        },
+        {
+          "bar": 5,
+          "beat": 1,
+          "offset_db": 0
+        },
+        {
+          "bar": 7,
+          "beat": 1,
+          "offset_db": 1.5
+        },
+        {
+          "bar": 8,
+          "beat": 1,
+          "offset_db": 0
+        }
+      ],
+      "seat": {
+        "azimuth_deg": 12,
+        "distance_m": 6.0
+      }
+    },
+    {
+      "part": "bass",
+      "instrument": "低音乐器/原声贝斯",
+      "gain_db": -6.0,
+      "seat": {
+        "azimuth_deg": -20,
+        "distance_m": 3.5
+      }
+    },
+    {
+      "part": "drums",
+      "gain_db": -8.0,
+      "seat": {
+        "azimuth_deg": 5,
+        "distance_m": 4.0
+      },
+      "kit": {
+        "C2": "现代鼓组/底鼓",
+        "D2": "现代鼓组/边击军鼓",
+        "F#2": "现代鼓组/闭合踩镲"
+      }
+    }
+  ]
+}

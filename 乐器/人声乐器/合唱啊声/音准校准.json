@@ -1,0 +1,201 @@
+{
+  "applicable": true,
+  "profile": "mixed_choir",
+  "method": "harmonic-constrained FFT of raw source WAV; A4=440 Hz",
+  "source_sfz": [
+    "Vocals/choir-MIXED-sustain.sfz",
+    "Vocals/choir-MIXED-normal-mod-wheel.sfz"
+  ],
+  "summary": {
+    "sample_count": 37,
+    "median_detune_cents": -2.609262,
+    "maximum_absolute_detune_cents": 26.900799
+  },
+  "samples": {
+    "libs/SSO/Samples/Chorus/chorus-female-a#4-PB-loop.wav": {
+      "root_midi": 70.0,
+      "measured_hz": 463.174387,
+      "detune_cents": -11.137659
+    },
+    "libs/SSO/Samples/Chorus/chorus-female-a#5-PB-loop.wav": {
+      "root_midi": 82.0,
+      "measured_hz": 930.923406,
+      "detune_cents": -2.609262
+    },
+    "libs/SSO/Samples/Chorus/chorus-female-a4-PB-loop.wav": {
+      "root_midi": 69.0,
+      "measured_hz": 437.109305,
+      "detune_cents": -11.41132
+    },
+    "libs/SSO/Samples/Chorus/chorus-female-a5-PB-loop.wav": {
+      "root_midi": 81.0,
+      "measured_hz": 871.096289,
+      "detune_cents": -17.605588
+    },
+    "libs/SSO/Samples/Chorus/chorus-female-b4-PB-loop.wav": {
+      "root_midi": 71.0,
+      "measured_hz": 496.943811,
+      "detune_cents": 10.695055
+    },
+    "libs/SSO/Samples/Chorus/chorus-female-b5-PB-loop.wav": {
+      "root_midi": 83.0,
+      "measured_hz": 986.284666,
+      "detune_cents": -2.599304
+    },
+    "libs/SSO/Samples/Chorus/chorus-female-c#5-PB-loop.wav": {
+      "root_midi": 73.0,
+      "measured_hz": 559.189632,
+      "detune_cents": 15.000907
+    },
+    "libs/SSO/Samples/Chorus/chorus-female-c5-PB-loop.wav": {
+      "root_midi": 72.0,
+      "measured_hz": 531.445171,
+      "detune_cents": 26.900799
+    },
+    "libs/SSO/Samples/Chorus/chorus-female-c6-PB-loop.wav": {
+      "root_midi": 84.0,
+      "measured_hz": 1037.293974,
+      "detune_cents": -15.300733
+    },
+    "libs/SSO/Samples/Chorus/chorus-female-d#5-PB-loop.wav": {
+      "root_midi": 75.0,
+      "measured_hz": 621.692914,
+      "detune_cents": -1.561668
+    },
+    "libs/SSO/Samples/Chorus/chorus-female-d5-PB-loop.wav": {
+      "root_midi": 74.0,
+      "measured_hz": 592.172413,
+      "detune_cents": 14.216511
+    },
+    "libs/SSO/Samples/Chorus/chorus-female-e5-PB-loop.wav": {
+      "root_midi": 76.0,
+      "measured_hz": 653.470505,
+      "detune_cents": -15.257685
+    },
+    "libs/SSO/Samples/Chorus/chorus-female-f#5-PB-loop.wav": {
+      "root_midi": 78.0,
+      "measured_hz": 737.28676,
+      "detune_cents": -6.333208
+    },
+    "libs/SSO/Samples/Chorus/chorus-female-f5-PB-loop.wav": {
+      "root_midi": 77.0,
+      "measured_hz": 692.307554,
+      "detune_cents": -15.30852
+    },
+    "libs/SSO/Samples/Chorus/chorus-female-g#4-PB-loop.wav": {
+      "root_midi": 68.0,
+      "measured_hz": 414.897173,
+      "detune_cents": -1.699636
+    },
+    "libs/SSO/Samples/Chorus/chorus-female-g#5-PB-loop.wav": {
+      "root_midi": 80.0,
+      "measured_hz": 826.668611,
+      "detune_cents": -8.233299
+    },
+    "libs/SSO/Samples/Chorus/chorus-female-g4-PB-loop.wav": {
+      "root_midi": 67.0,
+      "measured_hz": 387.592756,
+      "detune_cents": -19.5543
+    },
+    "libs/SSO/Samples/Chorus/chorus-female-g5-PB-loop.wav": {
+      "root_midi": 79.0,
+      "measured_hz": 781.133652,
+      "detune_cents": -6.32093
+    },
+    "libs/SSO/Samples/Chorus/chorus-male-a#2-PB-loop.wav": {
+      "root_midi": 46.0,
+      "measured_hz": 117.997171,
+      "detune_cents": 21.498494
+    },
+    "libs/SSO/Samples/Chorus/chorus-male-a2-PB-loop.wav": {
+      "root_midi": 45.0,
+      "measured_hz": 110.77972,
+      "detune_cents": 12.228334
+    },
+    "libs/SSO/Samples/Chorus/chorus-male-a3-PB-loop.wav": {
+      "root_midi": 57.0,
+      "measured_hz": 218.646901,
+      "detune_cents": -10.680746
+    },
+    "libs/SSO/Samples/Chorus/chorus-male-b2-PB-loop.wav": {
+      "root_midi": 47.0,
+      "measured_hz": 125.048969,
+      "detune_cents": 21.987568
+    },
+    "libs/SSO/Samples/Chorus/chorus-male-b3-PB-loop.wav": {
+      "root_midi": 59.0,
+      "measured_hz": 249.654059,
+      "detune_cents": 18.91221
+    },
+    "libs/SSO/Samples/Chorus/chorus-male-c#3-PB-loop.wav": {
+      "root_midi": 49.0,
+      "measured_hz": 137.645075,
+      "detune_cents": -11.860636
+    },
+    "libs/SSO/Samples/Chorus/chorus-male-c#4-PB-loop.wav": {
+      "root_midi": 61.0,
+      "measured_hz": 277.765117,
+      "detune_cents": 3.63429
+    },
+    "libs/SSO/Samples/Chorus/chorus-male-c3-PB-loop.wav": {
+      "root_midi": 48.0,
+      "measured_hz": 129.910916,
+      "detune_cents": -11.977031
+    },
+    "libs/SSO/Samples/Chorus/chorus-male-c4-PB-loop.wav": {
+      "root_midi": 60.0,
+      "measured_hz": 260.750243,
+      "detune_cents": -5.801911
+    },
+    "libs/SSO/Samples/Chorus/chorus-male-d#4-PB-loop.wav": {
+      "root_midi": 63.0,
+      "measured_hz": 312.340284,
+      "detune_cents": 6.738153
+    },
+    "libs/SSO/Samples/Chorus/chorus-male-d3-PB-loop.wav": {
+      "root_midi": 50.0,
+      "measured_hz": 145.722129,
+      "detune_cents": -13.140257
+    },
+    "libs/SSO/Samples/Chorus/chorus-male-e3-PB-loop.wav": {
+      "root_midi": 52.0,
+      "measured_hz": 165.090156,
+      "detune_cents": 2.900684
+    },
+    "libs/SSO/Samples/Chorus/chorus-male-e4-PB-loop.wav": {
+      "root_midi": 64.0,
+      "measured_hz": 327.034153,
+      "detune_cents": -13.674659
+    },
+    "libs/SSO/Samples/Chorus/chorus-male-f3-PB-loop.wav": {
+      "root_midi": 53.0,
+      "measured_hz": 174.279411,
+      "detune_cents": -3.32166
+    },
+    "libs/SSO/Samples/Chorus/chorus-male-f4-PB-loop.wav": {
+      "root_midi": 65.0,
+      "measured_hz": 346.483683,
+      "detune_cents": -13.659332
+    },
+    "libs/SSO/Samples/Chorus/chorus-male-g#2-PB-loop.wav": {
+      "root_midi": 44.0,
+      "measured_hz": 104.569221,
+      "detune_cents": 12.345692
+    },
+    "libs/SSO/Samples/Chorus/chorus-male-g#3-PB-loop.wav": {
+      "root_midi": 56.0,
+      "measured_hz": 207.873105,
+      "detune_cents": 1.839503
+    },
+    "libs/SSO/Samples/Chorus/chorus-male-g2-PB-loop.wav": {
+      "root_midi": 43.0,
+      "measured_hz": 98.631933,
+      "detune_cents": 11.147822
+    },
+    "libs/SSO/Samples/Chorus/chorus-male-g3-PB-loop.wav": {
+      "root_midi": 55.0,
+      "measured_hz": 196.786294,
+      "detune_cents": 6.951461
+    }
+  }
+}

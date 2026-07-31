@@ -1,0 +1,161 @@
+{
+  "applicable": true,
+  "profile": "vcsl_tubular_bells_2",
+  "method": "SFZ root mapping audit; automatic FFT correction disabled",
+  "a4_hz": 440.0,
+  "summary": {
+    "sample_count": 22,
+    "unique_root_count": 11,
+    "root_midi_notes": [
+      60.0,
+      62.0,
+      64.0,
+      65.0,
+      67.0,
+      69.0,
+      71.0,
+      72.0,
+      74.0,
+      76.0,
+      77.0
+    ],
+    "recorded_velocity_layer_count": 2,
+    "round_robin_count": 0,
+    "automatic_correction_count": 0,
+    "human_spectral_review": "pending"
+  },
+  "samples": {
+    "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_A4_v2_1.wav": {
+      "root_midi": 69.0,
+      "expected_equal_temperament_hz": 440.0,
+      "automatic_cents_correction": null,
+      "reason": "管钟为强非谐波瞬态；单 FFT 峰不等于听觉基音。"
+    },
+    "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_A4_v4_1.wav": {
+      "root_midi": 69.0,
+      "expected_equal_temperament_hz": 440.0,
+      "automatic_cents_correction": null,
+      "reason": "管钟为强非谐波瞬态；单 FFT 峰不等于听觉基音。"
+    },
+    "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_B4_v2_1.wav": {
+      "root_midi": 71.0,
+      "expected_equal_temperament_hz": 493.883301,
+      "automatic_cents_correction": null,
+      "reason": "管钟为强非谐波瞬态；单 FFT 峰不等于听觉基音。"
+    },
+    "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_B4_v4_1.wav": {
+      "root_midi": 71.0,
+      "expected_equal_temperament_hz": 493.883301,
+      "automatic_cents_correction": null,
+      "reason": "管钟为强非谐波瞬态；单 FFT 峰不等于听觉基音。"
+    },
+    "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_C4_v2_1.wav": {
+      "root_midi": 60.0,
+      "expected_equal_temperament_hz": 261.625565,
+      "automatic_cents_correction": null,
+      "reason": "管钟为强非谐波瞬态；单 FFT 峰不等于听觉基音。"
+    },
+    "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_C4_v4_1.wav": {
+      "root_midi": 60.0,
+      "expected_equal_temperament_hz": 261.625565,
+      "automatic_cents_correction": null,
+      "reason": "管钟为强非谐波瞬态；单 FFT 峰不等于听觉基音。"
+    },
+    "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_C5_v2_1.wav": {
+      "root_midi": 72.0,
+      "expected_equal_temperament_hz": 523.251131,
+      "automatic_cents_correction": null,
+      "reason": "管钟为强非谐波瞬态；单 FFT 峰不等于听觉基音。"
+    },
+    "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_C5_v4_1.wav": {
+      "root_midi": 72.0,
+      "expected_equal_temperament_hz": 523.251131,
+      "automatic_cents_correction": null,
+      "reason": "管钟为强非谐波瞬态；单 FFT 峰不等于听觉基音。"
+    },
+    "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_D4_v2_1.wav": {
+      "root_midi": 62.0,
+      "expected_equal_temperament_hz": 293.664768,
+      "automatic_cents_correction": null,
+      "reason": "管钟为强非谐波瞬态；单 FFT 峰不等于听觉基音。"
+    },
+    "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_D4_v4_2.wav": {
+      "root_midi": 62.0,
+      "expected_equal_temperament_hz": 293.664768,
+      "automatic_cents_correction": null,
+      "reason": "管钟为强非谐波瞬态；单 FFT 峰不等于听觉基音。"
+    },
+    "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_D5_v2_2.wav": {
+      "root_midi": 74.0,
+      "expected_equal_temperament_hz": 587.329536,
+      "automatic_cents_correction": null,
+      "reason": "管钟为强非谐波瞬态；单 FFT 峰不等于听觉基音。"
+    },
+    "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_D5_v4_1.wav": {
+      "root_midi": 74.0,
+      "expected_equal_temperament_hz": 587.329536,
+      "automatic_cents_correction": null,
+      "reason": "管钟为强非谐波瞬态；单 FFT 峰不等于听觉基音。"
+    },
+    "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_E4_v2_1.wav": {
+      "root_midi": 64.0,
+      "expected_equal_temperament_hz": 329.627557,
+      "automatic_cents_correction": null,
+      "reason": "管钟为强非谐波瞬态；单 FFT 峰不等于听觉基音。"
+    },
+    "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_E4_v4_1.wav": {
+      "root_midi": 64.0,
+      "expected_equal_temperament_hz": 329.627557,
+      "automatic_cents_correction": null,
+      "reason": "管钟为强非谐波瞬态；单 FFT 峰不等于听觉基音。"
+    },
+    "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_E5_v2_1.wav": {
+      "root_midi": 76.0,
+      "expected_equal_temperament_hz": 659.255114,
+      "automatic_cents_correction": null,
+      "reason": "管钟为强非谐波瞬态；单 FFT 峰不等于听觉基音。"
+    },
+    "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_E5_v4_2.wav": {
+      "root_midi": 76.0,
+      "expected_equal_temperament_hz": 659.255114,
+      "automatic_cents_correction": null,
+      "reason": "管钟为强非谐波瞬态；单 FFT 峰不等于听觉基音。"
+    },
+    "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_F4_v2_2.wav": {
+      "root_midi": 65.0,
+      "expected_equal_temperament_hz": 349.228231,
+      "automatic_cents_correction": null,
+      "reason": "管钟为强非谐波瞬态；单 FFT 峰不等于听觉基音。"
+    },
+    "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_F4_v4_1.wav": {
+      "root_midi": 65.0,
+      "expected_equal_temperament_hz": 349.228231,
+      "automatic_cents_correction": null,
+      "reason": "管钟为强非谐波瞬态；单 FFT 峰不等于听觉基音。"
+    },
+    "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_F5_v2_2.wav": {
+      "root_midi": 77.0,
+      "expected_equal_temperament_hz": 698.456463,
+      "automatic_cents_correction": null,
+      "reason": "管钟为强非谐波瞬态；单 FFT 峰不等于听觉基音。"
+    },
+    "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_F5_v4_1.wav": {
+      "root_midi": 77.0,
+      "expected_equal_temperament_hz": 698.456463,
+      "automatic_cents_correction": null,
+      "reason": "管钟为强非谐波瞬态；单 FFT 峰不等于听觉基音。"
+    },
+    "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_G4_v2_1.wav": {
+      "root_midi": 67.0,
+      "expected_equal_temperament_hz": 391.995436,
+      "automatic_cents_correction": null,
+      "reason": "管钟为强非谐波瞬态；单 FFT 峰不等于听觉基音。"
+    },
+    "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_G4_v4_1.wav": {
+      "root_midi": 67.0,
+      "expected_equal_temperament_hz": 391.995436,
+      "automatic_cents_correction": null,
+      "reason": "管钟为强非谐波瞬态；单 FFT 峰不等于听觉基音。"
+    }
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "status": "machine_pass_human_pending",
+  "rendered_at": "2026-07-26",
+  "platform": "Windows Chinese-path workspace",
+  "sample_rate": 48000,
+  "channels": 2,
+  "subtype": "PCM_24",
+  "frame_count": 244800,
+  "duration_seconds": 5.1,
+  "peak_active_voices": 1,
+  "peak": 0.058087,
+  "rms": 0.009356,
+  "clipped_samples": 0,
+  "wav": "output/全音域试音/环境与拟音/雨境合成氛围.wav",
+  "wav_persistence": "temporary",
+  "wav_sha256": "074bf6b0be91e1f8edbb5e42475f34f35f3bd025faba418d05df7205d5e38ace",
+  "hash_algorithm": "SHA-256",
+  "canonicalization": "tianlai-json-v1",
+  "manifest_canonical_sha256": "7f1f2a76bb1519d02fbc8cf166fbad90ab95c86e6d69ff5e4819df445392596f",
+  "events": "examples/全音域上行/环境与拟音/雨境合成氛围_全音域上行.events.json",
+  "events_canonical_sha256": "82c110a3c6bc5fa8ccc8d2d78142c1a79cd66267e52b2abe7540cec9ca787ea8",
+  "identity_migration": {
+    "status": "superseded_by_canonical_json_v1",
+    "hash_algorithm": "SHA-256",
+    "hash_semantics": "source-file-bytes",
+    "manifest_sha256": "822b6400035d4233c949dec4d883441bba5f7872e2b8ca2c6537d8948da57204",
+    "events_sha256": "ab3adba17fd0b8d27cac780de4514abd1cfd0f9bc0541619c56c77f3856125c6"
+  },
+  "audition_profile": "ascending-scale",
+  "audition_protocol": "full-range-chromatic-ascending-v1",
+  "coverage": [
+    "全声明合法键升序：MIDI 60（1 键，1 次触发）",
+    "固定力度 0.72、常规时值 0.48s、音间隔 0.12s；本乐器按协议使用独立 gate/gap/tail；note 事件不重叠，是否隔离声音尾部以本乐器协议例外说明为准",
+    "协议例外：procedural_sfx 后端明确忽略音高；MIDI 60 仅作单次生命周期触发键；procedural_sfx/rain_atmosphere 持有 attack 1.2s + 稳态 1.2s；release 2.2s，tail 2.45s"
+  ],
+  "human_review": "pending",
+  "previous_protocol_evidence": {
+    "status": "superseded_event_bound_machine_evidence",
+    "events_sha256": "6ceffb5f862df5a7b22808026c29a20632071f04a5171786b8bdd3d0b98579dc",
+    "wav_sha256": "812b2976119b797f4d8fcb60146fcfd9e928356d26644e56b01db78f72d311a9",
+    "fields": {
+      "wav_persistence": "temporary"
+    }
+  },
+  "specialized_machine_evidence_status": "previous_protocol_only_not_current_measurement",
+  "review_evidence_status": "pending_new_review_old_hash_bound_reviews_do_not_apply",
+  "manifest_provenance_migration": {
+    "date": "2026-07-27",
+    "previous_manifest_sha256": "3946f185af254fd7bd32eab6ec5140257324d58a25790eb278cf76f69849c095",
+    "reason": "added non-runtime project-authored DSP provenance and Apache-2.0 metadata",
+    "audio_reverification": "bit_exact_against_frozen_wav_sha256"
+  }
+}

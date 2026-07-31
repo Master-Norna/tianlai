@@ -1,0 +1,85 @@
+{
+  "name": "VCSL 颤音琴",
+  "type": "dedicated_sfz",
+  "quality_tier": "formal",
+  "collaboration_review_status": "untested",
+  "upgrade_status": "vcsl_vibraphone_strict_cc0_two_mallets_bowed",
+  "fallback_policy": "explicit_only_no_silent_gm",
+  "asset_root": "../../../../音源/VCSL",
+  "upstream": "sgossner/VCSL (Versilian Community Sample Library)",
+  "origin": "https://github.com/sgossner/VCSL",
+  "upstream_version": "1.2.2-RC",
+  "upstream_commit": "b6e6ac82d22248edee98a0bde185eb9ef6d439ad",
+  "license": "CC0-1.0",
+  "license_status": "approved",
+  "evidence_files": [
+    "README.md"
+  ],
+  "resource_verification": "资源核验.json",
+  "pitch_calibration": "音准校准.json",
+  "apply_pitch_calibration": true,
+  "articulations": {
+    "damped": {
+      "sfz": "Idiophones/Struck Idiophones/Vibraphone - Soft Mallets.sfz",
+      "release_override_seconds": 0.35,
+      "playable_ranges": [
+        [
+          53,
+          89
+        ]
+      ]
+    },
+    "open": {
+      "sfz": "Idiophones/Struck Idiophones/Vibraphone - Soft Mallets.sfz",
+      "playable_ranges": [
+        [
+          53,
+          89
+        ]
+      ]
+    },
+    "hard_damped": {
+      "sfz": "Idiophones/Struck Idiophones/Vibraphone - Hard Mallets.sfz",
+      "release_override_seconds": 0.35,
+      "playable_ranges": [
+        [
+          53,
+          89
+        ]
+      ]
+    },
+    "hard_open": {
+      "sfz": "Idiophones/Struck Idiophones/Vibraphone - Hard Mallets.sfz",
+      "playable_ranges": [
+        [
+          53,
+          89
+        ]
+      ]
+    },
+    "bowed": {
+      "sfz": "Idiophones/Struck Idiophones/Vibraphone - Bowed.sfz",
+      "playable_ranges": [
+        [
+          57,
+          89
+        ]
+      ]
+    }
+  },
+  "default_articulation": "damped",
+  "calibration_articulation": "open",
+  "pitch_mode": "pitched",
+  "reference_a4_hz": 440.0,
+  "calibration_start_seconds": 0.9,
+  "calibration_search_cents": 240.0,
+  "calibration_harmonic_count": 10,
+  "gain": 0.38,
+  "velocity_exponent": 0.72,
+  "control_smoothing_seconds": 0.012,
+  "auxiliary_note_id_base": 1800000000,
+  "note_min": 53,
+  "note_max": 89,
+  "sampled_range": "F3-F6 sounding; struck mallets MIDI 53-89, bowed MIDI 57-89",
+  "sampled_range_note": "soft and hard mallets each have 11 recorded roots x 2 real velocity layers; bowed has 6 recorded roots; no real round robin"
+}

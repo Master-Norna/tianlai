@@ -1,0 +1,126 @@
+{
+  "name": "VCSL 旋律通鼓",
+  "type": "melodic_toms",
+  "quality_tier": "formal",
+  "collaboration_review_status": "untested",
+  "upgrade_status": "vcsl_measured_root_melodic_mapping",
+  "fallback_policy": "explicit_only_no_silent_gm",
+  "asset_root": "../../../../音源/VCSL",
+  "upstream": "sgossner/VCSL (Versilian Community Sample Library)",
+  "origin": "https://github.com/sgossner/VCSL",
+  "upstream_version": "1.2.2-RC",
+  "license": "CC0-1.0",
+  "evidence_files": [
+    "README.md"
+  ],
+  "resource_verification": "资源核验.json",
+  "pitch_calibration": "音准校准.json",
+  "drums": {
+    "low": {
+      "samples": [
+        {
+          "sample": "Membranophones/Struck Membranophones/Tom 2/Stick/TomL_HitS_v2_rr1_Mid.wav",
+          "lovel": 0,
+          "hivel": 65,
+          "seq": 1,
+          "seq_length": 2
+        },
+        {
+          "sample": "Membranophones/Struck Membranophones/Tom 2/Stick/TomL_HitS_v2_rr2_Mid.wav",
+          "lovel": 0,
+          "hivel": 65,
+          "seq": 2,
+          "seq_length": 2
+        },
+        {
+          "sample": "Membranophones/Struck Membranophones/Tom 2/Stick/TomL_HitS_v3_rr1_Mid.wav",
+          "lovel": 66,
+          "hivel": 99,
+          "seq": 1,
+          "seq_length": 2
+        },
+        {
+          "sample": "Membranophones/Struck Membranophones/Tom 2/Stick/TomL_HitS_v3_rr2_Mid.wav",
+          "lovel": 66,
+          "hivel": 99,
+          "seq": 2,
+          "seq_length": 2
+        },
+        {
+          "sample": "Membranophones/Struck Membranophones/Tom 2/Stick/TomL_HitS_v4_rr1_Mid.wav",
+          "lovel": 100,
+          "hivel": 127,
+          "seq": 1,
+          "seq_length": 2
+        },
+        {
+          "sample": "Membranophones/Struck Membranophones/Tom 2/Stick/TomL_HitS_v4_rr2_Mid.wav",
+          "lovel": 100,
+          "hivel": 127,
+          "seq": 2,
+          "seq_length": 2
+        }
+      ],
+      "span": [
+        36,
+        42
+      ]
+    },
+    "high": {
+      "samples": [
+        {
+          "sample": "Membranophones/Struck Membranophones/Tom 1/Stick/TomH_HitS_v2_rr1_Mid.wav",
+          "lovel": 0,
+          "hivel": 65,
+          "seq": 1,
+          "seq_length": 2
+        },
+        {
+          "sample": "Membranophones/Struck Membranophones/Tom 1/Stick/TomH_HitS_v2_rr2_Mid.wav",
+          "lovel": 0,
+          "hivel": 65,
+          "seq": 2,
+          "seq_length": 2
+        },
+        {
+          "sample": "Membranophones/Struck Membranophones/Tom 1/Stick/TomH_HitS_v3_rr1_Mid.wav",
+          "lovel": 66,
+          "hivel": 99,
+          "seq": 1,
+          "seq_length": 2
+        },
+        {
+          "sample": "Membranophones/Struck Membranophones/Tom 1/Stick/TomH_HitS_v3_rr2_Mid.wav",
+          "lovel": 66,
+          "hivel": 99,
+          "seq": 2,
+          "seq_length": 2
+        },
+        {
+          "sample": "Membranophones/Struck Membranophones/Tom 1/Stick/TomH_HitS_v4_rr1_Mid.wav",
+          "lovel": 100,
+          "hivel": 127,
+          "seq": 1,
+          "seq_length": 2
+        },
+        {
+          "sample": "Membranophones/Struck Membranophones/Tom 1/Stick/TomH_HitS_v4_rr2_Mid.wav",
+          "lovel": 100,
+          "hivel": 127,
+          "seq": 2,
+          "seq_length": 2
+        }
+      ],
+      "span": [
+        43,
+        49
+      ]
+    }
+  },
+  "note_min": 36,
+  "note_max": 49,
+  "gain": 1.2185,
+  "velocity_exponent": 0.72,
+  "release_seconds": 0.5,
+  "license_status": "approved"
+}

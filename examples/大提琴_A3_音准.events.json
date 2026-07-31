@@ -1,0 +1,14 @@
+{
+  "sample_rate": 48000,
+  "channels": 2,
+  "tuning": {
+    "temperament": "equal",
+    "a4_hz": 440.0
+  },
+  "duration_seconds": 2.8,
+  "events": [
+    { "time": 0.0, "type": "articulation", "name": "sustain" },
+    { "time": 0.0, "type": "note_on", "note_id": 1, "midi_note": 57, "velocity": 0.8 },
+    { "time": 2.2, "type": "note_off", "note_id": 1, "release_velocity": 0.5 }
+  ]
+}

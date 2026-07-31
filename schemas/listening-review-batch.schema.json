@@ -1,0 +1,272 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tianlai.local/schemas/listening-review-batch.schema.json",
+  "title": "Tianlai Listening Review Batch",
+  "type": "object",
+  "required": [
+    "$schema",
+    "schema_version",
+    "kind",
+    "batch_id",
+    "batch_sha256",
+    "created_at",
+    "layer",
+    "questionnaire_version",
+    "title",
+    "description",
+    "randomization",
+    "review_policy",
+    "questions",
+    "items"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "https://tianlai.local/schemas/listening-review-batch.schema.json"
+    },
+    "schema_version": { "const": 2 },
+    "kind": { "const": "listening_review_batch" },
+    "batch_id": {
+      "type": "string",
+      "pattern": "^(technical|identity|expert|context)-[0-9]{3}-[0-9a-f]{10}$"
+    },
+    "batch_sha256": { "$ref": "#/$defs/sha256" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "layer": {
+      "enum": ["technical", "identity", "expert", "context"]
+    },
+    "questionnaire_version": { "const": 1 },
+    "title": { "$ref": "#/$defs/nonEmptyString" },
+    "description": { "$ref": "#/$defs/nonEmptyString" },
+    "randomization": {
+      "type": "object",
+      "required": ["seed", "grouping", "family_scope", "blind_order"],
+      "properties": {
+        "seed": { "type": "integer" },
+        "grouping": {
+          "enum": ["stratified_mixed", "family"]
+        },
+        "family_scope": { "$ref": "#/$defs/nonEmptyString" },
+        "blind_order": { "const": true }
+      },
+      "additionalProperties": false
+    },
+    "review_policy": {
+      "type": "object",
+      "required": [
+        "allowed_roles",
+        "minimum_independent_reviewers",
+        "target_identity_visible",
+        "estimated_minutes",
+        "status_vocabulary",
+        "non_pass_comment_required",
+        "automatic_collaboration_promotion"
+      ],
+      "properties": {
+        "allowed_roles": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reviewerRole" }
+        },
+        "minimum_independent_reviewers": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10
+        },
+        "target_identity_visible": { "type": "boolean" },
+        "estimated_minutes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 180
+        },
+        "status_vocabulary": {
+          "const": ["pass", "reject", "unsure", "not_applicable"]
+        },
+        "non_pass_comment_required": { "const": true },
+        "automatic_collaboration_promotion": { "const": false }
+      },
+      "additionalProperties": false
+    },
+    "questions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/question" }
+    },
+    "items": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/item" }
+    }
+  },
+  "$defs": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "reviewerRole": {
+      "enum": [
+        "general_listener",
+        "reference_listener",
+        "instrument_expert",
+        "review_lead"
+      ]
+    },
+    "question": {
+      "type": "object",
+      "required": [
+        "question_id",
+        "title",
+        "acceptance_statement",
+        "listen_for",
+        "not_applicable_when",
+        "requires_reference",
+        "requires_expert",
+        "requires_context"
+      ],
+      "properties": {
+        "question_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{2,63}$"
+        },
+        "title": { "$ref": "#/$defs/nonEmptyString" },
+        "acceptance_statement": { "$ref": "#/$defs/nonEmptyString" },
+        "listen_for": { "$ref": "#/$defs/nonEmptyString" },
+        "not_applicable_when": { "$ref": "#/$defs/nonEmptyString" },
+        "requires_reference": { "type": "boolean" },
+        "requires_expert": { "type": "boolean" },
+        "requires_context": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "reviewAsset": {
+      "type": "object",
+      "required": [
+        "kind",
+        "label",
+        "path",
+        "sha256",
+        "source",
+        "license",
+        "notes"
+      ],
+      "properties": {
+        "kind": {
+          "enum": ["reference", "anchor", "context", "previous_version"]
+        },
+        "label": { "$ref": "#/$defs/nonEmptyString" },
+        "path": { "$ref": "#/$defs/nonEmptyString" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "source": { "$ref": "#/$defs/nonEmptyString" },
+        "license": {
+          "enum": [
+            "CC0-1.0",
+            "CC-BY-3.0",
+            "CC-BY-4.0",
+            "project-generated",
+            "private-review-authorized"
+          ]
+        },
+        "notes": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "item": {
+      "type": "object",
+      "required": [
+        "item_id",
+        "order",
+        "blind_label",
+        "instrument_path",
+        "instrument_name",
+        "category",
+        "family",
+        "implementation_type",
+        "source_wav",
+        "playback_origin",
+        "playback_wav",
+        "wav_sha256",
+        "report_path",
+        "report_sha256",
+        "duration_seconds",
+        "sample_rate",
+        "channels",
+        "subtype",
+        "coverage",
+        "references",
+        "context_audio",
+        "previous_versions"
+      ],
+      "oneOf": [
+        {
+          "required": [
+            "hash_algorithm",
+            "canonicalization",
+            "manifest_canonical_sha256",
+            "events_canonical_sha256"
+          ]
+        },
+        {
+          "required": [
+            "manifest_sha256",
+            "events_sha256"
+          ]
+        }
+      ],
+      "properties": {
+        "item_id": {
+          "type": "string",
+          "pattern": "^I[0-9]{2}-[0-9a-f]{10}$"
+        },
+        "order": { "type": "integer", "minimum": 1 },
+        "blind_label": {
+          "type": "string",
+          "pattern": "^样本-[0-9]{2}$"
+        },
+        "instrument_path": { "$ref": "#/$defs/nonEmptyString" },
+        "instrument_name": { "$ref": "#/$defs/nonEmptyString" },
+        "category": { "$ref": "#/$defs/nonEmptyString" },
+        "family": { "$ref": "#/$defs/nonEmptyString" },
+        "implementation_type": { "$ref": "#/$defs/nonEmptyString" },
+        "source_wav": { "$ref": "#/$defs/nonEmptyString" },
+        "playback_origin": { "enum": ["batch", "project"] },
+        "playback_wav": { "$ref": "#/$defs/nonEmptyString" },
+        "wav_sha256": { "$ref": "#/$defs/sha256" },
+        "report_path": { "$ref": "#/$defs/nonEmptyString" },
+        "report_sha256": { "$ref": "#/$defs/sha256" },
+        "hash_algorithm": { "const": "SHA-256" },
+        "canonicalization": { "const": "tianlai-json-v1" },
+        "manifest_canonical_sha256": { "$ref": "#/$defs/sha256" },
+        "events_canonical_sha256": { "$ref": "#/$defs/sha256" },
+        "manifest_sha256": { "$ref": "#/$defs/sha256" },
+        "events_sha256": { "$ref": "#/$defs/sha256" },
+        "duration_seconds": { "type": "number", "exclusiveMinimum": 0 },
+        "sample_rate": { "type": "integer", "minimum": 8000 },
+        "channels": { "type": "integer", "minimum": 1 },
+        "subtype": { "$ref": "#/$defs/nonEmptyString" },
+        "coverage": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/nonEmptyString" }
+        },
+        "references": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reviewAsset" }
+        },
+        "context_audio": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reviewAsset" }
+        },
+        "previous_versions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reviewAsset" }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

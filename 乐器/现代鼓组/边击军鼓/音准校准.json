@@ -1,0 +1,6 @@
+{
+  "applicable": false,
+  "pitch_mode": "fixed",
+  "reason": "边击军鼓为膜鸣打击,任意谱面音高都触发 cross-stick 采样,不做音高校准",
+  "samples": {}
+}

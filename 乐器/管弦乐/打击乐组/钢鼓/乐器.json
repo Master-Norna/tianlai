@@ -1,0 +1,23 @@
+{
+  "name": "程序建模 钢鼓",
+  "type": "modeled_instrument",
+  "quality_tier": "formal",
+  "collaboration_review_status": "untested",
+  "upgrade_status": "deterministic_physical_model",
+  "fallback_policy": "explicit_only_no_silent_gm",
+  "provenance_kind": "project_authored_dsp",
+  "implementation_license": "Apache-2.0",
+  "external_audio_assets": [],
+  "audio_asset_license": "not_applicable",
+  "license_status": "approved",
+  "profile": "steelpan",
+  "engine_version": "1.1.0",
+  "modeling_rationale": "发声机理适合建模;formal 级仍宜真实采样对照",
+  "resource_verification": "资源核验.json",
+  "pitch_calibration": "音准校准.json",
+  "seed": 41037,
+  "note_min": 57,
+  "note_max": 89,
+  "gain": 0.1847,
+  "velocity_exponent": 0.72
+}

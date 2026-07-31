@@ -1,0 +1,32 @@
+{
+  "name": "FreePats 尼龙弦吉他",
+  "type": "dedicated_sfz",
+  "quality_tier": "formal",
+  "collaboration_review_status": "untested",
+  "upgrade_status": "freepats_dedicated_multisample",
+  "fallback_policy": "explicit_only_no_silent_gm",
+  "asset_root": "../../../音源/FreePats/SpanishClassicalGuitar",
+  "upstream": "FreePats project: Spanish Classical Guitar",
+  "origin": "https://freepats.zenvoid.org/Guitar/acoustic-guitar.html",
+  "upstream_version": "2019-06-18",
+  "license": "CC0-1.0",
+  "evidence_files": [
+    "cc0.txt",
+    "readme.txt"
+  ],
+  "resource_verification": "资源核验.json",
+  "pitch_calibration": "音准校准.json",
+  "articulations": {
+    "normal": "SpanishClassicalGuitar-20190618.sfz"
+  },
+  "default_articulation": "normal",
+  "pitch_mode": "pitched",
+  "gain": 0.4482,
+  "velocity_exponent": 0.72,
+  "auxiliary_note_id_base": 1841000000,
+  "release_seconds": 0.4,
+  "note_min": 40,
+  "note_max": 83,
+  "sampled_range": "E2-B5 sounding",
+  "license_status": "approved"
+}

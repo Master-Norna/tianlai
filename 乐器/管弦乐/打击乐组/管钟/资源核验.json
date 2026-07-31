@@ -1,0 +1,110 @@
+{
+  "upstream": "sgossner/VCSL (Versilian Community Sample Library)",
+  "origin": "https://github.com/sgossner/VCSL",
+  "upstream_version": "1.2.2-RC",
+  "upstream_commit": "b6e6ac82d22248edee98a0bde185eb9ef6d439ad",
+  "license": "CC0-1.0",
+  "profile": "vcsl_tubular_bells_2",
+  "source_sfz_sha256": {
+    "Idiophones/Struck Idiophones/Tubular Bells 2.sfz": "9ce2237fe3d23921500c6e537bb03b563b2a29dc7f9ba31c6b72bc49631208c6"
+  },
+  "evidence_sha256": {
+    "README.md": "e360f24c120c9ad734cc8508695e09a61ddc4cae5a59c6c9af33fe501b6c9a5b"
+  },
+  "sample_count": 22,
+  "sample_bytes": 75496208,
+  "sample_sha256": {
+    "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_A4_v2_1.wav": "1adb591ce8d5cf491a7e2a9fb9c2a4bc8ad6dd9f19f73e09e228f4ee1d1097d4",
+    "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_A4_v4_1.wav": "1767a647f2f8d5ac52f69c67692335f5718eedd2bce68106472f8b1ebacba9d0",
+    "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_B4_v2_1.wav": "4442f49d2484136651bcb87759e3406f474b949d450390db89517ae1a695d8f3",
+    "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_B4_v4_1.wav": "46dd90b325c971e8a37a9282e143da8cf457dfee1650276ba47b40480e74538f",
+    "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_C4_v2_1.wav": "a0a3cb432ed46c166ee5228c67b8a8a88a06fe24550a5b954547ef1528ffb0fd",
+    "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_C4_v4_1.wav": "d11d52910e0fc03c348bec0b0969960d737a6fdd3fa7380804f5751959e422c2",
+    "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_C5_v2_1.wav": "816b398d78d7bb0881c88e64ba781aaec4a1816495401f9ff4674854f4b70bec",
+    "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_C5_v4_1.wav": "6ffc24c2ac7fba7158cd05ea0489bf4695a72388f45726c8fe68c4320a608661",
+    "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_D4_v2_1.wav": "b1cfe7ba1e981f1d39487d4be03876c7ed932dd0e299444b1550279ef9f08d05",
+    "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_D4_v4_2.wav": "4b496c05b345b33241342726237218b9c466f958bce36d95a504da21396e1694",
+    "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_D5_v2_2.wav": "9d788db2ad32fabb9d8479560f24444b05e0e4169f17c8eb7c312d954f6151a7",
+    "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_D5_v4_1.wav": "d318b3ae041debbaf8205ddca22c6d2bc0b5cc435fa4ec5d7ea26e36158ea707",
+    "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_E4_v2_1.wav": "e1d7ae40d1d8632dbd44b6b6e1b32f3978e7bc52a22126919263dccf171c218d",
+    "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_E4_v4_1.wav": "0bc73d5d044c3b43608a0f94e0658b46ce74da301186c304c8a673838cd78ca4",
+    "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_E5_v2_1.wav": "441d548b7feea9262dba6b1bc60a31e147e1f5f10d685bfa55c8114998215cce",
+    "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_E5_v4_2.wav": "c4da2e348ffce8859213013ad839b5710300141368749cf380e1ecb76c2212d9",
+    "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_F4_v2_2.wav": "ca9d6627163e6f638a4e353d13c9ef11ea5f355436ee4e04a55103cfb840e645",
+    "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_F4_v4_1.wav": "e2b2e695b67d845ee23cf8cf9c47754906a1d884f892065765ee0a47cc2cd6ef",
+    "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_F5_v2_2.wav": "34736a3a68fad88dde3ff7d04613bdbc1ba7be0804b039fc07312089e5cb1c44",
+    "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_F5_v4_1.wav": "73092de8cf6e23ee4b4d1e0ad8df28743b7ec3c04de3afe48f1c01f7d1ebd2bc",
+    "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_G4_v2_1.wav": "6e7d2c65a88cc22203f25af7da82a1e075b5a702b52d043a80cce083b0bf50d3",
+    "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_G4_v4_1.wav": "de3df68f1dd86e71819de9c3a8284d5b5b11650e6f1c37483f505f86aa07cf68"
+  },
+  "sample_set_sha256": "f35617d893237a552b722d8471d9f73790cc75a12dcf615a6b80db4dd966a3cc",
+  "sample_set_algorithm": "Sort unique VCSL-relative UTF-8 paths; for each write '<lowercase file sha256>  <path>\\n'; SHA-256 the concatenated UTF-8 bytes.",
+  "sample_formats": {
+    ".wav:44100Hz:2ch:PCM_16": 22
+  },
+  "mapping": {
+    "unique_root_count": 11,
+    "root_midi_notes": [
+      60,
+      62,
+      64,
+      65,
+      67,
+      69,
+      71,
+      72,
+      74,
+      76,
+      77
+    ],
+    "recorded_velocity_layer_count": 2,
+    "velocity_bands": [
+      [
+        0,
+        83
+      ],
+      [
+        84,
+        127
+      ]
+    ],
+    "round_robin_count": 0,
+    "round_robin_regions": 0,
+    "coverage_midi": [
+      60,
+      79
+    ],
+    "maximum_stretch_semitones": 2.0,
+    "embedded_loop_count": 0,
+    "stereo_regions": 22,
+    "open_region_count": 22,
+    "damped_region_count": 22,
+    "damped_source": "same recordings; project 120 ms release envelope"
+  },
+  "project_overrides": {
+    "upstream_sfz_unchanged": true,
+    "offset_frames": {
+      "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_B4_v2_1.wav": {
+        "upstream": 1026,
+        "project": 0
+      },
+      "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_C5_v4_1.wav": {
+        "upstream": 2727,
+        "project": 0
+      }
+    }
+  },
+  "audio_integrity": {
+    "source_clipped_samples": 0,
+    "silent_samples": 0,
+    "duration_seconds": {
+      "minimum": 9.693379,
+      "median": 18.363696,
+      "maximum": 44.425442
+    },
+    "maximum_upstream_region_peak_dbfs": 3.045869,
+    "project_gain": 0.35,
+    "maximum_project_peak_dbfs": -6.07277,
+    "minimum_headroom_db": 6.07277
+  }
+}

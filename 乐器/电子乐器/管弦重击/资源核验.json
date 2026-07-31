@@ -1,0 +1,28 @@
+{
+  "upstream": "Virtual Playing Orchestra",
+  "sfz_version": "Standard Orchestra 3.3 (2026-06-27)",
+  "wave_version": "Wave Files 3.2 (2026-06-27)",
+  "profile": "orchestral_hit",
+  "source_sfz_sha256": {
+    "Strings/all-strings-SEC-accent.sfz": "dcf8afdbccc22118fc11fdd89287760c01c75652a95eb1689bff5f292ba8ccee",
+    "Brass/all-brass-SEC-accent.sfz": "b1179cc48bb1257ec7ae6006c2ce89fd188bbbe5c8c08874fc31df2aabe33ff1",
+    "Percussion/bassdrum.sfz": "a8fc5e5f0a5ab2c69bccc952a87885d74b22303152ac87b22ef137b02dc6894f",
+    "Percussion/cymbals.sfz": "c702421cdbb3bec6e4194a6b47d06a1365d2150b2fcbb862322f04e7eff27df8"
+  },
+  "sample_count": 278,
+  "sample_bytes": 155381802,
+  "sample_set_sha256": "c6a8ce9db1e24bbac08e34098ed2038afb4157fc797f0457899e2b0a9e530413",
+  "sample_set_algorithm": "Sort unique VPO-relative UTF-8 paths; for each write '<lowercase file sha256>  <path>\\n'; SHA-256 the concatenated UTF-8 bytes.",
+  "license_file_sha256": {
+    "Documentation/license.htm": "852e3be507b193625eaf76bd18f4740209287781fb95f2a06d78ae9205d4682e",
+    "libs/VSCO2-CE/LICENSE.txt": "36ffd9dc085d529a7e60e1276d73ae5a030b020313e6c5408593a6ae2af39673",
+    "libs/NoBudgetOrch/CelloSect/license.txt": "51a630f18ee558420e51bcfe1644ccc335de704e9a360003ca3c12705c25e7a1",
+    "libs/Mattias-Westlund/ViolaSect/readme.txt": "3b9811c31cb8ac6d9626904ec1cfbc704c6568e59c512381ba16a08a8842f7a1",
+    "libs/Mattias-Westlund/Horns/license.txt": "8b4b857d09954666c8997c58978d64c2598c7f209bcf8be109baa4bf6d8a16d2",
+    "libs/NoBudgetOrch2/Trumpet/license.txt": "51a630f18ee558420e51bcfe1644ccc335de704e9a360003ca3c12705c25e7a1"
+  },
+  "version_evidence_sha256": {
+    "Documentation/change-log-Standard-Orchestra.txt": "e74cf4054b94bf0549d9c4b1fd3fa1816bd8a54ab3ae8847dd254725b52b4667",
+    "Documentation/change-log-Wave-Files.txt": "c62001d37b9e9fb076784fad2cb339e98a7c1e5918369f2b4f4f68c9112c6db5"
+  }
+}

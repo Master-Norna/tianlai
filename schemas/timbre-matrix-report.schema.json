@@ -1,0 +1,720 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tianlai.local/schemas/timbre-matrix-report.schema.json",
+  "title": "Tianlai machine timbre matrix report",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "kind",
+    "claim",
+    "automatic_approval",
+    "signal_stage",
+    "matrix_plan_sha256",
+    "expected_coordinates",
+    "coverage",
+    "triage_thresholds",
+    "threshold_semantics",
+    "cells",
+    "machine_blockers",
+    "anomaly_candidates",
+    "disposition",
+    "report_sha256"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "kind": {
+      "const": "machine_timbre_matrix_report"
+    },
+    "claim": {
+      "const": "machine_anomaly_triage_only_never_timbre_approval"
+    },
+    "automatic_approval": {
+      "const": false
+    },
+    "signal_stage": {
+      "const": "instrument_direct_output_no_space"
+    },
+    "matrix_plan_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "expected_coordinates": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/bound_coordinate"
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "required": [
+        "expected_cell_count",
+        "observed_cell_count",
+        "complete",
+        "missing_coordinate_sha256s",
+        "unexpected_coordinate_sha256s"
+      ],
+      "properties": {
+        "expected_cell_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "observed_cell_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "missing_coordinate_sha256s": {
+          "$ref": "#/$defs/sha256_array"
+        },
+        "unexpected_coordinate_sha256s": {
+          "$ref": "#/$defs/sha256_array"
+        }
+      },
+      "additionalProperties": false
+    },
+    "triage_thresholds": {
+      "type": "object",
+      "required": [
+        "adjacent_loudness_step_db",
+        "adjacent_spectral_centroid_octaves",
+        "adjacent_spectral_rolloff_octaves",
+        "adjacent_flatness_step",
+        "velocity_loudness_reversal_db",
+        "velocity_spectral_centroid_octaves",
+        "variant_loudness_deviation_db",
+        "variant_spectral_centroid_octaves"
+      ],
+      "properties": {
+        "adjacent_loudness_step_db": {
+          "type": "number",
+          "minimum": 0
+        },
+        "adjacent_spectral_centroid_octaves": {
+          "type": "number",
+          "minimum": 0
+        },
+        "adjacent_spectral_rolloff_octaves": {
+          "type": "number",
+          "minimum": 0
+        },
+        "adjacent_flatness_step": {
+          "type": "number",
+          "minimum": 0
+        },
+        "velocity_loudness_reversal_db": {
+          "type": "number",
+          "minimum": 0
+        },
+        "velocity_spectral_centroid_octaves": {
+          "type": "number",
+          "minimum": 0
+        },
+        "variant_loudness_deviation_db": {
+          "type": "number",
+          "minimum": 0
+        },
+        "variant_spectral_centroid_octaves": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "threshold_semantics": {
+      "const": "review_priority_only_not_authenticity_acceptance_limits"
+    },
+    "cells": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/cell"
+      }
+    },
+    "machine_blockers": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "kind",
+              "coordinate_sha256s"
+            ],
+            "properties": {
+              "kind": {
+                "enum": [
+                  "missing_matrix_cells",
+                  "unexpected_matrix_cells"
+                ]
+              },
+              "coordinate_sha256s": {
+                "$ref": "#/$defs/sha256_array"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "kind",
+              "coordinate_sha256",
+              "reasons"
+            ],
+            "properties": {
+              "kind": {
+                "const": "cell_machine_blockers"
+              },
+              "coordinate_sha256": {
+                "$ref": "#/$defs/sha256"
+              },
+              "reasons": {
+                "$ref": "#/$defs/string_array"
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      }
+    },
+    "anomaly_candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "kind",
+          "left_coordinate_sha256",
+          "right_coordinate_sha256",
+          "priority",
+          "reasons"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "adjacent_pitch_continuity",
+              "velocity_response",
+              "variant_consistency",
+              "source_mapping_boundary"
+            ]
+          },
+          "left_coordinate_sha256": {
+            "$ref": "#/$defs/sha256"
+          },
+          "right_coordinate_sha256": {
+            "$ref": "#/$defs/sha256"
+          },
+          "priority": {
+            "const": "listen"
+          },
+          "reasons": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": [
+                "metric",
+                "value"
+              ],
+              "properties": {
+                "metric": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "value": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "disposition": {
+      "enum": [
+        "blocked_before_human_review",
+        "machine_complete_human_review_required"
+      ]
+    },
+    "report_sha256": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "sha256_array": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/sha256"
+      }
+    },
+    "string_array": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "coordinate": {
+      "type": "object",
+      "required": [
+        "runtime_configuration_sha256",
+        "final_articulation",
+        "midi_note",
+        "velocity",
+        "variant_lane_sha256",
+        "variant_bundle_sha256"
+      ],
+      "properties": {
+        "runtime_configuration_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "final_articulation": {
+          "type": "string",
+          "minLength": 1
+        },
+        "midi_note": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 127
+        },
+        "velocity": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 127
+        },
+        "variant_lane_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "variant_bundle_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "additionalProperties": false
+    },
+    "bound_coordinate": {
+      "type": "object",
+      "required": [
+        "coordinate_sha256",
+        "coordinate"
+      ],
+      "properties": {
+        "coordinate_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "coordinate": {
+          "$ref": "#/$defs/coordinate"
+        }
+      },
+      "additionalProperties": false
+    },
+    "pitch": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "required": [
+        "status",
+        "expected_hz",
+        "measured_hz",
+        "detune_cents",
+        "confidence",
+        "periodicity",
+        "harmonic_peak_coverage",
+        "nearest_octave_error",
+        "reason"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "clear_pitch",
+            "no_clear_pitch"
+          ]
+        },
+        "expected_hz": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "measured_hz": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "detune_cents": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "confidence": {
+          "type": "number"
+        },
+        "periodicity": {
+          "type": "number"
+        },
+        "harmonic_peak_coverage": {
+          "type": "number"
+        },
+        "nearest_octave_error": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "metrics": {
+      "type": "object",
+      "required": [
+        "analysis_version",
+        "sample_rate_hz",
+        "frame_count",
+        "note_on_frame",
+        "note_off_frame",
+        "peak",
+        "peak_dbfs",
+        "rms",
+        "loudness_proxy_dbfs",
+        "crest_factor_db",
+        "left_rms",
+        "right_rms",
+        "pre_roll_rms",
+        "tail_rms",
+        "dc_offset_left",
+        "dc_offset_right",
+        "clipping_sample_count",
+        "spectral_centroid_hz",
+        "spectral_rolloff_85_hz",
+        "spectral_bandwidth_hz",
+        "spectral_flatness",
+        "stereo_correlation",
+        "stereo_width_ratio",
+        "peak_after_note_on_seconds",
+        "active_tail_seconds",
+        "pitch",
+        "machine_blockers"
+      ],
+      "properties": {
+        "analysis_version": {
+          "const": 1
+        },
+        "sample_rate_hz": {
+          "type": "integer",
+          "minimum": 8000,
+          "maximum": 384000
+        },
+        "frame_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "note_on_frame": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "note_off_frame": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "peak": {
+          "type": "number",
+          "minimum": 0
+        },
+        "peak_dbfs": {
+          "type": "number"
+        },
+        "rms": {
+          "type": "number",
+          "minimum": 0
+        },
+        "loudness_proxy_dbfs": {
+          "type": "number"
+        },
+        "crest_factor_db": {
+          "type": "number"
+        },
+        "left_rms": {
+          "type": "number",
+          "minimum": 0
+        },
+        "right_rms": {
+          "type": "number",
+          "minimum": 0
+        },
+        "pre_roll_rms": {
+          "type": "number",
+          "minimum": 0
+        },
+        "tail_rms": {
+          "type": "number",
+          "minimum": 0
+        },
+        "dc_offset_left": {
+          "type": "number"
+        },
+        "dc_offset_right": {
+          "type": "number"
+        },
+        "clipping_sample_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "spectral_centroid_hz": {
+          "type": "number",
+          "minimum": 0
+        },
+        "spectral_rolloff_85_hz": {
+          "type": "number",
+          "minimum": 0
+        },
+        "spectral_bandwidth_hz": {
+          "type": "number",
+          "minimum": 0
+        },
+        "spectral_flatness": {
+          "type": "number",
+          "minimum": 0
+        },
+        "stereo_correlation": {
+          "type": "number",
+          "minimum": -1,
+          "maximum": 1
+        },
+        "stereo_width_ratio": {
+          "type": "number",
+          "minimum": 0
+        },
+        "peak_after_note_on_seconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "active_tail_seconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "pitch": {
+          "$ref": "#/$defs/pitch"
+        },
+        "machine_blockers": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "cell": {
+      "type": "object",
+      "required": [
+        "coordinate",
+        "metrics",
+        "performance_sha256",
+        "wav_sha256",
+        "selection_receipt_sha256",
+        "variant_coverage_status",
+        "variant_coverage_proof_sha256",
+        "runtime_fingerprint_sha256",
+        "source_facts",
+        "coordinate_sha256"
+      ],
+      "properties": {
+        "coordinate": {
+          "$ref": "#/$defs/coordinate"
+        },
+        "metrics": {
+          "$ref": "#/$defs/metrics"
+        },
+        "performance_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "wav_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "selection_receipt_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "variant_coverage_status": {
+          "enum": [
+            "all_runtime_variants",
+            "runtime_default_only",
+            "unexhausted"
+          ]
+        },
+        "variant_coverage_proof_sha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "runtime_fingerprint_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "source_facts": {
+          "$ref": "#/$defs/source_facts"
+        },
+        "coordinate_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "variant_coverage_status": {
+                "const": "all_runtime_variants"
+              }
+            },
+            "required": [
+              "variant_coverage_status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "variant_coverage_proof_sha256": {
+                "$ref": "#/$defs/sha256"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "variant_coverage_proof_sha256": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "source_facts": {
+      "type": "object",
+      "required": [
+        "source_mode",
+        "selection_scope",
+        "selected_root_midis",
+        "transposition_semitones",
+        "maximum_absolute_transposition_semitones"
+      ],
+      "properties": {
+        "source_mode": {
+          "enum": [
+            "sampled",
+            "procedural",
+            "not_applicable",
+            "unavailable"
+          ]
+        },
+        "selection_scope": {
+          "enum": [
+            "actual_audible_bundle",
+            "deterministic_program_topology",
+            "no_pitched_sample_roots",
+            "unverified"
+          ]
+        },
+        "selected_root_midis": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        },
+        "transposition_semitones": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        },
+        "maximum_absolute_transposition_semitones": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "source_mode": {
+                "const": "sampled"
+              }
+            },
+            "required": [
+              "source_mode"
+            ]
+          },
+          "then": {
+            "properties": {
+              "selection_scope": {
+                "const": "actual_audible_bundle"
+              },
+              "selected_root_midis": {
+                "minItems": 1
+              },
+              "transposition_semitones": {
+                "minItems": 1
+              },
+              "maximum_absolute_transposition_semitones": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "source_mode": {
+                "enum": [
+                  "procedural",
+                  "not_applicable",
+                  "unavailable"
+                ]
+              }
+            },
+            "required": [
+              "source_mode"
+            ]
+          },
+          "then": {
+            "properties": {
+              "selected_root_midis": {
+                "maxItems": 0
+              },
+              "transposition_semitones": {
+                "maxItems": 0
+              },
+              "maximum_absolute_transposition_semitones": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

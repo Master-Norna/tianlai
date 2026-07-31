@@ -1,0 +1,18 @@
+{
+  "sample_rate": 48000,
+  "channels": 2,
+  "tuning": { "temperament": "equal", "a4_hz": 440.0 },
+  "tail_seconds": 2.0,
+  "events": [
+    { "time": 0.0, "type": "articulation", "name": "hit" },
+    { "time": 0.0, "type": "control", "name": "expression", "value": 0.84 },
+    { "time": 0.0, "type": "note_on", "note_id": 1, "midi_note": 36, "velocity": 0.25 },
+    { "time": 0.08, "type": "note_off", "note_id": 1 },
+    { "time": 0.65, "type": "note_on", "note_id": 2, "midi_note": 60, "velocity": 0.62 },
+    { "time": 0.73, "type": "note_off", "note_id": 2 },
+    { "time": 1.3, "type": "note_on", "note_id": 3, "midi_note": 84, "velocity": 0.95 },
+    { "time": 1.38, "type": "note_off", "note_id": 3 },
+    { "time": 1.95, "type": "note_on", "note_id": 4, "midi_note": 48.5, "velocity": 0.68 },
+    { "time": 2.03, "type": "note_off", "note_id": 4 }
+  ]
+}

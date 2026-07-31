@@ -1,0 +1,101 @@
+{
+  "applicable": true,
+  "pitch_mode": "pitched",
+  "reference_a4_hz": 440.0,
+  "playback_calibration": "upstream SFZ pitch_keycenter plus tune opcodes",
+  "measurement_role": "diagnostic; playback follows the audited upstream map, and the residual column records how far each source sample deviates after that map",
+  "measurement_algorithm": "harmonic-constrained FFT of the raw source audio near the mapped pitch, start=0.08s, search +/-180 cents",
+  "summary": {
+    "sample_count": 12,
+    "median_measured_detune_cents": 2.833159,
+    "maximum_absolute_measured_detune_cents": 8.387291,
+    "median_residual_cents": 2.833159,
+    "maximum_absolute_residual_cents": 8.387291
+  },
+  "samples": {
+    "samples/finger/A#.flac": {
+      "root_midi": 34.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 58.374599,
+      "measured_detune_cents": 3.090935,
+      "residual_after_upstream_map_cents": 3.090935
+    },
+    "samples/finger/A.flac": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 55.081879,
+      "measured_detune_cents": 2.575382,
+      "residual_after_upstream_map_cents": 2.575382
+    },
+    "samples/finger/B.flac": {
+      "root_midi": 35.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 61.851178,
+      "measured_detune_cents": 3.243344,
+      "residual_after_upstream_map_cents": 3.243344
+    },
+    "samples/finger/C#.flac": {
+      "root_midi": 37.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 69.270637,
+      "measured_detune_cents": -0.625211,
+      "residual_after_upstream_map_cents": -0.625211
+    },
+    "samples/finger/C.flac": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.440797,
+      "measured_detune_cents": 0.910452,
+      "residual_after_upstream_map_cents": 0.910452
+    },
+    "samples/finger/D#.flac": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 77.553826,
+      "measured_detune_cents": -5.080397,
+      "residual_after_upstream_map_cents": -5.080397
+    },
+    "samples/finger/D.flac": {
+      "root_midi": 38.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 73.350386,
+      "measured_detune_cents": -1.55247,
+      "residual_after_upstream_map_cents": -1.55247
+    },
+    "samples/finger/E.flac": {
+      "root_midi": 28.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 41.161139,
+      "measured_detune_cents": -1.778453,
+      "residual_after_upstream_map_cents": -1.778453
+    },
+    "samples/finger/F#.flac": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 46.431729,
+      "measured_detune_cents": 6.815268,
+      "residual_after_upstream_map_cents": 6.815268
+    },
+    "samples/finger/F.flac": {
+      "root_midi": 29.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 43.86553,
+      "measured_detune_cents": 8.387291,
+      "residual_after_upstream_map_cents": 8.387291
+    },
+    "samples/finger/G#.flac": {
+      "root_midi": 32.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 52.037646,
+      "measured_detune_cents": 4.148891,
+      "residual_after_upstream_map_cents": 4.148891
+    },
+    "samples/finger/G.flac": {
+      "root_midi": 31.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 49.234859,
+      "measured_detune_cents": 8.298198,
+      "residual_after_upstream_map_cents": 8.298198
+    }
+  }
+}

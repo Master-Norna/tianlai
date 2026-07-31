@@ -1,0 +1,37 @@
+{
+  "name": "VCSL 卡林巴",
+  "type": "dedicated_sfz",
+  "quality_tier": "formal",
+  "collaboration_review_status": "untested",
+  "upgrade_status": "vcsl_kalimba_modal_pitch_audited",
+  "fallback_policy": "explicit_only_no_silent_gm",
+  "instrument_name": "Kenyan 15-tine kalimba",
+  "asset_root": "../../../音源/VCSL",
+  "upstream": "sgossner/VCSL (Versilian Community Sample Library)",
+  "origin": "https://github.com/sgossner/VCSL",
+  "upstream_version": "1.2.2-RC",
+  "upstream_commit": "b6e6ac82d22248edee98a0bde185eb9ef6d439ad",
+  "license": "CC0-1.0",
+  "evidence_files": [
+    "README.md"
+  ],
+  "resource_verification": "资源核验.json",
+  "pitch_calibration": "音准校准.json",
+  "articulations": {
+    "normal": "Idiophones/Plucked Idiophones/Kalimba, Kenya.sfz"
+  },
+  "default_articulation": "normal",
+  "pitch_mode": "pitched",
+  "apply_pitch_calibration": false,
+  "reference_a4_hz": 440.0,
+  "gain": 0.52,
+  "velocity_exponent": 0.72,
+  "use_embedded_loops": false,
+  "auxiliary_note_id_base": 1831000000,
+  "note_min": 59,
+  "note_max": 84,
+  "sampled_range": "B3-C6 sounding",
+  "sampled_range_note": "15 physical-tine recordings, 11 unique roots, four true two-tine RR families, maximum stretch 1 semitone",
+  "input_pitch_semantics": "concert_pitch",
+  "license_status": "approved"
+}

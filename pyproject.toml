@@ -1,0 +1,60 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tianlai-audio"
+version = "0.5.0rc2"
+description = "Local-first, deterministic music rendering and iteration runtime"
+readme = "README.md"
+authors = [{name = "Nor.na"}]
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE", "OUTPUT_RIGHTS.md", "TRADEMARKS.md"]
+requires-python = ">=3.11,<3.15"
+keywords = ["audio", "music", "midi", "musicxml", "mcp", "rendering"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Intended Audience :: End Users/Desktop",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Topic :: Multimedia :: Sound/Audio",
+  "Topic :: Multimedia :: Sound/Audio :: MIDI"
+]
+dependencies = [
+  "numpy==2.4.6",
+  "soundfile==0.14.0"
+]
+
+# MCP 服务是可选组件：核心不依赖它；`tianlai-mcp` 缺少 extra 时会给出
+# 明确安装提示，安装 `tianlai-audio[mcp]` 后才启动真实服务。
+[project.optional-dependencies]
+mcp = ["mcp==1.28.1"]
+soundfont = ["pyfluidsynth==1.4.0"]
+dev = [
+  "jsonschema==4.26.0",
+  "pytest>=8,<9"
+]
+
+[project.scripts]
+tianlai = "tianlai.cli:main"
+tianlai-doctor = "tianlai.doctor:main"
+tianlai-mcp = "tianlai.mcp_entry:main"
+
+[tool.setuptools]
+include-package-data = false
+
+[tool.setuptools.packages.find]
+include = ["tianlai*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--strict-config --strict-markers"
+markers = [
+  "external_assets: requires locally installed third-party audio assets; a wholly absent resource skips locally, while a partial or hash-mismatched installation fails",
+  "listening: slow production audition or listening-evidence validation; may also require external_assets"
+]

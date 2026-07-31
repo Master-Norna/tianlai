@@ -1,0 +1,16 @@
+{
+  "implementation": "Tianlai self-authored deterministic physical/signal model",
+  "engine": "tianlai/modeled_instruments.py",
+  "engine_version": "1.1.0",
+  "profile": "shamisen",
+  "seed": 41001,
+  "model_params_override": {},
+  "engine_sha256": "e04a9170dd1f31508038335bb0676f4d25cb7b0ffd9a343da78d1cdc160ad6e3",
+  "external_assets": [],
+  "provenance_kind": "project_authored_dsp",
+  "implementation_license": "Apache-2.0",
+  "external_audio_assets": [],
+  "audio_asset_license": "not_applicable",
+  "license_status": "approved",
+  "generated_at": "2026-07-27"
+}

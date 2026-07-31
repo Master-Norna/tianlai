@@ -1,0 +1,32 @@
+{
+  "upstream": "FreePats project: Yamaha RBX 指弹电贝斯 (Andrea Biasior)",
+  "origin": "https://github.com/freepats/electric-bass-YR",
+  "upstream_version": "2019-09-30 (main @ 8dcb7ea9116f)",
+  "license": "CC0-1.0",
+  "source_file_count": 1,
+  "source_file_sha256": {
+    "FingerBassYR 20190930.sfz": "ba8c6ad0cd3c26f908382fa6331debedc578c4fc210d6e6bfd65d99775c70d90"
+  },
+  "evidence_sha256": {
+    "LICENSE.txt": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499",
+    "README.txt": "5a5cba6c7c44bdebd3ca195e4e3077c477bbfbee7947a6a37da52b2249649c2f"
+  },
+  "sample_count": 12,
+  "sample_bytes": 3346194,
+  "sample_formats": {
+    ".flac:44100Hz:1ch": 12
+  },
+  "articulations": {
+    "normal": {
+      "attack_regions": 12,
+      "release_regions": 0,
+      "round_robin_regions": 0,
+      "velocity_bounded_regions": 0,
+      "random_variant_regions": 0,
+      "looped_regions": 0
+    }
+  },
+  "region_count": 12,
+  "sample_set_sha256": "f00a409d07043be69e8f1d7dfd89671f47fb44f6f99564dee90b325237c959d1",
+  "sample_set_hash_algorithm": "sort unique asset-root-relative UTF-8 paths; concatenate lowercase '<sha256>  <path>\\n>'; SHA-256 the UTF-8 bytes"
+}

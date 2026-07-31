@@ -1,0 +1,29 @@
+{
+  "sample_rate": 48000,
+  "channels": 2,
+  "tuning": {"temperament": "equal", "a4_hz": 440.0},
+  "tail_seconds": 1.2,
+  "events": [
+    {"time": 0.0, "type": "articulation", "name": "left"},
+    {"time": 0.0, "type": "note_on", "note_id": 1, "midi_note": 60, "velocity": 0.55},
+    {"time": 0.4, "type": "articulation", "name": "alternating"},
+    {"time": 0.4, "type": "note_on", "note_id": 2, "midi_note": 60, "velocity": 0.82},
+    {"time": 0.8, "type": "articulation", "name": "right"},
+    {"time": 0.8, "type": "note_on", "note_id": 3, "midi_note": 60, "velocity": 0.72},
+    {"time": 1.2, "type": "articulation", "name": "hit"},
+    {"time": 1.2, "type": "note_on", "note_id": 4, "midi_note": 60, "velocity": 0.42},
+    {"time": 1.55, "type": "note_on", "note_id": 5, "midi_note": 60, "velocity": 0.92},
+    {"time": 1.95, "type": "articulation", "name": "kit2_left"},
+    {"time": 1.95, "type": "note_on", "note_id": 6, "midi_note": 60, "velocity": 0.7},
+    {"time": 2.3, "type": "articulation", "name": "kit2_right"},
+    {"time": 2.3, "type": "note_on", "note_id": 7, "midi_note": 60, "velocity": 0.7},
+    {"time": 2.7, "type": "articulation", "name": "tap"},
+    {"time": 2.7, "type": "note_on", "note_id": 8, "midi_note": 60, "velocity": 0.48},
+    {"time": 3.15, "type": "articulation", "name": "roll_looped"},
+    {"time": 3.15, "type": "note_on", "note_id": 9, "midi_note": 60, "velocity": 0.68},
+    {"time": 4.25, "type": "note_off", "note_id": 9},
+    {"time": 4.65, "type": "articulation", "name": "roll"},
+    {"time": 4.65, "type": "note_on", "note_id": 10, "midi_note": 60, "velocity": 0.86},
+    {"time": 5.65, "type": "note_off", "note_id": 10}
+  ]
+}

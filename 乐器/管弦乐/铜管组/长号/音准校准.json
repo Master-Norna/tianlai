@@ -1,0 +1,111 @@
+{
+  "description": "FFT measurement of raw sustained 长号 samples; A4=440 Hz",
+  "source_sfz": "Brass/trombone-SOLO-sustain.sfz",
+  "summary": {
+    "sample_count": 20,
+    "median_detune_cents": -1.805643,
+    "maximum_absolute_detune_cents": 3.020431
+  },
+  "samples": {
+    "libs/Iowa/samples/Trombone-solo/Trombone-sus.ff.F#2-PB-loop.wav": {
+      "root_midi": 42.0,
+      "measured_hz": 92.41334,
+      "detune_cents": -1.596598
+    },
+    "libs/Iowa/samples/Trombone-solo/Trombone-sus.ff.C#3-PB-loop.wav": {
+      "root_midi": 49.0,
+      "measured_hz": 138.406583,
+      "detune_cents": -2.30915
+    },
+    "libs/Iowa/samples/Trombone-solo/Trombone-sus.ff.D3-PB-loop.wav": {
+      "root_midi": 50.0,
+      "measured_hz": 146.690026,
+      "detune_cents": -1.679297
+    },
+    "libs/Iowa/samples/Trombone-solo/Trombone-sus.ff.F#3-PB-loop.wav": {
+      "root_midi": 55.0,
+      "measured_hz": 195.802398,
+      "detune_cents": -1.726106
+    },
+    "libs/Iowa/samples/Trombone-solo/Trombone-sus.ff.C#4-PB-loop.wav": {
+      "root_midi": 61.0,
+      "measured_hz": 276.893226,
+      "detune_cents": -1.808516
+    },
+    "libs/Iowa/samples/Trombone-solo/Trombone-sus.ff.E4-PB-loop.wav": {
+      "root_midi": 64.0,
+      "measured_hz": 329.29869,
+      "detune_cents": -1.728102
+    },
+    "libs/Iowa/samples/Trombone-solo/Trombone-sus.ff.F#4-PB-loop.wav": {
+      "root_midi": 66.0,
+      "measured_hz": 369.528823,
+      "detune_cents": -2.179953
+    },
+    "libs/Iowa/samples/Trombone-solo/Trombone-sus.ff.G4-PB-loop.wav": {
+      "root_midi": 67.0,
+      "measured_hz": 391.553499,
+      "detune_cents": -1.952902
+    },
+    "libs/Iowa/samples/Trombone-solo/Trombone-sus.ff.G#4-PB-loop.wav": {
+      "root_midi": 68.0,
+      "measured_hz": 414.874198,
+      "detune_cents": -1.795505
+    },
+    "libs/Iowa/samples/Trombone-solo/Trombone-sus.ff.C5-PB-loop.wav": {
+      "root_midi": 72.0,
+      "measured_hz": 522.506057,
+      "detune_cents": -2.466916
+    },
+    "libs/Iowa/samples/Trombone-solo/Trombone-sus.mf.F#2-PB-loop.wav": {
+      "root_midi": 42.0,
+      "measured_hz": 92.415754,
+      "detune_cents": -1.551376
+    },
+    "libs/Iowa/samples/Trombone-solo/Trombone-sus.mf.C#3-PB-loop.wav": {
+      "root_midi": 49.0,
+      "measured_hz": 138.34973,
+      "detune_cents": -3.020431
+    },
+    "libs/Iowa/samples/Trombone-solo/Trombone-sus.mf.D3-PB-loop.wav": {
+      "root_midi": 50.0,
+      "measured_hz": 146.698938,
+      "detune_cents": -1.574117
+    },
+    "libs/Iowa/samples/Trombone-solo/Trombone-sus.mf.F#3-PB-loop.wav": {
+      "root_midi": 54.0,
+      "measured_hz": 184.821134,
+      "detune_cents": -1.648541
+    },
+    "libs/Iowa/samples/Trombone-solo/Trombone-sus.mf.C#4-PB-loop.wav": {
+      "root_midi": 61.0,
+      "measured_hz": 276.893397,
+      "detune_cents": -1.807447
+    },
+    "libs/Iowa/samples/Trombone-solo/Trombone-sus.mf.E4-PB-loop.wav": {
+      "root_midi": 64.0,
+      "measured_hz": 329.276712,
+      "detune_cents": -1.84365
+    },
+    "libs/Iowa/samples/Trombone-solo/Trombone-sus.mf.F#4-PB-loop.wav": {
+      "root_midi": 66.0,
+      "measured_hz": 369.522093,
+      "detune_cents": -2.211482
+    },
+    "libs/Iowa/samples/Trombone-solo/Trombone-sus.mf.G4-PB-loop.wav": {
+      "root_midi": 67.0,
+      "measured_hz": 391.580698,
+      "detune_cents": -1.832647
+    },
+    "libs/Iowa/samples/Trombone-solo/Trombone-sus.mf.G#4-PB-loop.wav": {
+      "root_midi": 68.0,
+      "measured_hz": 414.872201,
+      "detune_cents": -1.803838
+    },
+    "libs/Iowa/samples/Trombone-solo/Trombone-sus.mf.C5-PB-loop.wav": {
+      "root_midi": 72.0,
+      "measured_hz": 522.844403,
+      "detune_cents": -1.346227
+    }
+  }
+}

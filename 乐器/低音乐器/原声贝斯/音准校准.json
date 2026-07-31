@@ -1,0 +1,2579 @@
+{
+  "applicable": true,
+  "pitch_mode": "pitched",
+  "reference_a4_hz": 440.0,
+  "playback_calibration": "upstream SFZ pitch_keycenter plus tune opcodes",
+  "measurement_role": "diagnostic; playback follows the audited upstream map, and the residual column records how far each source sample deviates after that map",
+  "measurement_algorithm": "harmonic-constrained FFT of the raw source audio near the mapped pitch, start=0.08s, search +/-180 cents",
+  "summary": {
+    "sample_count": 366,
+    "median_measured_detune_cents": -2.393685,
+    "maximum_absolute_measured_detune_cents": 180.0,
+    "median_residual_cents": -2.393685,
+    "maximum_absolute_residual_cents": 180.0
+  },
+  "samples": {
+    "Samples/arco_looped/a0_vl1_down.wav": {
+      "root_midi": 21.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 27.42137,
+      "measured_detune_cents": -4.957168,
+      "residual_after_upstream_map_cents": -4.957168
+    },
+    "Samples/arco_looped/a0_vl1_up.wav": {
+      "root_midi": 21.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 27.396833,
+      "measured_detune_cents": -6.507002,
+      "residual_after_upstream_map_cents": -6.507002
+    },
+    "Samples/arco_looped/a0_vl2_down.wav": {
+      "root_midi": 21.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 27.49373,
+      "measured_detune_cents": -0.394782,
+      "residual_after_upstream_map_cents": -0.394782
+    },
+    "Samples/arco_looped/a0_vl2_up.wav": {
+      "root_midi": 21.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 27.476824,
+      "measured_detune_cents": -1.459622,
+      "residual_after_upstream_map_cents": -1.459622
+    },
+    "Samples/arco_looped/a0_vl3_down.wav": {
+      "root_midi": 21.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 27.727431,
+      "measured_detune_cents": 14.258782,
+      "residual_after_upstream_map_cents": 14.258782
+    },
+    "Samples/arco_looped/a0_vl3_up.wav": {
+      "root_midi": 21.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 27.550836,
+      "measured_detune_cents": 3.197351,
+      "residual_after_upstream_map_cents": 3.197351
+    },
+    "Samples/arco_looped/a1_vl1_down.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 54.84338,
+      "measured_detune_cents": -4.936955,
+      "residual_after_upstream_map_cents": -4.936955
+    },
+    "Samples/arco_looped/a1_vl1_up.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 54.79992,
+      "measured_detune_cents": -6.309409,
+      "residual_after_upstream_map_cents": -6.309409
+    },
+    "Samples/arco_looped/a1_vl2_down.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 55.009536,
+      "measured_detune_cents": 0.300146,
+      "residual_after_upstream_map_cents": 0.300146
+    },
+    "Samples/arco_looped/a1_vl2_up.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 54.987278,
+      "measured_detune_cents": -0.400483,
+      "residual_after_upstream_map_cents": -0.400483
+    },
+    "Samples/arco_looped/a1_vl3_down.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 54.927546,
+      "measured_detune_cents": -2.28213,
+      "residual_after_upstream_map_cents": -2.28213
+    },
+    "Samples/arco_looped/a1_vl3_up.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 54.909588,
+      "measured_detune_cents": -2.848244,
+      "residual_after_upstream_map_cents": -2.848244
+    },
+    "Samples/arco_looped/a2_vl1_down.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 109.68407,
+      "measured_detune_cents": -4.979414,
+      "residual_after_upstream_map_cents": -4.979414
+    },
+    "Samples/arco_looped/a2_vl1_up.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 110.017915,
+      "measured_detune_cents": 0.281934,
+      "residual_after_upstream_map_cents": 0.281934
+    },
+    "Samples/arco_looped/a2_vl2_down.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 110.652979,
+      "measured_detune_cents": 10.246529,
+      "residual_after_upstream_map_cents": 10.246529
+    },
+    "Samples/arco_looped/a2_vl2_up.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 109.85535,
+      "measured_detune_cents": -2.278073,
+      "residual_after_upstream_map_cents": -2.278073
+    },
+    "Samples/arco_looped/a2_vl3_down.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 110.021188,
+      "measured_detune_cents": 0.333439,
+      "residual_after_upstream_map_cents": 0.333439
+    },
+    "Samples/arco_looped/a2_vl3_up.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 109.549129,
+      "measured_detune_cents": -7.110605,
+      "residual_after_upstream_map_cents": -7.110605
+    },
+    "Samples/arco_looped/a3_vl1_down.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 220.045659,
+      "measured_detune_cents": 0.359264,
+      "residual_after_upstream_map_cents": 0.359264
+    },
+    "Samples/arco_looped/a3_vl1_up.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 219.702996,
+      "measured_detune_cents": -2.338776,
+      "residual_after_upstream_map_cents": -2.338776
+    },
+    "Samples/arco_looped/a3_vl2_down.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 220.266233,
+      "measured_detune_cents": 2.093785,
+      "residual_after_upstream_map_cents": 2.093785
+    },
+    "Samples/arco_looped/a3_vl2_up.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 220.601887,
+      "measured_detune_cents": 4.72993,
+      "residual_after_upstream_map_cents": 4.72993
+    },
+    "Samples/arco_looped/a3_vl3_down.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 219.904694,
+      "measured_detune_cents": -0.750151,
+      "residual_after_upstream_map_cents": -0.750151
+    },
+    "Samples/arco_looped/a3_vl3_up.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 219.738697,
+      "measured_detune_cents": -2.057478,
+      "residual_after_upstream_map_cents": -2.057478
+    },
+    "Samples/arco_looped/a4_vl1_down.wav": {
+      "root_midi": 69.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 440.764416,
+      "measured_detune_cents": 3.00508,
+      "residual_after_upstream_map_cents": 3.00508
+    },
+    "Samples/arco_looped/a4_vl1_up.wav": {
+      "root_midi": 69.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 439.839359,
+      "measured_detune_cents": -0.632179,
+      "residual_after_upstream_map_cents": -0.632179
+    },
+    "Samples/arco_looped/a4_vl2_down.wav": {
+      "root_midi": 69.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 441.573076,
+      "measured_detune_cents": 6.178423,
+      "residual_after_upstream_map_cents": 6.178423
+    },
+    "Samples/arco_looped/a4_vl2_up.wav": {
+      "root_midi": 69.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 441.09762,
+      "measured_detune_cents": 4.313344,
+      "residual_after_upstream_map_cents": 4.313344
+    },
+    "Samples/arco_looped/a4_vl3_down.wav": {
+      "root_midi": 69.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 440.651725,
+      "measured_detune_cents": 2.562393,
+      "residual_after_upstream_map_cents": 2.562393
+    },
+    "Samples/arco_looped/a4_vl3_up.wav": {
+      "root_midi": 69.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 439.708663,
+      "measured_detune_cents": -1.146681,
+      "residual_after_upstream_map_cents": -1.146681
+    },
+    "Samples/arco_looped/c1_vl1_down.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.411414,
+      "measured_detune_cents": -15.515615,
+      "residual_after_upstream_map_cents": -15.515615
+    },
+    "Samples/arco_looped/c1_vl1_up.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.299306,
+      "measured_detune_cents": -21.514134,
+      "residual_after_upstream_map_cents": -21.514134
+    },
+    "Samples/arco_looped/c1_vl2_down.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.396182,
+      "measured_detune_cents": -16.329364,
+      "residual_after_upstream_map_cents": -16.329364
+    },
+    "Samples/arco_looped/c1_vl2_up.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.366345,
+      "measured_detune_cents": -17.924574,
+      "residual_after_upstream_map_cents": -17.924574
+    },
+    "Samples/arco_looped/c1_vl3_down.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.400334,
+      "measured_detune_cents": -16.107494,
+      "residual_after_upstream_map_cents": -16.107494
+    },
+    "Samples/arco_looped/c1_vl3_up.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.342627,
+      "measured_detune_cents": -19.193721,
+      "residual_after_upstream_map_cents": -19.193721
+    },
+    "Samples/arco_looped/c2_vl1_down.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.736562,
+      "measured_detune_cents": 8.717257,
+      "residual_after_upstream_map_cents": 8.717257
+    },
+    "Samples/arco_looped/c2_vl1_up.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.497828,
+      "measured_detune_cents": 2.418532,
+      "residual_after_upstream_map_cents": 2.418532
+    },
+    "Samples/arco_looped/c2_vl2_down.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.441117,
+      "measured_detune_cents": 0.918908,
+      "residual_after_upstream_map_cents": 0.918908
+    },
+    "Samples/arco_looped/c2_vl2_up.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.357563,
+      "measured_detune_cents": -1.292925,
+      "residual_after_upstream_map_cents": -1.292925
+    },
+    "Samples/arco_looped/c2_vl3_down.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.608573,
+      "measured_detune_cents": 5.343258,
+      "residual_after_upstream_map_cents": 5.343258
+    },
+    "Samples/arco_looped/c2_vl3_up.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.417908,
+      "measured_detune_cents": 0.304816,
+      "residual_after_upstream_map_cents": 0.304816
+    },
+    "Samples/arco_looped/c3_vl1_down.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 131.081012,
+      "measured_detune_cents": 3.54623,
+      "residual_after_upstream_map_cents": 3.54623
+    },
+    "Samples/arco_looped/c3_vl1_up.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.709761,
+      "measured_detune_cents": -1.363975,
+      "residual_after_upstream_map_cents": -1.363975
+    },
+    "Samples/arco_looped/c3_vl2_down.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.995087,
+      "measured_detune_cents": 2.411019,
+      "residual_after_upstream_map_cents": 2.411019
+    },
+    "Samples/arco_looped/c3_vl2_up.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.670444,
+      "measured_detune_cents": -1.8848,
+      "residual_after_upstream_map_cents": -1.8848
+    },
+    "Samples/arco_looped/c3_vl3_down.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.886074,
+      "measured_detune_cents": 0.969702,
+      "residual_after_upstream_map_cents": 0.969702
+    },
+    "Samples/arco_looped/c3_vl3_up.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.769933,
+      "measured_detune_cents": -0.567188,
+      "residual_after_upstream_map_cents": -0.567188
+    },
+    "Samples/arco_looped/c4_vl1_down.wav": {
+      "root_midi": 60.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 262.007817,
+      "measured_detune_cents": 2.527598,
+      "residual_after_upstream_map_cents": 2.527598
+    },
+    "Samples/arco_looped/c4_vl1_up.wav": {
+      "root_midi": 60.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 262.959226,
+      "measured_detune_cents": 8.802709,
+      "residual_after_upstream_map_cents": 8.802709
+    },
+    "Samples/arco_looped/c4_vl2_down.wav": {
+      "root_midi": 60.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 261.988672,
+      "measured_detune_cents": 2.401093,
+      "residual_after_upstream_map_cents": 2.401093
+    },
+    "Samples/arco_looped/c4_vl2_up.wav": {
+      "root_midi": 60.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 262.705228,
+      "measured_detune_cents": 7.129666,
+      "residual_after_upstream_map_cents": 7.129666
+    },
+    "Samples/arco_looped/c4_vl3_down.wav": {
+      "root_midi": 60.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 261.314189,
+      "measured_detune_cents": -2.061674,
+      "residual_after_upstream_map_cents": -2.061674
+    },
+    "Samples/arco_looped/c4_vl3_up.wav": {
+      "root_midi": 60.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 261.967867,
+      "measured_detune_cents": 2.263605,
+      "residual_after_upstream_map_cents": 2.263605
+    },
+    "Samples/arco_looped/eb1_vl1_down.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 38.355957,
+      "measured_detune_cents": -23.977146,
+      "residual_after_upstream_map_cents": -23.977146
+    },
+    "Samples/arco_looped/eb1_vl1_up.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 38.187616,
+      "measured_detune_cents": -31.592097,
+      "residual_after_upstream_map_cents": -31.592097
+    },
+    "Samples/arco_looped/eb1_vl2_down.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 38.422791,
+      "measured_detune_cents": -20.963181,
+      "residual_after_upstream_map_cents": -20.963181
+    },
+    "Samples/arco_looped/eb1_vl2_up.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 38.313047,
+      "measured_detune_cents": -25.915021,
+      "residual_after_upstream_map_cents": -25.915021
+    },
+    "Samples/arco_looped/eb1_vl3_down.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 38.440875,
+      "measured_detune_cents": -20.148534,
+      "residual_after_upstream_map_cents": -20.148534
+    },
+    "Samples/arco_looped/eb1_vl3_up.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 38.288697,
+      "measured_detune_cents": -27.015653,
+      "residual_after_upstream_map_cents": -27.015653
+    },
+    "Samples/arco_looped/eb2_vl1_down.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 77.776756,
+      "measured_detune_cents": -0.111061,
+      "residual_after_upstream_map_cents": -0.111061
+    },
+    "Samples/arco_looped/eb2_vl1_up.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 77.571154,
+      "measured_detune_cents": -4.693621,
+      "residual_after_upstream_map_cents": -4.693621
+    },
+    "Samples/arco_looped/eb2_vl2_down.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 77.721188,
+      "measured_detune_cents": -1.348405,
+      "residual_after_upstream_map_cents": -1.348405
+    },
+    "Samples/arco_looped/eb2_vl2_up.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 77.553957,
+      "measured_detune_cents": -5.077462,
+      "residual_after_upstream_map_cents": -5.077462
+    },
+    "Samples/arco_looped/eb2_vl3_down.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 77.754322,
+      "measured_detune_cents": -0.610501,
+      "residual_after_upstream_map_cents": -0.610501
+    },
+    "Samples/arco_looped/eb2_vl3_up.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 77.637584,
+      "measured_detune_cents": -3.211678,
+      "residual_after_upstream_map_cents": -3.211678
+    },
+    "Samples/arco_looped/eb3_vl1_down.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 155.947876,
+      "measured_detune_cents": 4.272458,
+      "residual_after_upstream_map_cents": 4.272458
+    },
+    "Samples/arco_looped/eb3_vl1_up.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 155.709513,
+      "measured_detune_cents": 1.624277,
+      "residual_after_upstream_map_cents": 1.624277
+    },
+    "Samples/arco_looped/eb3_vl2_down.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 155.694299,
+      "measured_detune_cents": 1.455115,
+      "residual_after_upstream_map_cents": 1.455115
+    },
+    "Samples/arco_looped/eb3_vl2_up.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 155.781522,
+      "measured_detune_cents": 2.424716,
+      "residual_after_upstream_map_cents": 2.424716
+    },
+    "Samples/arco_looped/eb3_vl3_down.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 155.205057,
+      "measured_detune_cents": -3.993547,
+      "residual_after_upstream_map_cents": -3.993547
+    },
+    "Samples/arco_looped/eb3_vl3_up.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 155.343624,
+      "measured_detune_cents": -2.448594,
+      "residual_after_upstream_map_cents": -2.448594
+    },
+    "Samples/arco_looped/eb4_vl1_down.wav": {
+      "root_midi": 63.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 312.535859,
+      "measured_detune_cents": 7.821845,
+      "residual_after_upstream_map_cents": 7.821845
+    },
+    "Samples/arco_looped/eb4_vl1_up.wav": {
+      "root_midi": 63.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 310.994022,
+      "measured_detune_cents": -0.740012,
+      "residual_after_upstream_map_cents": -0.740012
+    },
+    "Samples/arco_looped/eb4_vl2_down.wav": {
+      "root_midi": 63.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 312.266331,
+      "measured_detune_cents": 6.328199,
+      "residual_after_upstream_map_cents": 6.328199
+    },
+    "Samples/arco_looped/eb4_vl2_up.wav": {
+      "root_midi": 63.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 311.395855,
+      "measured_detune_cents": 1.495458,
+      "residual_after_upstream_map_cents": 1.495458
+    },
+    "Samples/arco_looped/eb4_vl3_down.wav": {
+      "root_midi": 63.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 309.939327,
+      "measured_detune_cents": -6.621238,
+      "residual_after_upstream_map_cents": -6.621238
+    },
+    "Samples/arco_looped/eb4_vl3_up.wav": {
+      "root_midi": 63.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 309.883072,
+      "measured_detune_cents": -6.935494,
+      "residual_after_upstream_map_cents": -6.935494
+    },
+    "Samples/arco_looped/gb1_vl1_down.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 46.13151,
+      "measured_detune_cents": -4.414915,
+      "residual_after_upstream_map_cents": -4.414915
+    },
+    "Samples/arco_looped/gb1_vl1_up.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 46.051767,
+      "measured_detune_cents": -7.410114,
+      "residual_after_upstream_map_cents": -7.410114
+    },
+    "Samples/arco_looped/gb1_vl2_down.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 46.22754,
+      "measured_detune_cents": -0.814838,
+      "residual_after_upstream_map_cents": -0.814838
+    },
+    "Samples/arco_looped/gb1_vl2_up.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 46.178787,
+      "measured_detune_cents": -2.641601,
+      "residual_after_upstream_map_cents": -2.641601
+    },
+    "Samples/arco_looped/gb1_vl3_down.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 46.227679,
+      "measured_detune_cents": -0.809634,
+      "residual_after_upstream_map_cents": -0.809634
+    },
+    "Samples/arco_looped/gb1_vl3_up.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 46.22156,
+      "measured_detune_cents": -1.038784,
+      "residual_after_upstream_map_cents": -1.038784
+    },
+    "Samples/arco_looped/gb2_vl1_down.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.796068,
+      "measured_detune_cents": 5.55847,
+      "residual_after_upstream_map_cents": 5.55847
+    },
+    "Samples/arco_looped/gb2_vl1_up.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.638945,
+      "measured_detune_cents": 2.624638,
+      "residual_after_upstream_map_cents": 2.624638
+    },
+    "Samples/arco_looped/gb2_vl2_down.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.717345,
+      "measured_detune_cents": 4.089156,
+      "residual_after_upstream_map_cents": 4.089156
+    },
+    "Samples/arco_looped/gb2_vl2_up.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.487952,
+      "measured_detune_cents": -0.199417,
+      "residual_after_upstream_map_cents": -0.199417
+    },
+    "Samples/arco_looped/gb2_vl3_down.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.559059,
+      "measured_detune_cents": 1.131095,
+      "residual_after_upstream_map_cents": 1.131095
+    },
+    "Samples/arco_looped/gb2_vl3_up.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.41258,
+      "measured_detune_cents": -1.610837,
+      "residual_after_upstream_map_cents": -1.610837
+    },
+    "Samples/arco_looped/gb3_vl1_down.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 185.302999,
+      "measured_detune_cents": 2.859245,
+      "residual_after_upstream_map_cents": 2.859245
+    },
+    "Samples/arco_looped/gb3_vl1_up.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 185.253303,
+      "measured_detune_cents": 2.394893,
+      "residual_after_upstream_map_cents": 2.394893
+    },
+    "Samples/arco_looped/gb3_vl2_down.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 185.418527,
+      "measured_detune_cents": 3.938258,
+      "residual_after_upstream_map_cents": 3.938258
+    },
+    "Samples/arco_looped/gb3_vl2_up.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 185.048978,
+      "measured_detune_cents": 0.484374,
+      "residual_after_upstream_map_cents": 0.484374
+    },
+    "Samples/arco_looped/gb3_vl3_down.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 185.342182,
+      "measured_detune_cents": 3.225283,
+      "residual_after_upstream_map_cents": 3.225283
+    },
+    "Samples/arco_looped/gb3_vl3_up.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 184.826282,
+      "measured_detune_cents": -1.600326,
+      "residual_after_upstream_map_cents": -1.600326
+    },
+    "Samples/arco_looped/gb4_vl1_down.wav": {
+      "root_midi": 66.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 371.323022,
+      "measured_detune_cents": 6.205487,
+      "residual_after_upstream_map_cents": 6.205487
+    },
+    "Samples/arco_looped/gb4_vl1_up.wav": {
+      "root_midi": 66.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 369.988235,
+      "measured_detune_cents": -0.028951,
+      "residual_after_upstream_map_cents": -0.028951
+    },
+    "Samples/arco_looped/gb4_vl2_down.wav": {
+      "root_midi": 66.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 371.107128,
+      "measured_detune_cents": 5.198625,
+      "residual_after_upstream_map_cents": 5.198625
+    },
+    "Samples/arco_looped/gb4_vl2_up.wav": {
+      "root_midi": 66.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 370.70562,
+      "measured_detune_cents": 3.324557,
+      "residual_after_upstream_map_cents": 3.324557
+    },
+    "Samples/arco_looped/gb4_vl3_down.wav": {
+      "root_midi": 66.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 368.898308,
+      "measured_detune_cents": -5.136422,
+      "residual_after_upstream_map_cents": -5.136422
+    },
+    "Samples/arco_looped/gb4_vl3_up.wav": {
+      "root_midi": 66.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 370.874628,
+      "measured_detune_cents": 4.113661,
+      "residual_after_upstream_map_cents": 4.113661
+    },
+    "Samples/pizz/a0_vl1_rr1.wav": {
+      "root_midi": 21.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 27.301366,
+      "measured_detune_cents": -12.550191,
+      "residual_after_upstream_map_cents": -12.550191
+    },
+    "Samples/pizz/a0_vl1_rr2.wav": {
+      "root_midi": 21.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 27.365273,
+      "measured_detune_cents": -8.502471,
+      "residual_after_upstream_map_cents": -8.502471
+    },
+    "Samples/pizz/a0_vl1_rr3.wav": {
+      "root_midi": 21.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 27.504944,
+      "measured_detune_cents": 0.311213,
+      "residual_after_upstream_map_cents": 0.311213
+    },
+    "Samples/pizz/a0_vl1_rr4.wav": {
+      "root_midi": 21.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 27.420837,
+      "measured_detune_cents": -4.990829,
+      "residual_after_upstream_map_cents": -4.990829
+    },
+    "Samples/pizz/a0_vl2_rr1.wav": {
+      "root_midi": 21.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 27.463591,
+      "measured_detune_cents": -2.293588,
+      "residual_after_upstream_map_cents": -2.293588
+    },
+    "Samples/pizz/a0_vl2_rr2.wav": {
+      "root_midi": 21.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 27.541368,
+      "measured_detune_cents": 2.602323,
+      "residual_after_upstream_map_cents": 2.602323
+    },
+    "Samples/pizz/a0_vl2_rr3.wav": {
+      "root_midi": 21.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 27.547767,
+      "measured_detune_cents": 3.004503,
+      "residual_after_upstream_map_cents": 3.004503
+    },
+    "Samples/pizz/a0_vl2_rr4.wav": {
+      "root_midi": 21.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 27.588981,
+      "measured_detune_cents": 5.592663,
+      "residual_after_upstream_map_cents": 5.592663
+    },
+    "Samples/pizz/a0_vl3_rr1.wav": {
+      "root_midi": 21.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 27.589361,
+      "measured_detune_cents": 5.616524,
+      "residual_after_upstream_map_cents": 5.616524
+    },
+    "Samples/pizz/a0_vl3_rr2.wav": {
+      "root_midi": 21.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 27.589416,
+      "measured_detune_cents": 5.619972,
+      "residual_after_upstream_map_cents": 5.619972
+    },
+    "Samples/pizz/a0_vl3_rr3.wav": {
+      "root_midi": 21.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 27.590049,
+      "measured_detune_cents": 5.659664,
+      "residual_after_upstream_map_cents": 5.659664
+    },
+    "Samples/pizz/a0_vl3_rr4.wav": {
+      "root_midi": 21.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 27.589479,
+      "measured_detune_cents": 5.623917,
+      "residual_after_upstream_map_cents": 5.623917
+    },
+    "Samples/pizz/a0_vl4_rr1.wav": {
+      "root_midi": 21.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 27.58908,
+      "measured_detune_cents": 5.59886,
+      "residual_after_upstream_map_cents": 5.59886
+    },
+    "Samples/pizz/a0_vl4_rr2.wav": {
+      "root_midi": 21.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 27.589242,
+      "measured_detune_cents": 5.60902,
+      "residual_after_upstream_map_cents": 5.60902
+    },
+    "Samples/pizz/a0_vl4_rr3.wav": {
+      "root_midi": 21.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 27.588907,
+      "measured_detune_cents": 5.587991,
+      "residual_after_upstream_map_cents": 5.587991
+    },
+    "Samples/pizz/a0_vl4_rr4.wav": {
+      "root_midi": 21.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 27.589135,
+      "measured_detune_cents": 5.602357,
+      "residual_after_upstream_map_cents": 5.602357
+    },
+    "Samples/pizz/a1_vl1_rr1.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 54.842903,
+      "measured_detune_cents": -4.952013,
+      "residual_after_upstream_map_cents": -4.952013
+    },
+    "Samples/pizz/a1_vl1_rr2.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 54.842815,
+      "measured_detune_cents": -4.954799,
+      "residual_after_upstream_map_cents": -4.954799
+    },
+    "Samples/pizz/a1_vl1_rr3.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 54.842877,
+      "measured_detune_cents": -4.952828,
+      "residual_after_upstream_map_cents": -4.952828
+    },
+    "Samples/pizz/a1_vl1_rr4.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 54.842754,
+      "measured_detune_cents": -4.956729,
+      "residual_after_upstream_map_cents": -4.956729
+    },
+    "Samples/pizz/a1_vl2_rr1.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 54.927772,
+      "measured_detune_cents": -2.275023,
+      "residual_after_upstream_map_cents": -2.275023
+    },
+    "Samples/pizz/a1_vl2_rr2.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 54.884627,
+      "measured_detune_cents": -3.635393,
+      "residual_after_upstream_map_cents": -3.635393
+    },
+    "Samples/pizz/a1_vl2_rr3.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 54.927073,
+      "measured_detune_cents": -2.297046,
+      "residual_after_upstream_map_cents": -2.297046
+    },
+    "Samples/pizz/a1_vl2_rr4.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 54.884956,
+      "measured_detune_cents": -3.625036,
+      "residual_after_upstream_map_cents": -3.625036
+    },
+    "Samples/pizz/a1_vl3_rr1.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 54.975716,
+      "measured_detune_cents": -0.76456,
+      "residual_after_upstream_map_cents": -0.76456
+    },
+    "Samples/pizz/a1_vl3_rr2.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 54.977771,
+      "measured_detune_cents": -0.699835,
+      "residual_after_upstream_map_cents": -0.699835
+    },
+    "Samples/pizz/a1_vl3_rr3.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 54.977325,
+      "measured_detune_cents": -0.713886,
+      "residual_after_upstream_map_cents": -0.713886
+    },
+    "Samples/pizz/a1_vl3_rr4.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 54.978394,
+      "measured_detune_cents": -0.680215,
+      "residual_after_upstream_map_cents": -0.680215
+    },
+    "Samples/pizz/a1_vl4_rr1.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 55.011706,
+      "measured_detune_cents": 0.368431,
+      "residual_after_upstream_map_cents": 0.368431
+    },
+    "Samples/pizz/a1_vl4_rr2.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 55.044495,
+      "measured_detune_cents": 1.399994,
+      "residual_after_upstream_map_cents": 1.399994
+    },
+    "Samples/pizz/a1_vl4_rr3.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 55.136535,
+      "measured_detune_cents": 4.292393,
+      "residual_after_upstream_map_cents": 4.292393
+    },
+    "Samples/pizz/a1_vl4_rr4.wav": {
+      "root_midi": 33.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 55.066238,
+      "measured_detune_cents": 2.083727,
+      "residual_after_upstream_map_cents": 2.083727
+    },
+    "Samples/pizz/a2_vl1_rr1.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 109.98855,
+      "measured_detune_cents": -0.18021,
+      "residual_after_upstream_map_cents": -0.18021
+    },
+    "Samples/pizz/a2_vl1_rr2.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 109.946805,
+      "measured_detune_cents": -0.83741,
+      "residual_after_upstream_map_cents": -0.83741
+    },
+    "Samples/pizz/a2_vl1_rr3.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 109.767168,
+      "measured_detune_cents": -3.66831,
+      "residual_after_upstream_map_cents": -3.66831
+    },
+    "Samples/pizz/a2_vl1_rr4.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 109.681905,
+      "measured_detune_cents": -5.013594,
+      "residual_after_upstream_map_cents": -5.013594
+    },
+    "Samples/pizz/a2_vl2_rr1.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 109.572618,
+      "measured_detune_cents": -6.739442,
+      "residual_after_upstream_map_cents": -6.739442
+    },
+    "Samples/pizz/a2_vl2_rr2.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 109.600805,
+      "measured_detune_cents": -6.294162,
+      "residual_after_upstream_map_cents": -6.294162
+    },
+    "Samples/pizz/a2_vl2_rr3.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 109.514241,
+      "measured_detune_cents": -7.662049,
+      "residual_after_upstream_map_cents": -7.662049
+    },
+    "Samples/pizz/a2_vl2_rr4.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 109.459943,
+      "measured_detune_cents": -8.520611,
+      "residual_after_upstream_map_cents": -8.520611
+    },
+    "Samples/pizz/a2_vl3_rr1.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 109.60015,
+      "measured_detune_cents": -6.304498,
+      "residual_after_upstream_map_cents": -6.304498
+    },
+    "Samples/pizz/a2_vl3_rr2.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 109.571914,
+      "measured_detune_cents": -6.750567,
+      "residual_after_upstream_map_cents": -6.750567
+    },
+    "Samples/pizz/a2_vl3_rr3.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 109.517049,
+      "measured_detune_cents": -7.617653,
+      "residual_after_upstream_map_cents": -7.617653
+    },
+    "Samples/pizz/a2_vl3_rr4.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 109.534249,
+      "measured_detune_cents": -7.345774,
+      "residual_after_upstream_map_cents": -7.345774
+    },
+    "Samples/pizz/a2_vl4_rr1.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 109.649013,
+      "measured_detune_cents": -5.53284,
+      "residual_after_upstream_map_cents": -5.53284
+    },
+    "Samples/pizz/a2_vl4_rr2.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 109.500487,
+      "measured_detune_cents": -7.879481,
+      "residual_after_upstream_map_cents": -7.879481
+    },
+    "Samples/pizz/a2_vl4_rr3.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 109.433971,
+      "measured_detune_cents": -8.931439,
+      "residual_after_upstream_map_cents": -8.931439
+    },
+    "Samples/pizz/a2_vl4_rr4.wav": {
+      "root_midi": 45.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 109.42315,
+      "measured_detune_cents": -9.102633,
+      "residual_after_upstream_map_cents": -9.102633
+    },
+    "Samples/pizz/a3_vl1_rr1.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 219.416302,
+      "measured_detune_cents": -4.599367,
+      "residual_after_upstream_map_cents": -4.599367
+    },
+    "Samples/pizz/a3_vl1_rr2.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 219.325046,
+      "measured_detune_cents": -5.319545,
+      "residual_after_upstream_map_cents": -5.319545
+    },
+    "Samples/pizz/a3_vl1_rr3.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 219.150168,
+      "measured_detune_cents": -6.700489,
+      "residual_after_upstream_map_cents": -6.700489
+    },
+    "Samples/pizz/a3_vl1_rr4.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 218.894407,
+      "measured_detune_cents": -8.722116,
+      "residual_after_upstream_map_cents": -8.722116
+    },
+    "Samples/pizz/a3_vl2_rr1.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 218.829538,
+      "measured_detune_cents": -9.235243,
+      "residual_after_upstream_map_cents": -9.235243
+    },
+    "Samples/pizz/a3_vl2_rr2.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 218.834153,
+      "measured_detune_cents": -9.198731,
+      "residual_after_upstream_map_cents": -9.198731
+    },
+    "Samples/pizz/a3_vl2_rr3.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 218.854297,
+      "measured_detune_cents": -9.039373,
+      "residual_after_upstream_map_cents": -9.039373
+    },
+    "Samples/pizz/a3_vl2_rr4.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 218.753618,
+      "measured_detune_cents": -9.835976,
+      "residual_after_upstream_map_cents": -9.835976
+    },
+    "Samples/pizz/a3_vl3_rr1.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 218.79354,
+      "measured_detune_cents": -9.520054,
+      "residual_after_upstream_map_cents": -9.520054
+    },
+    "Samples/pizz/a3_vl3_rr2.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 218.726167,
+      "measured_detune_cents": -10.053237,
+      "residual_after_upstream_map_cents": -10.053237
+    },
+    "Samples/pizz/a3_vl3_rr3.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 218.405401,
+      "measured_detune_cents": -12.593991,
+      "residual_after_upstream_map_cents": -12.593991
+    },
+    "Samples/pizz/a3_vl3_rr4.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 218.443282,
+      "measured_detune_cents": -12.293746,
+      "residual_after_upstream_map_cents": -12.293746
+    },
+    "Samples/pizz/a3_vl4_rr1.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 218.79476,
+      "measured_detune_cents": -9.5104,
+      "residual_after_upstream_map_cents": -9.5104
+    },
+    "Samples/pizz/a3_vl4_rr2.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 218.508035,
+      "measured_detune_cents": -11.780629,
+      "residual_after_upstream_map_cents": -11.780629
+    },
+    "Samples/pizz/a3_vl4_rr3.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 218.47248,
+      "measured_detune_cents": -12.062355,
+      "residual_after_upstream_map_cents": -12.062355
+    },
+    "Samples/pizz/a3_vl4_rr4.wav": {
+      "root_midi": 57.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 218.471061,
+      "measured_detune_cents": -12.073601,
+      "residual_after_upstream_map_cents": -12.073601
+    },
+    "Samples/pizz/c1_vl1_rr1.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.187614,
+      "measured_detune_cents": -27.511184,
+      "residual_after_upstream_map_cents": -27.511184
+    },
+    "Samples/pizz/c1_vl1_rr2.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.188224,
+      "measured_detune_cents": -27.478366,
+      "residual_after_upstream_map_cents": -27.478366
+    },
+    "Samples/pizz/c1_vl1_rr3.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.188176,
+      "measured_detune_cents": -27.480954,
+      "residual_after_upstream_map_cents": -27.480954
+    },
+    "Samples/pizz/c1_vl1_rr4.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.198654,
+      "measured_detune_cents": -26.917487,
+      "residual_after_upstream_map_cents": -26.917487
+    },
+    "Samples/pizz/c1_vl2_rr1.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.214687,
+      "measured_detune_cents": -26.055658,
+      "residual_after_upstream_map_cents": -26.055658
+    },
+    "Samples/pizz/c1_vl2_rr2.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.215647,
+      "measured_detune_cents": -26.004074,
+      "residual_after_upstream_map_cents": -26.004074
+    },
+    "Samples/pizz/c1_vl2_rr3.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.215648,
+      "measured_detune_cents": -26.004027,
+      "residual_after_upstream_map_cents": -26.004027
+    },
+    "Samples/pizz/c1_vl2_rr4.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.20402,
+      "measured_detune_cents": -26.628972,
+      "residual_after_upstream_map_cents": -26.628972
+    },
+    "Samples/pizz/c1_vl3_rr1.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.215963,
+      "measured_detune_cents": -25.987085,
+      "residual_after_upstream_map_cents": -25.987085
+    },
+    "Samples/pizz/c1_vl3_rr2.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.232733,
+      "measured_detune_cents": -25.086128,
+      "residual_after_upstream_map_cents": -25.086128
+    },
+    "Samples/pizz/c1_vl3_rr3.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.232116,
+      "measured_detune_cents": -25.11924,
+      "residual_after_upstream_map_cents": -25.11924
+    },
+    "Samples/pizz/c1_vl3_rr4.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.232846,
+      "measured_detune_cents": -25.080048,
+      "residual_after_upstream_map_cents": -25.080048
+    },
+    "Samples/pizz/c1_vl4_rr1.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.174003,
+      "measured_detune_cents": -28.243401,
+      "residual_after_upstream_map_cents": -28.243401
+    },
+    "Samples/pizz/c1_vl4_rr2.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.131903,
+      "measured_detune_cents": -30.510222,
+      "residual_after_upstream_map_cents": -30.510222
+    },
+    "Samples/pizz/c1_vl4_rr3.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.131651,
+      "measured_detune_cents": -30.523816,
+      "residual_after_upstream_map_cents": -30.523816
+    },
+    "Samples/pizz/c1_vl4_rr4.wav": {
+      "root_midi": 24.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 32.064455,
+      "measured_detune_cents": -34.148085,
+      "residual_after_upstream_map_cents": -34.148085
+    },
+    "Samples/pizz/c2_vl1_rr1.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.272545,
+      "measured_detune_cents": -3.546385,
+      "residual_after_upstream_map_cents": -3.546385
+    },
+    "Samples/pizz/c2_vl1_rr2.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.146706,
+      "measured_detune_cents": -6.887254,
+      "residual_after_upstream_map_cents": -6.887254
+    },
+    "Samples/pizz/c2_vl1_rr3.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.175539,
+      "measured_detune_cents": -6.121224,
+      "residual_after_upstream_map_cents": -6.121224
+    },
+    "Samples/pizz/c2_vl1_rr4.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.105646,
+      "measured_detune_cents": -7.97874,
+      "residual_after_upstream_map_cents": -7.97874
+    },
+    "Samples/pizz/c2_vl2_rr1.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.205218,
+      "measured_detune_cents": -5.333041,
+      "residual_after_upstream_map_cents": -5.333041
+    },
+    "Samples/pizz/c2_vl2_rr2.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.102098,
+      "measured_detune_cents": -8.073104,
+      "residual_after_upstream_map_cents": -8.073104
+    },
+    "Samples/pizz/c2_vl2_rr3.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.104512,
+      "measured_detune_cents": -8.008898,
+      "residual_after_upstream_map_cents": -8.008898
+    },
+    "Samples/pizz/c2_vl2_rr4.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.102336,
+      "measured_detune_cents": -8.066775,
+      "residual_after_upstream_map_cents": -8.066775
+    },
+    "Samples/pizz/c2_vl3_rr1.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.159507,
+      "measured_detune_cents": -6.547116,
+      "residual_after_upstream_map_cents": -6.547116
+    },
+    "Samples/pizz/c2_vl3_rr2.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.070676,
+      "measured_detune_cents": -8.908905,
+      "residual_after_upstream_map_cents": -8.908905
+    },
+    "Samples/pizz/c2_vl3_rr3.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.061886,
+      "measured_detune_cents": -9.142773,
+      "residual_after_upstream_map_cents": -9.142773
+    },
+    "Samples/pizz/c2_vl3_rr4.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.019605,
+      "measured_detune_cents": -10.268204,
+      "residual_after_upstream_map_cents": -10.268204
+    },
+    "Samples/pizz/c2_vl4_rr1.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 65.048496,
+      "measured_detune_cents": -9.499089,
+      "residual_after_upstream_map_cents": -9.499089
+    },
+    "Samples/pizz/c2_vl4_rr2.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 64.938141,
+      "measured_detune_cents": -12.438636,
+      "residual_after_upstream_map_cents": -12.438636
+    },
+    "Samples/pizz/c2_vl4_rr3.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 64.991463,
+      "measured_detune_cents": -11.017673,
+      "residual_after_upstream_map_cents": -11.017673
+    },
+    "Samples/pizz/c2_vl4_rr4.wav": {
+      "root_midi": 36.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 64.992064,
+      "measured_detune_cents": -11.001667,
+      "residual_after_upstream_map_cents": -11.001667
+    },
+    "Samples/pizz/c3_vl1_rr1.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.879148,
+      "measured_detune_cents": 0.878085,
+      "residual_after_upstream_map_cents": 0.878085
+    },
+    "Samples/pizz/c3_vl1_rr2.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.209386,
+      "measured_detune_cents": -8.004088,
+      "residual_after_upstream_map_cents": -8.004088
+    },
+    "Samples/pizz/c3_vl1_rr3.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.258463,
+      "measured_detune_cents": -7.351698,
+      "residual_after_upstream_map_cents": -7.351698
+    },
+    "Samples/pizz/c3_vl1_rr4.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.643755,
+      "measured_detune_cents": -2.238431,
+      "residual_after_upstream_map_cents": -2.238431
+    },
+    "Samples/pizz/c3_vl2_rr1.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.668721,
+      "measured_detune_cents": -1.907621,
+      "residual_after_upstream_map_cents": -1.907621
+    },
+    "Samples/pizz/c3_vl2_rr2.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.709675,
+      "measured_detune_cents": -1.36511,
+      "residual_after_upstream_map_cents": -1.36511
+    },
+    "Samples/pizz/c3_vl2_rr3.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.822542,
+      "measured_detune_cents": 0.129157,
+      "residual_after_upstream_map_cents": 0.129157
+    },
+    "Samples/pizz/c3_vl2_rr4.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.612712,
+      "measured_detune_cents": -2.649846,
+      "residual_after_upstream_map_cents": -2.649846
+    },
+    "Samples/pizz/c3_vl3_rr1.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.714621,
+      "measured_detune_cents": -1.299607,
+      "residual_after_upstream_map_cents": -1.299607
+    },
+    "Samples/pizz/c3_vl3_rr2.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.948254,
+      "measured_detune_cents": 1.79196,
+      "residual_after_upstream_map_cents": 1.79196
+    },
+    "Samples/pizz/c3_vl3_rr3.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.879503,
+      "measured_detune_cents": 0.88278,
+      "residual_after_upstream_map_cents": 0.88278
+    },
+    "Samples/pizz/c3_vl3_rr4.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.882277,
+      "measured_detune_cents": 0.91948,
+      "residual_after_upstream_map_cents": 0.91948
+    },
+    "Samples/pizz/c3_vl4_rr1.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.670914,
+      "measured_detune_cents": -1.878576,
+      "residual_after_upstream_map_cents": -1.878576
+    },
+    "Samples/pizz/c3_vl4_rr2.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.642702,
+      "measured_detune_cents": -2.252383,
+      "residual_after_upstream_map_cents": -2.252383
+    },
+    "Samples/pizz/c3_vl4_rr3.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.549088,
+      "measured_detune_cents": -3.493376,
+      "residual_after_upstream_map_cents": -3.493376
+    },
+    "Samples/pizz/c3_vl4_rr4.wav": {
+      "root_midi": 48.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 130.677939,
+      "measured_detune_cents": -1.785503,
+      "residual_after_upstream_map_cents": -1.785503
+    },
+    "Samples/pizz/c4_vl1_rr1.wav": {
+      "root_midi": 62.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 300.079657,
+      "measured_detune_cents": 37.410394,
+      "residual_after_upstream_map_cents": 37.410394
+    },
+    "Samples/pizz/c4_vl1_rr2.wav": {
+      "root_midi": 62.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 300.053228,
+      "measured_detune_cents": 37.257914,
+      "residual_after_upstream_map_cents": 37.257914
+    },
+    "Samples/pizz/c4_vl1_rr3.wav": {
+      "root_midi": 62.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 300.04592,
+      "measured_detune_cents": 37.215749,
+      "residual_after_upstream_map_cents": 37.215749
+    },
+    "Samples/pizz/c4_vl1_rr4.wav": {
+      "root_midi": 62.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 300.003852,
+      "measured_detune_cents": 36.973001,
+      "residual_after_upstream_map_cents": 36.973001
+    },
+    "Samples/pizz/c4_vl2_rr1.wav": {
+      "root_midi": 62.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 264.705632,
+      "measured_detune_cents": -179.737559,
+      "residual_after_upstream_map_cents": -179.737559
+    },
+    "Samples/pizz/c4_vl2_rr2.wav": {
+      "root_midi": 62.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 265.038437,
+      "measured_detune_cents": -177.562307,
+      "residual_after_upstream_map_cents": -177.562307
+    },
+    "Samples/pizz/c4_vl2_rr3.wav": {
+      "root_midi": 62.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 264.955265,
+      "measured_detune_cents": -178.105672,
+      "residual_after_upstream_map_cents": -178.105672
+    },
+    "Samples/pizz/c4_vl2_rr4.wav": {
+      "root_midi": 62.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 265.498392,
+      "measured_detune_cents": -174.560483,
+      "residual_after_upstream_map_cents": -174.560483
+    },
+    "Samples/pizz/c4_vl3_rr1.wav": {
+      "root_midi": 62.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 264.718609,
+      "measured_detune_cents": -179.652687,
+      "residual_after_upstream_map_cents": -179.652687
+    },
+    "Samples/pizz/c4_vl3_rr2.wav": {
+      "root_midi": 62.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 264.665508,
+      "measured_detune_cents": -180.0,
+      "residual_after_upstream_map_cents": -180.0
+    },
+    "Samples/pizz/c4_vl3_rr3.wav": {
+      "root_midi": 62.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 264.684628,
+      "measured_detune_cents": -179.874934,
+      "residual_after_upstream_map_cents": -179.874934
+    },
+    "Samples/pizz/c4_vl3_rr4.wav": {
+      "root_midi": 62.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 265.491711,
+      "measured_detune_cents": -174.604047,
+      "residual_after_upstream_map_cents": -174.604047
+    },
+    "Samples/pizz/c4_vl4_rr1.wav": {
+      "root_midi": 62.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 265.081628,
+      "measured_detune_cents": -177.280205,
+      "residual_after_upstream_map_cents": -177.280205
+    },
+    "Samples/pizz/c4_vl4_rr2.wav": {
+      "root_midi": 62.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 265.012588,
+      "measured_detune_cents": -177.731164,
+      "residual_after_upstream_map_cents": -177.731164
+    },
+    "Samples/pizz/c4_vl4_rr3.wav": {
+      "root_midi": 62.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 265.704717,
+      "measured_detune_cents": -173.215623,
+      "residual_after_upstream_map_cents": -173.215623
+    },
+    "Samples/pizz/c4_vl4_rr4.wav": {
+      "root_midi": 62.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 264.698608,
+      "measured_detune_cents": -179.783496,
+      "residual_after_upstream_map_cents": -179.783496
+    },
+    "Samples/pizz/eb1_vl1_rr1.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 38.692865,
+      "measured_detune_cents": -8.836873,
+      "residual_after_upstream_map_cents": -8.836873
+    },
+    "Samples/pizz/eb1_vl1_rr2.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 38.692549,
+      "measured_detune_cents": -8.851033,
+      "residual_after_upstream_map_cents": -8.851033
+    },
+    "Samples/pizz/eb1_vl1_rr3.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 38.692078,
+      "measured_detune_cents": -8.872083,
+      "residual_after_upstream_map_cents": -8.872083
+    },
+    "Samples/pizz/eb1_vl1_rr4.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 38.654425,
+      "measured_detune_cents": -10.55766,
+      "residual_after_upstream_map_cents": -10.55766
+    },
+    "Samples/pizz/eb1_vl2_rr1.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 38.692635,
+      "measured_detune_cents": -8.847162,
+      "residual_after_upstream_map_cents": -8.847162
+    },
+    "Samples/pizz/eb1_vl2_rr2.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 38.692878,
+      "measured_detune_cents": -8.836302,
+      "residual_after_upstream_map_cents": -8.836302
+    },
+    "Samples/pizz/eb1_vl2_rr3.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 38.692466,
+      "measured_detune_cents": -8.854716,
+      "residual_after_upstream_map_cents": -8.854716
+    },
+    "Samples/pizz/eb1_vl2_rr4.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 38.654781,
+      "measured_detune_cents": -10.541689,
+      "residual_after_upstream_map_cents": -10.541689
+    },
+    "Samples/pizz/eb1_vl3_rr1.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 38.734098,
+      "measured_detune_cents": -6.992964,
+      "residual_after_upstream_map_cents": -6.992964
+    },
+    "Samples/pizz/eb1_vl3_rr2.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 38.649656,
+      "measured_detune_cents": -10.771271,
+      "residual_after_upstream_map_cents": -10.771271
+    },
+    "Samples/pizz/eb1_vl3_rr3.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 38.692195,
+      "measured_detune_cents": -8.866852,
+      "residual_after_upstream_map_cents": -8.866852
+    },
+    "Samples/pizz/eb1_vl3_rr4.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 38.692026,
+      "measured_detune_cents": -8.874428,
+      "residual_after_upstream_map_cents": -8.874428
+    },
+    "Samples/pizz/eb1_vl4_rr1.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 38.69309,
+      "measured_detune_cents": -8.826815,
+      "residual_after_upstream_map_cents": -8.826815
+    },
+    "Samples/pizz/eb1_vl4_rr2.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 38.692375,
+      "measured_detune_cents": -8.858797,
+      "residual_after_upstream_map_cents": -8.858797
+    },
+    "Samples/pizz/eb1_vl4_rr3.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 38.69242,
+      "measured_detune_cents": -8.856797,
+      "residual_after_upstream_map_cents": -8.856797
+    },
+    "Samples/pizz/eb1_vl4_rr4.wav": {
+      "root_midi": 27.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 38.692945,
+      "measured_detune_cents": -8.833305,
+      "residual_after_upstream_map_cents": -8.833305
+    },
+    "Samples/pizz/eb2_vl1_rr1.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 77.76846,
+      "measured_detune_cents": -0.295729,
+      "residual_after_upstream_map_cents": -0.295729
+    },
+    "Samples/pizz/eb2_vl1_rr2.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 77.66451,
+      "measured_detune_cents": -2.611369,
+      "residual_after_upstream_map_cents": -2.611369
+    },
+    "Samples/pizz/eb2_vl1_rr3.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 77.552779,
+      "measured_detune_cents": -5.103764,
+      "residual_after_upstream_map_cents": -5.103764
+    },
+    "Samples/pizz/eb2_vl1_rr4.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 77.608851,
+      "measured_detune_cents": -3.852501,
+      "residual_after_upstream_map_cents": -3.852501
+    },
+    "Samples/pizz/eb2_vl2_rr1.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 77.807118,
+      "measured_detune_cents": 0.564632,
+      "residual_after_upstream_map_cents": 0.564632
+    },
+    "Samples/pizz/eb2_vl2_rr2.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 77.806933,
+      "measured_detune_cents": 0.560514,
+      "residual_after_upstream_map_cents": 0.560514
+    },
+    "Samples/pizz/eb2_vl2_rr3.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 77.817704,
+      "measured_detune_cents": 0.800144,
+      "residual_after_upstream_map_cents": 0.800144
+    },
+    "Samples/pizz/eb2_vl2_rr4.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 77.888978,
+      "measured_detune_cents": 2.385082,
+      "residual_after_upstream_map_cents": 2.385082
+    },
+    "Samples/pizz/eb2_vl3_rr1.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 77.974369,
+      "measured_detune_cents": 4.282031,
+      "residual_after_upstream_map_cents": 4.282031
+    },
+    "Samples/pizz/eb2_vl3_rr2.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 77.985105,
+      "measured_detune_cents": 4.520369,
+      "residual_after_upstream_map_cents": 4.520369
+    },
+    "Samples/pizz/eb2_vl3_rr3.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 77.946327,
+      "measured_detune_cents": 3.659318,
+      "residual_after_upstream_map_cents": 3.659318
+    },
+    "Samples/pizz/eb2_vl3_rr4.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 78.025134,
+      "measured_detune_cents": 5.408781,
+      "residual_after_upstream_map_cents": 5.408781
+    },
+    "Samples/pizz/eb2_vl4_rr1.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 78.055538,
+      "measured_detune_cents": 6.083256,
+      "residual_after_upstream_map_cents": 6.083256
+    },
+    "Samples/pizz/eb2_vl4_rr2.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 78.059606,
+      "measured_detune_cents": 6.173468,
+      "residual_after_upstream_map_cents": 6.173468
+    },
+    "Samples/pizz/eb2_vl4_rr3.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 78.281741,
+      "measured_detune_cents": 11.093068,
+      "residual_after_upstream_map_cents": 11.093068
+    },
+    "Samples/pizz/eb2_vl4_rr4.wav": {
+      "root_midi": 39.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 78.168816,
+      "measured_detune_cents": 8.593884,
+      "residual_after_upstream_map_cents": 8.593884
+    },
+    "Samples/pizz/eb3_vl1_rr1.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 153.874605,
+      "measured_detune_cents": -18.898044,
+      "residual_after_upstream_map_cents": -18.898044
+    },
+    "Samples/pizz/eb3_vl1_rr2.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 153.884869,
+      "measured_detune_cents": -18.782574,
+      "residual_after_upstream_map_cents": -18.782574
+    },
+    "Samples/pizz/eb3_vl1_rr3.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 153.693018,
+      "measured_detune_cents": -20.94228,
+      "residual_after_upstream_map_cents": -20.94228
+    },
+    "Samples/pizz/eb3_vl1_rr4.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 153.688479,
+      "measured_detune_cents": -20.993406,
+      "residual_after_upstream_map_cents": -20.993406
+    },
+    "Samples/pizz/eb3_vl2_rr1.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 154.434759,
+      "measured_detune_cents": -12.607232,
+      "residual_after_upstream_map_cents": -12.607232
+    },
+    "Samples/pizz/eb3_vl2_rr2.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 154.381695,
+      "measured_detune_cents": -13.202188,
+      "residual_after_upstream_map_cents": -13.202188
+    },
+    "Samples/pizz/eb3_vl2_rr3.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 154.434729,
+      "measured_detune_cents": -12.607567,
+      "residual_after_upstream_map_cents": -12.607567
+    },
+    "Samples/pizz/eb3_vl2_rr4.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 154.399639,
+      "measured_detune_cents": -13.000973,
+      "residual_after_upstream_map_cents": -13.000973
+    },
+    "Samples/pizz/eb3_vl3_rr1.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 154.434176,
+      "measured_detune_cents": -12.613766,
+      "residual_after_upstream_map_cents": -12.613766
+    },
+    "Samples/pizz/eb3_vl3_rr2.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 154.434809,
+      "measured_detune_cents": -12.606669,
+      "residual_after_upstream_map_cents": -12.606669
+    },
+    "Samples/pizz/eb3_vl3_rr3.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 154.472671,
+      "measured_detune_cents": -12.182282,
+      "residual_after_upstream_map_cents": -12.182282
+    },
+    "Samples/pizz/eb3_vl3_rr4.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 154.480568,
+      "measured_detune_cents": -12.093782,
+      "residual_after_upstream_map_cents": -12.093782
+    },
+    "Samples/pizz/eb3_vl4_rr1.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 154.304747,
+      "measured_detune_cents": -14.065296,
+      "residual_after_upstream_map_cents": -14.065296
+    },
+    "Samples/pizz/eb3_vl4_rr2.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 154.192964,
+      "measured_detune_cents": -15.31991,
+      "residual_after_upstream_map_cents": -15.31991
+    },
+    "Samples/pizz/eb3_vl4_rr3.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 154.33119,
+      "measured_detune_cents": -13.768645,
+      "residual_after_upstream_map_cents": -13.768645
+    },
+    "Samples/pizz/eb3_vl4_rr4.wav": {
+      "root_midi": 51.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 154.097189,
+      "measured_detune_cents": -16.395579,
+      "residual_after_upstream_map_cents": -16.395579
+    },
+    "Samples/pizz/gb1_vl1_rr1.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 46.43089,
+      "measured_detune_cents": 6.783967,
+      "residual_after_upstream_map_cents": 6.783967
+    },
+    "Samples/pizz/gb1_vl1_rr2.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 46.43002,
+      "measured_detune_cents": 6.751543,
+      "residual_after_upstream_map_cents": 6.751543
+    },
+    "Samples/pizz/gb1_vl1_rr3.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 46.346336,
+      "measured_detune_cents": 3.628395,
+      "residual_after_upstream_map_cents": 3.628395
+    },
+    "Samples/pizz/gb1_vl1_rr4.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 46.346409,
+      "measured_detune_cents": 3.631118,
+      "residual_after_upstream_map_cents": 3.631118
+    },
+    "Samples/pizz/gb1_vl2_rr1.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 46.347239,
+      "measured_detune_cents": 3.662152,
+      "residual_after_upstream_map_cents": 3.662152
+    },
+    "Samples/pizz/gb1_vl2_rr2.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 46.346921,
+      "measured_detune_cents": 3.650271,
+      "residual_after_upstream_map_cents": 3.650271
+    },
+    "Samples/pizz/gb1_vl2_rr3.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 46.430361,
+      "measured_detune_cents": 6.764253,
+      "residual_after_upstream_map_cents": 6.764253
+    },
+    "Samples/pizz/gb1_vl2_rr4.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 46.356618,
+      "measured_detune_cents": 4.012442,
+      "residual_after_upstream_map_cents": 4.012442
+    },
+    "Samples/pizz/gb1_vl3_rr1.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 46.430033,
+      "measured_detune_cents": 6.752042,
+      "residual_after_upstream_map_cents": 6.752042
+    },
+    "Samples/pizz/gb1_vl3_rr2.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 46.431057,
+      "measured_detune_cents": 6.790217,
+      "residual_after_upstream_map_cents": 6.790217
+    },
+    "Samples/pizz/gb1_vl3_rr3.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 46.473736,
+      "measured_detune_cents": 8.380808,
+      "residual_after_upstream_map_cents": 8.380808
+    },
+    "Samples/pizz/gb1_vl3_rr4.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 46.486003,
+      "measured_detune_cents": 8.837728,
+      "residual_after_upstream_map_cents": 8.837728
+    },
+    "Samples/pizz/gb1_vl4_rr1.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 46.516434,
+      "measured_detune_cents": 9.970647,
+      "residual_after_upstream_map_cents": 9.970647
+    },
+    "Samples/pizz/gb1_vl4_rr2.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 46.431596,
+      "measured_detune_cents": 6.810296,
+      "residual_after_upstream_map_cents": 6.810296
+    },
+    "Samples/pizz/gb1_vl4_rr3.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 46.516011,
+      "measured_detune_cents": 9.954927,
+      "residual_after_upstream_map_cents": 9.954927
+    },
+    "Samples/pizz/gb1_vl4_rr4.wav": {
+      "root_midi": 30.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 46.43165,
+      "measured_detune_cents": 6.812326,
+      "residual_after_upstream_map_cents": 6.812326
+    },
+    "Samples/pizz/gb2_vl1_rr1.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.694393,
+      "measured_detune_cents": 3.660554,
+      "residual_after_upstream_map_cents": 3.660554
+    },
+    "Samples/pizz/gb2_vl1_rr2.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.712887,
+      "measured_detune_cents": 4.005924,
+      "residual_after_upstream_map_cents": 4.005924
+    },
+    "Samples/pizz/gb2_vl1_rr3.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.819282,
+      "measured_detune_cents": 5.991502,
+      "residual_after_upstream_map_cents": 5.991502
+    },
+    "Samples/pizz/gb2_vl1_rr4.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.794042,
+      "measured_detune_cents": 5.520674,
+      "residual_after_upstream_map_cents": 5.520674
+    },
+    "Samples/pizz/gb2_vl2_rr1.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.910532,
+      "measured_detune_cents": 7.692639,
+      "residual_after_upstream_map_cents": 7.692639
+    },
+    "Samples/pizz/gb2_vl2_rr2.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.861016,
+      "measured_detune_cents": 6.769733,
+      "residual_after_upstream_map_cents": 6.769733
+    },
+    "Samples/pizz/gb2_vl2_rr3.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.765032,
+      "measured_detune_cents": 4.979346,
+      "residual_after_upstream_map_cents": 4.979346
+    },
+    "Samples/pizz/gb2_vl2_rr4.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.860797,
+      "measured_detune_cents": 6.765663,
+      "residual_after_upstream_map_cents": 6.765663
+    },
+    "Samples/pizz/gb2_vl3_rr1.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.903292,
+      "measured_detune_cents": 7.557726,
+      "residual_after_upstream_map_cents": 7.557726
+    },
+    "Samples/pizz/gb2_vl3_rr2.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.694847,
+      "measured_detune_cents": 3.669028,
+      "residual_after_upstream_map_cents": 3.669028
+    },
+    "Samples/pizz/gb2_vl3_rr3.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.749683,
+      "measured_detune_cents": 4.692876,
+      "residual_after_upstream_map_cents": 4.692876
+    },
+    "Samples/pizz/gb2_vl3_rr4.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.903097,
+      "measured_detune_cents": 7.55408,
+      "residual_after_upstream_map_cents": 7.55408
+    },
+    "Samples/pizz/gb2_vl4_rr1.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.52562,
+      "measured_detune_cents": 0.505533,
+      "residual_after_upstream_map_cents": 0.505533
+    },
+    "Samples/pizz/gb2_vl4_rr2.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.412941,
+      "measured_detune_cents": -1.604074,
+      "residual_after_upstream_map_cents": -1.604074
+    },
+    "Samples/pizz/gb2_vl4_rr3.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.356192,
+      "measured_detune_cents": -2.667512,
+      "residual_after_upstream_map_cents": -2.667512
+    },
+    "Samples/pizz/gb2_vl4_rr4.wav": {
+      "root_midi": 42.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 92.440974,
+      "measured_detune_cents": -1.078987,
+      "residual_after_upstream_map_cents": -1.078987
+    },
+    "Samples/pizz/gb3_vl1_rr1.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 184.756011,
+      "measured_detune_cents": -2.258668,
+      "residual_after_upstream_map_cents": -2.258668
+    },
+    "Samples/pizz/gb3_vl1_rr2.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 184.526534,
+      "measured_detune_cents": -4.410291,
+      "residual_after_upstream_map_cents": -4.410291
+    },
+    "Samples/pizz/gb3_vl1_rr3.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 184.507442,
+      "measured_detune_cents": -4.589421,
+      "residual_after_upstream_map_cents": -4.589421
+    },
+    "Samples/pizz/gb3_vl1_rr4.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 184.37428,
+      "measured_detune_cents": -5.839333,
+      "residual_after_upstream_map_cents": -5.839333
+    },
+    "Samples/pizz/gb3_vl2_rr1.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 184.936617,
+      "measured_detune_cents": -0.567144,
+      "residual_after_upstream_map_cents": -0.567144
+    },
+    "Samples/pizz/gb3_vl2_rr2.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 185.018607,
+      "measured_detune_cents": 0.200209,
+      "residual_after_upstream_map_cents": 0.200209
+    },
+    "Samples/pizz/gb3_vl2_rr3.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 184.939461,
+      "measured_detune_cents": -0.540518,
+      "residual_after_upstream_map_cents": -0.540518
+    },
+    "Samples/pizz/gb3_vl2_rr4.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 185.052213,
+      "measured_detune_cents": 0.514634,
+      "residual_after_upstream_map_cents": 0.514634
+    },
+    "Samples/pizz/gb3_vl3_rr1.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 184.976675,
+      "measured_detune_cents": -0.192189,
+      "residual_after_upstream_map_cents": -0.192189
+    },
+    "Samples/pizz/gb3_vl3_rr2.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 185.050047,
+      "measured_detune_cents": 0.494376,
+      "residual_after_upstream_map_cents": 0.494376
+    },
+    "Samples/pizz/gb3_vl3_rr3.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 185.016227,
+      "measured_detune_cents": 0.177942,
+      "residual_after_upstream_map_cents": 0.177942
+    },
+    "Samples/pizz/gb3_vl3_rr4.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 185.050227,
+      "measured_detune_cents": 0.496057,
+      "residual_after_upstream_map_cents": 0.496057
+    },
+    "Samples/pizz/gb3_vl4_rr1.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 185.053028,
+      "measured_detune_cents": 0.522258,
+      "residual_after_upstream_map_cents": 0.522258
+    },
+    "Samples/pizz/gb3_vl4_rr2.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 185.090916,
+      "measured_detune_cents": 0.876686,
+      "residual_after_upstream_map_cents": 0.876686
+    },
+    "Samples/pizz/gb3_vl4_rr3.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 185.150677,
+      "measured_detune_cents": 1.435557,
+      "residual_after_upstream_map_cents": 1.435557
+    },
+    "Samples/pizz/gb3_vl4_rr4.wav": {
+      "root_midi": 54.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 185.300651,
+      "measured_detune_cents": 2.837307,
+      "residual_after_upstream_map_cents": 2.837307
+    },
+    "Samples/pizz/perc1_rr1.wav": {
+      "root_midi": 72.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 500.11594,
+      "measured_detune_cents": -78.289124,
+      "residual_after_upstream_map_cents": -78.289124
+    },
+    "Samples/pizz/perc1_rr2.wav": {
+      "root_midi": 72.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 500.167707,
+      "measured_detune_cents": -78.10993,
+      "residual_after_upstream_map_cents": -78.10993
+    },
+    "Samples/pizz/perc1_rr3.wav": {
+      "root_midi": 72.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 500.1306,
+      "measured_detune_cents": -78.238376,
+      "residual_after_upstream_map_cents": -78.238376
+    },
+    "Samples/pizz/perc1_rr4.wav": {
+      "root_midi": 72.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 500.125299,
+      "measured_detune_cents": -78.256726,
+      "residual_after_upstream_map_cents": -78.256726
+    },
+    "Samples/pizz/perc1_rr5.wav": {
+      "root_midi": 72.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 500.119039,
+      "measured_detune_cents": -78.278396,
+      "residual_after_upstream_map_cents": -78.278396
+    },
+    "Samples/pizz/perc2_rr1.wav": {
+      "root_midi": 73.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 500.017429,
+      "measured_detune_cents": -178.630168,
+      "residual_after_upstream_map_cents": -178.630168
+    },
+    "Samples/pizz/perc2_rr2.wav": {
+      "root_midi": 73.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 500.132648,
+      "measured_detune_cents": -178.231285,
+      "residual_after_upstream_map_cents": -178.231285
+    },
+    "Samples/pizz/perc2_rr3.wav": {
+      "root_midi": 73.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 500.054935,
+      "measured_detune_cents": -178.500314,
+      "residual_after_upstream_map_cents": -178.500314
+    },
+    "Samples/pizz/perc2_rr4.wav": {
+      "root_midi": 73.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 500.062059,
+      "measured_detune_cents": -178.475651,
+      "residual_after_upstream_map_cents": -178.475651
+    },
+    "Samples/pizz/perc2_rr5.wav": {
+      "root_midi": 73.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 500.003405,
+      "measured_detune_cents": -178.678724,
+      "residual_after_upstream_map_cents": -178.678724
+    },
+    "Samples/pizz/perc3_rr1.wav": {
+      "root_midi": 74.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 600.128542,
+      "measured_detune_cents": 37.321627,
+      "residual_after_upstream_map_cents": 37.321627
+    },
+    "Samples/pizz/perc3_rr2.wav": {
+      "root_midi": 74.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 590.298098,
+      "measured_detune_cents": 8.728205,
+      "residual_after_upstream_map_cents": 8.728205
+    },
+    "Samples/pizz/perc3_rr3.wav": {
+      "root_midi": 74.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 589.593008,
+      "measured_detune_cents": 6.659072,
+      "residual_after_upstream_map_cents": 6.659072
+    },
+    "Samples/pizz/perc3_rr4.wav": {
+      "root_midi": 74.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 600.124148,
+      "measured_detune_cents": 37.30895,
+      "residual_after_upstream_map_cents": 37.30895
+    },
+    "Samples/pizz/perc3_rr5.wav": {
+      "root_midi": 74.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 615.059437,
+      "measured_detune_cents": 79.866773,
+      "residual_after_upstream_map_cents": 79.866773
+    },
+    "Samples/pizz/perc4_rr1.wav": {
+      "root_midi": 75.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 600.20353,
+      "measured_detune_cents": -62.462063,
+      "residual_after_upstream_map_cents": -62.462063
+    },
+    "Samples/pizz/perc4_rr2.wav": {
+      "root_midi": 75.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 600.265596,
+      "measured_detune_cents": -62.28305,
+      "residual_after_upstream_map_cents": -62.28305
+    },
+    "Samples/pizz/perc4_rr3.wav": {
+      "root_midi": 75.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 600.352934,
+      "measured_detune_cents": -62.031173,
+      "residual_after_upstream_map_cents": -62.031173
+    },
+    "Samples/pizz/perc4_rr4.wav": {
+      "root_midi": 75.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 600.289944,
+      "measured_detune_cents": -62.212828,
+      "residual_after_upstream_map_cents": -62.212828
+    },
+    "Samples/pizz/perc4_rr5.wav": {
+      "root_midi": 75.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 655.209441,
+      "measured_detune_cents": 89.343145,
+      "residual_after_upstream_map_cents": 89.343145
+    },
+    "Samples/pizz/perc5_rr1.wav": {
+      "root_midi": 76.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 600.254197,
+      "measured_detune_cents": -162.315926,
+      "residual_after_upstream_map_cents": -162.315926
+    },
+    "Samples/pizz/perc5_rr2.wav": {
+      "root_midi": 76.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 600.408351,
+      "measured_detune_cents": -161.871377,
+      "residual_after_upstream_map_cents": -161.871377
+    },
+    "Samples/pizz/perc5_rr3.wav": {
+      "root_midi": 76.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 599.946476,
+      "measured_detune_cents": -163.203671,
+      "residual_after_upstream_map_cents": -163.203671
+    },
+    "Samples/pizz/perc5_rr4.wav": {
+      "root_midi": 76.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 600.05382,
+      "measured_detune_cents": -162.893942,
+      "residual_after_upstream_map_cents": -162.893942
+    },
+    "Samples/pizz/perc5_rr5.wav": {
+      "root_midi": 76.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 699.94147,
+      "measured_detune_cents": 103.676916,
+      "residual_after_upstream_map_cents": 103.676916
+    },
+    "Samples/pizz/perc6_rr1.wav": {
+      "root_midi": 77.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 746.881445,
+      "measured_detune_cents": 116.05088,
+      "residual_after_upstream_map_cents": 116.05088
+    },
+    "Samples/pizz/perc6_rr2.wav": {
+      "root_midi": 77.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 700.056399,
+      "measured_detune_cents": 3.961159,
+      "residual_after_upstream_map_cents": 3.961159
+    },
+    "Samples/pizz/perc6_rr3.wav": {
+      "root_midi": 77.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 716.218852,
+      "measured_detune_cents": 43.476364,
+      "residual_after_upstream_map_cents": 43.476364
+    },
+    "Samples/pizz/perc6_rr4.wav": {
+      "root_midi": 77.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 700.38677,
+      "measured_detune_cents": 4.77797,
+      "residual_after_upstream_map_cents": 4.77797
+    },
+    "Samples/pizz/perc6_rr5.wav": {
+      "root_midi": 77.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 719.638378,
+      "measured_detune_cents": 51.722323,
+      "residual_after_upstream_map_cents": 51.722323
+    },
+    "Samples/pizz/perc7_rr1.wav": {
+      "root_midi": 78.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 700.005457,
+      "measured_detune_cents": -96.164825,
+      "residual_after_upstream_map_cents": -96.164825
+    },
+    "Samples/pizz/perc7_rr2.wav": {
+      "root_midi": 78.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 693.324567,
+      "measured_detune_cents": -112.76717,
+      "residual_after_upstream_map_cents": -112.76717
+    },
+    "Samples/pizz/perc7_rr3.wav": {
+      "root_midi": 78.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 700.050622,
+      "measured_detune_cents": -96.053128,
+      "residual_after_upstream_map_cents": -96.053128
+    },
+    "Samples/pizz/perc7_rr4.wav": {
+      "root_midi": 78.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 715.624963,
+      "measured_detune_cents": -57.959771,
+      "residual_after_upstream_map_cents": -57.959771
+    },
+    "Samples/pizz/perc7_rr5.wav": {
+      "root_midi": 78.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 687.097511,
+      "measured_detune_cents": -128.386401,
+      "residual_after_upstream_map_cents": -128.386401
+    },
+    "Samples/pizz/perc8_rr1.wav": {
+      "root_midi": 79.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 715.805245,
+      "measured_detune_cents": -157.52369,
+      "residual_after_upstream_map_cents": -157.52369
+    },
+    "Samples/pizz/perc8_rr2.wav": {
+      "root_midi": 79.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 792.400277,
+      "measured_detune_cents": 18.471033,
+      "residual_after_upstream_map_cents": 18.471033
+    },
+    "Samples/pizz/perc8_rr3.wav": {
+      "root_midi": 79.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 714.582609,
+      "measured_detune_cents": -160.483264,
+      "residual_after_upstream_map_cents": -160.483264
+    },
+    "Samples/pizz/perc8_rr4.wav": {
+      "root_midi": 79.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 749.998722,
+      "measured_detune_cents": -76.738463,
+      "residual_after_upstream_map_cents": -76.738463
+    },
+    "Samples/pizz/perc8_rr5.wav": {
+      "root_midi": 79.0,
+      "upstream_claimed_detune_cents": -0.0,
+      "measured_hz": 750.247879,
+      "measured_detune_cents": -76.163426,
+      "residual_after_upstream_map_cents": -76.163426
+    }
+  }
+}

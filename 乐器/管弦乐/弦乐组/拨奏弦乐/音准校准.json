@@ -1,0 +1,326 @@
+{
+  "description": "FFT measurement of raw pizzicato string ensemble samples; A4=440 Hz",
+  "source_sfz": "Strings/all-strings-SEC-pizzicato.sfz",
+  "summary": {
+    "sample_count": 63,
+    "median_detune_cents": 4.707233,
+    "maximum_absolute_detune_cents": 108.394362
+  },
+  "samples": {
+    "libs/SSO/Samples/Basses/basses-piz-rr1-c1-PB.wav": {
+      "root_midi": 24.0,
+      "measured_hz": 32.76536,
+      "detune_cents": 3.287717
+    },
+    "libs/SSO/Samples/Basses/basses-piz-rr2-f#1-PB.wav": {
+      "root_midi": 30.0,
+      "measured_hz": 49.131642,
+      "detune_cents": 104.66501
+    },
+    "libs/SSO/Samples/Basses/basses-piz-rr1-a1-PB.wav": {
+      "root_midi": 33.0,
+      "measured_hz": 55.198467,
+      "detune_cents": 6.235891
+    },
+    "libs/SSO/Samples/Basses/basses-piz-rr2-c2-PB.wav": {
+      "root_midi": 36.0,
+      "measured_hz": 69.632473,
+      "detune_cents": 108.394362
+    },
+    "libs/SSO/Samples/Basses/basses-piz-rr1-d#2-PB.wav": {
+      "root_midi": 39.0,
+      "measured_hz": 77.892687,
+      "detune_cents": 2.467528
+    },
+    "libs/SSO/Samples/Basses/basses-piz-rr2-f#2-PB.wav": {
+      "root_midi": 42.0,
+      "measured_hz": 98.176672,
+      "detune_cents": 103.138371
+    },
+    "libs/SSO/Samples/Basses/basses-piz-rr1-a2-PB.wav": {
+      "root_midi": 45.0,
+      "measured_hz": 110.063213,
+      "detune_cents": 0.994585
+    },
+    "libs/SSO/Samples/Basses/basses-piz-rr1-c3-PB.wav": {
+      "root_midi": 48.0,
+      "measured_hz": 130.982628,
+      "detune_cents": 2.246355
+    },
+    "libs/SSO/Samples/Basses/basses-piz-rr1-d#3-PB.wav": {
+      "root_midi": 51.0,
+      "measured_hz": 156.077451,
+      "detune_cents": 5.710315
+    },
+    "libs/SSO/Samples/Basses/basses-piz-rr1-f#3-PB.wav": {
+      "root_midi": 54.0,
+      "measured_hz": 185.224913,
+      "detune_cents": 2.129559
+    },
+    "libs/SSO/Samples/Basses/basses-piz-rr2-a3-PB.wav": {
+      "root_midi": 57.0,
+      "measured_hz": 233.509653,
+      "detune_cents": 103.174397
+    },
+    "libs/SSO/Samples/Basses/basses-piz-rr1-c4-PB.wav": {
+      "root_midi": 60.0,
+      "measured_hz": 262.830601,
+      "detune_cents": 7.95568
+    },
+    "libs/VSCO2-CE/Strings/Cello Section/pizzT/pizzT_A2_v1_RR2.wav": {
+      "root_midi": 57.0,
+      "measured_hz": 219.906928,
+      "detune_cents": -0.732561
+    },
+    "libs/VSCO2-CE/Strings/Cello Section/pizzT/pizzT_B1_v1_RR1.wav": {
+      "root_midi": 47.0,
+      "measured_hz": 123.37707,
+      "detune_cents": -1.315079
+    },
+    "libs/VSCO2-CE/Strings/Cello Section/pizzT/pizzT_B3_v1_RR2.wav": {
+      "root_midi": 71.0,
+      "measured_hz": 493.261866,
+      "detune_cents": -2.179721
+    },
+    "libs/VSCO2-CE/Strings/Cello Section/pizzT/pizzT_C1_v1_RR1.wav": {
+      "root_midi": 36.0,
+      "measured_hz": 65.340738,
+      "detune_cents": -1.738638
+    },
+    "libs/VSCO2-CE/Strings/Cello Section/pizzT/pizzT_D2_v1_RR2.wav": {
+      "root_midi": 50.0,
+      "measured_hz": 147.630095,
+      "detune_cents": 9.37999
+    },
+    "libs/VSCO2-CE/Strings/Cello Section/pizzT/pizzT_D4_v1_RR1.wav": {
+      "root_midi": 74.0,
+      "measured_hz": 587.059922,
+      "detune_cents": -0.794907
+    },
+    "libs/VSCO2-CE/Strings/Cello Section/pizzT/pizzT_E1_v1_RR2.wav": {
+      "root_midi": 40.0,
+      "measured_hz": 82.342592,
+      "detune_cents": -1.351297
+    },
+    "libs/VSCO2-CE/Strings/Cello Section/pizzT/pizzT_E3_v1_RR1.wav": {
+      "root_midi": 64.0,
+      "measured_hz": 331.427501,
+      "detune_cents": 9.427754
+    },
+    "libs/VSCO2-CE/Strings/Cello Section/pizzT/pizzT_F2_v1_RR1.wav": {
+      "root_midi": 53.0,
+      "measured_hz": 174.918046,
+      "detune_cents": 3.010738
+    },
+    "libs/VSCO2-CE/Strings/Cello Section/pizzT/pizzT_F4_v1_RR1.wav": {
+      "root_midi": 77.0,
+      "measured_hz": 710.703191,
+      "detune_cents": 30.092383
+    },
+    "libs/VSCO2-CE/Strings/Cello Section/pizzT/pizzT_G1_v1_RR1.wav": {
+      "root_midi": 43.0,
+      "measured_hz": 98.02001,
+      "detune_cents": 0.373618
+    },
+    "libs/VSCO2-CE/Strings/Cello Section/pizzT/pizzT_G3_v1_RR1.wav": {
+      "root_midi": 67.0,
+      "measured_hz": 392.663331,
+      "detune_cents": 2.947225
+    },
+    "libs/VSCO2-CE/Strings/Cello Section/pizzT/pizzT_A2_v2_RR1.wav": {
+      "root_midi": 57.0,
+      "measured_hz": 220.683672,
+      "detune_cents": 5.371643
+    },
+    "libs/VSCO2-CE/Strings/Cello Section/pizzT/pizzT_B1_v2_RR1.wav": {
+      "root_midi": 47.0,
+      "measured_hz": 123.983085,
+      "detune_cents": 7.167743
+    },
+    "libs/VSCO2-CE/Strings/Cello Section/pizzT/pizzT_B3_v2_RR2.wav": {
+      "root_midi": 71.0,
+      "measured_hz": 495.740226,
+      "detune_cents": 6.496966
+    },
+    "libs/VSCO2-CE/Strings/Cello Section/pizzT/pizzT_C1_v2_RR1.wav": {
+      "root_midi": 36.0,
+      "measured_hz": 65.777786,
+      "detune_cents": 9.802609
+    },
+    "libs/VSCO2-CE/Strings/Cello Section/pizzT/pizzT_D2_v2_RR1.wav": {
+      "root_midi": 50.0,
+      "measured_hz": 147.232165,
+      "detune_cents": 4.707233
+    },
+    "libs/VSCO2-CE/Strings/Cello Section/pizzT/pizzT_D4_v2_RR1.wav": {
+      "root_midi": 74.0,
+      "measured_hz": 591.240989,
+      "detune_cents": 11.491322
+    },
+    "libs/VSCO2-CE/Strings/Cello Section/pizzT/pizzT_E1_v2_RR2.wav": {
+      "root_midi": 40.0,
+      "measured_hz": 82.834405,
+      "detune_cents": 8.958186
+    },
+    "libs/VSCO2-CE/Strings/Cello Section/pizzT/pizzT_E3_v2_RR1.wav": {
+      "root_midi": 64.0,
+      "measured_hz": 330.236579,
+      "detune_cents": 3.19569
+    },
+    "libs/VSCO2-CE/Strings/Cello Section/pizzT/pizzT_F2_v2_RR1.wav": {
+      "root_midi": 53.0,
+      "measured_hz": 174.659717,
+      "detune_cents": 0.452063
+    },
+    "libs/VSCO2-CE/Strings/Cello Section/pizzT/pizzT_F4_v2_RR2.wav": {
+      "root_midi": 77.0,
+      "measured_hz": 707.682352,
+      "detune_cents": 22.718102
+    },
+    "libs/VSCO2-CE/Strings/Cello Section/pizzT/pizzT_G1_v2_RR2.wav": {
+      "root_midi": 43.0,
+      "measured_hz": 98.524977,
+      "detune_cents": 9.269471
+    },
+    "libs/VSCO2-CE/Strings/Cello Section/pizzT/pizzT_G3_v2_RR2.wav": {
+      "root_midi": 67.0,
+      "measured_hz": 391.789519,
+      "detune_cents": -0.909665
+    },
+    "libs/SSO/Samples/Violas/violas-piz-rr1-c3-PB.wav": {
+      "root_midi": 48.0,
+      "measured_hz": 130.563558,
+      "detune_cents": -3.301491
+    },
+    "libs/SSO/Samples/Violas/violas-piz-rr1-d#3-PB.wav": {
+      "root_midi": 51.0,
+      "measured_hz": 155.50201,
+      "detune_cents": -0.684353
+    },
+    "libs/SSO/Samples/Violas/violas-piz-rr1-f#3-PB.wav": {
+      "root_midi": 54.0,
+      "measured_hz": 186.160498,
+      "detune_cents": 10.852139
+    },
+    "libs/SSO/Samples/Violas/violas-piz-rr1-a3-PB.wav": {
+      "root_midi": 57.0,
+      "measured_hz": 222.694014,
+      "detune_cents": 21.07111
+    },
+    "libs/SSO/Samples/Violas/violas-piz-rr1-c4-PB.wav": {
+      "root_midi": 60.0,
+      "measured_hz": 262.406706,
+      "detune_cents": 5.161278
+    },
+    "libs/SSO/Samples/Violas/violas-piz-rr1-d#4-PB.wav": {
+      "root_midi": 63.0,
+      "measured_hz": 312.708809,
+      "detune_cents": 8.779606
+    },
+    "libs/SSO/Samples/Violas/violas-piz-rr1-f#4-PB.wav": {
+      "root_midi": 66.0,
+      "measured_hz": 372.318893,
+      "detune_cents": 10.842365
+    },
+    "libs/SSO/Samples/Violas/violas-piz-rr1-a4-PB.wav": {
+      "root_midi": 69.0,
+      "measured_hz": 437.890166,
+      "detune_cents": -8.32137
+    },
+    "libs/SSO/Samples/Violas/violas-piz-rr1-c5-PB.wav": {
+      "root_midi": 72.0,
+      "measured_hz": 528.106173,
+      "detune_cents": 15.989377
+    },
+    "libs/SSO/Samples/Violas/violas-piz-rr1-d#5-PB.wav": {
+      "root_midi": 75.0,
+      "measured_hz": 617.899822,
+      "detune_cents": -12.156678
+    },
+    "libs/SSO/Samples/Violas/violas-piz-rr1-f#5-PB.wav": {
+      "root_midi": 78.0,
+      "measured_hz": 740.227687,
+      "detune_cents": 0.55869
+    },
+    "libs/SSO/Samples/Violas/violas-piz-rr1-a5-PB.wav": {
+      "root_midi": 81.0,
+      "measured_hz": 875.663562,
+      "detune_cents": -8.552213
+    },
+    "libs/SSO/Samples/Violas/violas-piz-rr1-c6-PB.wav": {
+      "root_midi": 84.0,
+      "measured_hz": 1039.625391,
+      "detune_cents": -11.413984
+    },
+    "libs/SSO/Samples/1st Violins/1st-violins-piz-rr1-g3-PB.wav": {
+      "root_midi": 55.0,
+      "measured_hz": 198.01915,
+      "detune_cents": 17.763721
+    },
+    "libs/SSO/Samples/1st Violins/1st-violins-piz-rr1-a#3-PB.wav": {
+      "root_midi": 58.0,
+      "measured_hz": 235.388672,
+      "detune_cents": 17.049646
+    },
+    "libs/SSO/Samples/1st Violins/1st-violins-piz-rr1-c#4-PB.wav": {
+      "root_midi": 61.0,
+      "measured_hz": 276.670453,
+      "detune_cents": -3.201931
+    },
+    "libs/SSO/Samples/1st Violins/1st-violins-piz-rr1-e4-PB.wav": {
+      "root_midi": 64.0,
+      "measured_hz": 330.469041,
+      "detune_cents": 4.413921
+    },
+    "libs/SSO/Samples/1st Violins/1st-violins-piz-rr1-g4-PB.wav": {
+      "root_midi": 67.0,
+      "measured_hz": 394.879232,
+      "detune_cents": 12.689563
+    },
+    "libs/SSO/Samples/1st Violins/1st-violins-piz-rr1-a#4-PB.wav": {
+      "root_midi": 70.0,
+      "measured_hz": 468.565803,
+      "detune_cents": 8.897771
+    },
+    "libs/SSO/Samples/1st Violins/1st-violins-piz-rr1-c#5-PB.wav": {
+      "root_midi": 73.0,
+      "measured_hz": 559.357966,
+      "detune_cents": 15.521983
+    },
+    "libs/SSO/Samples/1st Violins/1st-violins-piz-rr1-e5-PB.wav": {
+      "root_midi": 76.0,
+      "measured_hz": 657.953981,
+      "detune_cents": -3.42021
+    },
+    "libs/SSO/Samples/1st Violins/1st-violins-piz-rr1-g5-PB.wav": {
+      "root_midi": 79.0,
+      "measured_hz": 786.784646,
+      "detune_cents": 6.158337
+    },
+    "libs/SSO/Samples/1st Violins/1st-violins-piz-rr1-a#5-PB.wav": {
+      "root_midi": 82.0,
+      "measured_hz": 929.677492,
+      "detune_cents": -4.927835
+    },
+    "libs/SSO/Samples/1st Violins/1st-violins-piz-rr1-c#6-PB.wav": {
+      "root_midi": 85.0,
+      "measured_hz": 1117.217002,
+      "detune_cents": 13.200806
+    },
+    "libs/SSO/Samples/1st Violins/1st-violins-piz-rr1-e6-PB.wav": {
+      "root_midi": 88.0,
+      "measured_hz": 1311.058741,
+      "detune_cents": -9.811724
+    },
+    "libs/SSO/Samples/1st Violins/1st-violins-piz-rr1-g6-PB.wav": {
+      "root_midi": 91.0,
+      "measured_hz": 1567.943374,
+      "detune_cents": -0.042365
+    },
+    "libs/SSO/Samples/1st Violins/1st-violins-piz-rr1-a#6-PB.wav": {
+      "root_midi": 94.0,
+      "measured_hz": 1864.706495,
+      "detune_cents": 0.047767
+    }
+  }
+}

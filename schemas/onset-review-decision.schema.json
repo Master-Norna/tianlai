@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tianlai.local/schemas/onset-review-decision.schema.json",
+  "title": "Tianlai Human Onset Review Decision",
+  "type": "object",
+  "required": [
+    "$schema",
+    "schema_version",
+    "kind",
+    "review_sha256",
+    "automatic_decision",
+    "candidate_path",
+    "candidate_sha256",
+    "candidate_file_sha256",
+    "status",
+    "reviewer",
+    "created_at",
+    "completed_at",
+    "decisions"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "https://tianlai.local/schemas/onset-review-decision.schema.json"
+    },
+    "schema_version": { "const": 1 },
+    "kind": { "const": "onset_review_decision" },
+    "review_sha256": { "$ref": "#/$defs/sha256" },
+    "automatic_decision": { "const": false },
+    "candidate_path": { "$ref": "#/$defs/projectPath" },
+    "candidate_sha256": { "$ref": "#/$defs/sha256" },
+    "candidate_file_sha256": { "$ref": "#/$defs/sha256" },
+    "status": { "enum": ["draft", "complete"] },
+    "reviewer": {
+      "type": "object",
+      "required": ["reviewer_id", "display_name"],
+      "properties": {
+        "reviewer_id": { "$ref": "#/$defs/nonEmptyString" },
+        "display_name": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "created_at": { "type": "string", "format": "date-time" },
+    "completed_at": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "string", "format": "date-time" }
+      ]
+    },
+    "decisions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/decision" }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "projectPath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\)(?!.*:).+$"
+    },
+    "decision": {
+      "type": "object",
+      "required": [
+        "observation_id",
+        "status",
+        "measured_onset_frame",
+        "comment",
+        "decided_at"
+      ],
+      "properties": {
+        "observation_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+        },
+        "status": {
+          "enum": ["pending", "measured", "exclude", "unsure"]
+        },
+        "measured_onset_frame": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 0 }
+          ]
+        },
+        "comment": { "type": "string" },
+        "decided_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "format": "date-time" }
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

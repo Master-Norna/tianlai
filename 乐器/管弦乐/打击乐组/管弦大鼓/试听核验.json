@@ -1,0 +1,48 @@
+{
+  "status": "machine_pass_human_pending",
+  "rendered_at": "2026-07-26",
+  "platform": "Windows Chinese-path workspace",
+  "sample_rate": 48000,
+  "channels": 2,
+  "subtype": "PCM_24",
+  "frame_count": 135840,
+  "duration_seconds": 2.83,
+  "peak_active_voices": 2,
+  "peak": 0.211772,
+  "rms": 0.027643,
+  "clipped_samples": 0,
+  "wav": "output/全音域试音/管弦乐/打击乐组/管弦大鼓.wav",
+  "wav_persistence": "temporary",
+  "wav_sha256": "febd62eba4837fc01df3f7bfe15ad50f318ff943e8a068f9590f68cee93ea990",
+  "hash_algorithm": "SHA-256",
+  "canonicalization": "tianlai-json-v1",
+  "manifest_canonical_sha256": "26aec3ea097fc29c0c74c96e7b7d13a483032c4f52f7029538d8d7538aba7f2c",
+  "events": "examples/全音域上行/管弦乐/打击乐组/管弦大鼓_全音域上行.events.json",
+  "events_canonical_sha256": "da89b94bdfac3320f262ad150a989f2155519f4993db97b2880eeeac2ae68475",
+  "identity_migration": {
+    "status": "superseded_by_canonical_json_v1",
+    "hash_algorithm": "SHA-256",
+    "hash_semantics": "source-file-bytes",
+    "manifest_sha256": "a3a058c0bcf661ff6791540d76cd10aaa3d8f071818ab0b665db811929484925",
+    "events_sha256": "4c72325b93f1255ef07c8acc104b01b975cbd8b79b2e51aa53e738d5a43daa3c"
+  },
+  "audition_profile": "ascending-scale",
+  "audition_protocol": "full-range-chromatic-ascending-v1",
+  "coverage": [
+    "全声明合法键升序：MIDI 36、MIDI 38（2 键，2 次触发）",
+    "固定力度 0.72、时值 0.48s、音间隔 0.12s；note 事件不重叠，后端声音释音可能跨入后续音（压力扫描）",
+    "声明音域空洞未触发：MIDI 37",
+    "协议例外：VPO 无音高打击按全部奏法的固定源键升序；roll/crescendo 使用延长时值"
+  ],
+  "human_review": "pending",
+  "previous_protocol_evidence": {
+    "status": "superseded_event_bound_machine_evidence",
+    "events_sha256": "6d5eaa2c2dc94f24ddb3aa3b4e32faeb6ee0a6a3849595b3b008a3f3e0aaf484",
+    "wav_sha256": "e757f91363621dbd962e44e611c4c17726e8917d93767dc00e6749a58438ec66",
+    "fields": {
+      "wav_persistence": "temporary"
+    }
+  },
+  "specialized_machine_evidence_status": "previous_protocol_only_not_current_measurement",
+  "review_evidence_status": "pending_new_review_old_hash_bound_reviews_do_not_apply"
+}

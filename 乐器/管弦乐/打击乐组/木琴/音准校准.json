@@ -1,0 +1,162 @@
+{
+  "applicable": true,
+  "profile": "xylophone",
+  "method": "windowed FFT near the SFZ root; raw source WAV; A4=440 Hz",
+  "summary": {
+    "sample_count": 30,
+    "median_detune_cents": 10.060862,
+    "maximum_absolute_detune_cents": 19.167405
+  },
+  "samples": {
+    "libs/NoBudgetOrch/Percussion/Xylophone/4_Ab-PB.wav": {
+      "root_midi": 68.0,
+      "measured_hz": 417.442608,
+      "detune_cents": 8.889207
+    },
+    "libs/NoBudgetOrch/Percussion/Xylophone/4_Ab_2-PB.wav": {
+      "root_midi": 68.0,
+      "measured_hz": 416.967158,
+      "detune_cents": 6.91628
+    },
+    "libs/NoBudgetOrch/Percussion/Xylophone/4_Bb-PB.wav": {
+      "root_midi": 70.0,
+      "measured_hz": 468.88894,
+      "detune_cents": 10.09127
+    },
+    "libs/NoBudgetOrch/Percussion/Xylophone/4_Bb_2-PB.wav": {
+      "root_midi": 70.0,
+      "measured_hz": 469.029911,
+      "detune_cents": 10.611686
+    },
+    "libs/NoBudgetOrch/Percussion/Xylophone/4_Gb-PB.wav": {
+      "root_midi": 66.0,
+      "measured_hz": 371.574875,
+      "detune_cents": 7.379316
+    },
+    "libs/NoBudgetOrch/Percussion/Xylophone/4_Gb_2-PB.wav": {
+      "root_midi": 66.0,
+      "measured_hz": 371.547121,
+      "detune_cents": 7.249999
+    },
+    "libs/NoBudgetOrch/Percussion/Xylophone/5_Ab-PB.wav": {
+      "root_midi": 80.0,
+      "measured_hz": 836.298421,
+      "detune_cents": 11.817179
+    },
+    "libs/NoBudgetOrch/Percussion/Xylophone/5_Ab_2-PB.wav": {
+      "root_midi": 80.0,
+      "measured_hz": 834.778494,
+      "detune_cents": 8.667891
+    },
+    "libs/NoBudgetOrch/Percussion/Xylophone/5_Bb-PB.wav": {
+      "root_midi": 82.0,
+      "measured_hz": 938.262566,
+      "detune_cents": 10.985821
+    },
+    "libs/NoBudgetOrch/Percussion/Xylophone/5_Bb_2-PB.wav": {
+      "root_midi": 82.0,
+      "measured_hz": 938.083727,
+      "detune_cents": 10.655803
+    },
+    "libs/NoBudgetOrch/Percussion/Xylophone/5_C-PB.wav": {
+      "root_midi": 72.0,
+      "measured_hz": 526.350013,
+      "detune_cents": 10.222753
+    },
+    "libs/NoBudgetOrch/Percussion/Xylophone/5_C_2-PB.wav": {
+      "root_midi": 72.0,
+      "measured_hz": 527.104878,
+      "detune_cents": 12.703822
+    },
+    "libs/NoBudgetOrch/Percussion/Xylophone/5_D-PB.wav": {
+      "root_midi": 74.0,
+      "measured_hz": 591.112312,
+      "detune_cents": 11.114496
+    },
+    "libs/NoBudgetOrch/Percussion/Xylophone/5_D_2-PB.wav": {
+      "root_midi": 74.0,
+      "measured_hz": 591.249142,
+      "detune_cents": 11.515195
+    },
+    "libs/NoBudgetOrch/Percussion/Xylophone/5_E-PB.wav": {
+      "root_midi": 76.0,
+      "measured_hz": 662.207292,
+      "detune_cents": 7.735249
+    },
+    "libs/NoBudgetOrch/Percussion/Xylophone/5_E_2-PB.wav": {
+      "root_midi": 76.0,
+      "measured_hz": 662.721364,
+      "detune_cents": 9.078684
+    },
+    "libs/NoBudgetOrch/Percussion/Xylophone/5_Gb-PB.wav": {
+      "root_midi": 78.0,
+      "measured_hz": 743.84567,
+      "detune_cents": 8.999766
+    },
+    "libs/NoBudgetOrch/Percussion/Xylophone/5_Gb_2-PB.wav": {
+      "root_midi": 78.0,
+      "measured_hz": 744.939239,
+      "detune_cents": 11.543079
+    },
+    "libs/NoBudgetOrch/Percussion/Xylophone/6_Ab-PB.wav": {
+      "root_midi": 92.0,
+      "measured_hz": 1679.713211,
+      "detune_cents": 19.167405
+    },
+    "libs/NoBudgetOrch/Percussion/Xylophone/6_Ab_2-PB.wav": {
+      "root_midi": 92.0,
+      "measured_hz": 1670.788989,
+      "detune_cents": 9.944935
+    },
+    "libs/NoBudgetOrch/Percussion/Xylophone/6_Bb-PB.wav": {
+      "root_midi": 94.0,
+      "measured_hz": 1875.489875,
+      "detune_cents": 10.030455
+    },
+    "libs/NoBudgetOrch/Percussion/Xylophone/6_Bb_2-PB.wav": {
+      "root_midi": 94.0,
+      "measured_hz": 1875.388709,
+      "detune_cents": 9.937068
+    },
+    "libs/NoBudgetOrch/Percussion/Xylophone/6_C-PB.wav": {
+      "root_midi": 84.0,
+      "measured_hz": 1053.876055,
+      "detune_cents": 12.15573
+    },
+    "libs/NoBudgetOrch/Percussion/Xylophone/6_C_2-PB.wav": {
+      "root_midi": 84.0,
+      "measured_hz": 1053.404004,
+      "detune_cents": 11.380103
+    },
+    "libs/NoBudgetOrch/Percussion/Xylophone/6_D-PB.wav": {
+      "root_midi": 86.0,
+      "measured_hz": 1181.135283,
+      "detune_cents": 9.518543
+    },
+    "libs/NoBudgetOrch/Percussion/Xylophone/6_D_2-PB.wav": {
+      "root_midi": 86.0,
+      "measured_hz": 1180.78271,
+      "detune_cents": 9.001688
+    },
+    "libs/NoBudgetOrch/Percussion/Xylophone/6_E-PB.wav": {
+      "root_midi": 88.0,
+      "measured_hz": 1325.212437,
+      "detune_cents": 8.777863
+    },
+    "libs/NoBudgetOrch/Percussion/Xylophone/6_E_2-PB.wav": {
+      "root_midi": 88.0,
+      "measured_hz": 1325.422585,
+      "detune_cents": 9.052375
+    },
+    "libs/NoBudgetOrch/Percussion/Xylophone/6_Gb-PB.wav": {
+      "root_midi": 90.0,
+      "measured_hz": 1491.173625,
+      "detune_cents": 13.047382
+    },
+    "libs/NoBudgetOrch/Percussion/Xylophone/6_Gb_2-PB.wav": {
+      "root_midi": 90.0,
+      "measured_hz": 1491.579561,
+      "detune_cents": 13.518605
+    }
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "name": "itsclipping Ganjo 六弦班卓吉他",
+  "type": "dedicated_sfz",
+  "quality_tier": "formal",
+  "collaboration_review_status": "untested",
+  "upgrade_status": "itsclipping_ganjo_cc0_six_string",
+  "fallback_policy": "explicit_only_no_silent_gm",
+  "asset_root": "../../../音源/itsclipping/ganjo-v1.000",
+  "upstream": "itsclipping Ganjo / SX six-string guitar-banjo",
+  "origin": "https://github.com/sfzinstruments/ganjo",
+  "upstream_version": "v1.000 @ ccff5cd5cd3b513873a48994c07724d9d3c39e1c",
+  "license": "CC0-1.0",
+  "license_status": "approved",
+  "evidence_files": [
+    "LICENSE.md",
+    "README.md"
+  ],
+  "resource_verification": "资源核验.json",
+  "pitch_calibration": "音准校准.json",
+  "apply_pitch_calibration": true,
+  "sample_region_exclusions": [
+    "Common/Banjo_Common - G#4.wav",
+    "Common/Banjo_Common - G#4_5.wav",
+    "Common/Banjo_Common - G#4_6.wav"
+  ],
+  "sample_gain_db_overrides": [
+    {
+      "sample": "Common/Banjo_Common - B3.wav",
+      "gain_db": 3.2
+    }
+  ],
+  "articulations": {
+    "normal": {
+      "sfz": "ganjo.sfz"
+    }
+  },
+  "default_articulation": "normal",
+  "pitch_mode": "pitched",
+  "gain": 0.4,
+  "velocity_exponent": 0.72,
+  "auxiliary_note_id_base": 1878000000,
+  "release_seconds": 0.25,
+  "note_min": 38,
+  "note_max": 72,
+  "sampled_range": "D2-C5 sounding (MIDI 38-72)",
+  "sampled_range_note": "The frozen upstream mapping contains 58 regions and 58 unique samples. Runtime excludes three timbrally inconsistent G-sharp round robins, leaving 55 active regions/samples; 39 active regions participate in round robin. There are no true velocity layers. This SX six-string guitar-banjo follows guitar-like six-string construction and is not equivalent to a traditional five-string banjo."
+}

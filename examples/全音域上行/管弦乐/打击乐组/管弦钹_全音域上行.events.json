@@ -1,0 +1,191 @@
+{
+  "sample_rate": 48000,
+  "channels": 2,
+  "tail_seconds": 1.5,
+  "tuning": {
+    "temperament": "equal",
+    "a4_hz": 440.0
+  },
+  "events": [
+    {
+      "time": 0.25,
+      "type": "articulation",
+      "name": "roll_soft"
+    },
+    {
+      "time": 0.25,
+      "type": "note_on",
+      "note_id": 1,
+      "midi_note": 60,
+      "velocity": 0.72
+    },
+    {
+      "time": 2.65,
+      "type": "note_off",
+      "note_id": 1,
+      "release_velocity": 0.5
+    },
+    {
+      "time": 2.77,
+      "type": "articulation",
+      "name": "piatti"
+    },
+    {
+      "time": 2.77,
+      "type": "note_on",
+      "note_id": 2,
+      "midi_note": 61,
+      "velocity": 0.72
+    },
+    {
+      "time": 3.25,
+      "type": "note_off",
+      "note_id": 2,
+      "release_velocity": 0.5
+    },
+    {
+      "time": 3.37,
+      "type": "articulation",
+      "name": "roll_alt"
+    },
+    {
+      "time": 3.37,
+      "type": "note_on",
+      "note_id": 3,
+      "midi_note": 62,
+      "velocity": 0.72
+    },
+    {
+      "time": 5.77,
+      "type": "note_off",
+      "note_id": 3,
+      "release_velocity": 0.5
+    },
+    {
+      "time": 5.89,
+      "type": "articulation",
+      "name": "piatti_high"
+    },
+    {
+      "time": 5.89,
+      "type": "note_on",
+      "note_id": 4,
+      "midi_note": 63,
+      "velocity": 0.72
+    },
+    {
+      "time": 6.37,
+      "type": "note_off",
+      "note_id": 4,
+      "release_velocity": 0.5
+    },
+    {
+      "time": 6.49,
+      "type": "articulation",
+      "name": "crescendo_short"
+    },
+    {
+      "time": 6.49,
+      "type": "note_on",
+      "note_id": 5,
+      "midi_note": 65,
+      "velocity": 0.72
+    },
+    {
+      "time": 9.49,
+      "type": "note_off",
+      "note_id": 5,
+      "release_velocity": 0.5
+    },
+    {
+      "time": 9.61,
+      "type": "articulation",
+      "name": "crash"
+    },
+    {
+      "time": 9.61,
+      "type": "note_on",
+      "note_id": 6,
+      "midi_note": 66,
+      "velocity": 0.72
+    },
+    {
+      "time": 10.09,
+      "type": "note_off",
+      "note_id": 6,
+      "release_velocity": 0.5
+    },
+    {
+      "time": 10.21,
+      "type": "articulation",
+      "name": "crescendo_medium"
+    },
+    {
+      "time": 10.21,
+      "type": "note_on",
+      "note_id": 7,
+      "midi_note": 67,
+      "velocity": 0.72
+    },
+    {
+      "time": 15.21,
+      "type": "note_off",
+      "note_id": 7,
+      "release_velocity": 0.5
+    },
+    {
+      "time": 15.33,
+      "type": "articulation",
+      "name": "suspended_hit"
+    },
+    {
+      "time": 15.33,
+      "type": "note_on",
+      "note_id": 8,
+      "midi_note": 68,
+      "velocity": 0.72
+    },
+    {
+      "time": 15.81,
+      "type": "note_off",
+      "note_id": 8,
+      "release_velocity": 0.5
+    },
+    {
+      "time": 15.93,
+      "type": "articulation",
+      "name": "crescendo_long"
+    },
+    {
+      "time": 15.93,
+      "type": "note_on",
+      "note_id": 9,
+      "midi_note": 69,
+      "velocity": 0.72
+    },
+    {
+      "time": 23.93,
+      "type": "note_off",
+      "note_id": 9,
+      "release_velocity": 0.5
+    },
+    {
+      "time": 24.05,
+      "type": "articulation",
+      "name": "suspended_high"
+    },
+    {
+      "time": 24.05,
+      "type": "note_on",
+      "note_id": 10,
+      "midi_note": 70,
+      "velocity": 0.72
+    },
+    {
+      "time": 24.53,
+      "type": "note_off",
+      "note_id": 10,
+      "release_velocity": 0.5
+    }
+  ]
+}

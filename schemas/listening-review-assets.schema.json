@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tianlai.local/schemas/listening-review-assets.schema.json",
+  "title": "Tianlai Listening Review Asset Map",
+  "type": "object",
+  "required": ["schema_version", "items"],
+  "properties": {
+    "$schema": {
+      "const": "https://tianlai.local/schemas/listening-review-assets.schema.json"
+    },
+    "schema_version": { "const": 1 },
+    "items": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["kind", "label", "path", "source", "license"],
+          "properties": {
+            "kind": {
+              "enum": [
+                "reference",
+                "anchor",
+                "context",
+                "previous_version"
+              ]
+            },
+            "label": { "type": "string", "minLength": 1 },
+            "path": { "type": "string", "minLength": 1 },
+            "source": { "type": "string", "minLength": 1 },
+            "license": {
+              "enum": [
+                "CC0-1.0",
+                "CC-BY-3.0",
+                "CC-BY-4.0",
+                "project-generated",
+                "private-review-authorized"
+              ]
+            },
+            "notes": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

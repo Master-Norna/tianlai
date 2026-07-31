@@ -1,0 +1,33 @@
+{
+  "name": "Karoryfer Ergo 无品电贝斯",
+  "type": "dedicated_sfz",
+  "quality_tier": "formal",
+  "collaboration_review_status": "untested",
+  "upgrade_status": "karoryfer_dedicated_multisample",
+  "fallback_policy": "explicit_only_no_silent_gm",
+  "asset_root": "../../../音源/Karoryfer/karoryfer.ergo-master",
+  "upstream": "Karoryfer Samples: Ergo(电立式无品贝斯,含超低音降调采样)",
+  "origin": "https://github.com/sfzinstruments/karoryfer.ergo",
+  "upstream_version": "master @ c3232f03608e",
+  "license": "CC0-1.0",
+  "evidence_files": [
+    "LICENSE",
+    "readme.txt"
+  ],
+  "resource_verification": "资源核验.json",
+  "pitch_calibration": "音准校准.json",
+  "articulations": {
+    "pizzicato": "ergo_pizz.sfz",
+    "arco": "ergo_arco.sfz"
+  },
+  "default_articulation": "pizzicato",
+  "pitch_mode": "pitched",
+  "gain": 0.692,
+  "velocity_exponent": 0.72,
+  "auxiliary_note_id_base": 1877000000,
+  "release_seconds": 0.4,
+  "note_min": 26,
+  "note_max": 57,
+  "sampled_range": "D1-A3 sounding",
+  "license_status": "approved"
+}
