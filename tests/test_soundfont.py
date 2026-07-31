@@ -314,7 +314,7 @@ class SoundFontInstrumentTests(unittest.TestCase):
                     str(manifest_directory),
                 )
         synth = _FakeSynth.instances[-1]
-        self.assertEqual(synth.sfload_calls, [general_user])
+        self.assertEqual(synth.sfload_calls, [general_user.resolve()])
         self.assertTrue(synth.deleted)
 
     def test_explicit_soundfont_load_failure_retains_native_cause(self) -> None:
@@ -361,7 +361,7 @@ class SoundFontInstrumentTests(unittest.TestCase):
             "explicit local compatibility/testing only",
         ):
             instrument = self._create()
-        self.assertEqual(instrument.soundfont_path, self.soundfont)
+        self.assertEqual(instrument.soundfont_path, self.soundfont.resolve())
 
     def test_known_legacy_banks_have_distinct_licence_notices(self) -> None:
         general_user = local_compatibility_soundfont_notice(
@@ -388,7 +388,7 @@ class SoundFontInstrumentTests(unittest.TestCase):
         with patch.dict(os.environ, {"TIANLAI_FLUIDSYNTH_DIR": str(override)}):
             self.assertEqual(
                 _find_project_fluidsynth_directory(manifest_directory),
-                local_bin,
+                local_bin.resolve(),
             )
 
     @unittest.skipUnless(

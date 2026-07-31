@@ -111,7 +111,10 @@ class DedicatedSfzPreprocessorTests(unittest.TestCase):
                 stable_prefix="中文/主 映射.sfz",
             )
             self.assertEqual(len(regions), 2)
-            self.assertEqual(Path(regions[0]["sample"]), samples / "轮转 一.wav")
+            self.assertEqual(
+                Path(regions[0]["sample"]),
+                (samples / "轮转 一.wav").resolve(),
+            )
             self.assertEqual(regions[0]["round_robin_position"], 1)
             self.assertEqual(regions[0]["round_robin_length"], 2)
             self.assertEqual(regions[0]["offset_frames"], 2)

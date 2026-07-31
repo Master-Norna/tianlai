@@ -171,7 +171,7 @@ class EnsembleMixReportIntegrationTests(unittest.TestCase):
         result = self._render("suggest", directory)
 
         report_path = directory / MIX_REPORT_NAME
-        self.assertEqual(result.mix_report_path, str(report_path))
+        self.assertEqual(result.mix_report_path, str(report_path.resolve()))
         report = json.loads(report_path.read_text(encoding="utf-8"))
         relation = report["balance_relations"][0]
         self.assertEqual(relation["status"], "outside_tolerance")

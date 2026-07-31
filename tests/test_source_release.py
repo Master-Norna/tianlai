@@ -624,6 +624,75 @@ class SourceReleaseTests(unittest.TestCase):
         self.assertEqual(tracked_output.read_bytes(), before)
         self.assertEqual(self._git("status", "--porcelain"), b"")
 
+    def test_output_alias_identity_cannot_bypass_tracked_zip_guard(self) -> None:
+        tracked_output = self.repo / "docs" / "artifact.zip"
+        tracked_output.write_bytes(b"tracked artifact")
+        self._git("add", "docs/artifact.zip")
+        self._git("commit", "--quiet", "-m", "track an archive")
+        alias_output = self.root / "RUNNER~1" / "docs" / "artifact.zip"
+        real_identity = release._canonical_path_identity
+
+        def simulated_windows_identity(path: Path, *, purpose: str) -> Path:
+            if path == alias_output.absolute():
+                return tracked_output.resolve()
+            return real_identity(path, purpose=purpose)
+
+        with (
+            mock.patch.object(
+                release,
+                "_canonical_path_identity",
+                side_effect=simulated_windows_identity,
+            ),
+            self.assertRaisesRegex(
+                release.ReleaseBuildError,
+                "Git-tracked path",
+            ),
+        ):
+            release.build_source_release(
+                self.repo,
+                alias_output,
+                overwrite=True,
+            )
+
+        self.assertEqual(tracked_output.read_bytes(), b"tracked artifact")
+        self.assertEqual(self._git("status", "--porcelain"), b"")
+
+    def test_output_identity_change_before_publication_fails_closed(self) -> None:
+        output = self.output_root / "identity-change.zip"
+        initial_identity = output.resolve(strict=False)
+        changed_identity = self.root / "redirected" / output.name
+        real_identity = release._canonical_path_identity
+        output_identity_calls = 0
+
+        def changing_identity(path: Path, *, purpose: str) -> Path:
+            nonlocal output_identity_calls
+            if path == output.absolute():
+                output_identity_calls += 1
+                if output_identity_calls == 1:
+                    return initial_identity
+                return changed_identity
+            return real_identity(path, purpose=purpose)
+
+        with (
+            mock.patch.object(
+                release,
+                "_canonical_path_identity",
+                side_effect=changing_identity,
+            ),
+            self.assertRaisesRegex(
+                release.ReleaseBuildError,
+                "identity changed",
+            ),
+        ):
+            release.build_source_release(self.repo, output)
+
+        self.assertEqual(output_identity_calls, 2)
+        self.assertFalse(output.exists())
+        self.assertEqual(
+            list(self.output_root.glob(".tianlai-source-release.*.tmp")),
+            [],
+        )
+
     def test_output_parent_link_cannot_bypass_tracked_path_guard(self) -> None:
         tracked_output = self.repo / "docs" / "artifact.zip"
         tracked_output.write_bytes(b"tracked artifact")

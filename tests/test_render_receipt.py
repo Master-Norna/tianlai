@@ -152,12 +152,12 @@ class RenderReceiptTests(unittest.TestCase):
         )
 
         receipt_path = directory / "渲染回执.json"
-        self.assertEqual(result.receipt_path, str(receipt_path))
+        self.assertEqual(result.receipt_path, str(receipt_path.resolve()))
         receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
         self.assertEqual(receipt["format"], "tianlai.render_receipt")
         self.assertEqual(receipt["version"], 2)
         plan_path = directory / "演奏计划.json"
-        self.assertEqual(result.plan_path, str(plan_path))
+        self.assertEqual(result.plan_path, str(plan_path.resolve()))
         self.assertEqual(receipt["performance_plan"]["path"], "演奏计划.json")
         self.assertEqual(
             receipt["performance_plan"]["file_sha256"],
@@ -167,9 +167,12 @@ class RenderReceiptTests(unittest.TestCase):
         attribution_path = directory / "许可与署名.txt"
         self.assertEqual(
             result.license_sidecar_path,
-            str(license_sidecar_path),
+            str(license_sidecar_path.resolve()),
         )
-        self.assertEqual(result.attribution_path, str(attribution_path))
+        self.assertEqual(
+            result.attribution_path,
+            str(attribution_path.resolve()),
+        )
         self.assertEqual(
             receipt["license_sidecar"],
             {
@@ -559,7 +562,8 @@ class RenderReceiptTests(unittest.TestCase):
             if (
                 not failed
                 and source_path.name == "合奏.wav"
-                and target_path == directory / "合奏.wav"
+                and target_path.resolve(strict=False)
+                == (directory / "合奏.wav").resolve(strict=False)
             ):
                 failed = True
                 raise OSError("simulated publish failure")

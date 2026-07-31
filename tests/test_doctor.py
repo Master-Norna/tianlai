@@ -12,6 +12,7 @@ from unittest import mock
 from tianlai import __version__
 from tianlai.doctor import (
     _python_runtime_supported,
+    _relative_or_absolute,
     collect_doctor_report,
     doctor_report_json,
     main,
@@ -28,6 +29,20 @@ def _write_json(path: Path, document: object) -> None:
 
 
 class DoctorTests(unittest.TestCase):
+    def test_relative_path_display_survives_identity_resolution_errors(
+        self,
+    ) -> None:
+        path = Path("unresolvable")
+        with mock.patch.object(
+            Path,
+            "resolve",
+            side_effect=OSError("simulated identity failure"),
+        ):
+            self.assertEqual(
+                _relative_or_absolute(path, Path("root")),
+                str(path),
+            )
+
     def test_supported_python_runtime_matches_bootstrap_contract(self) -> None:
         for version in ((3, 11), (3, 12), (3, 13), (3, 14)):
             with self.subTest(version=version):

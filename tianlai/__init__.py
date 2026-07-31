@@ -12,4 +12,4 @@ __all__ = [
     "render_document",
     "render_to_wav",
 ]
-__version__ = "0.5.0rc2"
+__version__ = "0.5.0rc3"

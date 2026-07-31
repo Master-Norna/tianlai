@@ -137,10 +137,11 @@ def _tracked_resource_installer(
             metadata.st_mtime_ns,
             metadata.st_size,
         )
-        instrument_id = (
-            manifest_path.parent.relative_to(layout.catalog).as_posix()
-        )
-    except (OSError, ValueError, ResourceRestoreError):
+        instrument_id = _canonical_relative(
+            manifest_path.parent,
+            layout.catalog,
+        ).as_posix()
+    except (OSError, RuntimeError, ValueError, ResourceRestoreError):
         return None
     family = index.get(instrument_id)
     if family is None:
@@ -178,10 +179,16 @@ def _tracked_resource_installer(
     }
 
 
+def _canonical_relative(path: Path, root: Path) -> Path:
+    """Relativise canonical identities, including Windows 8.3 aliases."""
+
+    return path.resolve(strict=False).relative_to(root.resolve(strict=False))
+
+
 def _relative_or_absolute(path: Path, root: Path) -> str:
     try:
-        return path.relative_to(root).as_posix()
-    except ValueError:
+        return _canonical_relative(path, root).as_posix()
+    except (OSError, RuntimeError, ValueError):
         return str(path)
 
 
@@ -519,9 +526,10 @@ def _load_allowlist(
     catalog_root: Path,
 ) -> tuple[frozenset[str], dict[str, Any]]:
     capabilities = {
-        Path(entry.manifest_path)
-        .parent.relative_to(catalog_root)
-        .as_posix(): entry
+        _relative_or_absolute(
+            Path(entry.manifest_path).parent,
+            catalog_root,
+        ): entry
         for entry in entries
     }
     try:
@@ -572,7 +580,10 @@ def collect_doctor_report(
     instruments: list[dict[str, Any]] = []
     for entry in entries:
         manifest_path = Path(entry.manifest_path)
-        relative = manifest_path.parent.relative_to(layout.catalog).as_posix()
+        relative = _relative_or_absolute(
+            manifest_path.parent,
+            layout.catalog,
+        )
         try:
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
             if not isinstance(manifest, dict):

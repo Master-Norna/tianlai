@@ -1131,7 +1131,7 @@ class ListeningReviewTests(unittest.TestCase):
                 responses_root,
                 self.project,
             ),
-            imported,
+            imported.resolve(),
         )
         nested = responses_root / "归档"
         nested.mkdir()
@@ -1144,7 +1144,7 @@ class ListeningReviewTests(unittest.TestCase):
                 responses_root,
                 self.project,
             ),
-            nested_imported,
+            nested_imported.resolve(),
         )
 
         duplicate = json.loads(json.dumps(response))

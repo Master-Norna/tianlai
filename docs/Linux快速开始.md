@@ -16,7 +16,7 @@ Python 运行时与 MCP 依赖，用项目自带的程序音色生成第一份 W
 | 38 件统一恢复资源 | 环境诊断提供跨平台 Python 恢复入口，`plan` 可解析全部 10 个资源族 | 下载量、上游可用性和系统解包依赖因资源而异 |
 | 36 件既有安装链资源 | 当前仅提供 Windows 安装器，Linux 环境诊断标为 `unavailable_on_platform` | 需要这些资源时请使用 Windows 参考环境 |
 
-Windows 10/11 x64 仍是 `0.5.0rc2` 的完整参考平台。Linux 已覆盖核心程序音色、
+Windows 10/11 x64 仍是 `0.5.0rc3` 的完整参考平台。Linux 已覆盖核心程序音色、
 portable 自检、CLI 与 MCP；大型第三方资源的覆盖范围与 Windows 不完全相同。
 
 WSL 用户最好把源码解压或检出到 Linux 文件系统，例如

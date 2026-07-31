@@ -5,7 +5,9 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import os
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -129,13 +131,36 @@ class DemoCollectionOutputTests(unittest.TestCase):
         try:
             link.symlink_to(outside, target_is_directory=True)
         except OSError as exc:
-            self.skipTest(f"当前系统不允许创建目录符号链接：{exc}")
-
-        with self.assertRaisesRegex(ValueError, "非根子目录|链接或联接点"):
-            self.tool.resolve_output_directory(
-                link / "代表性试听集",
-                project_root=self.project,
+            if os.name != "nt":
+                self.skipTest(f"当前系统不允许创建目录符号链接：{exc}")
+            linked = subprocess.run(
+                [
+                    "cmd.exe",
+                    "/d",
+                    "/c",
+                    "mklink",
+                    "/J",
+                    str(link),
+                    str(outside),
+                ],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
             )
+            if linked.returncode:
+                self.skipTest("当前系统无法创建目录联接点")
+
+        try:
+            with self.assertRaisesRegex(ValueError, "非根子目录|链接或联接点"):
+                self.tool.resolve_output_directory(
+                    link / "代表性试听集",
+                    project_root=self.project,
+                )
+        finally:
+            if os.name == "nt":
+                link.rmdir()
+            else:
+                link.unlink()
 
     def test_demo_roster_is_explicitly_eighteen_items(self) -> None:
         self.assertEqual(len(self.tool.DEMO_NAMES), 18)
@@ -178,7 +203,10 @@ class DemoCollectionOutputTests(unittest.TestCase):
         self.tool.ROOT = self.project
         self.tool.EXAMPLES = examples
 
-        self.assertEqual(self.tool.events_for(instrument), current_score)
+        self.assertEqual(
+            self.tool.events_for(instrument),
+            current_score.resolve(),
+        )
 
     def test_events_for_ignores_json_layout_changes(self) -> None:
         instrument = self.project / "乐器" / "测试琴"
@@ -206,7 +234,7 @@ class DemoCollectionOutputTests(unittest.TestCase):
         self.tool.ROOT = self.project
         self.tool.EXAMPLES = self.project / "examples"
 
-        self.assertEqual(self.tool.events_for(instrument), score)
+        self.assertEqual(self.tool.events_for(instrument), score.resolve())
 
     def test_events_for_keeps_explicit_legacy_byte_hash_compatibility(
         self,
@@ -231,7 +259,7 @@ class DemoCollectionOutputTests(unittest.TestCase):
         self.tool.ROOT = self.project
         self.tool.EXAMPLES = self.project / "examples"
 
-        self.assertEqual(self.tool.events_for(instrument), score)
+        self.assertEqual(self.tool.events_for(instrument), score.resolve())
 
 
 if __name__ == "__main__":

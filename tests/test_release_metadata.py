@@ -66,6 +66,10 @@ class ReleaseMetadataTests(unittest.TestCase):
         self.assertTrue(raw.startswith(b"#!/usr/bin/env bash\n"))
         self.assertNotIn(b"\r\n", raw)
 
+    def test_hash_locked_python_sources_checkout_with_lf(self) -> None:
+        attributes = (ROOT / ".gitattributes").read_text(encoding="utf-8")
+        self.assertIn("*.py text eol=lf", attributes.splitlines())
+
     def test_pypi_artifacts_are_declared_engine_only(self) -> None:
         project = tomllib.loads(
             (ROOT / "pyproject.toml").read_text(encoding="utf-8")

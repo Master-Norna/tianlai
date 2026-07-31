@@ -703,12 +703,12 @@ class OnsetEvidenceWorkflowTests(unittest.TestCase):
                 (
                     original_effective_manifest,
                     44_100,
-                    str(self.instrument_dir),
+                    str(self.instrument_dir.resolve()),
                 ),
                 (
                     original_effective_manifest,
                     44_100,
-                    str(self.instrument_dir),
+                    str(self.instrument_dir.resolve()),
                 ),
             ],
         )

@@ -551,6 +551,23 @@ def _validate_output_ancestors(path: Path) -> None:
         current = parent
 
 
+def _canonical_path_identity(path: Path, *, purpose: str) -> Path:
+    """Return one fail-closed filesystem identity for security comparisons.
+
+    On Windows, ``Path.resolve`` expands 8.3 aliases such as ``RUNNER~1``.
+    Callers that also reject symlinks or reparse points must validate the
+    original path spelling before calling this helper; resolving first would
+    hide those redirecting ancestors.
+    """
+
+    try:
+        return path.resolve(strict=False)
+    except (OSError, RuntimeError, ValueError) as exc:
+        raise ReleaseBuildError(
+            f"could not resolve {purpose} for a safe identity check: {path}"
+        ) from exc
+
+
 def _read_dirty_payload(
     repo: Path,
     entry: TrackedFile,
@@ -1002,6 +1019,10 @@ def build_source_release(
 
     root = _repository_root(repo)
     _validate_output_ancestors(target)
+    target_identity = _canonical_path_identity(
+        target,
+        purpose="source release output",
+    )
     if target.exists() and not overwrite:
         raise FileExistsError(f"source release already exists: {target}")
     if target.exists() and not target.is_file():
@@ -1019,7 +1040,7 @@ def build_source_release(
     tracked = _tracked_files(root)
     head_paths = _head_tracked_paths(root, commit)
     try:
-        target_relative = target.relative_to(root).as_posix()
+        target_relative = target_identity.relative_to(root).as_posix()
     except ValueError:
         target_relative = None
     if target_relative is not None:
@@ -1105,6 +1126,17 @@ def build_source_release(
             # ZIP member modes are explicit. A host that cannot adjust the
             # outer file mode may still publish the complete archive safely.
             pass
+        _validate_output_ancestors(target)
+        if (
+            _canonical_path_identity(
+                target,
+                purpose="source release output",
+            )
+            != target_identity
+        ):
+            raise ReleaseBuildError(
+                "source release output identity changed during the build"
+            )
         if overwrite:
             os.replace(temporary, target)
         else:

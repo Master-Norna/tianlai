@@ -44,7 +44,10 @@ class StemCacheTests(unittest.TestCase):
         stored = self._store()
         self.assertEqual(stored.status, "stored")
         assert stored.record is not None
-        self.assertEqual(stored.record.audio_path.parent, self.root / "v1" / self.key[:2])
+        self.assertEqual(
+            stored.record.audio_path.parent,
+            (self.root / "v1" / self.key[:2]).resolve(),
+        )
         self.assertEqual(stored.record.audio_path.read_bytes(), self.audio.astype("<f4").tobytes())
         self.assertEqual(set(stored.record.metadata), {
             "format", "version", "key", "stage", "dtype", "channels", "sample_rate",

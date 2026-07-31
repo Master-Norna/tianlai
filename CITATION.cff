@@ -4,5 +4,5 @@ title: "天籁：可编辑、可复算的音乐执行与迭代运行时"
 type: software
 authors:
   - family-names: "Nor.na"
-version: 0.5.0rc2
+version: 0.5.0rc3
 license: Apache-2.0

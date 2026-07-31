@@ -26,9 +26,9 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import os
 from pathlib import Path
 import shutil
+import stat
 import sys
 
 
@@ -71,6 +71,37 @@ DEMO_NAMES = [
 ]
 
 
+def _is_reparse_point(metadata: object) -> bool:
+    attributes = getattr(metadata, "st_file_attributes", 0)
+    reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0)
+    return bool(attributes & reparse_flag)
+
+
+def _reject_redirecting_ancestors(path: Path) -> None:
+    """Reject links/junctions without confusing Windows 8.3 aliases for one."""
+
+    current = path
+    while True:
+        try:
+            metadata = current.lstat()
+        except FileNotFoundError:
+            pass
+        except OSError as exc:
+            raise ValueError(
+                f"无法安全检查代表性试听集输出路径：{current}"
+            ) from exc
+        else:
+            if stat.S_ISLNK(metadata.st_mode) or _is_reparse_point(metadata):
+                raise ValueError(
+                    "代表性试听集输出路径不能经过链接或联接点重定向："
+                    f"{path}"
+                )
+        parent = current.parent
+        if parent == current:
+            return
+        current = parent
+
+
 def resolve_output_directory(
     requested: str | Path,
     *,
@@ -94,18 +125,13 @@ def resolve_output_directory(
 
     raw = Path(requested)
     requested_path = raw if raw.is_absolute() else root / raw
-    lexical_candidate = Path(os.path.abspath(requested_path))
-    candidate = requested_path.resolve()
+    _reject_redirecting_ancestors(requested_path)
+    candidate = requested_path.resolve(strict=False)
 
     if candidate == output_root or not candidate.is_relative_to(output_root):
         raise ValueError(
             "代表性试听集输出必须是项目 output/ 下的非根子目录，"
             f"不能使用：{candidate}"
-        )
-    if candidate != lexical_candidate:
-        raise ValueError(
-            "代表性试听集输出路径不能经过链接或联接点重定向："
-            f"{requested_path}"
         )
     return candidate
 
@@ -119,6 +145,9 @@ def prepare_output_directory(
 
     out = resolve_output_directory(requested, project_root=project_root)
     if out.exists():
+        # Narrow the destructive-operation race: fail closed if an ancestor
+        # was replaced with a link or junction after the initial validation.
+        _reject_redirecting_ancestors(out)
         if not out.is_dir():
             raise ValueError(f"代表性试听集输出已存在但不是目录：{out}")
         shutil.rmtree(out)

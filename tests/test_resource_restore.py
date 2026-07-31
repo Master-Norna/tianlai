@@ -653,7 +653,7 @@ class ResourceRestoreEndToEndTests(unittest.TestCase):
             restart_download=True,
         )
 
-        self.assertEqual(result.path, published)
+        self.assertEqual(result.path, published.resolve())
         self.assertFalse(partial.exists())
         self.assertEqual(published.read_bytes(), published_before)
         self.assertEqual(tree_digest(target), target_before)
