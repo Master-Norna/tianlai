@@ -70,6 +70,19 @@ class ReleaseMetadataTests(unittest.TestCase):
         attributes = (ROOT / ".gitattributes").read_text(encoding="utf-8")
         self.assertIn("*.py text eol=lf", attributes.splitlines())
 
+    def test_windows_ci_doctor_uses_utf8_without_weakening_the_gate(self) -> None:
+        workflow = (
+            ROOT / ".github" / "workflows" / "ci.yml"
+        ).read_text(encoding="utf-8")
+        doctor_step = workflow.split(
+            "      - name: Source-release doctor\n",
+            maxsplit=1,
+        )[1].split("\n\n  linux-portable:", maxsplit=1)[0]
+        self.assertIn('PYTHONUTF8: "1"', doctor_step)
+        self.assertIn('PYTHONIOENCODING: "utf-8"', doctor_step)
+        self.assertIn("python -m tianlai.doctor --quick", doctor_step)
+        self.assertNotIn("continue-on-error", doctor_step)
+
     def test_pypi_artifacts_are_declared_engine_only(self) -> None:
         project = tomllib.loads(
             (ROOT / "pyproject.toml").read_text(encoding="utf-8")
