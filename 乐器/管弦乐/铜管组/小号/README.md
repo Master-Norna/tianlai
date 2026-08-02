@@ -1,3 +1,5 @@
+**简体中文** | [English](README.en.md)
+
 # 小号
 
 基于 Virtual Playing Orchestra 3.3 的独奏小号 `formal`，直接使用 Iowa/VPO 的两力度层独奏采样，不会静默回落到 GM SoundFont。

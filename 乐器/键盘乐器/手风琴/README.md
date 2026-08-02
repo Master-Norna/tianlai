@@ -1,3 +1,5 @@
+[中文](README.md) | [English](README.en.md)
+
 # 手风琴（bounded-range formal）
 
 真实音源为 FreePats 的 Hohner 按钮手风琴（Button Accordion HN）。它包含

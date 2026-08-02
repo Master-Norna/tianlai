@@ -1,3 +1,5 @@
+[中文](README.md) | [English](README.en.md)
+
 # 班卓琴（itsclipping Ganjo 六弦班卓吉他）
 
 本目录保留“班卓琴”这一项目入口，但正式音源已覆盖为 itsclipping Ganjo：

@@ -1,3 +1,5 @@
+[中文](README.md) | [English](README.en.md)
+
 # 牛铃
 
 基于 Virtual Playing Orchestra / VSCO2 Community Edition 的真实独立 Cowbell `formal`。它使用 `misc.sfz` 中 MIDI 56 的四个 Cowbell WAV，不再走 General MIDI 鼓组，也不会误用相邻的 Agogo。

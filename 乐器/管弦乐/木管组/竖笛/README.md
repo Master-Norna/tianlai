@@ -1,3 +1,5 @@
+**简体中文** | [English](README.en.md)
+
 # 竖笛（formal）
 
 本入口使用 VCSL 1.2.2-RC 的巴洛克高音竖笛实录。默认 `sustain`

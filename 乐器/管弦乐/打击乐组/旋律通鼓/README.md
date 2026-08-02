@@ -1,3 +1,5 @@
+**简体中文** | [English](README.en.md)
+
 # 旋律通鼓(formal)
 
 GM 旋律通鼓 = 按音阶排布的通鼓。本实现用 VCSL 两只真实通鼓的鼓棒击

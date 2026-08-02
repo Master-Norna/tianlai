@@ -1,3 +1,5 @@
+**简体中文** | [English](README.en.md)
+
 # 尺八(formal,确定性建模)
 
 气鸣管尺八模型:气息噪声、起音下探音头、modulation 颤音。实现位于 `tianlai/modeled_instruments.py`(profile

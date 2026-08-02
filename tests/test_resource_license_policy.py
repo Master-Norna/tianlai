@@ -14,6 +14,7 @@ from tianlai.upgrade_registry import HISTORICAL_UPGRADE_REGISTRY
 ROOT = Path(__file__).resolve().parents[1]
 INSTRUMENT_ROOT = ROOT / "乐器"
 EXCEPTION_PATH = ROOT / "docs" / "音源许可例外.json"
+RESTORE_MANIFEST_PATH = ROOT / "resource_restore_manifest.json"
 TRUSTED_PATH = ROOT / "可信乐器.json"
 MCP_DOCUMENTATION_PATH = ROOT / "docs" / "MCP.md"
 APPROVED_LICENSES = {"CC0-1.0", "CC-BY-3.0", "CC-BY-4.0"}
@@ -101,6 +102,103 @@ class ResourceLicensePolicyTests(unittest.TestCase):
                         self.exceptions[relative]["status"],
                         relative,
                     )
+
+    def test_every_by_licensed_external_manifest_has_frozen_attribution(self) -> None:
+        checked = 0
+        for relative, _path, manifest in self.external:
+            if "BY" not in manifest["license"].upper():
+                continue
+            checked += 1
+            with self.subTest(manifest=relative):
+                for field in ("creator", "attribution"):
+                    self.assertTrue(
+                        isinstance(manifest.get(field), str)
+                        and manifest[field].strip(),
+                        f"{relative} 的 {manifest['license']} 缺少 {field}",
+                    )
+        self.assertGreaterEqual(checked, 38)
+
+    def test_restore_families_record_attribution_and_vpo_evidence_scope(self) -> None:
+        restore = _load_json(RESTORE_MANIFEST_PATH)
+        families = {family["id"]: family for family in restore["families"]}
+
+        for family_id in (
+            "greg-sullivan-e-pianos",
+            "salamander-grand-piano",
+            "simpk-clavichord",
+        ):
+            with self.subTest(family=family_id):
+                self.assertIs(
+                    families[family_id]["license"][
+                        "output_attribution_required"
+                    ],
+                    True,
+                )
+
+        self.assertIs(
+            families["itsclipping-ganjo"]["license"][
+                "output_attribution_required"
+            ],
+            False,
+        )
+        self.assertEqual(
+            families["simpk-clavichord"]["source"]["repository"],
+            "https://www.simpk.de/museum/besuch/projekte/"
+            "klaviatur-tastatur-interface/samples.html",
+        )
+
+        vpo_license = families["virtual-playing-orchestra"]["license"]
+        self.assertEqual(vpo_license["status"], "grandfathered")
+        self.assertEqual(
+            vpo_license["expression"],
+            "Mixed upstream licences; see Documentation/license.htm",
+        )
+        self.assertEqual(
+            vpo_license["evidence_files"],
+            ["Documentation/license.htm"],
+        )
+        components = {
+            item["source"]: item["license"]
+            for item in vpo_license["components_declared_by_upstream"]
+        }
+        self.assertEqual(
+            components,
+            {
+                "Sonatina Symphonic Orchestra": (
+                    "Creative Commons Sampling Plus 1.0"
+                ),
+                "Mattias Westlund additional samples": (
+                    "Creative Commons Attribution-ShareAlike 3.0 Unported"
+                ),
+                "No Budget Orchestra": (
+                    "Creative Commons Attribution-ShareAlike 4.0 International"
+                ),
+                "VSCO 2 Community Edition": "CC0 1.0 Universal",
+                "University of Iowa Electronic Music": (
+                    "upstream unrestricted-use statement"
+                ),
+                "stamperadam": "CC0 1.0 Universal",
+            },
+        )
+        self.assertIn("Aggregate declarations", vpo_license["evidence_scope"])
+        self.assertIn("per-file", vpo_license["evidence_scope"])
+
+        vpo_family = families["virtual-playing-orchestra"]
+        self.assertEqual(len(vpo_family["instrument_ids"]), 31)
+        vpo_statuses = {
+            instrument_id: _load_json(
+                INSTRUMENT_ROOT / PurePosixPath(instrument_id) / "乐器.json"
+            )["license_status"]
+            for instrument_id in vpo_family["instrument_ids"]
+        }
+        self.assertEqual(
+            sum(status == "grandfathered" for status in vpo_statuses.values()),
+            30,
+        )
+        self.assertEqual(
+            vpo_statuses["管弦乐/弦乐组/中提琴"],
+            "approved",
+        )
 
     def test_central_exceptions_are_exhaustive_and_evidence_locked(self) -> None:
         self.assertEqual(self.exception_document["schema_version"], 1)
@@ -304,6 +402,9 @@ class ResourceLicensePolicyTests(unittest.TestCase):
         self.assertNotIn(relative, self.exceptions)
         self.assertIn("ganjo", manifest["upstream"].casefold())
         self.assertIn("ganjo", report["upstream"].casefold())
+        self.assertEqual(manifest["creator"], "itsclipping")
+        self.assertIn("provenance", manifest["attribution"])
+        self.assertIn("does not imply endorsement", manifest["attribution"])
         self.assertIn("v1.000", manifest["upstream_version"])
         self.assertIn("v1.000", report["upstream_version"])
         for path in (

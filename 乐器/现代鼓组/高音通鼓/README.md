@@ -1,3 +1,5 @@
+[中文](README.md) | [English](README.en.md)
+
 # 高音通鼓(formal)
 
 VCSL 高音通鼓,鼓棒/软槌/边击/滚奏 6 键位。本目录是 98 项清单 SAM-32 的专用实现,渲染引擎复用

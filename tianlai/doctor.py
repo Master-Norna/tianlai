@@ -15,8 +15,12 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter
+import ctypes
+import ctypes.util
+import errno
 from functools import lru_cache
 import importlib.metadata
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -30,14 +34,36 @@ from . import __version__
 from .catalog import CatalogEntry, discover_instruments
 from .resource_restore import (
     ResourceRestoreError,
+    _find_bsdtar_executable,
     default_manifest_path,
     load_restore_manifest,
 )
 from .runtime_layout import RuntimeLayout, RuntimeLayoutError, discover_runtime_layout
+from .soundfont import (
+    _find_project_fluidsynth_directory,
+    _find_tianlai_runtime_root,
+    _macos_homebrew_prefixes,
+    _native_fluidsynth_libraries,
+)
 from .trust import TrustPolicyError, load_trusted_instruments
 
 
-REPORT_SCHEMA_VERSION = 2
+REPORT_SCHEMA_VERSION = 3
+
+_PYFLUIDSYNTH_REQUIRED_VERSION = "1.4.0"
+_FLUIDSYNTH_LIBRARY_PROBES = (
+    "fluidsynth",
+    "libfluidsynth",
+    "libfluidsynth-3",
+    "libfluidsynth-2",
+    "libfluidsynth-1",
+)
+
+_SUPPORTED_PLATFORM_ARCHITECTURES = {
+    "Windows": frozenset({"amd64", "x86_64"}),
+    "Linux": frozenset({"amd64", "x86_64"}),
+    "Darwin": frozenset({"arm64", "aarch64", "x86_64", "amd64"}),
+}
 
 _SELF_CONTAINED_TYPES = frozenset(
     {
@@ -80,6 +106,396 @@ def _python_runtime_supported(
         and (3, 11) <= version < (3, 15)
         and bits == 64
     )
+
+
+def _normalised_machine(machine: str) -> str:
+    value = machine.strip().casefold().replace("-", "_")
+    aliases = {
+        "x64": "x86_64",
+        "amd64": "x86_64",
+        "aarch64": "arm64",
+    }
+    return aliases.get(value, value)
+
+
+def _platform_runtime_supported(
+    *,
+    system: str,
+    machine: str,
+    bits: int,
+) -> bool:
+    """Return whether this OS/architecture pair is in the public test contract."""
+
+    if bits != 64:
+        return False
+    supported = _SUPPORTED_PLATFORM_ARCHITECTURES.get(system)
+    if supported is None:
+        return False
+    normalised = _normalised_machine(machine)
+    return normalised in {
+        _normalised_machine(candidate) for candidate in supported
+    }
+
+
+def _probe_macos_rosetta_translation() -> bool:
+    """Query the current macOS process without spawning a shell."""
+
+    libc = ctypes.CDLL(None, use_errno=True)
+    sysctlbyname = libc.sysctlbyname
+    sysctlbyname.argtypes = (
+        ctypes.c_char_p,
+        ctypes.c_void_p,
+        ctypes.POINTER(ctypes.c_size_t),
+        ctypes.c_void_p,
+        ctypes.c_size_t,
+    )
+    sysctlbyname.restype = ctypes.c_int
+    translated = ctypes.c_int(0)
+    size = ctypes.c_size_t(ctypes.sizeof(translated))
+    result = sysctlbyname(
+        b"sysctl.proc_translated",
+        ctypes.byref(translated),
+        ctypes.byref(size),
+        None,
+        0,
+    )
+    if result == 0:
+        return translated.value == 1
+    error_number = ctypes.get_errno()
+    if error_number == errno.ENOENT:
+        # The key is absent on native Intel systems.
+        return False
+    raise OSError(error_number, os.strerror(error_number))
+
+
+def _macos_rosetta_capability(
+    *,
+    system: str,
+    machine: str,
+    bits: int,
+) -> dict[str, Any]:
+    """Describe Rosetta separately from the supported process architecture."""
+
+    process_architecture = _normalised_machine(machine)
+    if system != "Darwin":
+        return {
+            "status": "not_applicable",
+            "translated": None,
+            "process_architecture": process_architecture,
+            "host_architecture": None,
+            "supported": None,
+            "error": None,
+        }
+
+    supported = _platform_runtime_supported(
+        system=system,
+        machine=machine,
+        bits=bits,
+    )
+    if process_architecture != "x86_64":
+        return {
+            "status": "native",
+            "translated": False,
+            "process_architecture": process_architecture,
+            "host_architecture": process_architecture,
+            "supported": supported,
+            "error": None,
+        }
+
+    try:
+        translated = _probe_macos_rosetta_translation()
+    except (AttributeError, OSError, TypeError, ValueError) as exc:
+        return {
+            "status": "unknown",
+            "translated": None,
+            "process_architecture": process_architecture,
+            "host_architecture": None,
+            # The public macOS contract is native-only.  If an x86_64 process
+            # cannot prove whether it is native Intel or Rosetta-translated,
+            # do not advertise it as a supported runtime.
+            "supported": False,
+            "error": f"{type(exc).__name__}: {exc}",
+        }
+    return {
+        "status": "translated" if translated else "native",
+        "translated": translated,
+        "process_architecture": process_architecture,
+        "host_architecture": "arm64" if translated else process_architecture,
+        "supported": supported and not translated,
+        "error": None,
+    }
+
+
+def _same_resolved_path(left: Path, right: Path) -> bool:
+    try:
+        return left.resolve() == right.resolve()
+    except (OSError, RuntimeError):
+        return False
+
+
+def _fluidsynth_directory_source(directory: Path, home: Path) -> str:
+    """Describe the selected directory without reimplementing its selection."""
+
+    runtime_root = _find_tianlai_runtime_root(home)
+    if runtime_root is not None:
+        runtime = runtime_root / "音源" / "通用" / "fluidsynth"
+        if any(
+            _same_resolved_path(directory, candidate)
+            for candidate in (runtime / "bin", runtime / "lib", runtime)
+        ):
+            return "project_local"
+
+    override = os.environ.get("TIANLAI_FLUIDSYNTH_DIR")
+    if override:
+        runtime = Path(override).expanduser()
+        if any(
+            _same_resolved_path(directory, candidate)
+            for candidate in (runtime / "bin", runtime / "lib", runtime)
+        ):
+            return "environment_override"
+
+    for prefix in _macos_homebrew_prefixes():
+        if any(
+            _same_resolved_path(directory, candidate)
+            for candidate in (
+                prefix / "opt" / "fluid-synth" / "lib",
+                prefix / "lib",
+            )
+        ):
+            return "homebrew"
+    return "configured_directory"
+
+
+def _load_native_fluidsynth_library(library: str | Path) -> None:
+    """Load one candidate and verify a required FluidSynth API symbol."""
+
+    value = os.fspath(library)
+    loader = (
+        getattr(ctypes, "WinDLL", ctypes.CDLL)
+        if value.casefold().endswith(".dll")
+        else ctypes.CDLL
+    )
+    handle = loader(value)
+    try:
+        getattr(handle, "new_fluid_settings")
+    except AttributeError as exc:
+        raise OSError(
+            "loaded library does not export new_fluid_settings"
+        ) from exc
+
+
+def _native_fluidsynth_capability(layout: RuntimeLayout) -> dict[str, Any]:
+    """Mirror discovery and prove the selected native library can be loaded."""
+
+    try:
+        directory = _find_project_fluidsynth_directory(layout.home)
+        if directory is not None:
+            libraries = _native_fluidsynth_libraries(directory)
+            if libraries:
+                library = libraries[0].resolve()
+                source = _fluidsynth_directory_source(directory, layout.home)
+                try:
+                    _load_native_fluidsynth_library(library)
+                except (AttributeError, OSError, TypeError, ValueError) as exc:
+                    return {
+                        "status": "error",
+                        "library": str(library),
+                        "directory": str(directory.resolve()),
+                        "source": source,
+                        "probe": None,
+                        "load_verified": False,
+                        "error": f"{type(exc).__name__}: {exc}",
+                    }
+                return {
+                    "status": "available",
+                    "library": str(library),
+                    "directory": str(directory.resolve()),
+                    "source": source,
+                    "probe": None,
+                    "load_verified": True,
+                    "error": None,
+                }
+
+        # When Tianlai has no selected runtime directory, pyfluidsynth probes
+        # these names in this exact order during its normal import path.
+        load_errors: list[tuple[str, str, str]] = []
+        for probe in _FLUIDSYNTH_LIBRARY_PROBES:
+            library = ctypes.util.find_library(probe)
+            if library:
+                try:
+                    _load_native_fluidsynth_library(library)
+                except (AttributeError, OSError, TypeError, ValueError) as exc:
+                    load_errors.append(
+                        (probe, str(library), f"{type(exc).__name__}: {exc}")
+                    )
+                    continue
+                return {
+                    "status": "available",
+                    "library": str(library),
+                    "directory": None,
+                    "source": "system_lookup",
+                    "probe": probe,
+                    "load_verified": True,
+                    "error": None,
+                }
+        if load_errors:
+            probe, library, _ = load_errors[0]
+            return {
+                "status": "error",
+                "library": library,
+                "directory": None,
+                "source": "system_lookup",
+                "probe": probe,
+                "load_verified": False,
+                "error": "; ".join(
+                    f"{candidate_probe} -> {candidate_library}: {error}"
+                    for candidate_probe, candidate_library, error in load_errors
+                ),
+            }
+    except (OSError, RuntimeError, ValueError) as exc:
+        return {
+            "status": "error",
+            "library": None,
+            "directory": None,
+            "source": None,
+            "probe": None,
+            "load_verified": False,
+            "error": f"{type(exc).__name__}: {exc}",
+        }
+    return {
+        "status": "optional_missing",
+        "library": None,
+        "directory": None,
+        "source": None,
+        "probe": None,
+        "load_verified": False,
+        "error": None,
+    }
+
+
+def _pyfluidsynth_capability() -> dict[str, Any]:
+    """Inspect the Python binding without importing or loading its native code."""
+
+    module_available = "fluidsynth" in sys.modules
+    module_error: str | None = None
+    if not module_available:
+        try:
+            module_available = importlib.util.find_spec("fluidsynth") is not None
+        except (ImportError, AttributeError, ValueError) as exc:
+            module_error = f"{type(exc).__name__}: {exc}"
+
+    try:
+        version = importlib.metadata.version("pyfluidsynth")
+    except importlib.metadata.PackageNotFoundError:
+        version = None
+    except (OSError, RuntimeError, ValueError) as exc:
+        return {
+            "status": "error",
+            "distribution": "pyfluidsynth",
+            "module": "fluidsynth",
+            "module_available": module_available,
+            "version": None,
+            "required_version": _PYFLUIDSYNTH_REQUIRED_VERSION,
+            "error": f"{type(exc).__name__}: {exc}",
+        }
+
+    if module_available and version == _PYFLUIDSYNTH_REQUIRED_VERSION:
+        status = "available"
+        error = None
+    elif not module_available and version is None and module_error is None:
+        status = "optional_missing"
+        error = None
+    else:
+        status = "incompatible"
+        details: list[str] = []
+        if not module_available:
+            details.append("the fluidsynth module is not importable")
+        if version is None:
+            details.append("the pyfluidsynth distribution version is unavailable")
+        elif version != _PYFLUIDSYNTH_REQUIRED_VERSION:
+            details.append(
+                "pyfluidsynth "
+                f"{version} is installed; {_PYFLUIDSYNTH_REQUIRED_VERSION} is required"
+            )
+        if module_error is not None:
+            details.append(module_error)
+        error = "; ".join(details)
+    return {
+        "status": status,
+        "distribution": "pyfluidsynth",
+        "module": "fluidsynth",
+        "module_available": module_available,
+        "version": version,
+        "required_version": _PYFLUIDSYNTH_REQUIRED_VERSION,
+        "error": error,
+    }
+
+
+def _fluidsynth_capability(layout: RuntimeLayout) -> dict[str, Any]:
+    native = _native_fluidsynth_capability(layout)
+    binding = _pyfluidsynth_capability()
+    ready = native["status"] == "available" and binding["status"] == "available"
+    broken = native["status"] == "error" or binding["status"] in {
+        "error",
+        "incompatible",
+    }
+    return {
+        "status": "available" if ready else "error" if broken else "optional_missing",
+        "ready": ready,
+        "required_for_core": False,
+        # Retain the previous convenience field while exposing both independent
+        # layers explicitly for machine consumers.
+        "library": native["library"],
+        "native": native,
+        "python_binding": binding,
+    }
+
+
+def _platform_capabilities(layout: RuntimeLayout) -> dict[str, Any]:
+    restore_manifest = default_manifest_path(layout.home)
+    resource_restore: dict[str, Any] = {
+        "status": "unavailable",
+        "manifest": _relative_or_absolute(restore_manifest, layout.home),
+        "family_count": 0,
+        "instrument_count": 0,
+        "archive_formats": [],
+        "seven_zip_extractor": None,
+        "error": None,
+    }
+    if restore_manifest.is_file():
+        try:
+            manifest = load_restore_manifest(restore_manifest)
+            archives = [
+                archive
+                for family in manifest["families"]
+                for archive in family.get("archives", [family.get("archive")])
+                if archive is not None
+            ]
+            formats = sorted({archive["format"] for archive in archives})
+            resource_restore.update(
+                {
+                    "family_count": manifest["totals"]["family_count"],
+                    "instrument_count": manifest["totals"]["instrument_count"],
+                    "archive_formats": formats,
+                }
+            )
+            extractor: str | None = None
+            if "7z" in formats:
+                extractor = _find_bsdtar_executable()
+            resource_restore.update(
+                {
+                    "status": "available",
+                    "seven_zip_extractor": extractor,
+                }
+            )
+        except (OSError, RuntimeError, ValueError, ResourceRestoreError) as exc:
+            resource_restore["status"] = "degraded"
+            resource_restore["error"] = f"{type(exc).__name__}: {exc}"
+
+    return {
+        "resource_restore": resource_restore,
+        "fluidsynth": _fluidsynth_capability(layout),
+    }
 
 
 def _windows_only_installer(
@@ -292,6 +708,16 @@ def _installer_for(
             "path": None,
         }
 
+    tracked = _tracked_resource_installer(
+        layout=layout,
+        manifest_path=manifest_path,
+    )
+    if tracked is not None:
+        return tracked
+
+    # Per-entry PowerShell launchers remain backwards-compatible fallbacks,
+    # but the frozen cross-platform restore manifest is authoritative whenever
+    # an entry is mapped there.
     local = manifest_path.parent / "获取音源.ps1"
     if local.is_file():
         return _windows_only_installer(
@@ -299,13 +725,6 @@ def _installer_for(
             path=local,
             installer_id=manifest_path.parent.name,
         )
-
-    tracked = _tracked_resource_installer(
-        layout=layout,
-        manifest_path=manifest_path,
-    )
-    if tracked is not None:
-        return tracked
 
     raw_root = str(manifest.get("asset_root", "")).replace("\\", "/").casefold()
     rules = (
@@ -681,6 +1100,39 @@ def collect_doctor_report(
     implementation = platform.python_implementation()
     python_version = sys.version_info[:2]
     python_bits = struct.calcsize("P") * 8
+    platform_system = platform.system()
+    platform_machine = platform.machine()
+    python_supported = _python_runtime_supported(
+        implementation=implementation,
+        version=python_version,
+        bits=python_bits,
+    )
+    platform_supported = _platform_runtime_supported(
+        system=platform_system,
+        machine=platform_machine,
+        bits=python_bits,
+    )
+    rosetta = _macos_rosetta_capability(
+        system=platform_system,
+        machine=platform_machine,
+        bits=python_bits,
+    )
+    if platform_system == "Darwin":
+        platform_supported = platform_supported and rosetta["supported"] is True
+    platform_capabilities = _platform_capabilities(layout)
+    if not python_supported or not platform_supported:
+        summary["status"] = "error"
+    elif (
+        (
+            platform_capabilities["fluidsynth"]["status"] == "error"
+            or platform_capabilities["resource_restore"]["status"]
+            == "degraded"
+        )
+        and summary["status"] == "ready"
+    ):
+        # Optional capabilities degrade rather than invalidate the core
+        # runtime, but must not be hidden behind an overall ``ready`` label.
+        summary["status"] = "degraded"
     return {
         "schema_version": REPORT_SCHEMA_VERSION,
         "version": _installed_version(),
@@ -697,18 +1149,27 @@ def collect_doctor_report(
             "implementation": implementation,
             "executable": sys.executable,
             "bits": python_bits,
-            "supported": _python_runtime_supported(
-                implementation=implementation,
-                version=python_version,
-                bits=python_bits,
-            ),
+            "supported": python_supported,
         },
         "platform": {
-            "system": platform.system(),
+            "system": platform_system,
             "release": platform.release(),
-            "machine": platform.machine(),
+            "machine": platform_machine,
+            "normalised_machine": _normalised_machine(platform_machine),
             "platform": platform.platform(),
+            "supported": platform_supported,
+            "rosetta": rosetta,
+            "validated_architectures": sorted(
+                {
+                    _normalised_machine(candidate)
+                    for candidate in _SUPPORTED_PLATFORM_ARCHITECTURES.get(
+                        platform_system,
+                        (),
+                    )
+                }
+            ),
         },
+        "capabilities": platform_capabilities,
         "layout": layout.to_dict(),
         "writability": {
             "home": _directory_writability(layout.home),
@@ -744,9 +1205,27 @@ def doctor_report_json(
     )
 
 
+def _print_json_utf8(payload: str) -> None:
+    """Emit machine-readable CLI JSON with deterministic UTF-8 bytes.
+
+    Windows uses the active legacy code page for redirected stdout unless the
+    stream is reconfigured explicitly.  That makes otherwise valid JSON fail
+    as soon as a path or diagnostic contains non-ASCII text.  Real text
+    streams support ``reconfigure``; in-process tests commonly redirect stdout
+    to ``StringIO``, where writing the Unicode string directly is sufficient.
+    """
+
+    stream = sys.stdout
+    reconfigure = getattr(stream, "reconfigure", None)
+    if callable(reconfigure):
+        reconfigure(encoding="utf-8", errors="strict")
+    print(payload, file=stream)
+
+
 def _human_summary(report: dict[str, Any]) -> str:
     summary = report["summary"]
     layout = report["layout"]
+    fluidsynth = report["capabilities"]["fluidsynth"]
     lines = [
         f"天籁 {report['version']} 运行诊断：{summary['status']}",
         (
@@ -772,7 +1251,20 @@ def _human_summary(report: dict[str, Any]) -> str:
             f"unavailable={summary['installer_unavailable_count']}，"
             f"missing={summary['installer_missing_count']}"
         ),
+        (
+            f"可选 FluidSynth：{fluidsynth['status']}（原生库="
+            f"{fluidsynth['native']['status']}，pyfluidsynth="
+            f"{fluidsynth['python_binding']['status']}）"
+        ),
     ]
+    if report["platform"]["system"] == "Darwin":
+        rosetta = report["platform"]["rosetta"]
+        lines.insert(
+            2,
+            "macOS 进程模式："
+            f"{rosetta['status']}（进程={rosetta['process_architecture']}，"
+            f"宿主={rosetta['host_architecture'] or 'unknown'}）",
+        )
     missing = [
         item for item in report["instruments"] if item["resource"]["status"] != "ready"
     ]
@@ -815,7 +1307,7 @@ def main(argv: list[str] | None = None) -> int:
         )
     except RuntimeLayoutError as exc:
         if args.json:
-            print(
+            _print_json_utf8(
                 json.dumps(
                     {
                         "schema_version": REPORT_SCHEMA_VERSION,
@@ -829,10 +1321,15 @@ def main(argv: list[str] | None = None) -> int:
         else:
             print(f"天籁运行诊断失败：{exc}", file=sys.stderr)
         return 1
-    print(doctor_report_json(report) if args.json else _human_summary(report))
+    if args.json:
+        _print_json_utf8(doctor_report_json(report))
+    else:
+        print(_human_summary(report))
     if report["catalog"]["status"] != "ready":
         return 1
     if report["trusted"]["status"] != "ready":
+        return 1
+    if not report["python"]["supported"] or not report["platform"]["supported"]:
         return 1
     if report["summary"]["resource_invalid_count"]:
         return 1
@@ -847,6 +1344,7 @@ if __name__ == "__main__":
 
 __all__ = [
     "REPORT_SCHEMA_VERSION",
+    "_platform_runtime_supported",
     "collect_doctor_report",
     "doctor_report_json",
     "main",

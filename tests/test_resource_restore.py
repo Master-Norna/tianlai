@@ -18,6 +18,7 @@ import zipfile
 import tianlai.resource_restore as restore_module
 from tianlai.resource_restore import (
     MANIFEST_KIND,
+    MANIFEST_SCHEMA_VERSION,
     ResourceRestoreError,
     build_restore_plan,
     download_archive,
@@ -66,7 +67,7 @@ def _fixture_manifest(archive: Path, source_tree: Path) -> dict[str, object]:
     digest = tree_digest(source_tree)
     size = archive.stat().st_size
     return {
-        "schema_version": 1,
+        "schema_version": MANIFEST_SCHEMA_VERSION,
         "kind": MANIFEST_KIND,
         "tree_hash": {
             "algorithm": "tianlai-tree-sha256-v1",
@@ -177,12 +178,12 @@ class WindowsExtendedPathContractTests(unittest.TestCase):
 
 
 class ShippedResourceRestoreManifestTests(unittest.TestCase):
-    def test_manifest_maps_exactly_38_existing_catalogue_entries(self) -> None:
+    def test_manifest_maps_all_74_external_resource_catalogue_entries(self) -> None:
         root = Path(__file__).resolve().parents[1]
         manifest = load_restore_manifest(home=root)
 
-        self.assertEqual(manifest["totals"]["family_count"], 10)
-        self.assertEqual(manifest["totals"]["instrument_count"], 38)
+        self.assertEqual(manifest["totals"]["family_count"], 15)
+        self.assertEqual(manifest["totals"]["instrument_count"], 74)
         instruments = [
             instrument
             for family in manifest["families"]
@@ -202,6 +203,14 @@ class ShippedResourceRestoreManifestTests(unittest.TestCase):
             family_for_instrument(manifest, "世界乐器/风笛")["id"],
             "freepats-bagpipe",
         )
+        self.assertEqual(
+            family_for_instrument(manifest, "键盘乐器/钢琴")["id"],
+            "salamander-grand-piano",
+        )
+        self.assertEqual(
+            family_for_instrument(manifest, "管弦乐/弦乐组/小提琴")["id"],
+            "virtual-playing-orchestra",
+        )
 
     def test_clean_install_plan_is_complete_and_has_no_side_effects(self) -> None:
         root = Path(__file__).resolve().parents[1]
@@ -213,8 +222,8 @@ class ShippedResourceRestoreManifestTests(unittest.TestCase):
                 resource_root=resources,
             )
 
-            self.assertEqual(plan["family_count"], 10)
-            self.assertEqual(plan["instrument_count"], 38)
+            self.assertEqual(plan["family_count"], 15)
+            self.assertEqual(plan["instrument_count"], 74)
             self.assertEqual(
                 plan["estimated_download_bytes"],
                 manifest["totals"]["estimated_download_bytes"],
@@ -244,6 +253,51 @@ class ShippedResourceRestoreManifestTests(unittest.TestCase):
         self.assertIn("fixed_commit", archive["verification"])
         self.assertIn("complete_tree", archive["verification"])
 
+    def test_vpo_uses_two_frozen_upstream_archives_and_one_merged_tree(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        manifest = load_restore_manifest(home=root)
+        vpo = next(
+            family
+            for family in manifest["families"]
+            if family["id"] == "virtual-playing-orchestra"
+        )
+
+        self.assertNotIn("archive", vpo)
+        self.assertEqual(len(vpo["archives"]), 2)
+        self.assertEqual(
+            sum(archive["bytes"] for archive in vpo["archives"]),
+            616_658_852,
+        )
+        for archive in vpo["archives"]:
+            self.assertRegex(archive["sha256"], r"^[0-9a-f]{64}$")
+            self.assertEqual(archive["bytes"], archive["max_bytes"])
+        self.assertEqual(vpo["install"]["tree"]["files"], 1922)
+        self.assertEqual(len(vpo["instrument_ids"]), 31)
+        self.assertTrue(vpo["license"]["output_attribution_required"])
+
+    def test_simpk_recipe_pins_source_tree_code_and_non_code_inputs(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        manifest = load_restore_manifest(home=root)
+        simpk = next(
+            family
+            for family in manifest["families"]
+            if family["id"] == "simpk-clavichord"
+        )
+        install = simpk["install"]
+        recipe = install["recipe"]
+
+        self.assertEqual(recipe["id"], "simpk-clavichord-v1")
+        self.assertEqual(install["source_tree"]["files"], 762)
+        self.assertEqual(install["tree"]["files"], 766)
+        for path_key, hash_key in (
+            ("converter", "converter_sha256"),
+            ("source_evidence", "source_evidence_sha256"),
+            ("tuning_table", "tuning_table_sha256"),
+        ):
+            path = root / Path(*recipe[path_key].split("/"))
+            self.assertTrue(path.is_file(), path)
+            self.assertEqual(_sha256(path), recipe[hash_key])
+
     def test_generated_github_archives_cannot_pin_container_bytes(self) -> None:
         root = Path(__file__).resolve().parents[1]
         document = json.loads(
@@ -269,7 +323,11 @@ class ShippedResourceRestoreManifestTests(unittest.TestCase):
         families = [
             family
             for family in document["families"]
-            if family["archive"]["format"] == "7z"
+            if any(
+                archive["format"] == "7z"
+                for archive in family.get("archives", [family.get("archive")])
+                if archive is not None
+            )
         ]
 
         self.assertEqual(
@@ -304,7 +362,7 @@ class ShippedResourceRestoreManifestTests(unittest.TestCase):
                         validate_restore_manifest(invalid)
 
     @unittest.skipUnless(os.name == "nt", "Windows launcher contract")
-    def test_cmd_plan_defaults_to_all_assets_and_can_select_new_38_only(self) -> None:
+    def test_cmd_plan_covers_all_74_external_resource_entries(self) -> None:
         root = Path(__file__).resolve().parents[1]
         all_assets = subprocess.run(
             ["cmd.exe", "/d", "/c", "安装可恢复音源.cmd -PlanOnly"],
@@ -315,8 +373,8 @@ class ShippedResourceRestoreManifestTests(unittest.TestCase):
         )
         all_text = all_assets.stdout.decode("utf-8", errors="replace")
         self.assertEqual(all_assets.returncode, 0, all_text)
-        self.assertIn("此外还会复核或安装既有资源", all_text)
-        self.assertIn("10 组 / 38 件乐器", all_text)
+        self.assertIn("此外会安装项目本地 FluidSynth", all_text)
+        self.assertIn("15 组 / 74 件乐器", all_text)
 
         only_new = subprocess.run(
             [
@@ -332,8 +390,8 @@ class ShippedResourceRestoreManifestTests(unittest.TestCase):
         )
         new_text = only_new.stdout.decode("utf-8", errors="replace")
         self.assertEqual(only_new.returncode, 0, new_text)
-        self.assertNotIn("此外还会复核或安装既有资源", new_text)
-        self.assertIn("10 组 / 38 件乐器", new_text)
+        self.assertNotIn("此外会安装项目本地 FluidSynth", new_text)
+        self.assertIn("15 组 / 74 件乐器", new_text)
 
 
 class ResourceRestoreEndToEndTests(unittest.TestCase):
@@ -399,6 +457,125 @@ class ResourceRestoreEndToEndTests(unittest.TestCase):
             allow_file_urls=True,
         )
         self.assertEqual(second["status"], "already_verified")
+
+    def test_two_archives_merge_only_after_the_complete_tree_verifies(self) -> None:
+        combined = self.root / "combined" / "split-v1"
+        (combined / "samples").mkdir(parents=True)
+        (combined / "LICENSE").write_text("CC0 split fixture\n", encoding="utf-8")
+        (combined / "instrument.sfz").write_text(
+            "<region> sample=samples/a.wav key=60\n",
+            encoding="utf-8",
+        )
+        (combined / "samples" / "a.wav").write_bytes(b"split-a")
+        (combined / "samples" / "b.wav").write_bytes(b"split-b")
+
+        archives = []
+        members = (
+            ("split-a.zip", ("LICENSE", "samples/a.wav")),
+            ("split-b.zip", ("LICENSE", "instrument.sfz", "samples/b.wav")),
+        )
+        for filename, relative_paths in members:
+            archive_path = self.root / filename
+            with zipfile.ZipFile(
+                archive_path,
+                mode="w",
+                compression=zipfile.ZIP_DEFLATED,
+            ) as bundle:
+                for relative in relative_paths:
+                    bundle.write(
+                        combined / Path(*relative.split("/")),
+                        f"split-v1/{relative}",
+                    )
+            size = archive_path.stat().st_size
+            archives.append(
+                {
+                    "url": archive_path.as_uri(),
+                    "filename": filename,
+                    "format": "zip",
+                    "bytes": size,
+                    "estimated_bytes": size,
+                    "max_bytes": size,
+                    "sha256": _sha256(archive_path),
+                    "verification": "test split archive and merged tree",
+                }
+            )
+
+        document = _fixture_manifest(self.archive, self.payload)
+        family = document["families"][0]
+        family.pop("archive")
+        family["archives"] = archives
+        family["install"]["target"] = "Fixtures/split"
+        family["install"]["tree"] = tree_digest(combined).to_dict()
+        family["install"]["identical_overlaps"] = {
+            "LICENSE": _sha256(combined / "LICENSE")
+        }
+        total_archive_bytes = sum(item["estimated_bytes"] for item in archives)
+        document["totals"]["estimated_download_bytes"] = total_archive_bytes
+        document["totals"]["installed_bytes_including_derived"] = tree_digest(
+            combined
+        ).bytes
+        validated = validate_restore_manifest(document, allow_file_urls=True)
+        split_family = validated["families"][0]
+        resources = self.home / "音源"
+
+        result = restore_family(
+            split_family,
+            home=self.home,
+            resource_root=resources,
+            allow_file_urls=True,
+        )
+
+        target = resources / "Fixtures" / "split"
+        self.assertEqual(result["status"], "installed")
+        self.assertEqual(tree_digest(target), tree_digest(combined))
+        self.assertTrue(all((resources / "下载缓存" / item["filename"]).is_file() for item in archives))
+        receipt = json.loads(
+            (resources / ".tianlai" / "receipts" / "fixture.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        self.assertEqual(receipt["schema_version"], 2)
+        self.assertEqual(len(receipt["archives"]), 2)
+
+    def test_two_archive_file_collision_fails_without_publishing_target(self) -> None:
+        first = self.root / "collision-a.zip"
+        second = self.root / "collision-b.zip"
+        for archive, payload in ((first, b"first"), (second, b"second")):
+            with zipfile.ZipFile(archive, mode="w") as bundle:
+                bundle.writestr("collision-v1/LICENSE", payload)
+        document = _fixture_manifest(self.archive, self.payload)
+        family = document["families"][0]
+        family.pop("archive")
+        family["archives"] = []
+        for archive in (first, second):
+            size = archive.stat().st_size
+            family["archives"].append(
+                {
+                    "url": archive.as_uri(),
+                    "filename": archive.name,
+                    "format": "zip",
+                    "bytes": size,
+                    "estimated_bytes": size,
+                    "max_bytes": size,
+                    "sha256": _sha256(archive),
+                    "verification": "test collision archive",
+                }
+            )
+        document["totals"]["estimated_download_bytes"] = sum(
+            archive.stat().st_size for archive in (first, second)
+        )
+        validated = validate_restore_manifest(document, allow_file_urls=True)
+        resources = self.home / "音源"
+
+        with self.assertRaisesRegex(ResourceRestoreError, "duplicate|colliding"):
+            restore_family(
+                validated["families"][0],
+                home=self.home,
+                resource_root=resources,
+                allow_file_urls=True,
+            )
+
+        self.assertFalse((resources / "Fixtures" / "library").exists())
 
     def test_mismatched_existing_target_is_never_merged_or_replaced(self) -> None:
         resources = self.home / "音源"
@@ -944,6 +1121,10 @@ class ResourceRestoreEndToEndTests(unittest.TestCase):
                 return_value=False,
             ),
             mock.patch(
+                "tianlai.resource_restore._is_macos_runtime",
+                return_value=False,
+            ),
+            mock.patch(
                 "tianlai.resource_restore.shutil.which",
                 return_value=executable,
             ) as which,
@@ -976,6 +1157,10 @@ class ResourceRestoreEndToEndTests(unittest.TestCase):
                 return_value=False,
             ),
             mock.patch(
+                "tianlai.resource_restore._is_macos_runtime",
+                return_value=False,
+            ),
+            mock.patch(
                 "tianlai.resource_restore.shutil.which",
                 side_effect=locate,
             ) as which,
@@ -991,6 +1176,142 @@ class ResourceRestoreEndToEndTests(unittest.TestCase):
 
         which.assert_called_once_with("bsdtar")
         run.assert_not_called()
+
+    def test_macos_tar_fallback_accepts_verified_system_bsdtar(self) -> None:
+        executable = "/usr/bin/tar"
+
+        def locate(command: str) -> str | None:
+            if command == "tar":
+                return executable
+            return None
+
+        version = subprocess.CompletedProcess(
+            args=[executable, "--version"],
+            returncode=0,
+            stdout=b"bsdtar 3.5.3 - libarchive 3.5.3\n",
+            stderr=None,
+        )
+        with (
+            mock.patch(
+                "tianlai.resource_restore._is_windows_runtime",
+                return_value=False,
+            ),
+            mock.patch(
+                "tianlai.resource_restore._is_macos_runtime",
+                return_value=True,
+            ),
+            mock.patch(
+                "tianlai.resource_restore.shutil.which",
+                side_effect=locate,
+            ) as which,
+            mock.patch(
+                "tianlai.resource_restore.subprocess.run",
+                return_value=version,
+            ),
+        ):
+            selected = restore_module._find_bsdtar_executable()
+
+        self.assertEqual(selected, executable)
+        self.assertEqual(
+            which.call_args_list,
+            [mock.call("bsdtar"), mock.call("tar")],
+        )
+
+    def test_macos_gnu_tar_on_path_falls_back_to_verified_system_tar(self) -> None:
+        gnu_tar = "/usr/local/bin/tar"
+        system_tar = "/usr/bin/tar"
+
+        def locate(command: str) -> str | None:
+            if command == "tar":
+                return gnu_tar
+            return None
+
+        def version(arguments: list[str], **_kwargs: object) -> subprocess.CompletedProcess:
+            executable = arguments[0]
+            output = (
+                b"tar (GNU tar) 1.35\n"
+                if executable == gnu_tar
+                else b"bsdtar 3.5.3 - libarchive 3.5.3\n"
+            )
+            return subprocess.CompletedProcess(
+                args=arguments,
+                returncode=0,
+                stdout=output,
+                stderr=None,
+            )
+
+        with (
+            mock.patch(
+                "tianlai.resource_restore._is_windows_runtime",
+                return_value=False,
+            ),
+            mock.patch(
+                "tianlai.resource_restore._is_macos_runtime",
+                return_value=True,
+            ),
+            mock.patch(
+                "tianlai.resource_restore.shutil.which",
+                side_effect=locate,
+            ) as which,
+            mock.patch(
+                "tianlai.resource_restore.subprocess.run",
+                side_effect=version,
+            ) as run,
+        ):
+            selected = restore_module._find_bsdtar_executable()
+
+        self.assertEqual(selected, system_tar)
+        self.assertEqual(
+            which.call_args_list,
+            [mock.call("bsdtar"), mock.call("tar")],
+        )
+        self.assertEqual(
+            [call.args[0][0] for call in run.call_args_list],
+            [gnu_tar, system_tar],
+        )
+
+    def test_macos_tar_fallback_rejects_when_no_bsdtar_is_verified(self) -> None:
+        executable = "/usr/local/bin/tar"
+
+        def locate(command: str) -> str | None:
+            if command == "tar":
+                return executable
+            return None
+
+        gnu_version = subprocess.CompletedProcess(
+            args=[executable, "--version"],
+            returncode=0,
+            stdout=b"tar (GNU tar) 1.35\n",
+            stderr=None,
+        )
+        with (
+            mock.patch(
+                "tianlai.resource_restore._is_windows_runtime",
+                return_value=False,
+            ),
+            mock.patch(
+                "tianlai.resource_restore._is_macos_runtime",
+                return_value=True,
+            ),
+            mock.patch(
+                "tianlai.resource_restore.shutil.which",
+                side_effect=locate,
+            ) as which,
+            mock.patch(
+                "tianlai.resource_restore.subprocess.run",
+                return_value=gnu_version,
+            ),
+            self.assertRaisesRegex(
+                ResourceRestoreError,
+                "macOS normally provides.*GNU tar is not a supported",
+            ),
+        ):
+            restore_module._find_bsdtar_executable()
+
+        self.assertEqual(
+            which.call_args_list,
+            [mock.call("bsdtar"), mock.call("tar")],
+        )
 
     def test_windows_tar_fallback_must_report_bsdtar(self) -> None:
         executable = r"C:\Windows\System32\tar.exe"
@@ -1097,6 +1418,8 @@ class ResourceRestoreEndToEndTests(unittest.TestCase):
         try:
             tar_executable = restore_module._find_bsdtar_executable()
         except ResourceRestoreError as exc:
+            if os.environ.get("TIANLAI_REQUIRE_BSDTAR") == "1":
+                self.fail(f"bsdtar is required by this platform gate: {exc}")
             self.skipTest(str(exc))
 
         container = self.root / "sevenzip-input"
@@ -1154,6 +1477,26 @@ class ResourceRestoreEndToEndTests(unittest.TestCase):
             (destination / "fixture-v1" / "payload.bin").read_bytes(),
             payload,
         )
+
+    def test_strict_real_7z_gate_fails_instead_of_skipping_missing_bsdtar(
+        self,
+    ) -> None:
+        case = type(self)(
+            "test_real_bsdtar_7z_preflight_enforces_frozen_size_limit"
+        )
+        result = unittest.TestResult()
+        with (
+            mock.patch.dict(os.environ, {"TIANLAI_REQUIRE_BSDTAR": "1"}),
+            mock.patch(
+                "tianlai.resource_restore._find_bsdtar_executable",
+                side_effect=ResourceRestoreError("missing bsdtar fixture"),
+            ),
+        ):
+            case.run(result)
+
+        self.assertEqual(result.skipped, [])
+        self.assertEqual(len(result.failures), 1)
+        self.assertIn("bsdtar is required", result.failures[0][1])
 
     def test_7z_fixed_identity_is_checked_before_member_inspection(self) -> None:
         with (
@@ -1446,6 +1789,13 @@ class ResourceRestoreEndToEndTests(unittest.TestCase):
                 (
                     ("fixture-v1/Folder/one.wav", b"one"),
                     ("fixture-v1/folder/two.wav", b"two"),
+                ),
+            ),
+            (
+                "unicode-normalisation",
+                (
+                    ("fixture-v1/Caf\u00e9/tone.wav", b"one"),
+                    ("fixture-v1/Cafe\u0301/tone.wav", b"two"),
                 ),
             ),
         )

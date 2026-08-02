@@ -14,6 +14,8 @@ from tianlai.license_sidecar import (
     write_license_sidecars,
 )
 
+ROOT = Path(__file__).resolve().parents[1]
+
 
 class LicenseSidecarTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -108,6 +110,59 @@ class LicenseSidecarTests(unittest.TestCase):
             document["instruments"][0]["used_by"],
             ["piano_1", "piano_2"],
         )
+
+    def test_released_attribution_records_keep_first_party_credit(self) -> None:
+        cases = (
+            (
+                "乐器/键盘乐器/电钢琴/乐器.json",
+                "Greg Sullivan",
+                ("kinwie", "CC BY 3.0"),
+            ),
+            (
+                "乐器/键盘乐器/钢琴/乐器.json",
+                "Alexander Holm",
+                ("kinwie", "CC BY 3.0"),
+            ),
+            (
+                "乐器/键盘乐器/击弦古钢琴/乐器.json",
+                "Staatliches Institut für Musikforschung (SIMPK)",
+                ("CC BY 4.0", "original WAV bytes are unchanged"),
+            ),
+            (
+                "乐器/管弦乐/弦乐组/弦乐合奏/乐器.json",
+                "Paul Battersby",
+                ("Sonatina Symphonic Orchestra", "Documentation/license.htm"),
+            ),
+            (
+                "乐器/世界乐器/班卓琴/乐器.json",
+                "itsclipping",
+                ("provenance", "does not imply endorsement"),
+            ),
+            (
+                "乐器/现代管乐/高音萨克斯/乐器.json",
+                "Music Technology Group (MTG)",
+                ("kinwie", "CC BY 4.0"),
+            ),
+        )
+
+        for relative, creator_fragment, attribution_fragments in cases:
+            with self.subTest(manifest=relative):
+                record = build_license_sidecar_document(
+                    (
+                        InstrumentUse(
+                            ROOT / Path(relative),
+                            used_by=("licence-test",),
+                        ),
+                    ),
+                    (),
+                )["instruments"][0]
+                self.assertIn(creator_fragment, record["creator"])
+                for fragment in attribution_fragments:
+                    self.assertIn(fragment, record["attribution"])
+                self.assertNotIn(
+                    "creator_missing_in_manifest",
+                    record["warnings"],
+                )
 
     def test_project_authored_dsp_is_reported_without_missing_license_noise(
         self,

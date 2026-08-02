@@ -1,3 +1,5 @@
+[中文](README.md) | [English](README.en.md)
+
 # 闭合踩镲(formal)
 
 VCSL 踩镲闭合侧:闭合击/半开击/踏板闭合。本目录是 98 项清单 SAM-31 的专用实现,渲染引擎复用

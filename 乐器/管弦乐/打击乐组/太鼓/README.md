@@ -1,3 +1,5 @@
+**简体中文** | [English](README.en.md)
+
 # 太鼓(formal,确定性建模)
 
 圆膜模态太鼓模型:贝塞尔模态比 + 鼓皮拍击噪,三键位。实现位于 `tianlai/modeled_instruments.py`(profile

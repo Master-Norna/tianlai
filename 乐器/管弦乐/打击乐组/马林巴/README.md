@@ -1,3 +1,5 @@
+**简体中文** | [English](README.en.md)
+
 # 马林巴(formal)
 
 VCSL 马林巴专用多采样(soft/med/loud 三力度交叉渐变)。本目录是 98 项清单 ORP-11 的专用实现,渲染引擎复用

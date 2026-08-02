@@ -1,3 +1,5 @@
+[中文](README.md) | [English](README.en.md)
+
 # 拍手(formal)
 
 VCSL 拍手:群体 6RR 与单人 4 力度层。本目录是 98 项清单 SAM-28 的专用实现,渲染引擎复用

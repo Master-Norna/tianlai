@@ -1,3 +1,5 @@
+**简体中文** | [English](README.en.md)
+
 # 低音提琴
 
 基于 Virtual Playing Orchestra 3.3 的独奏低音提琴 `formal`，直接读取 VPO SFZ 和独立 WAV 多采样，不会静默回落到 GM SoundFont。

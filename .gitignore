@@ -8,6 +8,7 @@ dist/
 *.egg-info/
 output/*
 !output/README.md
+!output/README.en.md
 发布包/*
 !发布包/README.md
 人工听审/*
@@ -15,5 +16,7 @@ output/*
 音源/*
 !音源/.gitkeep
 !音源/README.md
+!音源/README.en.md
 乐谱/*
 !乐谱/README.md
+!乐谱/README.en.md

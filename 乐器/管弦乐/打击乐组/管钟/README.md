@@ -1,3 +1,5 @@
+**简体中文** | [English](README.en.md)
+
 # 管钟
 
 当前 `formal` 固定使用 VCSL `Tubular Bells 2`，实音与记谱音域均为

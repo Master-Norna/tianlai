@@ -1,3 +1,5 @@
+[中文](README.md) | [English](README.en.md)
+
 # 指弹电贝斯(formal)
 
 FreePats Yamaha RBX 指弹电贝斯专用多采样。本目录是 98 项清单 SAM-11 的专用实现,渲染引擎复用

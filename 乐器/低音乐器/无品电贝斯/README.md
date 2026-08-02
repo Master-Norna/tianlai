@@ -1,3 +1,5 @@
+[中文](README.md) | [English](README.en.md)
+
 # 无品电贝斯(formal)
 
 Karoryfer Ergo 电立式无品贝斯,拨奏为主、弓奏备选。本目录是 98 项清单 SAM-12 的专用实现,渲染引擎复用

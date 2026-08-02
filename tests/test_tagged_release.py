@@ -312,21 +312,73 @@ class TaggedReleaseTests(unittest.TestCase):
         self.assertIn("persist-credentials: false", workflow)
         self.assertIn("ref: ${{ github.ref }}", workflow)
         self.assertIn("fetch-tags: true", workflow)
-        self.assertIn("actions/checkout@v7", workflow)
-        self.assertIn("actions/setup-python@v7", workflow)
+        self.assertIn("actions/checkout@v6", workflow)
+        self.assertIn("actions/setup-python@v6", workflow)
+        self.assertNotIn("actions/checkout@v7", workflow)
+        self.assertNotIn("actions/setup-python@v7", workflow)
         self.assertEqual(workflow.count("actions/attest@v4"), 2)
-        self.assertIn("actions/upload-artifact@v7", workflow)
+        self.assertEqual(workflow.count("actions/upload-artifact@v7"), 2)
+        self.assertEqual(workflow.count("actions/download-artifact@v8"), 2)
         self.assertIn(
             '-m "not external_assets and not listening"',
             workflow,
         )
-        self.assertIn("tools/build_tagged_release.py", workflow)
+        self.assertEqual(workflow.count("tools/build_tagged_release.py"), 1)
         self.assertIn(
             "TIANLAI_RELEASE_TAG: ${{ github.ref_name }}",
             workflow,
         )
         self.assertIn("--tag $env:TIANLAI_RELEASE_TAG", workflow)
         self.assertNotIn('--tag "${{ github.ref_name }}"', workflow)
+        self.assertIn("needs: build-candidate", workflow)
+        self.assertIn("needs: macos-release-gate", workflow)
+        self.assertIn("source-stage", workflow)
+        self.assertIn("shasum -a 256 -c", workflow)
+        self.assertIn("sha256sum --check", workflow)
+        self.assertIn("/bin/bash -n ./bootstrap_macos.sh", workflow)
+        self.assertIn("/bin/bash -n ./bootstrap_linux.sh", workflow)
+        self.assertIn("天籁 Linux 标签验收", workflow)
+        self.assertIn(
+            'python -m zipfile -e "${{ steps.candidate.outputs.archive }}"',
+            workflow,
+        )
+        self.assertIn('test -s "output/首次出声/参考振荡器.wav"', workflow)
+        self.assertIn("tests/test_smoke_soundfont_builder.py", workflow)
+        self.assertIn(
+            "native_backend_loads_unicode_path_and_renders_nonzero_audio",
+            workflow,
+        )
+        self.assertIn('TIANLAI_REQUIRE_BSDTAR: "1"', workflow)
+        self.assertIn(
+            "from tianlai.resource_restore import _find_bsdtar_executable",
+            workflow,
+        )
+        self.assertLess(
+            workflow.index("executable = _find_bsdtar_executable()"),
+            workflow.index("--portable-tests"),
+        )
+        self.assertIn(
+            'TIANLAI_REQUIRE_NATIVE_FLUIDSYNTH: "1"',
+            workflow,
+        )
+        self.assertIn('importlib.util.find_spec("fluidsynth")', workflow)
+        self.assertIn(
+            "runtime = prepare_fluidsynth_runtime(Path.cwd())",
+            workflow,
+        )
+        self.assertIn("if runtime is None:", workflow)
+        self.assertLess(
+            workflow.index("tools/build_tagged_release.py"),
+            workflow.index("needs: build-candidate"),
+        )
+        self.assertLess(
+            workflow.index("needs: macos-release-gate"),
+            workflow.index("actions/attest@v4"),
+        )
+        self.assertLess(
+            workflow.index("Run Linux gates against the exact candidate"),
+            workflow.index("actions/attest@v4"),
+        )
         self.assertNotIn("gh release", workflow.casefold())
         self.assertNotIn("create-release", workflow.casefold())
 

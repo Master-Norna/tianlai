@@ -1,3 +1,5 @@
+[中文](README.md) | [English](README.en.md)
+
 # 底鼓(formal)
 
 VCSL 大鼓近距离混合话筒,4 力度层×2RR 作现代底鼓。本目录是 98 项清单 SAM-25 的专用实现,渲染引擎复用

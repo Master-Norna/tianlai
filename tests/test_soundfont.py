@@ -14,14 +14,18 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
+import tianlai.soundfont as soundfont_module
 from tianlai.events import PerformanceEvent
 from tianlai.soundfont import (
     LocalCompatibilitySoundFontWarning,
     SoundFontInstrument,
     SoundFontRuntimeError,
     _find_project_fluidsynth_directory,
+    _find_tianlai_runtime_root,
+    _macos_homebrew_prefixes,
     _resolve_soundfont,
     local_compatibility_soundfont_notice,
+    prepare_fluidsynth_runtime,
 )
 from tianlai.tuning import EqualTemperament
 
@@ -112,6 +116,14 @@ def _fake_module() -> types.ModuleType:
     module = types.ModuleType("fluidsynth")
     module.Synth = _FakeSynth  # type: ignore[attr-defined]
     return module
+
+
+def _mark_tianlai_runtime_root(root: Path) -> None:
+    (root / "乐器").mkdir(parents=True, exist_ok=True)
+    (root / "可信乐器.json").write_text(
+        '{"trusted": []}\n',
+        encoding="utf-8",
+    )
 
 
 class SoundFontInstrumentTests(unittest.TestCase):
@@ -262,6 +274,7 @@ class SoundFontInstrumentTests(unittest.TestCase):
 
     def test_soundfont_selection_is_explicit_and_environment_override_wins(self) -> None:
         project = Path(self.temporary_directory.name) / "project"
+        _mark_tianlai_runtime_root(project)
         manifest_directory = project / "乐器" / "管弦乐" / "弦乐组" / "中提琴"
         common = project / "音源" / "通用"
         manifest_directory.mkdir(parents=True)
@@ -288,6 +301,7 @@ class SoundFontInstrumentTests(unittest.TestCase):
 
     def test_broken_explicit_bank_never_falls_back_to_another_common_bank(self) -> None:
         project = Path(self.temporary_directory.name) / "fallback-project"
+        _mark_tianlai_runtime_root(project)
         manifest_directory = project / "乐器" / "管弦乐" / "弦乐组" / "中提琴"
         common = project / "音源" / "通用"
         manifest_directory.mkdir(parents=True)
@@ -319,6 +333,7 @@ class SoundFontInstrumentTests(unittest.TestCase):
 
     def test_explicit_soundfont_load_failure_retains_native_cause(self) -> None:
         project = Path(self.temporary_directory.name) / "failed-project"
+        _mark_tianlai_runtime_root(project)
         manifest_directory = project / "乐器" / "世界乐器" / "卡林巴"
         common = project / "音源" / "通用"
         manifest_directory.mkdir(parents=True)
@@ -377,6 +392,7 @@ class SoundFontInstrumentTests(unittest.TestCase):
 
     def test_project_local_dll_directory_wins_over_environment_override(self) -> None:
         project = Path(self.temporary_directory.name) / "project"
+        _mark_tianlai_runtime_root(project)
         manifest_directory = project / "乐器" / "键盘乐器" / "电钢琴"
         local_bin = project / "音源" / "通用" / "fluidsynth" / "bin"
         override = Path(self.temporary_directory.name) / "external-runtime"
@@ -385,10 +401,277 @@ class SoundFontInstrumentTests(unittest.TestCase):
         override.mkdir()
         (local_bin / "libfluidsynth-3.dll").write_bytes(b"local placeholder")
         (override / "libfluidsynth-3.dll").write_bytes(b"external placeholder")
-        with patch.dict(os.environ, {"TIANLAI_FLUIDSYNTH_DIR": str(override)}):
+        with (
+            patch("tianlai.soundfont._is_windows_runtime", return_value=True),
+            patch("tianlai.soundfont._is_macos_runtime", return_value=False),
+            patch.dict(os.environ, {"TIANLAI_FLUIDSYNTH_DIR": str(override)}),
+        ):
             self.assertEqual(
                 _find_project_fluidsynth_directory(manifest_directory),
                 local_bin.resolve(),
+            )
+
+    def test_project_local_macos_dylib_wins_over_environment_override(self) -> None:
+        project = Path(self.temporary_directory.name) / "mac project"
+        _mark_tianlai_runtime_root(project)
+        manifest_directory = project / "乐器" / "键盘乐器" / "电钢琴"
+        local_lib = project / "音源" / "通用" / "fluidsynth" / "lib"
+        override = Path(self.temporary_directory.name) / "external mac runtime"
+        manifest_directory.mkdir(parents=True)
+        local_lib.mkdir(parents=True)
+        override.mkdir()
+        (local_lib / "libfluidsynth.3.dylib").write_bytes(b"local placeholder")
+        (override / "libfluidsynth.dylib").write_bytes(b"external placeholder")
+
+        with (
+            patch("tianlai.soundfont._is_windows_runtime", return_value=False),
+            patch("tianlai.soundfont._is_macos_runtime", return_value=True),
+            patch.dict(os.environ, {"TIANLAI_FLUIDSYNTH_DIR": str(override)}),
+        ):
+            self.assertEqual(
+                _find_project_fluidsynth_directory(manifest_directory),
+                local_lib.resolve(),
+            )
+
+    def test_unidentified_ancestor_cannot_supply_runtime_or_common_bank(self) -> None:
+        ancestor = Path(self.temporary_directory.name) / "unrelated workspace"
+        manifest_directory = ancestor / "nested" / "instrument"
+        local_runtime = ancestor / "音源" / "通用" / "fluidsynth" / "lib"
+        common = ancestor / "音源" / "通用"
+        override = Path(self.temporary_directory.name) / "explicit runtime"
+        manifest_directory.mkdir(parents=True)
+        local_runtime.mkdir(parents=True)
+        override.mkdir()
+        (local_runtime / "libfluidsynth.3.dylib").write_bytes(b"untrusted")
+        (common / "Ancestor.sf2").write_bytes(b"untrusted")
+        (override / "libfluidsynth.dylib").write_bytes(b"explicit")
+
+        with (
+            patch("tianlai.soundfont._is_windows_runtime", return_value=False),
+            patch("tianlai.soundfont._is_macos_runtime", return_value=True),
+            patch.dict(
+                os.environ,
+                {
+                    "TIANLAI_FLUIDSYNTH_DIR": str(override),
+                    "HOMEBREW_PREFIX": "",
+                },
+            ),
+        ):
+            self.assertIsNone(_find_tianlai_runtime_root(manifest_directory))
+            self.assertEqual(
+                _find_project_fluidsynth_directory(manifest_directory),
+                override.resolve(),
+            )
+            self.assertIsNone(
+                _resolve_soundfont(
+                    {"soundfont": "@common/Ancestor.sf2"},
+                    manifest_directory,
+                )
+            )
+
+    def test_tianlai_pyproject_is_a_source_runtime_boundary(self) -> None:
+        project = Path(self.temporary_directory.name) / "source checkout"
+        manifest_directory = project / "scratch" / "instrument"
+        runtime = project / "音源" / "通用" / "fluidsynth" / "lib"
+        (project / "tianlai").mkdir(parents=True)
+        (project / "tianlai" / "__init__.py").write_text("", encoding="utf-8")
+        (project / "pyproject.toml").write_text(
+            '[project]\nname = "tianlai-audio"\n',
+            encoding="utf-8",
+        )
+        manifest_directory.mkdir(parents=True)
+        runtime.mkdir(parents=True)
+        (runtime / "libfluidsynth.dylib").write_bytes(b"source runtime")
+
+        with (
+            patch("tianlai.soundfont._is_windows_runtime", return_value=False),
+            patch("tianlai.soundfont._is_macos_runtime", return_value=True),
+            patch.dict(
+                os.environ,
+                {"TIANLAI_FLUIDSYNTH_DIR": "", "HOMEBREW_PREFIX": ""},
+            ),
+        ):
+            self.assertEqual(
+                _find_tianlai_runtime_root(manifest_directory),
+                project.resolve(),
+            )
+            self.assertEqual(
+                _find_project_fluidsynth_directory(manifest_directory),
+                runtime.resolve(),
+            )
+
+    def test_macos_homebrew_prefix_order_follows_process_architecture(self) -> None:
+        with patch.dict(os.environ, {"HOMEBREW_PREFIX": ""}):
+            arm = _macos_homebrew_prefixes("arm64")
+            intel = _macos_homebrew_prefixes("x86_64")
+
+        self.assertEqual(
+            arm[:2],
+            (Path("/opt/homebrew").resolve(), Path("/usr/local").resolve()),
+        )
+        self.assertEqual(
+            intel[:2],
+            (Path("/usr/local").resolve(), Path("/opt/homebrew").resolve()),
+        )
+
+    def test_explicit_homebrew_prefix_precedes_architecture_defaults(self) -> None:
+        explicit = Path(self.temporary_directory.name) / "custom brew"
+        with patch.dict(os.environ, {"HOMEBREW_PREFIX": str(explicit)}):
+            prefixes = _macos_homebrew_prefixes("x86_64")
+
+        self.assertEqual(prefixes[0], explicit.resolve())
+        self.assertEqual(
+            prefixes[1:3],
+            (Path("/usr/local").resolve(), Path("/opt/homebrew").resolve()),
+        )
+
+    def test_macos_homebrew_prefix_is_discovered_without_manual_override(
+        self,
+    ) -> None:
+        project = Path(self.temporary_directory.name) / "mac project"
+        manifest_directory = project / "乐器" / "键盘乐器" / "电钢琴"
+        homebrew = Path(self.temporary_directory.name) / "homebrew prefix"
+        formula_lib = homebrew / "opt" / "fluid-synth" / "lib"
+        manifest_directory.mkdir(parents=True)
+        formula_lib.mkdir(parents=True)
+        (formula_lib / "libfluidsynth.3.dylib").write_bytes(b"placeholder")
+
+        with (
+            patch("tianlai.soundfont._is_windows_runtime", return_value=False),
+            patch("tianlai.soundfont._is_macos_runtime", return_value=True),
+            patch.dict(
+                os.environ,
+                {
+                    "HOMEBREW_PREFIX": str(homebrew),
+                    "TIANLAI_FLUIDSYNTH_DIR": "",
+                },
+            ),
+        ):
+            self.assertEqual(
+                _find_project_fluidsynth_directory(manifest_directory),
+                formula_lib.resolve(),
+            )
+
+    def test_macos_runtime_preloads_preferred_dylib_once_without_changing_path(
+        self,
+    ) -> None:
+        project = Path(self.temporary_directory.name) / "mac preload"
+        _mark_tianlai_runtime_root(project)
+        manifest_directory = project / "乐器"
+        local_lib = project / "音源" / "通用" / "fluidsynth" / "lib"
+        manifest_directory.mkdir(parents=True, exist_ok=True)
+        local_lib.mkdir(parents=True)
+        preferred = local_lib / "libfluidsynth.dylib"
+        preferred.write_bytes(b"unversioned placeholder")
+        (local_lib / "libfluidsynth.3.dylib").write_bytes(b"versioned placeholder")
+        native_handle = object()
+
+        with (
+            patch("tianlai.soundfont._is_windows_runtime", return_value=False),
+            patch("tianlai.soundfont._is_macos_runtime", return_value=True),
+            patch("tianlai.soundfont.ctypes.CDLL", return_value=native_handle) as load,
+            patch("tianlai.soundfont._PRELOADED_DLLS", new=[]) as handles,
+            patch("tianlai.soundfont._PREPARED_DLL_DIRECTORIES", new=set()),
+            patch("tianlai.soundfont._PREPARED_FLUIDSYNTH_LIBRARIES", new={}),
+            patch.dict(os.environ, {"PATH": "unchanged"}),
+        ):
+            first = prepare_fluidsynth_runtime(manifest_directory)
+            second = prepare_fluidsynth_runtime(manifest_directory)
+            self.assertEqual(os.environ["PATH"], "unchanged")
+
+        self.assertEqual(first, local_lib.resolve())
+        self.assertEqual(second, first)
+        load.assert_called_once_with(
+            str(preferred.resolve()),
+            mode=getattr(soundfont_module.ctypes, "RTLD_GLOBAL", 0),
+        )
+        self.assertEqual(handles, [native_handle])
+
+    def test_macos_backend_import_uses_selected_dylib_then_restores_lookup(
+        self,
+    ) -> None:
+        runtime = Path(self.temporary_directory.name) / "mac import" / "lib"
+        runtime.mkdir(parents=True)
+        library = runtime / "libfluidsynth.dylib"
+        library.write_bytes(b"placeholder")
+        backend = _fake_module()
+        backend._fl = types.SimpleNamespace(_name=str(library.resolve()))
+
+        def import_backend(name: str) -> types.ModuleType:
+            self.assertEqual(name, "fluidsynth")
+            self.assertEqual(
+                soundfont_module.ctypes_util.find_library("fluidsynth"),
+                str(library),
+            )
+            self.assertEqual(
+                soundfont_module.ctypes_util.find_library("unrelated"),
+                "system:unrelated",
+            )
+            return backend
+
+        with (
+            patch("tianlai.soundfont._is_macos_runtime", return_value=True),
+            patch.dict(sys.modules) as modules,
+            patch(
+                "tianlai.soundfont._PREPARED_FLUIDSYNTH_LIBRARIES",
+                new={runtime.resolve(): library.resolve()},
+            ),
+            patch(
+                "tianlai.soundfont.ctypes_util.find_library",
+                side_effect=lambda name: f"system:{name}",
+            ) as system_lookup,
+            patch(
+                "tianlai.soundfont.importlib.import_module",
+                side_effect=import_backend,
+            ) as importer,
+        ):
+            modules.pop("fluidsynth", None)
+            selected = soundfont_module._import_fluidsynth_backend(runtime)
+            self.assertIs(
+                soundfont_module.ctypes_util.find_library,
+                system_lookup,
+            )
+
+        self.assertIs(selected, backend)
+        importer.assert_called_once_with("fluidsynth")
+
+    def test_preimported_macos_backend_must_match_selected_dylib(self) -> None:
+        runtime = Path(self.temporary_directory.name) / "selected" / "lib"
+        runtime.mkdir(parents=True)
+        selected = runtime / "libfluidsynth.dylib"
+        selected.write_bytes(b"selected")
+        other = Path(self.temporary_directory.name) / "other" / "libfluidsynth.dylib"
+        other.parent.mkdir()
+        other.write_bytes(b"other")
+        backend = _fake_module()
+        backend._fl = types.SimpleNamespace(_name=str(other.resolve()))
+
+        with (
+            patch("tianlai.soundfont._is_macos_runtime", return_value=True),
+            patch.dict(sys.modules, {"fluidsynth": backend}),
+            patch(
+                "tianlai.soundfont._PREPARED_FLUIDSYNTH_LIBRARIES",
+                new={runtime.resolve(): selected.resolve()},
+            ),
+            self.assertRaisesRegex(
+                SoundFontRuntimeError,
+                "already bound to a different native library",
+            ),
+        ):
+            soundfont_module._import_fluidsynth_backend(runtime)
+
+        backend._fl = types.SimpleNamespace(_name=str(selected.resolve()))
+        with (
+            patch("tianlai.soundfont._is_macos_runtime", return_value=True),
+            patch.dict(sys.modules, {"fluidsynth": backend}),
+            patch(
+                "tianlai.soundfont._PREPARED_FLUIDSYNTH_LIBRARIES",
+                new={runtime.resolve(): selected.resolve()},
+            ),
+        ):
+            self.assertIs(
+                soundfont_module._import_fluidsynth_backend(runtime),
+                backend,
             )
 
     @unittest.skipUnless(

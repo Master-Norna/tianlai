@@ -1,3 +1,5 @@
+[中文](README.md) | [English](README.en.md)
+
 # 合唱电钢琴（formal）
 
 Greg Sullivan Yamaha CP80 实录核心加确定性立体声 chorus。采样核心复用

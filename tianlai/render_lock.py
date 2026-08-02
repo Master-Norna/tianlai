@@ -14,6 +14,9 @@ import errno
 import hashlib
 import os
 from pathlib import Path
+import stat
+import sys
+import unicodedata
 from typing import Iterator
 
 from .canonical_json import canonical_json_bytes
@@ -59,10 +62,28 @@ def _resolved_output_directory(
     return Path(output_directory).resolve(strict=False)
 
 
+def _is_windows_runtime() -> bool:
+    return os.name == "nt"
+
+
+def _is_macos_runtime() -> bool:
+    return sys.platform == "darwin"
+
+
 def _lock_identity(output_directory: Path) -> str:
-    # On Windows normcase folds case and slash variants which name the same
-    # directory.  It is deliberately a no-op on case-sensitive POSIX systems.
-    return os.path.normcase(str(output_directory))
+    # APFS is Unicode-normalisation-insensitive in both its case-sensitive and
+    # case-insensitive variants, and its default macOS format is also
+    # case-insensitive.  Fold those aliases to one conservative lock identity.
+    # A case-sensitive APFS volume may consequently serialize two distinct
+    # case-only paths, which is safe; allowing two writers to one directory is
+    # not.  Windows retains its native normcase semantics, while other POSIX
+    # filesystems continue to distinguish case.
+    identity = unicodedata.normalize("NFC", str(output_directory))
+    if _is_windows_runtime():
+        return os.path.normcase(identity)
+    if _is_macos_runtime():
+        return identity.casefold()
+    return identity
 
 
 def render_lock_path(
@@ -83,15 +104,81 @@ def render_lock_path(
     return parent / f"{_LOCK_FILE_PREFIX}{digest}{_LOCK_FILE_SUFFIX}"
 
 
+def _unsafe_lock_file(path: Path, reason: str, code: int) -> OSError:
+    return OSError(
+        code,
+        f"拒绝使用不安全的渲染锁文件（{reason}）",
+        str(path),
+    )
+
+
+def _validate_open_lock_file(path: Path, descriptor: int) -> None:
+    """Prove that ``descriptor`` still names one private regular file.
+
+    Lock sidecars live beside user-selected output directories, so an existing
+    path must be treated as hostile until proven otherwise.  In particular,
+    following a symlink and then truncating owner metadata could damage an
+    unrelated file.  ``O_NOFOLLOW`` closes the normal POSIX race at open time;
+    the descriptor/path identity and link-count checks also fail closed on
+    platforms where that flag is unavailable and before every metadata write.
+    """
+
+    descriptor_status = os.fstat(descriptor)
+    try:
+        path_status = os.lstat(path)
+    except FileNotFoundError as exc:
+        raise _unsafe_lock_file(
+            path,
+            "路径在打开后被替换或删除",
+            errno.ESTALE,
+        ) from exc
+
+    if not stat.S_ISREG(descriptor_status.st_mode):
+        raise _unsafe_lock_file(path, "打开的对象不是普通文件", errno.EINVAL)
+    if not stat.S_ISREG(path_status.st_mode):
+        reason = "路径是符号链接" if stat.S_ISLNK(path_status.st_mode) else (
+            "路径不是普通文件"
+        )
+        raise _unsafe_lock_file(path, reason, errno.ELOOP)
+    if not os.path.samestat(descriptor_status, path_status):
+        raise _unsafe_lock_file(
+            path,
+            "路径与已打开文件不再指向同一对象",
+            errno.ESTALE,
+        )
+    if descriptor_status.st_nlink != 1:
+        raise _unsafe_lock_file(
+            path,
+            "锁文件存在硬链接",
+            errno.EMLINK,
+        )
+    if os.name != "nt" and descriptor_status.st_uid != os.geteuid():
+        raise _unsafe_lock_file(
+            path,
+            "锁文件不属于当前用户",
+            errno.EACCES,
+        )
+
+
 def _open_lock_file(path: Path):
     path.parent.mkdir(parents=True, exist_ok=True)
-    descriptor = os.open(path, os.O_RDWR | os.O_CREAT, 0o600)
+    flags = os.O_RDWR | os.O_CREAT
+    nofollow = getattr(os, "O_NOFOLLOW", 0)
+    if nofollow:
+        flags |= nofollow
+    descriptor = os.open(path, flags, 0o600)
+    try:
+        _validate_open_lock_file(path, descriptor)
+    except BaseException:
+        os.close(descriptor)
+        raise
     handle = os.fdopen(descriptor, "r+b", buffering=0)
     try:
         handle.seek(0, os.SEEK_END)
         if handle.tell() == 0:
             # msvcrt.locking operates on a byte range starting at the current
             # file position.  Materialize byte zero before trying to lock it.
+            _validate_open_lock_file(path, handle.fileno())
             handle.write(b"\n")
             handle.flush()
         handle.seek(0)
@@ -186,6 +273,7 @@ def acquire_render_lock(
         except _LockBusy as exc:
             raise RenderLockError(resolved, lock_path) from exc
         locked = True
+        _validate_open_lock_file(lock_path, handle.fileno())
         _write_owner_metadata(handle, resolved)
         yield RenderLock(
             output_directory=resolved,

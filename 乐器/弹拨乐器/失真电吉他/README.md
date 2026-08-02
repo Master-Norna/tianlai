@@ -1,3 +1,5 @@
+[中文](README.md) | [English](README.en.md)
+
 # 失真电吉他(formal)
 
 Karoryfer Emilyguitar DI + 确定性硬削波失真链。本目录是 98 项清单 SAM-13 的专用实现,采样核心复用

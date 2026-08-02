@@ -2,10 +2,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import ctypes
+from ctypes import util as ctypes_util
 import importlib
 import math
 import os
 from pathlib import Path
+import platform
+import sys
+import threading
+import tomllib
 from typing import Any
 import warnings
 
@@ -19,6 +24,8 @@ from .tuning import EqualTemperament
 _DLL_DIRECTORY_HANDLES: list[Any] = []
 _PRELOADED_DLLS: list[Any] = []
 _PREPARED_DLL_DIRECTORIES: set[Path] = set()
+_PREPARED_FLUIDSYNTH_LIBRARIES: dict[Path, Path] = {}
+_FLUIDSYNTH_IMPORT_LOCK = threading.RLock()
 
 
 class SoundFontRuntimeError(ValueError):
@@ -72,7 +79,7 @@ class SoundFontInstrument(Instrument):
         super().__init__(sample_rate)
         try:
             runtime_directory = prepare_fluidsynth_runtime(base_directory)
-            fluidsynth = importlib.import_module("fluidsynth")
+            fluidsynth = _import_fluidsynth_backend(runtime_directory)
         except Exception as exc:  # pragma: no cover - exact exception is platform dependent
             location = (
                 f" Project-local runtime: {runtime_directory}."
@@ -498,15 +505,118 @@ def _nonnegative_float(value: object, field: str) -> float:
     return result
 
 
-def _ancestors(base_directory: str | Path) -> tuple[Path, ...]:
+def _is_windows_runtime() -> bool:
+    return os.name == "nt"
+
+
+def _is_macos_runtime() -> bool:
+    return sys.platform == "darwin"
+
+
+def _is_tianlai_runtime_root(directory: Path) -> bool:
+    """Recognise a Tianlai root without trusting an arbitrary ancestor.
+
+    Public/runtime trees have the catalogue and trust allow-list.  A source
+    checkout may be recognised independently by its package and PEP 621
+    project identity, which keeps development and engine-only test layouts
+    usable without letting an unrelated ``音源`` directory take precedence.
+    """
+
+    if (directory / "乐器").is_dir() and (directory / "可信乐器.json").is_file():
+        return True
+    pyproject = directory / "pyproject.toml"
+    if not pyproject.is_file() or not (directory / "tianlai" / "__init__.py").is_file():
+        return False
+    try:
+        document = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+        project = document.get("project", {})
+        name = project.get("name") if isinstance(project, dict) else None
+    except (OSError, UnicodeError, tomllib.TOMLDecodeError):
+        return False
+    return isinstance(name, str) and name.casefold() == "tianlai-audio"
+
+
+def _find_tianlai_runtime_root(base_directory: str | Path) -> Path | None:
     base = Path(base_directory).expanduser().resolve()
-    return (base, *base.parents)
+    if base.is_file():
+        base = base.parent
+    return next(
+        (
+            candidate
+            for candidate in (base, *base.parents)
+            if _is_tianlai_runtime_root(candidate)
+        ),
+        None,
+    )
+
+
+def _macos_homebrew_prefixes(machine: str | None = None) -> tuple[Path, ...]:
+    """Return Homebrew prefixes in current-process architecture order."""
+
+    process_machine = (
+        (machine or platform.machine()).strip().casefold().replace("-", "_")
+    )
+    if process_machine in {"x86_64", "amd64", "x64"}:
+        conventional = ("/usr/local", "/opt/homebrew")
+    else:
+        # arm64/aarch64 is the normal non-Intel case.  Keeping the same safe
+        # default for an unknown Darwin architecture avoids preferring an
+        # Intel-only installation accidentally.
+        conventional = ("/opt/homebrew", "/usr/local")
+
+    values = (os.environ.get("HOMEBREW_PREFIX"), *conventional)
+    prefixes: list[Path] = []
+    seen: set[Path] = set()
+    for value in values:
+        if not value:
+            continue
+        prefix = Path(value).expanduser().resolve()
+        if prefix in seen:
+            continue
+        seen.add(prefix)
+        prefixes.append(prefix)
+    return tuple(prefixes)
+
+
+def _native_fluidsynth_libraries(directory: Path) -> tuple[Path, ...]:
+    if _is_windows_runtime():
+        suffix = ".dll"
+        preferred_names = ("libfluidsynth-3.dll", "fluidsynth-3.dll")
+    elif _is_macos_runtime():
+        suffix = ".dylib"
+        preferred_names = ("libfluidsynth.dylib", "libfluidsynth.3.dylib")
+    else:
+        return ()
+
+    preferred_rank = {
+        name: index for index, name in enumerate(preferred_names)
+    }
+    libraries = (
+        path
+        for path in directory.iterdir()
+        if path.is_file()
+        and "fluidsynth" in path.name.casefold()
+        and path.name.casefold().endswith(suffix)
+    )
+    return tuple(
+        sorted(
+            libraries,
+            key=lambda path: (
+                preferred_rank.get(path.name.casefold(), len(preferred_rank)),
+                path.name.casefold(),
+            ),
+        )
+    )
 
 
 def _find_project_fluidsynth_directory(base_directory: str | Path) -> Path | None:
+    if not (_is_windows_runtime() or _is_macos_runtime()):
+        return None
+
     candidates: list[Path] = []
-    for parent in _ancestors(base_directory):
-        runtime = parent / "音源" / "通用" / "fluidsynth"
+    runtime_root = _find_tianlai_runtime_root(base_directory)
+    if runtime_root is not None:
+        runtime = runtime_root / "音源" / "通用" / "fluidsynth"
         candidates.extend((runtime / "bin", runtime / "lib", runtime))
 
     # An environment override is a fallback.  A checked-in/project-local
@@ -517,49 +627,150 @@ def _find_project_fluidsynth_directory(base_directory: str | Path) -> Path | Non
         override_path = Path(override).expanduser().resolve()
         candidates.extend((override_path / "bin", override_path / "lib", override_path))
 
+    if _is_macos_runtime():
+        # A Homebrew-configured shell exports HOMEBREW_PREFIX.  The two
+        # conventional prefixes also cover GUI/MCP launches that do not inherit
+        # shell initialisation: /opt/homebrew on Apple Silicon and /usr/local on
+        # Intel.  An explicit Tianlai override still wins over both.
+        for prefix in _macos_homebrew_prefixes():
+            candidates.extend(
+                (
+                    prefix / "opt" / "fluid-synth" / "lib",
+                    prefix / "lib",
+                )
+            )
+
     for directory in candidates:
-        if directory.is_dir() and any(directory.glob("*fluidsynth*.dll")):
-            return directory
+        if directory.is_dir() and _native_fluidsynth_libraries(directory):
+            return directory.resolve()
     return None
 
 
 def prepare_fluidsynth_runtime(base_directory: str | Path) -> Path | None:
-    """Put the project-local FluidSynth DLL ahead of system search paths."""
+    """Prepare the selected FluidSynth DLL or dylib for the Python binding."""
 
-    if os.name != "nt":
+    is_windows = _is_windows_runtime()
+    is_macos = _is_macos_runtime()
+    if not (is_windows or is_macos):
         return None
     directory = _find_project_fluidsynth_directory(base_directory)
     if directory is None:
         return None
     directory = directory.resolve()
-    if directory in _PREPARED_DLL_DIRECTORIES:
+    with _FLUIDSYNTH_IMPORT_LOCK:
+        # Native loading and the process-wide Windows search-path update must be
+        # performed once even when several render workers start concurrently.
+        if directory in _PREPARED_DLL_DIRECTORIES:
+            return directory
+
+        libraries = _native_fluidsynth_libraries(directory)
+        if not libraries:
+            return None
+        library = libraries[0].resolve()
+
+        if is_windows:
+            current_path = os.environ.get("PATH", "")
+            path_parts = [part for part in current_path.split(os.pathsep) if part]
+            path_parts = [
+                part for part in path_parts if Path(part).resolve() != directory
+            ]
+            os.environ["PATH"] = os.pathsep.join((str(directory), *path_parts))
+
+            add_dll_directory = getattr(os, "add_dll_directory", None)
+            if add_dll_directory is not None:
+                # Keep this handle alive. Closing or collecting it removes the
+                # DLL search directory on current CPython/Windows.
+                _DLL_DIRECTORY_HANDLES.append(add_dll_directory(str(directory)))
+
+            native_library = ctypes.WinDLL(str(library))
+        else:
+            # Use an absolute path and global visibility so Homebrew and
+            # project-local builds can resolve their native dependency graph
+            # before pyfluidsynth imports its ctypes declarations.
+            native_library = ctypes.CDLL(
+                str(library),
+                mode=getattr(ctypes, "RTLD_GLOBAL", 0),
+            )
+
+        # Keep the native handle alive for every Synth that uses the binding.
+        _PRELOADED_DLLS.append(native_library)
+        _PREPARED_FLUIDSYNTH_LIBRARIES[directory] = library
+        _PREPARED_DLL_DIRECTORIES.add(directory)
         return directory
 
-    current_path = os.environ.get("PATH", "")
-    path_parts = [part for part in current_path.split(os.pathsep) if part]
-    path_parts = [part for part in path_parts if Path(part).resolve() != directory]
-    os.environ["PATH"] = os.pathsep.join((str(directory), *path_parts))
 
-    add_dll_directory = getattr(os, "add_dll_directory", None)
-    if add_dll_directory is not None:
-        # Keep this handle alive.  Closing or collecting it removes the DLL
-        # search directory on current CPython/Windows.
-        _DLL_DIRECTORY_HANDLES.append(add_dll_directory(str(directory)))
+def _import_fluidsynth_backend(runtime_directory: Path | None) -> Any:
+    """Import pyfluidsynth, binding a selected macOS dylib deterministically."""
 
-    dll_paths = sorted(
-        directory.glob("*fluidsynth*.dll"),
-        key=lambda path: (
-            path.name.lower() != "libfluidsynth-3.dll",
-            path.name.lower(),
-        ),
-    )
-    if dll_paths:
-        # Load by absolute path before importing pyfluidsynth.  This both gives
-        # the local runtime priority and makes native loader errors the direct
-        # cause of the user-facing SoundFontRuntimeError.
-        _PRELOADED_DLLS.append(ctypes.WinDLL(str(dll_paths[0])))
-    _PREPARED_DLL_DIRECTORIES.add(directory)
-    return directory
+    if not _is_macos_runtime() or runtime_directory is None:
+        return importlib.import_module("fluidsynth")
+
+    with _FLUIDSYNTH_IMPORT_LOCK:
+        directory = runtime_directory.resolve()
+        library = _PREPARED_FLUIDSYNTH_LIBRARIES.get(directory)
+        if library is None:
+            return importlib.import_module("fluidsynth")
+
+        existing = sys.modules.get("fluidsynth")
+        if existing is not None:
+            _require_backend_native_library(existing, library)
+            return existing
+
+        # pyfluidsynth 1.4.0 calls ctypes.util.find_library during import.  A
+        # dylib loaded by absolute path does not make that lookup discover a
+        # private directory, so temporarily answer its FluidSynth probes with
+        # the already verified path.  Restore the process-global function
+        # before returning, including when the import fails.
+        library_names = frozenset(
+            {
+                "fluidsynth",
+                "fluidsynth-3",
+                "libfluidsynth",
+                "libfluidsynth-3",
+                "libfluidsynth-2",
+                "libfluidsynth-1",
+            }
+        )
+        original_find_library = ctypes_util.find_library
+
+        def find_library(name: str) -> str | None:
+            if str(name).casefold() in library_names:
+                return str(library)
+            return original_find_library(name)
+
+        ctypes_util.find_library = find_library
+        try:
+            backend = importlib.import_module("fluidsynth")
+            _require_backend_native_library(backend, library)
+            return backend
+        finally:
+            ctypes_util.find_library = original_find_library
+
+
+def _require_backend_native_library(backend: Any, expected: Path) -> None:
+    """Fail closed when an imported macOS binding uses another native dylib."""
+
+    handle = getattr(backend, "_fl", None)
+    raw_name = getattr(handle, "_name", None)
+    if not isinstance(raw_name, (str, bytes, os.PathLike)):
+        raise SoundFontRuntimeError(
+            "the imported pyfluidsynth backend does not expose its native "
+            "library identity; refusing to bypass the selected macOS runtime"
+        )
+    try:
+        actual = Path(os.fsdecode(raw_name)).expanduser().resolve()
+        selected = expected.expanduser().resolve()
+    except (OSError, TypeError, ValueError) as exc:
+        raise SoundFontRuntimeError(
+            "the imported pyfluidsynth backend reported an invalid native "
+            f"library path: {raw_name!r}"
+        ) from exc
+    if os.path.normcase(str(actual)) != os.path.normcase(str(selected)):
+        raise SoundFontRuntimeError(
+            "pyfluidsynth was already bound to a different native library; "
+            f"selected={selected}, imported={actual}. Start a fresh Tianlai "
+            "process after changing the FluidSynth runtime."
+        )
 
 
 # Compatibility for the first expansion draft and any private callers made
@@ -607,15 +818,13 @@ def _soundfont_candidates(
     value = str(explicit)
     if value.startswith("@common/"):
         common_name = value.removeprefix("@common/")
-        selected = next(
-            (
-                parent / "音源" / "通用" / common_name
-                for parent in _ancestors(base_directory)
-                if (parent / "音源" / "通用" / common_name).is_file()
-            ),
-            None,
+        runtime_root = _find_tianlai_runtime_root(base_directory)
+        selected = (
+            runtime_root / "音源" / "通用" / common_name
+            if runtime_root is not None
+            else None
         )
-        if selected is None:
+        if selected is None or not selected.is_file():
             return ()
     else:
         selected = (Path(base_directory) / value).expanduser()

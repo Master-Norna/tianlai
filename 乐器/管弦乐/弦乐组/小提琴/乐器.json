@@ -96,6 +96,8 @@
   "origin": "http://virtualplaying.com",
   "upstream_version": "Standard 3.3 / Wave 3.2",
   "license": "混合公开许可:SSO Sampling Plus 1.0(SEC 声部采样)、No Budget Orchestra/Mattias CC BY-SA 4.0(SOLO 独奏采样)、VSCO2-CE CC0 等,见 Documentation/license.htm",
+  "creator": "Paul Battersby / Virtual Playing Orchestra; component creators identified in Documentation/license.htm",
+  "attribution": "Virtual Playing Orchestra by Paul Battersby (VirtualPlaying.com); component sources and licences include Sonatina Symphonic Orchestra, Mattias Westlund additional samples, No Budget Orchestra, VSCO 2 Community Edition, University of Iowa Electronic Music, and stamperadam. See Documentation/license.htm and the instrument evidence_files for the terms that apply.",
   "resource_verification": "资源核验.json",
   "evidence_files": [
     "Documentation/license.htm"

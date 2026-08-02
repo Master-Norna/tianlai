@@ -41,6 +41,8 @@
   "origin": "http://virtualplaying.com",
   "upstream_version": "Standard Orchestra 3.3 (2026-06-27) / Wave Files 3.2 (2026-06-27)",
   "license": "混合许可:Sonatina Symphonic Orchestra CC Sampling Plus 1.0、Mattias Westlund additional samples CC-BY-SA-3.0、No Budget Orchestra CC-BY-SA-4.0、VSCO2 Community Edition/stamperadam CC0-1.0、University of Iowa Electronic Music 无限制使用声明;见 Documentation/license.htm 及本乐器 evidence_files",
+  "creator": "Paul Battersby / Virtual Playing Orchestra; component creators identified in Documentation/license.htm",
+  "attribution": "Virtual Playing Orchestra by Paul Battersby (VirtualPlaying.com); component sources and licences include Sonatina Symphonic Orchestra, Mattias Westlund additional samples, No Budget Orchestra, VSCO 2 Community Edition, University of Iowa Electronic Music, and stamperadam. See Documentation/license.htm and the instrument evidence_files for the terms that apply.",
   "evidence_files": [
     "Documentation/license.htm"
   ],

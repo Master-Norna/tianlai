@@ -1,3 +1,5 @@
+**简体中文** | [English](README.en.md)
+
 # 弦乐合奏
 
 基于 Virtual Playing Orchestra 3.3 的四声部弦乐合奏 `formal`。实现直接读取 `all-strings-SEC-*` 的真实 WAV/SFZ，不会静默回落到 GM。

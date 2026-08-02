@@ -1,3 +1,5 @@
+[中文](README.md) | [English](README.en.md)
+
 # 边击军鼓(formal)
 
 VCSL 现代军鼓 cross-stick 边击专用入口。本目录是 98 项清单 SAM-30 的专用实现,渲染引擎复用

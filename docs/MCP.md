@@ -1,6 +1,8 @@
+**简体中文** | [English](MCP.en.md)
+
 # 天籁 MCP 接口
 
-天籁 `0.5.0rc3` 通过 stdio MCP 把可编辑、可复算的音乐工程交给 AI Agent。Agent
+天籁 `0.6.0rc1` 通过 stdio MCP 把可编辑、可复算的音乐工程交给 AI Agent。Agent
 拿到的不是一个不可解释的“一句话转音频”按钮，而是一组细粒度工具：读取合同、
 选择乐器、导入谱面、明确配器、预检、渲染不可变候选、按秒定位、局部修改，再
 渲染并 A/B。
@@ -46,6 +48,10 @@ Linux 或 WSL 内运行的 MCP 客户端请改用项目 `.venv/bin/python` 的 L
 绝对路径；完整安装、配置示例与支持范围见
 [Linux / WSL 快速开始](Linux快速开始.md)。不要把 Windows 与 Linux 的
 `.venv` 混用。
+
+macOS 内运行的 MCP 客户端同样使用项目 `.venv/bin/python` 的真实绝对路径；
+Apple Silicon 与 Intel 的解释器必须匹配当前原生宿主。安装与配置示例见
+[macOS 快速开始](macOS快速开始.md)。虚拟环境不得跨操作系统或 CPU 架构复用。
 
 `command` 必须指向项目自己的 `.venv`，`cwd` 指向天籁运行根目录。服务器不会把
 音频流塞进 MCP 文本返回值；成功渲染返回本机候选目录、WAV、回执和报告路径。

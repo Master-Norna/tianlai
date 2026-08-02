@@ -48,6 +48,8 @@
   "origin": "https://github.com/sfzinstruments/MTG.SoloSax.git",
   "upstream_version": "b494d256549b3d088fdec176ce82867f8a1f58b2",
   "license": "CC-BY-4.0",
+  "creator": "Music Technology Group (MTG); SFZ programming and sample preparation by kinwie",
+  "attribution": "MTG Solo Saxophones: samples from the Music Technology Group (MTG) Freesound packs; trimmed, looped, converted to FLAC, and programmed as SFZ by kinwie. Licensed under CC BY 4.0.",
   "evidence_files": [
     "LICENSE",
     "README.md"

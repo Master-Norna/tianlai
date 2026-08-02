@@ -1,0 +1,72 @@
+name: Bug report (English)
+description: A reproducible installation, import, editing, rendering, candidate, or MCP defect
+title: "[Bug] "
+labels:
+  - bug
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Tianlai version or commit
+      placeholder: 0.6.0rc1 / abcdef1
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: macOS 15 arm64, Python 3.13 / Windows 11 x64, Python 3.12
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - Installation or environment diagnostics
+        - MIDI / MusicXML import
+        - Score editing or MIDI export
+        - Instrumentation, preflight, or rendering
+        - Candidate location or comparison
+        - Sound-source restoration
+        - MCP
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Minimal reproduction steps
+      description: Start from a fresh command line, give the shortest steps, and identify which inputs may lawfully be shared.
+      placeholder: |
+        1. Run ...
+        2. Use ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior and complete error
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: Include relevant environment-diagnostic excerpts and candidate/receipt hashes if useful. Remove private paths, secrets, and protected content.
+      render: shell
+  - type: checkboxes
+    id: rights
+    attributes:
+      label: Sharing boundary
+      options:
+        - label: I confirm that this public issue contains no secrets, private paths, or audio/scores that I lack permission to publish.
+          required: true

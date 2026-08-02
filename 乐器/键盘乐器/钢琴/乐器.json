@@ -25,6 +25,8 @@
   "origin": "https://archive.org/details/SalamanderGrandPianoV3",
   "upstream_version": "V3 48kHz 24bit",
   "license": "CC-BY-3.0",
+  "creator": "Alexander Holm; SFZ remapping by kinwie",
+  "attribution": "Salamander Grand Piano v3 by Alexander Holm; SFZ remapping by kinwie. Licensed under CC BY 3.0.",
   "resource_verification": "资源核验.json",
   "pitch_calibration": "音准校准.json",
   "evidence_files": [

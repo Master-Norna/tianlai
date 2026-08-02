@@ -31,18 +31,48 @@ _REQUIRED_ROOT_FILES: Final = frozenset(
     {"pyproject.toml", "LICENSE", "NOTICE", "OUTPUT_RIGHTS.md"}
 )
 _REGULAR_GIT_MODES: Final = frozenset({"100644", "100755"})
+_PUBLIC_MARKDOWN_PAIRS: Final[tuple[tuple[str, str], ...]] = (
+    ("README.md", "README.en.md"),
+    ("CONTRIBUTING.md", "CONTRIBUTING.en.md"),
+    ("SECURITY.md", "SECURITY.en.md"),
+    ("TRADEMARKS.md", "TRADEMARKS.en.md"),
+    ("OUTPUT_RIGHTS.md", "OUTPUT_RIGHTS.en.md"),
+    ("docs/README.md", "docs/README.en.md"),
+    ("docs/Linux快速开始.md", "docs/Linux快速开始.en.md"),
+    ("docs/macOS快速开始.md", "docs/macOS快速开始.en.md"),
+    ("docs/MCP.md", "docs/MCP.en.md"),
+    (
+        "docs/VPO音源许可与安装说明.md",
+        "docs/VPO音源许可与安装说明.en.md",
+    ),
+    ("docs/Windows安装与巡检.md", "docs/Windows安装与巡检.en.md"),
+    ("docs/Windows最小启动.md", "docs/Windows最小启动.en.md"),
+    (
+        "docs/从乐谱到第二次渲染.md",
+        "docs/从乐谱到第二次渲染.en.md",
+    ),
+    ("docs/当前状态.md", "docs/当前状态.en.md"),
+    ("docs/音源许可政策.md", "docs/音源许可政策.en.md"),
+    (
+        "docs/音乐创作参考笔记/README.md",
+        "docs/音乐创作参考笔记/README.en.md",
+    ),
+    (
+        "docs/音乐创作参考笔记/天籁音乐宪法-v0.1.md",
+        "docs/音乐创作参考笔记/天籁音乐宪法-v0.1.en.md",
+    ),
+    ("output/README.md", "output/README.en.md"),
+    ("音源/README.md", "音源/README.en.md"),
+    ("乐谱/README.md", "乐谱/README.en.md"),
+)
 _PUBLIC_DOCUMENT_PATHS: Final = frozenset(
     {
-        "docs/README.md",
-        "docs/Linux快速开始.md",
-        "docs/MCP.md",
-        "docs/VPO音源许可与安装说明.md",
-        "docs/Windows安装与巡检.md",
-        "docs/Windows最小启动.md",
-        "docs/从乐谱到第二次渲染.md",
-        "docs/当前状态.md",
         "docs/音源许可例外.json",
-        "docs/音源许可政策.md",
+        *(
+            path
+            for pair in _PUBLIC_MARKDOWN_PAIRS
+            for path in pair
+        ),
     }
 )
 _PUBLIC_DOCUMENT_KEYS: Final = frozenset(
@@ -53,6 +83,7 @@ _REPOSITORY_ONLY_ROOT_DOCUMENT_PATHS: Final = frozenset(
         # Keep the historical ledger in Git without publishing its links to
         # repository-only engineering records in the minimal source archive.
         "CHANGELOG.md",
+        "CHANGELOG.en.md",
     }
 )
 _REPOSITORY_ONLY_ROOT_DOCUMENT_KEYS: Final = frozenset(
@@ -61,8 +92,17 @@ _REPOSITORY_ONLY_ROOT_DOCUMENT_KEYS: Final = frozenset(
 _REPOSITORY_ONLY_DOCUMENT_REASON: Final = (
     "excluded repository-only documentation"
 )
+_PUBLIC_INSTRUMENT_DOCUMENT_PAIRS: Final[tuple[tuple[str, str], ...]] = (
+    ("README.md", "README.en.md"),
+    ("来源.md", "来源.en.md"),
+)
 _PUBLIC_INSTRUMENT_DOCUMENT_NAMES: Final = frozenset(
-    {"readme.md", "来源.md"}
+    name
+    for pair in _PUBLIC_INSTRUMENT_DOCUMENT_PAIRS
+    for name in pair
+)
+_PUBLIC_INSTRUMENT_DOCUMENT_KEYS: Final = frozenset(
+    name.casefold() for name in _PUBLIC_INSTRUMENT_DOCUMENT_NAMES
 )
 _MARKDOWN_LINK: Final = re.compile(
     r"!?\[[^\]\r\n]*\]\(\s*(?P<target><[^>\r\n]+>|[^\s)\r\n]+)"
@@ -98,8 +138,11 @@ _ROOT_EXCLUDED_DIRECTORY_NAMES: Final = frozenset(
 _ROOT_LIFECYCLE_ANCHORS: Final = frozenset(
     {
         "output/README.md",
+        "output/README.en.md",
         "音源/README.md",
+        "音源/README.en.md",
         "乐谱/README.md",
+        "乐谱/README.en.md",
     }
 )
 _EXCLUDED_DIRECTORY_NAMES: Final = frozenset(
@@ -305,6 +348,12 @@ def _excluded_reason(path: str) -> str | None:
     if path.casefold() in _REPOSITORY_ONLY_ROOT_DOCUMENT_KEYS:
         return _REPOSITORY_ONLY_DOCUMENT_REASON
     if (
+        len(parts) == 1
+        and path.casefold().endswith(".md")
+        and path.casefold() not in _PUBLIC_DOCUMENT_KEYS
+    ):
+        return _REPOSITORY_ONLY_DOCUMENT_REASON
+    if (
         parts[0].casefold() == "docs"
         and path.casefold() not in _PUBLIC_DOCUMENT_KEYS
     ):
@@ -312,7 +361,7 @@ def _excluded_reason(path: str) -> str | None:
     if (
         parts[0].casefold() == "乐器"
         and path.casefold().endswith(".md")
-        and parts[-1].casefold() not in _PUBLIC_INSTRUMENT_DOCUMENT_NAMES
+        and parts[-1].casefold() not in _PUBLIC_INSTRUMENT_DOCUMENT_KEYS
     ):
         return _REPOSITORY_ONLY_DOCUMENT_REASON
     lifecycle_anchor = path.casefold() in _ROOT_LIFECYCLE_ANCHOR_KEYS
@@ -723,6 +772,43 @@ def _validate_public_documents(
             + ", ".join(missing)
         )
 
+    instrument_documents = {
+        path: content
+        for path, content in payload_by_path.items()
+        if path.split("/", 1)[0].casefold() == "乐器"
+        and PurePosixPath(path).name.casefold()
+        in _PUBLIC_INSTRUMENT_DOCUMENT_KEYS
+    }
+    empty_instrument_documents = sorted(
+        path
+        for path, content in instrument_documents.items()
+        if not content.strip()
+    )
+    if empty_instrument_documents:
+        raise ReleaseBuildError(
+            "public instrument documents must be non-empty: "
+            + ", ".join(empty_instrument_documents)
+        )
+
+    counterpart_by_key = {
+        source.casefold(): counterpart
+        for chinese, english in _PUBLIC_INSTRUMENT_DOCUMENT_PAIRS
+        for source, counterpart in ((chinese, english), (english, chinese))
+    }
+    missing_instrument_pairs: list[str] = []
+    for path in sorted(instrument_documents):
+        parsed = PurePosixPath(path)
+        counterpart = str(
+            parsed.with_name(counterpart_by_key[parsed.name.casefold()])
+        )
+        if not payload_by_path.get(counterpart, b"").strip():
+            missing_instrument_pairs.append(f"{path} -> {counterpart}")
+    if missing_instrument_pairs:
+        raise ReleaseBuildError(
+            "public instrument documentation must be bilingual: "
+            + ", ".join(missing_instrument_pairs)
+        )
+
 
 def _markdown_without_fenced_code(text: str) -> str:
     kept: list[str] = []
@@ -889,6 +975,9 @@ def _manifest_document(
             ),
             "included_lifecycle_anchors": sorted(_ROOT_LIFECYCLE_ANCHORS),
             "public_document_allowlist": sorted(_PUBLIC_DOCUMENT_PATHS),
+            "public_instrument_document_names": sorted(
+                _PUBLIC_INSTRUMENT_DOCUMENT_NAMES
+            ),
             "repository_only_document_count": (
                 repository_only_document_count
             ),

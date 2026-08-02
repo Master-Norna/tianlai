@@ -1,3 +1,5 @@
+**简体中文** | [English](README.en.md)
+
 # 颤弓弦乐
 
 这是 VPO `all-strings-SEC-tremolo.sfz` 的专用颤弓入口；默认且唯一奏法是 `tremolo`，不会用普通持续音或合成器替代。

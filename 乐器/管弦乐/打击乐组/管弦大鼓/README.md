@@ -1,3 +1,5 @@
+**简体中文** | [English](README.en.md)
+
 # 管弦大鼓
 
 VPO 3.3 专用多采样 `formal`，无固定音高。

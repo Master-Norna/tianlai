@@ -1,3 +1,5 @@
+**简体中文** | [English](README.en.md)
+
 # 圆号
 
 基于 Virtual Playing Orchestra 3.3 的独奏圆号 `formal`。默认直接读取 VPO 的独立 WAV 多采样，不会静默回落到 GM SoundFont。

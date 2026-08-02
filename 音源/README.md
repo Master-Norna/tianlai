@@ -1,3 +1,5 @@
+**简体中文** | [English](README.en.md)
+
 # 音源目录
 
 本目录统一保存大型采样、SFZ、SoundFont、本地运行库、下载缓存、派生资源和安装
@@ -13,8 +15,7 @@
 | 类型 | 数量 | 恢复方式 |
 | --- | ---: | --- |
 | 项目自研 DSP、合成、建模与拟音 | 29 | 不需要第三方音频资产 |
-| 统一恢复清单覆盖的外部资源 | 38 | `resource_restore_manifest.json` |
-| 既有固定版本安装器覆盖的外部资源 | 36 | 根级脚本转调各冻结安装器 |
+| 统一恢复清单覆盖的外部资源 | 74 | `resource_restore_manifest.json` 的 15 个资源族 |
 
 因此 74 件外部资源入口均有根级安装路径。这里的“覆盖”表示能够从冻结公开上游在
 用户本机下载、核验并安装，不表示天籁有权镜像或重打包原始采样。
@@ -41,16 +42,16 @@
 安装可恢复音源.cmd -ResourceGroup freepats
 ```
 
-只处理另外 36 件既有安装器资源：
+只安装可选的项目本地 FluidSynth 兼容运行库、不处理外部采样资源：
 
 ```cmd
 安装可恢复音源.cmd -LegacyOnly
 ```
 
-统一清单当前冻结 10 个资源族，覆盖 VCSL、FreePats、Karoryfer、
-Emilyguitar 和 MTG Solo Sax 等 38 件入口。完整清单约需下载 4.44 GiB，安装
-与派生后约占 6.57 GiB，建议至少预留 12 GiB；Salamander、SIMPK、VPO 等既有
-安装器资源另计。实际剩余量以 `-PlanOnly` 的本机结果为准。
+统一清单当前冻结 15 个资源族，覆盖 VCSL、FreePats、Karoryfer、Emilyguitar、
+MTG Solo Sax、VPO、Greg Sullivan E-Pianos、Salamander、ganjo 和 SIMPK 等全部
+74 件外部资源入口。完整清单约需下载 7.17 GiB，安装与派生后约占 9.86 GiB，
+建议至少预留 24 GiB。实际剩余量以 `-PlanOnly` 的本机结果为准。
 
 ## 安装安全
 
@@ -96,9 +97,10 @@ Emilyguitar 和 MTG Solo Sax 等 38 件入口。完整清单约需下载 4.44 Gi
 不要把整个 `音源/` 压进源码发布包。迁移本机资源时，应连同许可证与回执保留；
 迁移后的真实状态仍用 `检查运行环境.cmd` 复核。
 
-## 既有专用安装器
+## 兼容专用安装器
 
-根级恢复流程会转调以下固定安装器：
+以下固定版本的 PowerShell 安装器仍保留用于单项兼容、诊断和历史复核；根级恢复
+流程以统一 Python 清单为权威，不会再重复转调这些采样安装器：
 
 - Salamander Grand Piano：官方固定提交，核验许可证、README、主 SFZ、
   641 个 FLAC 和 668 文件完整树；

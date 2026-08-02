@@ -22,10 +22,10 @@ jobs:
       matrix:
         python-version: ["3.11", "3.12", "3.13", "3.14"]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
@@ -62,10 +62,10 @@ jobs:
       matrix:
         python-version: ["3.11", "3.14"]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
@@ -84,15 +84,173 @@ jobs:
           .venv/bin/tianlai --version
           .venv/bin/tianlai-doctor --quick
 
+  macos-portable:
+    name: macOS source ZIP / ${{ matrix.runner }} / ${{ matrix.architecture }} / Python ${{ matrix.python-version }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            architecture: arm64
+            machine: arm64
+            python-version: "3.11"
+            soundfont: false
+          - runner: macos-15
+            architecture: arm64
+            machine: arm64
+            python-version: "3.12"
+            soundfont: false
+          - runner: macos-15
+            architecture: arm64
+            machine: arm64
+            python-version: "3.13"
+            soundfont: false
+          - runner: macos-15
+            architecture: arm64
+            machine: arm64
+            python-version: "3.14"
+            soundfont: true
+          - runner: macos-15-intel
+            architecture: x64
+            machine: x86_64
+            python-version: "3.11"
+            soundfont: false
+          - runner: macos-15-intel
+            architecture: x64
+            machine: x86_64
+            python-version: "3.12"
+            soundfont: false
+          - runner: macos-15-intel
+            architecture: x64
+            machine: x86_64
+            python-version: "3.13"
+            soundfont: false
+          - runner: macos-15-intel
+            architecture: x64
+            machine: x86_64
+            python-version: "3.14"
+            soundfont: true
+          - runner: macos-26
+            architecture: arm64
+            machine: arm64
+            python-version: "3.14"
+            soundfont: true
+          - runner: macos-26-intel
+            architecture: x64
+            machine: x86_64
+            python-version: "3.14"
+            soundfont: false
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          architecture: ${{ matrix.architecture }}
+          cache: pip
+      - name: Verify native macOS architecture
+        env:
+          EXPECTED_MACHINE: ${{ matrix.machine }}
+          EXPECTED_PYTHON: ${{ matrix.python-version }}
+        run: |
+          test "$(uname -s)" = "Darwin"
+          test "$(uname -m)" = "$EXPECTED_MACHINE"
+          python - <<'PY'
+          import os
+          import platform
+          import struct
+          import sys
+
+          expected_machine = os.environ["EXPECTED_MACHINE"]
+          expected_python = tuple(
+              int(part) for part in os.environ["EXPECTED_PYTHON"].split(".")
+          )
+          assert platform.system() == "Darwin", platform.system()
+          assert platform.machine() == expected_machine, platform.machine()
+          assert sys.implementation.name == "cpython", sys.implementation.name
+          assert sys.version_info[:2] == expected_python, sys.version
+          assert struct.calcsize("P") * 8 == 64
+          PY
+      - name: Build from the clean Git commit
+        run: |
+          python tools/build_source_release.py \
+            --repo . \
+            --output "$RUNNER_TEMP/tianlai-source.zip"
+      - name: Extract into a Unicode path and run macOS onboarding
+        env:
+          TIANLAI_REQUIRE_BSDTAR: "1"
+        run: |
+          target="$RUNNER_TEMP/天籁 macOS 发布验收"
+          mkdir -p "$target"
+          python -m zipfile -e "$RUNNER_TEMP/tianlai-source.zip" "$target"
+          cd "$target"
+          python - <<'PY'
+          from tianlai.resource_restore import _find_bsdtar_executable
+
+          executable = _find_bsdtar_executable()
+          if not executable:
+              raise SystemExit("macOS portable gate requires a verified bsdtar executable")
+          print(f"Verified bsdtar executable: {executable}")
+          PY
+          /bin/bash -n ./bootstrap_macos.sh
+          /bin/bash ./bootstrap_macos.sh \
+            --python "$(command -v python)" \
+            --portable-tests
+          test -s "output/首次出声/参考振荡器.wav"
+          .venv/bin/python -m pip check
+          .venv/bin/tianlai --version
+          .venv/bin/tianlai-doctor --quick
+      - name: Test optional FluidSynth dylib integration
+        if: matrix.soundfont
+        env:
+          PYTHONUTF8: "1"
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
+          TIANLAI_REQUIRE_NATIVE_FLUIDSYNTH: "1"
+        run: |
+          target="$RUNNER_TEMP/天籁 macOS 发布验收"
+          cd "$target"
+          for attempt in 1 2 3; do
+            if brew list --versions fluid-synth >/dev/null 2>&1 || brew install fluid-synth; then
+              break
+            fi
+            if test "$attempt" = 3; then
+              echo "FluidSynth installation failed after three attempts" >&2
+              exit 1
+            fi
+            sleep "$((attempt * 10))"
+          done
+          .venv/bin/python -m pip install --no-build-isolation -e ".[soundfont]"
+          .venv/bin/python - <<'PY'
+          import importlib.util
+          from pathlib import Path
+
+          from tianlai.soundfont import prepare_fluidsynth_runtime
+
+          if importlib.util.find_spec("fluidsynth") is None:
+              raise SystemExit("macOS FluidSynth gate requires the Python binding")
+          runtime = prepare_fluidsynth_runtime(Path.cwd())
+          if runtime is None:
+              raise SystemExit("macOS FluidSynth gate requires a discoverable native runtime")
+          print(f"Verified FluidSynth Python binding and native runtime: {runtime}")
+          PY
+          .venv/bin/tianlai-doctor --quick
+          .venv/bin/python -m pytest -q \
+            tests/test_smoke_soundfont_builder.py \
+            -k native_backend_loads_unicode_path_and_renders_nonzero_audio
+
   source-release-smoke:
     name: Clean source ZIP / Windows
     runs-on: windows-latest
     timeout-minutes: 35
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
           cache: pip
@@ -143,10 +301,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
           cache: pip
@@ -177,10 +335,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
           cache: pip

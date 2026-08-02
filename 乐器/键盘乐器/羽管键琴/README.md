@@ -1,3 +1,5 @@
+[中文](README.md) | [English](README.en.md)
+
 # 羽管键琴（formal）
 
 VCSL 佛兰芒羽管键琴，接入 8′、4′ 和两者联用的 full 三种音栓。本目录是

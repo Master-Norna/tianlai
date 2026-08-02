@@ -1,3 +1,5 @@
+**简体中文** | [English](README.en.md)
+
 # 小军鼓
 
 VPO 3.3 专用多采样 `formal`，无固定音高，公开击法与真实 SFZ 键位分离。

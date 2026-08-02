@@ -1,3 +1,5 @@
+**简体中文** | [English](README.en.md)
+
 # 定音鼓
 
 严格 `CC0-1.0` 的 VCSL `1.2.2-RC` 专用多采样 `formal`。输入是实际

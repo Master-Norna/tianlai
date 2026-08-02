@@ -1,3 +1,5 @@
+[中文](README.md) | [English](README.en.md)
+
 # 管弦重击
 
 基于 Virtual Playing Orchestra 3.3 真实采样构造的分层管弦重击 `formal`。它不是 GM Orchestra Hit，也不是合成器替代：每次触发会把同一实音乐高的真实弦乐重音和铜管重音，与固定的大鼓 D2、Crash 镲 F♯4 叠加。

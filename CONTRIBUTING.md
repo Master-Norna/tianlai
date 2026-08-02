@@ -1,3 +1,5 @@
+**简体中文** | [English](CONTRIBUTING.en.md)
+
 # 参与贡献
 
 天籁欢迎代码、协议、文档、测试、音源线索和听审反馈。提交内容应帮助创作者获得
@@ -21,7 +23,9 @@
 .\.venv\Scripts\python.exe -m pytest -q -m "not external_assets and not listening"
 ```
 
-Windows 10/11 x64 是当前参考平台；协议和纯 Python 路径也应保持 Linux 可用。
+Windows 10/11 x64 是当前完整参考平台；协议和纯 Python 路径也应保持 Linux / WSL
+以及原生 macOS Apple Silicon / Intel 可用。跨平台改动至少按相应快速开始运行
+bootstrap、环境诊断和 portable 门禁；虚拟环境不得跨操作系统或 CPU 架构复用。
 新增文件名可使用中文，但 Python 模块、命令名、JSON 字段和稳定 ID 应使用 ASCII
 英文。所有路径操作使用 `pathlib`，不得写死个人磁盘路径。
 

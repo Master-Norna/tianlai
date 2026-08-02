@@ -14,14 +14,14 @@ body:
     attributes:
       label: 天籁版本或提交
       description: 运行 `天籁.cmd --version`；若使用源码开发版，再附 Git 提交。
-      placeholder: 0.5.0rc1 / abcdef1
+      placeholder: 0.6.0rc1 / abcdef1
     validations:
       required: true
   - type: input
     id: environment
     attributes:
       label: 环境
-      placeholder: Windows 11 x64，Python 3.13，耳机/音箱型号（如相关）
+      placeholder: macOS 15 arm64 / Windows 11 x64，Python 3.13，耳机/音箱型号（如相关）
     validations:
       required: true
   - type: input

@@ -1,3 +1,5 @@
+**简体中文** | [English](README.en.md)
+
 # 排箫(formal,确定性建模)
 
 闭管排箫模型:奇次谐波为主、强吹口气声、每音确定性微起伏。实现位于 `tianlai/modeled_instruments.py`(profile

@@ -1,3 +1,5 @@
+**简体中文** | [English](README.en.md)
+
 # 大提琴
 
 基于 Virtual Playing Orchestra 3.3 的独奏大提琴，直接读取上游 SFZ 区域、WAV 内嵌循环和独立释弦采样。

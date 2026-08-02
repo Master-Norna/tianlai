@@ -1,3 +1,5 @@
+[中文](README.md) | [English](README.en.md)
+
 # 清音电吉他(formal)
 
 Karoryfer Emilyguitar 平卷弦 DI 清音电吉他,4 力度层×3 RR。本目录是 98 项清单 SAM-15 的专用实现,渲染引擎复用

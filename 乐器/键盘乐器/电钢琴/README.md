@@ -1,3 +1,5 @@
+[中文](README.md) | [English](README.en.md)
+
 # 电钢琴（formal）
 
 本入口采用 Greg Sullivan 实录的 Yamaha CP80 Electric Grand Piano，而不是旧版

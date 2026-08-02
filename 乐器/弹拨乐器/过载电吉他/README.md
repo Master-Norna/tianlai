@@ -1,3 +1,5 @@
+[中文](README.md) | [English](README.en.md)
+
 # 过载电吉他(formal)
 
 Karoryfer Emilyguitar DI + 确定性软削波过载链。本目录是 98 项清单 SAM-17 的专用实现,采样核心复用

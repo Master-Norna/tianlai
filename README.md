@@ -1,3 +1,5 @@
+**简体中文** | [English](README.en.md)
+
 # 天籁
 
 > **人造其序，万音各自成声。**
@@ -36,7 +38,7 @@ MIDI / MusicXML / 可编辑 score
 “导入—明确配器—首次出声—定位—补丁—二次渲染—比较”，不需要先下载数 GB
 音源。
 
-> 当前候选版本：`0.5.0rc3`
+> 当前候选版本：`0.6.0rc1`
 >
 > **发行边界：** 正式产品是项目提供的轻量源码 ZIP。若未来发布 PyPI 的
 > sdist/wheel，`tianlai-audio` 只提供可复用的 Python 引擎，不包含完整乐器目录、
@@ -46,8 +48,9 @@ MIDI / MusicXML / 可编辑 score
 
 | 环境 | 最短入口 | 当前边界 |
 | --- | --- | --- |
-| Windows 10/11 x64 | [Windows 三步上手](#windows-三步上手) | `0.5.0rc3` 完整参考平台 |
+| Windows 10/11 x64 | [Windows 三步上手](#windows-三步上手) | `0.6.0rc1` 完整参考平台 |
 | Linux / WSL | [Linux / WSL 快速开始](docs/Linux快速开始.md) | 已提供 Bash、程序音色与 MCP 入口；成功链和真实采样按层验收 |
+| macOS Apple Silicon / Intel | [macOS 快速开始](docs/macOS快速开始.md) | 原生 64 位 CPython 3.11–3.14；已纳入干净源码 ZIP portable CI，真实采样另行验收 |
 
 Linux / WSL 用户进入源码根目录后可先运行：
 
@@ -60,9 +63,21 @@ bash ./bootstrap_linux.sh
 Windows 和 WSL 之间共用 `.venv`。支持范围、MCP stdio 配置和外部采样限制见
 [Linux / WSL 快速开始](docs/Linux快速开始.md)。
 
+macOS 用户进入源码根目录后可运行：
+
+```bash
+bash ./bootstrap_macos.sh
+```
+
+入口支持原生 Apple Silicon `arm64` 与 Intel `x86_64`，会建立当前架构自己的
+`.venv`、运行环境诊断，并用参考振荡器生成第一份 WAV。不要跨操作系统或 CPU
+架构共用虚拟环境。全部 74 件外部资源均已纳入 15 个资源族的跨平台 Python
+恢复入口；大型第三方归档仍需由使用者在本机按许可下载并完成完整性核验。完整
+边界见 [macOS 快速开始](docs/macOS快速开始.md)。
+
 ## Windows 三步上手
 
-Windows 10/11 x64 与 64 位 CPython 3.11–3.14 是 `0.5.0rc3` 的参考环境。
+Windows 10/11 x64 与 64 位 CPython 3.11–3.14 是 `0.6.0rc1` 的参考环境。
 以下 `cmd` 代码块都在源码包根目录的“命令提示符（cmd.exe）”执行；多行续写符
 是 `^`。
 
@@ -106,7 +121,7 @@ Windows 10/11 x64 与 64 位 CPython 3.11–3.14 是 `0.5.0rc3` 的参考环境�
 
 ## 推荐创作闭环
 
-`0.5.0rc3` 推荐使用下面这一条主链，而不是分别调用早期导入和合奏命令后手工拼接
+`0.6.0rc1` 推荐使用下面这一条主链，而不是分别调用早期导入和合奏命令后手工拼接
 产物：
 
 | 阶段 | CLI | 结果 |
@@ -198,6 +213,13 @@ import_score_project → confirm_roster → validate_project
   是否成立。最终候选仍需人耳 A/B。
 
 实时状态和更细的限制见 [当前状态](docs/当前状态.md)。
+
+## 创作参考
+
+[天籁音乐宪法 v0.1](docs/音乐创作参考笔记/天籁音乐宪法-v0.1.md) 是附带给人类
+创作者与 AI Agent 的非规范性创作指导，不是法律、规则引擎或项目强制政策；不
+采纳不会触发项目处罚或功能限制。宪法文本采用 CC BY 4.0，但参考它创作的音乐
+不会因此自动采用 CC BY，天籁项目代码也继续采用 Apache-2.0。
 
 ## 许可、输出与署名
 

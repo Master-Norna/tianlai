@@ -10,9 +10,9 @@ implements the common safety contract once:
 * complete tree verification before an atomic directory rename;
 * no merge into, or replacement of, a mismatched existing resource tree.
 
-The default manifest covers the 38 catalogue entries whose resources were not
-restorable by the older per-library installers.  It deliberately does not
-mirror or repack third-party samples.
+The default manifest covers all 74 catalogue entries backed by external audio
+resources, including multi-archive and deterministic conversion recipes.  It
+deliberately does not mirror or repack third-party samples.
 """
 
 from __future__ import annotations
@@ -44,13 +44,14 @@ import zipfile
 import zlib
 
 
-MANIFEST_SCHEMA_VERSION = 1
+MANIFEST_SCHEMA_VERSION = 2
 MANIFEST_KIND = "tianlai.resource_restore_manifest"
 TREE_HASH_ALGORITHM = "tianlai-tree-sha256-v1"
 _DOWNLOAD_CHUNK = 1024 * 1024
 _AUTOMATIC_RESTART_MAX_BYTES = 512 * 1024 * 1024
 _ALLOWED_ARCHIVE_FORMATS = frozenset({"zip", "tar.xz", "7z"})
 _ALLOWED_LICENSE_STATUSES = frozenset({"approved", "grandfathered"})
+_ALLOWED_INSTALL_RECIPES = frozenset({"simpk-clavichord-v1"})
 _MANAGEMENT_PREFIX = ".tianlai-"
 _WINDOWS_INVALID_MEMBER_CHARACTERS = frozenset('<>:"|?*')
 _WINDOWS_RESERVED_MEMBER_STEMS = frozenset(
@@ -510,6 +511,173 @@ def _validate_tree(raw: object, *, label: str) -> dict[str, int | str]:
     }
 
 
+def _validate_archive(
+    raw: object,
+    *,
+    label: str,
+    source: dict[str, Any],
+    allow_file_urls: bool,
+) -> dict[str, Any]:
+    if not isinstance(raw, dict):
+        raise RestoreManifestError(f"{label} must be an object")
+    archive = dict(raw)
+    parsed = urlparse(str(archive.get("url", "")))
+    allowed_scheme = parsed.scheme == "https" or (
+        allow_file_urls and parsed.scheme == "file"
+    )
+    if not allowed_scheme or not parsed.path:
+        raise RestoreManifestError(
+            f"{label}.url must use HTTPS"
+            + (" or a test-only file URL" if allow_file_urls else "")
+        )
+    archive["filename"] = _normalised_relative(
+        archive.get("filename"),
+        label=f"{label}.filename",
+        allow_slash=False,
+    )
+    archive_format = str(archive.get("format", "")).strip().lower()
+    if archive_format not in _ALLOWED_ARCHIVE_FORMATS:
+        raise RestoreManifestError(
+            f"{label}.format must be one of {sorted(_ALLOWED_ARCHIVE_FORMATS)}"
+        )
+    archive["format"] = archive_format
+    exact_bytes = archive.get("bytes")
+    if exact_bytes is not None:
+        archive["bytes"] = _positive_int(
+            exact_bytes,
+            label=f"{label}.bytes",
+        )
+    archive["estimated_bytes"] = _positive_int(
+        archive.get("estimated_bytes"),
+        label=f"{label}.estimated_bytes",
+    )
+    archive["max_bytes"] = _positive_int(
+        archive.get("max_bytes"),
+        label=f"{label}.max_bytes",
+    )
+    if archive["max_bytes"] < (
+        archive["bytes"]
+        if archive.get("bytes") is not None
+        else archive["estimated_bytes"]
+    ):
+        raise RestoreManifestError(
+            f"{label}.max_bytes is below its expected size"
+        )
+    archive["sha256"] = _normalised_sha256(
+        archive.get("sha256"),
+        label=f"{label}.sha256",
+        optional=True,
+    )
+    if (
+        archive_format != "7z"
+        and archive["sha256"] is None
+        and source.get("commit") is None
+    ):
+        raise RestoreManifestError(
+            f"{label} needs an archive SHA-256 or a fixed full commit"
+        )
+    host = (parsed.hostname or "").casefold()
+    decoded_path = unquote(parsed.path).casefold()
+    github_generated_archive = (
+        host in {"api.github.com", "codeload.github.com", "github.com"}
+        and "/releases/download/" not in decoded_path
+        and (
+            "/archive/" in decoded_path
+            or "/zipball/" in decoded_path
+            or host == "codeload.github.com"
+        )
+    )
+    if github_generated_archive:
+        commit_text = source.get("commit")
+        if not commit_text or commit_text not in decoded_path:
+            raise RestoreManifestError(
+                f"{label}: GitHub generated archives must use the fixed "
+                "full source commit in the download URL"
+            )
+        if archive.get("bytes") is not None or archive["sha256"] is not None:
+            raise RestoreManifestError(
+                f"{label}: GitHub generated archive container bytes are "
+                "not stable; verify the fixed commit and complete "
+                "extracted tree instead"
+            )
+    if archive_format == "7z" and (
+        archive["sha256"] is None or archive.get("bytes") is None
+    ):
+        raise RestoreManifestError(
+            f"{label}: external 7z extraction requires a fixed archive "
+            "SHA-256 and exact byte length"
+        )
+    if not str(archive.get("verification", "")).strip():
+        raise RestoreManifestError(f"{label}.verification must not be empty")
+    return archive
+
+
+def _family_archives(family: dict[str, Any]) -> list[dict[str, Any]]:
+    archives = family.get("archives")
+    if archives is not None:
+        return list(archives)
+    return [family["archive"]]
+
+
+def _validate_install_recipe(raw: object, *, label: str) -> dict[str, str]:
+    if not isinstance(raw, dict):
+        raise RestoreManifestError(f"{label} must be an object")
+    recipe_id = str(raw.get("id", "")).strip()
+    if recipe_id not in _ALLOWED_INSTALL_RECIPES:
+        raise RestoreManifestError(
+            f"{label}.id must be one of {sorted(_ALLOWED_INSTALL_RECIPES)}"
+        )
+    expected_keys = {
+        "id",
+        "converter",
+        "converter_sha256",
+        "source_evidence",
+        "source_evidence_sha256",
+        "tuning_table",
+        "tuning_table_sha256",
+    }
+    unknown = set(raw) - expected_keys
+    missing = expected_keys - set(raw)
+    if unknown or missing:
+        raise RestoreManifestError(
+            f"{label} keys mismatch: missing={sorted(missing)}, "
+            f"unknown={sorted(unknown)}"
+        )
+    return {
+        "id": recipe_id,
+        "converter": _normalised_relative(
+            raw["converter"],
+            label=f"{label}.converter",
+        ),
+        "converter_sha256": str(
+            _normalised_sha256(
+                raw["converter_sha256"],
+                label=f"{label}.converter_sha256",
+            )
+        ),
+        "source_evidence": _normalised_relative(
+            raw["source_evidence"],
+            label=f"{label}.source_evidence",
+        ),
+        "source_evidence_sha256": str(
+            _normalised_sha256(
+                raw["source_evidence_sha256"],
+                label=f"{label}.source_evidence_sha256",
+            )
+        ),
+        "tuning_table": _normalised_relative(
+            raw["tuning_table"],
+            label=f"{label}.tuning_table",
+        ),
+        "tuning_table_sha256": str(
+            _normalised_sha256(
+                raw["tuning_table_sha256"],
+                label=f"{label}.tuning_table_sha256",
+            )
+        ),
+    }
+
+
 def validate_restore_manifest(
     document: object,
     *,
@@ -615,98 +783,43 @@ def validate_restore_manifest(
             source["commit"] = commit_text
         family["source"] = source
 
-        archive = family.get("archive")
-        if not isinstance(archive, dict):
-            raise RestoreManifestError(f"{label}.archive must be an object")
-        archive = dict(archive)
-        parsed = urlparse(str(archive.get("url", "")))
-        allowed_scheme = parsed.scheme == "https" or (
-            allow_file_urls and parsed.scheme == "file"
-        )
-        if not allowed_scheme or not parsed.path:
+        raw_archive = family.get("archive")
+        raw_archives = family.get("archives")
+        if (raw_archive is None) == (raw_archives is None):
             raise RestoreManifestError(
-                f"{label}.archive.url must use HTTPS"
-                + (" or a test-only file URL" if allow_file_urls else "")
+                f"{label} must define exactly one of archive or archives"
             )
-        archive["filename"] = _normalised_relative(
-            archive.get("filename"),
-            label=f"{label}.archive.filename",
-            allow_slash=False,
-        )
-        archive_format = str(archive.get("format", "")).strip().lower()
-        if archive_format not in _ALLOWED_ARCHIVE_FORMATS:
-            raise RestoreManifestError(
-                f"{label}.archive.format must be one of "
-                f"{sorted(_ALLOWED_ARCHIVE_FORMATS)}"
-            )
-        archive["format"] = archive_format
-        exact_bytes = archive.get("bytes")
-        if exact_bytes is not None:
-            archive["bytes"] = _positive_int(
-                exact_bytes,
-                label=f"{label}.archive.bytes",
-            )
-        archive["estimated_bytes"] = _positive_int(
-            archive.get("estimated_bytes"),
-            label=f"{label}.archive.estimated_bytes",
-        )
-        archive["max_bytes"] = _positive_int(
-            archive.get("max_bytes"),
-            label=f"{label}.archive.max_bytes",
-        )
-        if archive["max_bytes"] < (
-            archive["bytes"]
-            if archive.get("bytes") is not None
-            else archive["estimated_bytes"]
-        ):
-            raise RestoreManifestError(
-                f"{label}.archive.max_bytes is below its expected size"
-            )
-        archive["sha256"] = _normalised_sha256(
-            archive.get("sha256"),
-            label=f"{label}.archive.sha256",
-            optional=True,
-        )
-        if (
-            archive_format != "7z"
-            and archive["sha256"] is None
-            and source.get("commit") is None
-        ):
-            raise RestoreManifestError(
-                f"{label} needs an archive SHA-256 or a fixed full commit"
-            )
-        host = (parsed.hostname or "").casefold()
-        decoded_path = unquote(parsed.path).casefold()
-        github_generated_archive = (
-            host in {"api.github.com", "codeload.github.com", "github.com"}
-            and "/releases/download/" not in decoded_path
-            and (
-                "/archive/" in decoded_path
-                or "/zipball/" in decoded_path
-                or host == "codeload.github.com"
-            )
-        )
-        if github_generated_archive:
-            commit_text = source.get("commit")
-            if not commit_text or commit_text not in decoded_path:
+        if raw_archives is not None:
+            if not isinstance(raw_archives, list) or len(raw_archives) < 2:
                 raise RestoreManifestError(
-                    f"{label}: GitHub generated archives must use the fixed "
-                    "full source commit in the download URL"
+                    f"{label}.archives must contain at least two archives"
                 )
-            if archive.get("bytes") is not None or archive["sha256"] is not None:
+            archives = [
+                _validate_archive(
+                    item,
+                    label=f"{label}.archives[{archive_index}]",
+                    source=source,
+                    allow_file_urls=allow_file_urls,
+                )
+                for archive_index, item in enumerate(raw_archives)
+            ]
+            filenames = [archive["filename"] for archive in archives]
+            if len(filenames) != len(set(filenames)):
                 raise RestoreManifestError(
-                    f"{label}: GitHub generated archive container bytes are "
-                    "not stable; verify the fixed commit and complete "
-                    "extracted tree instead"
+                    f"{label}.archives filenames must be unique"
                 )
-        if archive_format == "7z" and (
-            archive["sha256"] is None or archive.get("bytes") is None
-        ):
-            raise RestoreManifestError(
-                f"{label}: external 7z extraction requires a fixed archive "
-                "SHA-256 and exact byte length"
+            family.pop("archive", None)
+            family["archives"] = archives
+        else:
+            archive = _validate_archive(
+                raw_archive,
+                label=f"{label}.archive",
+                source=source,
+                allow_file_urls=allow_file_urls,
             )
-        family["archive"] = archive
+            archives = [archive]
+            family.pop("archives", None)
+            family["archive"] = archive
 
         install = family.get("install")
         if not isinstance(install, dict):
@@ -724,6 +837,56 @@ def validate_restore_manifest(
             install.get("tree"),
             label=f"{label}.install.tree",
         )
+        raw_overlaps = install.get("identical_overlaps", {})
+        if not isinstance(raw_overlaps, dict):
+            raise RestoreManifestError(
+                f"{label}.install.identical_overlaps must be an object"
+            )
+        if raw_overlaps and len(archives) < 2:
+            raise RestoreManifestError(
+                f"{label}.install.identical_overlaps requires multiple archives"
+            )
+        normalised_overlaps: dict[str, str] = {}
+        overlap_keys: set[str] = set()
+        for raw_path, raw_sha256 in raw_overlaps.items():
+            overlap_path = _normalised_relative(
+                raw_path,
+                label=f"{label}.install.identical_overlaps path",
+            )
+            collision_key = unicodedata.normalize("NFC", overlap_path).casefold()
+            if collision_key in overlap_keys:
+                raise RestoreManifestError(
+                    f"{label}.install.identical_overlaps contains a "
+                    f"case/normalisation collision: {overlap_path}"
+                )
+            overlap_keys.add(collision_key)
+            normalised_overlaps[overlap_path] = str(
+                _normalised_sha256(
+                    raw_sha256,
+                    label=(
+                        f"{label}.install.identical_overlaps[{overlap_path!r}]"
+                    ),
+                )
+            )
+        install["identical_overlaps"] = normalised_overlaps
+        raw_recipe = install.get("recipe")
+        raw_source_tree = install.get("source_tree")
+        if raw_recipe is None:
+            if raw_source_tree is not None:
+                raise RestoreManifestError(
+                    f"{label}.install.source_tree requires an install recipe"
+                )
+            install.pop("recipe", None)
+            install.pop("source_tree", None)
+        else:
+            install["recipe"] = _validate_install_recipe(
+                raw_recipe,
+                label=f"{label}.install.recipe",
+            )
+            install["source_tree"] = _validate_tree(
+                raw_source_tree,
+                label=f"{label}.install.source_tree",
+            )
         derived_items = install.get("derived", [])
         if not isinstance(derived_items, list):
             raise RestoreManifestError(f"{label}.install.derived must be an array")
@@ -749,7 +912,9 @@ def validate_restore_manifest(
             installed_total += int(derived["tree"]["bytes"])
         install["derived"] = normalised_derived
         family["install"] = install
-        estimated_download_total += int(archive["estimated_bytes"])
+        estimated_download_total += sum(
+            int(item["estimated_bytes"]) for item in archives
+        )
         installed_total += int(install["tree"]["bytes"])
         normalised_families.append(family)
 
@@ -1152,25 +1317,37 @@ def _is_windows_runtime() -> bool:
     return os.name == "nt"
 
 
+def _is_macos_runtime() -> bool:
+    return sys.platform == "darwin"
+
+
 def _find_bsdtar_executable() -> str:
     """Return a verified libarchive bsdtar executable.
 
     Linux packages the libarchive frontend as ``bsdtar`` while supported
-    Windows releases normally expose the same program as ``tar.exe``.  GNU
-    tar cannot inspect or extract 7z archives, so a generic ``tar`` fallback
-    is both Linux-incompatible and unsafe to assume without checking its
-    implementation.
+    Windows and macOS releases normally expose the same program as ``tar``.
+    GNU tar cannot inspect or extract 7z archives, so every generic ``tar``
+    fallback must identify itself as bsdtar before it is trusted.
     """
 
-    candidates = (
+    commands = (
         ("bsdtar", "tar")
-        if _is_windows_runtime()
+        if _is_windows_runtime() or _is_macos_runtime()
         else ("bsdtar",)
     )
-    for command in candidates:
+    candidates: list[str] = []
+    for command in commands:
         executable = shutil.which(command)
-        if executable is None:
-            continue
+        if executable is not None and executable not in candidates:
+            candidates.append(executable)
+
+    if _is_macos_runtime() and "/usr/bin/tar" not in candidates:
+        # A Homebrew GNU-tar ``gnubin`` directory may intentionally shadow the
+        # system command on PATH.  Reject that binary, but still verify macOS's
+        # immutable system libarchive frontend before declaring 7z unavailable.
+        candidates.append("/usr/bin/tar")
+
+    for executable in candidates:
         try:
             version = subprocess.run(
                 [executable, "--version"],
@@ -1191,6 +1368,11 @@ def _find_bsdtar_executable() -> str:
         hint = (
             "Windows 10/11 normally provides a libarchive-based tar.exe; "
             "install libarchive if it is unavailable"
+        )
+    elif _is_macos_runtime():
+        hint = (
+            "macOS normally provides a libarchive-based /usr/bin/tar; "
+            "ensure that system binary is intact or install libarchive"
         )
     else:
         hint = (
@@ -1680,12 +1862,20 @@ def download_archive(
     family: dict[str, Any],
     cache_root: str | Path,
     *,
+    archive: dict[str, Any] | None = None,
     allow_file_urls: bool = False,
     restart_download: bool = False,
     retries: int = 3,
     timeout: float = 60.0,
 ) -> DownloadedArchive:
-    archive = family["archive"]
+    if archive is None:
+        archives = _family_archives(family)
+        if len(archives) != 1:
+            raise ResourceRestoreError(
+                f"resource family {family['id']} has multiple archives; "
+                "the archive must be selected explicitly"
+            )
+        archive = archives[0]
     cache = _resolve_path(cache_root)
     _mkdir_path(cache, parents=True, exist_ok=True)
     cache_path = _safe_join(
@@ -1858,6 +2048,177 @@ def _single_extracted_root(unpack: Path) -> Path:
     return children[0]
 
 
+def _merge_plain_tree(
+    source: Path,
+    destination: Path,
+    *,
+    seen: dict[str, tuple[str, bool]],
+    identical_overlaps: dict[str, str],
+    used_overlaps: set[str],
+) -> None:
+    """Merge one verified archive root without replacing any file.
+
+    Directory overlap is allowed because upstream split archives commonly
+    share their root layout.  File overlap and portable NFC/case collisions
+    fail closed on every host, including case-sensitive APFS volumes.
+    """
+
+    if not _path_exists(destination):
+        _mkdir_path(destination, parents=True, exist_ok=False)
+    elif not _path_is_plain_directory(destination):
+        raise ResourceRestoreError(
+            f"multi-archive merge target is not a plain directory: {destination}"
+        )
+    for path, relative, metadata in _plain_tree_entries(source):
+        is_directory = stat.S_ISDIR(metadata.st_mode)
+        if not is_directory and not stat.S_ISREG(metadata.st_mode):
+            raise ResourceRestoreError(
+                f"multi-archive source contains an unsupported entry: {path}"
+            )
+        portable = relative.as_posix()
+        collision_key = unicodedata.normalize("NFC", portable).casefold()
+        previous = seen.get(collision_key)
+        if previous is not None and not is_directory:
+            previous_path, previous_is_directory = previous
+            expected_sha256 = identical_overlaps.get(portable)
+            target = destination / Path(*relative.parts)
+            if (
+                previous_path != portable
+                or previous_is_directory
+                or expected_sha256 is None
+                or not _path_is_plain_file(target)
+                or _sha256_file(target) != expected_sha256
+                or _sha256_file(path) != expected_sha256
+            ):
+                raise ResourceRestoreError(
+                    "multi-archive merge refuses a duplicate or colliding "
+                    f"file: {portable}"
+                )
+            used_overlaps.add(portable)
+            continue
+        _register_archive_member(seen, relative, is_directory=is_directory)
+        target = destination / Path(*relative.parts)
+        if is_directory:
+            if _path_exists(target):
+                if not _path_is_plain_directory(target):
+                    raise ResourceRestoreError(
+                        "multi-archive directory conflicts with an existing "
+                        f"file: {relative.as_posix()}"
+                    )
+            else:
+                _mkdir_path(target, exist_ok=False)
+            continue
+        try:
+            _rename_path_noreplace(path, target)
+        except OSError as exc:
+            raise ResourceRestoreError(
+                "multi-archive merge refuses to replace a colliding file: "
+                f"{relative.as_posix()}"
+            ) from exc
+
+
+def _verified_recipe_input(
+    home: Path,
+    relative: str,
+    expected_sha256: str,
+    *,
+    label: str,
+) -> Path:
+    path = _safe_join(home, relative, label=label)
+    if not _path_is_plain_file(path):
+        raise ResourceRestoreError(f"{label} is missing: {path}")
+    actual = _sha256_file(path)
+    if actual != expected_sha256:
+        raise ResourceRestoreError(
+            f"{label} SHA-256 mismatch: expected {expected_sha256}, got {actual}"
+        )
+    return path
+
+
+def _copy_plain_file_exclusive(source: Path, destination: Path) -> None:
+    if _path_exists(destination):
+        raise ResourceRestoreError(
+            f"install recipe refuses to replace an existing file: {destination}"
+        )
+    try:
+        _mkdir_path(destination.parent, parents=True, exist_ok=True)
+        with (
+            open(_windows_extended_path(source), "rb") as input_stream,
+            open(_windows_extended_path(destination), "xb") as output_stream,
+        ):
+            shutil.copyfileobj(input_stream, output_stream, _DOWNLOAD_CHUNK)
+            output_stream.flush()
+            os.fsync(output_stream.fileno())
+    except OSError as exc:
+        raise ResourceRestoreError(
+            f"cannot copy frozen install-recipe input to {destination}: {exc}"
+        ) from exc
+
+
+def _apply_install_recipe(
+    staged: Path,
+    family: dict[str, Any],
+    *,
+    home: Path,
+) -> None:
+    recipe = family["install"].get("recipe")
+    if recipe is None:
+        return
+    if recipe["id"] != "simpk-clavichord-v1":  # validated, defensive
+        raise ResourceRestoreError(f"unsupported install recipe: {recipe['id']}")
+
+    converter = _verified_recipe_input(
+        home,
+        recipe["converter"],
+        recipe["converter_sha256"],
+        label="SIMPK converter",
+    )
+    source_evidence = _verified_recipe_input(
+        home,
+        recipe["source_evidence"],
+        recipe["source_evidence_sha256"],
+        label="SIMPK source evidence",
+    )
+    tuning_table = _verified_recipe_input(
+        home,
+        recipe["tuning_table"],
+        recipe["tuning_table_sha256"],
+        label="SIMPK tuning table",
+    )
+    _copy_plain_file_exclusive(source_evidence, staged / "SOURCE.json")
+    output_directory = staged / "tianlai"
+    environment = dict(os.environ)
+    environment.setdefault("PYTHONUTF8", "1")
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(converter),
+            "--source-root",
+            str(staged),
+            "--output-dir",
+            str(output_directory),
+            "--tuning-table",
+            str(tuning_table),
+            "--require-complete-tuning",
+        ],
+        cwd=str(home),
+        env=environment,
+        check=False,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if completed.returncode:
+        detail = completed.stderr.decode("utf-8", errors="replace").strip()
+        raise ResourceRestoreError(
+            f"SIMPK conversion failed with exit code {completed.returncode}: {detail}"
+        )
+    _copy_plain_file_exclusive(
+        tuning_table,
+        output_directory / "tuning.json",
+    )
+
+
 def _check_evidence(root: Path, family: dict[str, Any]) -> None:
     for relative in family["license"]["evidence_files"]:
         evidence = _safe_join(root, relative, label="licence evidence")
@@ -1871,12 +2232,21 @@ def _promote_verified_archive_cache(
     download: DownloadedArchive,
     family: dict[str, Any],
     *,
+    archive: dict[str, Any] | None = None,
     cache_root: Path,
 ) -> None:
     """Publish a verified ``.part`` without clobbering a racing cache file."""
 
     if not download.pending_promotion:
         return
+    if archive is None:
+        archives = _family_archives(family)
+        if len(archives) != 1:
+            raise ResourceRestoreError(
+                f"resource family {family['id']} has multiple archives; "
+                "the archive must be selected explicitly"
+            )
+        archive = archives[0]
     try:
         _link_path(download.path, download.cache_path)
     except OSError as exc:
@@ -1891,7 +2261,7 @@ def _promote_verified_archive_cache(
                 f"target: {download.cache_path}"
             ) from exc
         try:
-            _verify_archive(download.cache_path, family["archive"])
+            _verify_archive(download.cache_path, archive)
         except ResourceRestoreError as verification_error:
             raise ResourceRestoreError(
                 "refusing to overwrite a competing archive cache that does "
@@ -1901,7 +2271,7 @@ def _promote_verified_archive_cache(
         # GitHub fixed-commit archives intentionally have no stable container
         # hash.  A size ceiling alone cannot prove that a racing file is the
         # same already-verified download, so require exact local bytes or stop.
-        if family["archive"].get("sha256") is None and (
+        if archive.get("sha256") is None and (
             _path_lstat(download.path).st_size
             != _path_lstat(download.cache_path).st_size
             or _sha256_file(download.path)
@@ -1957,18 +2327,21 @@ def _atomic_install_tree(
 def _restore_source_tree(
     family: dict[str, Any],
     *,
+    home: Path | None = None,
     resource_root: Path,
     cache_root: Path,
     allow_file_urls: bool,
     restart_download: bool,
 ) -> tuple[str, TreeDigest]:
     install = family["install"]
+    archives = _family_archives(family)
+    workspace = _resolve_path(home) if home is not None else resource_root.parent
     target = _safe_join(resource_root, install["target"], label="resource target")
     if _path_exists(target):
         verified = verify_tree(target, install["tree"])
         return "already_verified", verified
 
-    if family["archive"]["format"] == "7z":
+    if any(archive["format"] == "7z" for archive in archives):
         # Fail before a potentially multi-gigabyte download when the host
         # cannot safely inspect or extract the frozen 7z container.
         _find_bsdtar_executable()
@@ -1979,9 +2352,97 @@ def _restore_source_tree(
         raise ResourceRestoreError(
             f"cannot create resource staging parent {target.parent}: {exc}"
         ) from exc
+    if len(archives) > 1:
+        downloads = [
+            download_archive(
+                family,
+                cache_root,
+                archive=archive,
+                allow_file_urls=allow_file_urls,
+                restart_download=restart_download,
+            )
+            for archive in archives
+        ]
+        identifier = uuid.uuid4().hex
+        unpack = target.parent / f".{target.name}.tianlai-unpacking-{identifier}"
+        try:
+            _mkdir_path(unpack, parents=False, exist_ok=False)
+            merged = unpack / "merged"
+            seen: dict[str, tuple[str, bool]] = {}
+            identical_overlaps = install["identical_overlaps"]
+            used_overlaps: set[str] = set()
+            safety_limit = int(install["tree"]["bytes"])
+            for archive_index, (archive, download) in enumerate(
+                zip(archives, downloads, strict=True)
+            ):
+                archive_unpack = unpack / f"archive-{archive_index}"
+                safe_extract_archive(
+                    download.path,
+                    archive_unpack,
+                    archive_format=archive["format"],
+                    max_unpacked_bytes=safety_limit,
+                    expected_archive_sha256=archive.get("sha256"),
+                    expected_archive_bytes=archive.get("bytes"),
+                )
+                archive_root = _single_extracted_root(archive_unpack)
+                _merge_plain_tree(
+                    archive_root,
+                    merged,
+                    seen=seen,
+                    identical_overlaps=identical_overlaps,
+                    used_overlaps=used_overlaps,
+                )
+                _assert_plain_extracted_tree(
+                    merged,
+                    max_total_bytes=safety_limit,
+                )
+            if used_overlaps != set(identical_overlaps):
+                missing = sorted(set(identical_overlaps) - used_overlaps)
+                raise ResourceRestoreError(
+                    "multi-archive identical-overlap contract was not used: "
+                    f"{missing}"
+                )
+            if install.get("recipe") is not None:
+                verify_tree(merged, install["source_tree"])
+                _apply_install_recipe(merged, family, home=workspace)
+            _check_evidence(merged, family)
+            verified = verify_tree(merged, install["tree"])
+            for archive, download in zip(archives, downloads, strict=True):
+                _promote_verified_archive_cache(
+                    download,
+                    family,
+                    archive=archive,
+                    cache_root=cache_root,
+                )
+            status = _atomic_install_tree(
+                merged,
+                target,
+                install["tree"],
+                staged_already_verified=True,
+            )
+            return status, verified
+        except ResourceRestoreError as exc:
+            pending = next(
+                (
+                    download.path
+                    for download in downloads
+                    if download.pending_promotion and _path_exists(download.path)
+                ),
+                None,
+            )
+            hint = (
+                _partial_restart_hint(family, pending)
+                if pending is not None
+                else "已发布缓存不会被自动删除；请核对清单版本与本地文件。"
+            )
+            raise ResourceRestoreError(f"{exc} {hint}") from exc
+        finally:
+            _cleanup_staging(unpack, target.parent)
+
+    archive = archives[0]
     automatic_tree_retry = (
-        family["archive"].get("sha256") is None
-        and int(family["archive"]["max_bytes"])
+        archive.get("sha256") is None
+        and int(archive["max_bytes"])
         <= _AUTOMATIC_RESTART_MAX_BYTES
     )
     for tree_attempt in range(2):
@@ -1989,6 +2450,7 @@ def _restore_source_tree(
         download = download_archive(
             family,
             cache_root,
+            archive=archive,
             allow_file_urls=allow_file_urls,
             restart_download=restart_download and tree_attempt == 0,
         )
@@ -1999,17 +2461,21 @@ def _restore_source_tree(
             safe_extract_archive(
                 download.path,
                 unpack,
-                archive_format=family["archive"]["format"],
+                archive_format=archive["format"],
                 max_unpacked_bytes=safety_limit,
-                expected_archive_sha256=family["archive"].get("sha256"),
-                expected_archive_bytes=family["archive"].get("bytes"),
+                expected_archive_sha256=archive.get("sha256"),
+                expected_archive_bytes=archive.get("bytes"),
             )
             staged = _single_extracted_root(unpack)
+            if install.get("recipe") is not None:
+                verify_tree(staged, install["source_tree"])
+                _apply_install_recipe(staged, family, home=workspace)
             _check_evidence(staged, family)
             verified = verify_tree(staged, install["tree"])
             _promote_verified_archive_cache(
                 download,
                 family,
+                archive=archive,
                 cache_root=cache_root,
             )
             status = _atomic_install_tree(
@@ -2111,15 +2577,19 @@ def _write_receipt(
             f"cannot create resource receipt directory {receipts}: {exc}"
         ) from exc
     destination = receipts / f"{family['id']}.json"
+    archives = _family_archives(family)
     payload = {
-        "schema_version": 1,
+        "schema_version": 2,
         "family_id": family["id"],
         "source": family["source"],
-        "archive": {
-            "url": family["archive"]["url"],
-            "sha256": family["archive"].get("sha256"),
-            "verification": family["archive"]["verification"],
-        },
+        "archives": [
+            {
+                "url": archive["url"],
+                "sha256": archive.get("sha256"),
+                "verification": archive["verification"],
+            }
+            for archive in archives
+        ],
         "target": family["install"]["target"],
         "tree": source_digest.to_dict(),
         "derived": [
@@ -2186,6 +2656,7 @@ def restore_family(
     with _FamilyRestoreLock(lock_path):
         source_status, source_digest = _restore_source_tree(
             family,
+            home=workspace,
             resource_root=resources,
             cache_root=cache,
             allow_file_urls=allow_file_urls,
@@ -2242,16 +2713,23 @@ def build_restore_plan(
     install_bytes = 0
     instrument_count = 0
     for family in families:
+        archives = _family_archives(family)
         target = _safe_join(
             resources,
             family["install"]["target"],
             label="resource target",
         )
-        cache_path = _safe_join(
-            cache,
-            family["archive"]["filename"],
-            label="archive filename",
-        )
+        archive_cache = [
+            (
+                archive,
+                _safe_join(
+                    cache,
+                    archive["filename"],
+                    label="archive filename",
+                ),
+            )
+            for archive in archives
+        ]
         source_state = (
             "present_unverified"
             if _path_is_plain_directory(target)
@@ -2261,8 +2739,11 @@ def build_restore_plan(
         )
         if source_state == "missing":
             install_bytes += int(family["install"]["tree"]["bytes"])
-            if not _path_is_plain_file(cache_path):
-                download_bytes += int(family["archive"]["estimated_bytes"])
+            download_bytes += sum(
+                int(archive["estimated_bytes"])
+                for archive, cache_path in archive_cache
+                if not _path_is_plain_file(cache_path)
+            )
         derived_items: list[dict[str, str]] = []
         for derived in family["install"]["derived"]:
             derived_target = _safe_join(
@@ -2289,11 +2770,22 @@ def build_restore_plan(
                 "instrument_count": len(family["instrument_ids"]),
                 "target": family["install"]["target"],
                 "source_state": source_state,
-                "archive_cached": _path_is_plain_file(cache_path),
+                "archive_count": len(archives),
+                "archives_cached_count": sum(
+                    _path_is_plain_file(cache_path)
+                    for _archive, cache_path in archive_cache
+                ),
+                "archive_cached": all(
+                    _path_is_plain_file(cache_path)
+                    for _archive, cache_path in archive_cache
+                ),
                 "estimated_download_bytes": (
-                    int(family["archive"]["estimated_bytes"])
+                    sum(
+                        int(archive["estimated_bytes"])
+                        for archive, cache_path in archive_cache
+                        if not _path_is_plain_file(cache_path)
+                    )
                     if source_state == "missing"
-                    and not _path_is_plain_file(cache_path)
                     else 0
                 ),
                 "installed_bytes": int(family["install"]["tree"]["bytes"]),
@@ -2399,7 +2891,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--cache-dir", type=Path, help="下载缓存目录覆盖")
     parser.add_argument("--json", action="store_true", help="输出机器可读 JSON")
     commands = parser.add_subparsers(dest="command", required=True)
-    list_parser = commands.add_parser("list", help="列出 10 个可恢复资源族")
+    list_parser = commands.add_parser("list", help="列出可恢复资源族")
     _add_selection_arguments(list_parser)
     plan_parser = commands.add_parser("plan", help="只读生成恢复计划")
     _add_selection_arguments(plan_parser)
@@ -2439,7 +2931,10 @@ def main(argv: list[str] | None = None) -> int:
                         "group": family["group"],
                         "display_name": family["display_name"],
                         "instrument_count": len(family["instrument_ids"]),
-                        "estimated_download_bytes": family["archive"]["estimated_bytes"],
+                        "estimated_download_bytes": sum(
+                            archive["estimated_bytes"]
+                            for archive in _family_archives(family)
+                        ),
                         "installed_bytes": family["install"]["tree"]["bytes"]
                         + sum(
                             item["tree"]["bytes"]

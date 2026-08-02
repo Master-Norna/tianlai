@@ -1,3 +1,5 @@
+**简体中文** | [English](TRADEMARKS.en.md)
+
 # 天籁名称与项目标识说明
 
 本说明用于降低开源再分发中的来源混淆，不改变 Apache License 2.0 授予的代码

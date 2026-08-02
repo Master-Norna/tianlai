@@ -1,3 +1,5 @@
+**简体中文** | [English](README.en.md)
+
 # 木鱼
 
 VPO 3.3 / SSO 专用采样 `formal`。这是无固定音高打击，`low` 与 `high` 表示两块相对高低木鱼，不映射为十二平均律音符。

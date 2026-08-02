@@ -11,6 +11,32 @@ ROOT = Path(__file__).resolve().parents[1]
 BOOTSTRAP = ROOT / "bootstrap_linux.sh"
 
 
+def _usable_bash() -> str | None:
+    candidates: list[Path] = []
+    if os.name == "nt":
+        git = shutil.which("git")
+        if git:
+            git_root = Path(git).resolve().parent.parent
+            candidates.extend(
+                (git_root / "bin" / "bash.exe", git_root / "usr" / "bin" / "bash.exe")
+            )
+    discovered = shutil.which("bash")
+    if discovered:
+        candidates.append(Path(discovered))
+    for candidate in dict.fromkeys(candidates):
+        if not candidate.is_file():
+            continue
+        probe = subprocess.run(
+            [str(candidate), "--version"],
+            capture_output=True,
+            timeout=10,
+            check=False,
+        )
+        if probe.returncode == 0:
+            return str(candidate)
+    return None
+
+
 class MinimalLinuxBootstrapTests(unittest.TestCase):
     def test_bootstrap_has_a_portable_minimal_contract(self) -> None:
         raw = BOOTSTRAP.read_bytes()
@@ -51,7 +77,7 @@ class MinimalLinuxBootstrapTests(unittest.TestCase):
         self.assertIn("separate checkout", text)
 
     def test_bootstrap_parses_with_bash_when_available(self) -> None:
-        executable = shutil.which("bash")
+        executable = _usable_bash()
         if executable is None:
             self.skipTest("Bash is unavailable")
         result = subprocess.run(
@@ -62,16 +88,10 @@ class MinimalLinuxBootstrapTests(unittest.TestCase):
             timeout=30,
             check=False,
         )
-        if (
-            result.returncode != 0
-            and os.name == "nt"
-            and Path(executable).parent.name.casefold() == "system32"
-        ):
-            self.skipTest("Windows bash shim cannot start its WSL instance")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_help_is_side_effect_free_when_bash_is_available(self) -> None:
-        executable = shutil.which("bash")
+        executable = _usable_bash()
         if executable is None:
             self.skipTest("Bash is unavailable")
         result = subprocess.run(
@@ -82,12 +102,6 @@ class MinimalLinuxBootstrapTests(unittest.TestCase):
             timeout=30,
             check=False,
         )
-        if (
-            result.returncode != 0
-            and os.name == "nt"
-            and Path(executable).parent.name.casefold() == "system32"
-        ):
-            self.skipTest("Windows bash shim cannot start its WSL instance")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("--portable-tests", result.stdout)
         self.assertIn("--skip-smoke", result.stdout)

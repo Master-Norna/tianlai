@@ -1,3 +1,5 @@
+[中文](README.md) | [English](README.en.md)
+
 # 合唱啊声
 
 基于 Virtual Playing Orchestra 3.3 / Sonatina Symphonic Orchestra 的男女混声持续音 `formal`。实现读取真实 Chorus WAV/SFZ，不再使用 GM Choir Aahs 代替。

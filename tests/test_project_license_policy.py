@@ -10,6 +10,8 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 INSTRUMENT_ROOT = ROOT / "乐器"
+MUSIC_REFERENCE_ROOT = ROOT / "docs" / "音乐创作参考笔记"
+CC_BY_4_URL = "https://creativecommons.org/licenses/by/4.0/"
 DECLARATION = {
     "provenance_kind": "project_authored_dsp",
     "implementation_license": "Apache-2.0",
@@ -41,6 +43,9 @@ class ProjectLicensePolicyTests(unittest.TestCase):
         self.assertIn("9. Accepting Warranty or Additional Liability", license_text)
         self.assertIn("Copyright 2026 Nor.na", notice)
         self.assertIn("originally conceived, architected, and developed", notice)
+        self.assertIn("Tianlai Music Constitution v0.1", notice)
+        self.assertIn("CC BY 4.0", notice)
+        self.assertIn("does not alter the Apache-2.0 license", notice)
         self.assertEqual(
             pyproject["project"]["authors"],
             [{"name": "Nor.na"}],
@@ -60,6 +65,89 @@ class ProjectLicensePolicyTests(unittest.TestCase):
             "输入作品与使用者责任",
         ):
             self.assertIn(phrase, output_rights)
+
+    def test_music_constitution_has_a_separate_cc_by_4_boundary(self) -> None:
+        chinese_readme = (MUSIC_REFERENCE_ROOT / "README.md").read_text(
+            encoding="utf-8"
+        )
+        english_readme = (MUSIC_REFERENCE_ROOT / "README.en.md").read_text(
+            encoding="utf-8"
+        )
+        chinese_constitution = (
+            MUSIC_REFERENCE_ROOT / "天籁音乐宪法-v0.1.md"
+        ).read_text(encoding="utf-8")
+        english_constitution = (
+            MUSIC_REFERENCE_ROOT / "天籁音乐宪法-v0.1.en.md"
+        ).read_text(encoding="utf-8")
+        root_readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        root_readme_en = (ROOT / "README.en.md").read_text(encoding="utf-8")
+
+        self.assertTrue(chinese_readme.startswith("**简体中文** | [English]"))
+        self.assertTrue(english_readme.startswith("[简体中文]"))
+        self.assertTrue(
+            chinese_constitution.startswith("**简体中文** | [English]")
+        )
+        self.assertTrue(english_constitution.startswith("[简体中文]"))
+        for text in (
+            chinese_readme,
+            english_readme,
+            chinese_constitution,
+            english_constitution,
+        ):
+            self.assertIn("CC BY 4.0", text)
+            self.assertIn(CC_BY_4_URL, text)
+        for readme in (chinese_readme, english_readme):
+            self.assertIn("Apache-2.0", readme)
+            self.assertNotIn("音乐的“好听”能否被量化.pdf", readme)
+        self.assertIn("不适用于天籁软件代码", chinese_readme)
+        self.assertIn("does not apply to Tianlai software", english_readme)
+        self.assertIn("不会触发项目处罚", chinese_readme)
+        self.assertIn("triggers no", english_readme)
+        self.assertIn("project penalty", english_readme)
+        self.assertIn("仅仅使用这份创作指导不会", chinese_readme)
+        self.assertIn("音乐自动适用 CC BY 4.0", chinese_readme)
+        self.assertIn("Merely using", english_readme)
+        self.assertIn("music created or modified with it subject", english_readme)
+        self.assertIn("不遵守不会触发项目处罚", chinese_constitution)
+        self.assertIn("音乐不会让音乐自动适用 CC BY 4.0", chinese_constitution)
+        self.assertIn(
+            "noncompliance does not trigger project penalties",
+            english_constitution,
+        )
+        self.assertIn(
+            "does not automatically place that music under CC BY 4.0",
+            english_constitution,
+        )
+        self.assertIn(
+            "docs/音乐创作参考笔记/天籁音乐宪法-v0.1.md",
+            root_readme,
+        )
+        self.assertIn(
+            "docs/音乐创作参考笔记/天籁音乐宪法-v0.1.en.md",
+            root_readme_en,
+        )
+
+    def test_ignored_lifecycle_directories_unignore_only_public_readmes(
+        self,
+    ) -> None:
+        lines = {
+            line.strip()
+            for line in (ROOT / ".gitignore").read_text(
+                encoding="utf-8"
+            ).splitlines()
+            if line.strip()
+        }
+        for path in (
+            "!output/README.md",
+            "!output/README.en.md",
+            "!音源/README.md",
+            "!音源/README.en.md",
+            "!乐谱/README.md",
+            "!乐谱/README.en.md",
+        ):
+            self.assertIn(path, lines)
+        for broad_exception in ("!output/*", "!音源/*", "!乐谱/*"):
+            self.assertNotIn(broad_exception, lines)
 
     def test_29_project_authored_dsp_entries_have_exact_dual_evidence(
         self,

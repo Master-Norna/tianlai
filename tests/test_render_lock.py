@@ -7,7 +7,9 @@ import subprocess
 import sys
 import tempfile
 import time
+import unicodedata
 import unittest
+from unittest import mock
 
 from tianlai.render_lock import (
     RenderLockError,
@@ -49,6 +51,50 @@ class RenderLockTests(unittest.TestCase):
             self.assertEqual(
                 direct,
                 render_lock_path(Path(str(target).swapcase())),
+            )
+
+    def test_macos_case_and_unicode_aliases_share_one_lock(self) -> None:
+        nfc_target = self.root / "Café Output"
+        case_alias = self.root / "CAFÉ OUTPUT"
+        nfd_alias = self.root / unicodedata.normalize("NFD", "Café Output")
+
+        with (
+            mock.patch(
+                "tianlai.render_lock._is_windows_runtime",
+                return_value=False,
+            ),
+            mock.patch(
+                "tianlai.render_lock._is_macos_runtime",
+                return_value=True,
+            ),
+        ):
+            expected = render_lock_path(nfc_target)
+            self.assertEqual(expected, render_lock_path(case_alias))
+            self.assertEqual(expected, render_lock_path(nfd_alias))
+
+            with acquire_render_lock(nfc_target):
+                for alias in (case_alias, nfd_alias):
+                    with (
+                        self.subTest(alias=alias.name),
+                        self.assertRaises(RenderLockError),
+                    ):
+                        with acquire_render_lock(alias):
+                            self.fail("a macOS path alias bypassed the lock")
+
+    def test_other_posix_runtime_keeps_case_distinct(self) -> None:
+        with (
+            mock.patch(
+                "tianlai.render_lock._is_windows_runtime",
+                return_value=False,
+            ),
+            mock.patch(
+                "tianlai.render_lock._is_macos_runtime",
+                return_value=False,
+            ),
+        ):
+            self.assertNotEqual(
+                render_lock_path(self.root / "Output"),
+                render_lock_path(self.root / "output"),
             )
 
     def test_filesystem_root_is_rejected_instead_of_locking_inside_it(
@@ -105,6 +151,46 @@ class RenderLockTests(unittest.TestCase):
             )
 
         self.assertTrue(owned.lock_path.is_file())
+
+    def test_hard_link_lock_file_is_rejected_without_touching_target(
+        self,
+    ) -> None:
+        target = self.root / "hard-link-output"
+        lock_path = render_lock_path(target)
+        victim = self.root / "must-not-change.txt"
+        original = b"sensitive content that must remain intact\n"
+        victim.write_bytes(original)
+        try:
+            os.link(victim, lock_path)
+        except (OSError, NotImplementedError) as exc:
+            self.skipTest(f"hard links are unavailable: {exc}")
+
+        with self.assertRaises(OSError):
+            with acquire_render_lock(target):
+                self.fail("an unsafe hard-linked lock file was accepted")
+
+        self.assertEqual(victim.read_bytes(), original)
+        self.assertEqual(lock_path.read_bytes(), original)
+
+    def test_symbolic_link_lock_file_is_rejected_without_touching_target(
+        self,
+    ) -> None:
+        target = self.root / "symlink-output"
+        lock_path = render_lock_path(target)
+        victim = self.root / "must-not-truncate.txt"
+        original = b"unrelated file content must survive\n"
+        victim.write_bytes(original)
+        try:
+            os.symlink(victim, lock_path)
+        except (OSError, NotImplementedError) as exc:
+            self.skipTest(f"symbolic links are unavailable: {exc}")
+
+        with self.assertRaises(OSError):
+            with acquire_render_lock(target):
+                self.fail("an unsafe symlink lock file was accepted")
+
+        self.assertEqual(victim.read_bytes(), original)
+        self.assertTrue(lock_path.is_symlink())
 
     def test_child_process_competes_and_crash_releases_os_lock(self) -> None:
         target = self.root / "subprocess"

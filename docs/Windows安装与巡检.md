@@ -1,8 +1,11 @@
+**简体中文** | [English](Windows安装与巡检.en.md)
+
 # Windows 安装与巡检
 
 Windows 10/11 x64 与 Windows PowerShell 5.1 是完整参考环境。天籁使用项目自己的
 虚拟环境，不要求把 FluidSynth 或 Python 依赖安装到系统目录。Linux / WSL 用户
-请参阅 [Linux / WSL 快速开始](Linux快速开始.md)。
+请参阅 [Linux / WSL 快速开始](Linux快速开始.md)；Mac 用户请参阅
+[macOS 快速开始](macOS快速开始.md)。
 
 ## 准备 Python
 
@@ -71,22 +74,23 @@ WAV 时使用：
 安装可恢复音源.cmd
 ```
 
-脚本会显示完整计划，并要求输入精确的 `INSTALL` 后才开始下载和安装：
-
-- 38 件由统一恢复清单覆盖，分为 10 个资源族；
-- 36 件复用固定版本的既有安装器。
+脚本会显示完整计划，并要求输入精确的 `INSTALL` 后才开始下载和安装。全部 74 件
+外部资源都由统一恢复清单覆盖，共 15 个资源族；旧的单项 PowerShell 安装器仍可
+用于兼容和诊断，但根级流程不会重复调用它们。
 
 只安装所需子集时：
 
 ```cmd
 安装可恢复音源.cmd -ResourceFamily vcsl
 安装可恢复音源.cmd -ResourceGroup freepats
-安装可恢复音源.cmd -LegacyOnly
 ```
 
 可用 ID、所需空间和本机缺失状态以 `-PlanOnly` 输出为准。完整统一恢复清单约需
-下载 4.44 GiB、安装后约占 6.57 GiB，建议至少预留 12 GiB 供归档、缓存和同卷
-临时目录使用；既有安装器资源另计。
+下载 7.17 GiB、安装与派生后约占 9.86 GiB；为归档缓存、同卷 staging 和原子发布
+建议至少预留 24 GiB。实际剩余量以本机计划为准。
+
+`-LegacyOnly` 现仅用于安装可选的项目本地 FluidSynth 兼容运行库，不处理 74 件
+外部采样资源；核心首次出声和正式专用乐器不会靠它兜底。
 
 ## 下载与安装安全
 
@@ -141,9 +145,9 @@ VPO 等混合许可资源按固定官方发行包在本机安装，不能由天�
 py -0p
 ```
 
-### 环境来自 Linux 或已经损坏
+### 环境来自 Linux / macOS 或已经损坏
 
-Windows 与 WSL 不能共用 `.venv`。移开不适用的虚拟环境后重新运行
+Windows、Linux / WSL 与 macOS 不能共用 `.venv`。移开不适用的虚拟环境后重新运行
 `安装运行环境.cmd`。
 
 ### 某件乐器无法渲染

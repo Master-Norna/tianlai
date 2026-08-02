@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import re
 import sys
 import unittest
 
@@ -22,6 +23,7 @@ from tianlai.canonical_json import (
     CANONICALIZATION,
     HASH_ALGORITHM,
     canonical_json_file_sha256,
+    canonical_json_sha256,
 )
 from tianlai.quality import load_upgrade_progress
 
@@ -215,6 +217,70 @@ class InstrumentConsistencyTests(unittest.TestCase):
             mismatches,
             [],
             "试听报告未由当前乐器清单渲染：" + "、".join(mismatches),
+        )
+
+    def test_license_metadata_only_migrations_are_reconstructable(self) -> None:
+        """许可署名补录不得冒充音频重渲染，也必须能还原旧清单身份。"""
+
+        migrated = []
+        for relative, directory in _sound_entries():
+            manifest = json.loads(
+                (directory / "乐器.json").read_text(encoding="utf-8")
+            )
+            report = json.loads(
+                (directory / "试听核验.json").read_text(encoding="utf-8")
+            )
+            record = report.get("license_metadata_migration")
+            if record is None:
+                continue
+            migrated.append(relative)
+
+            self.assertEqual(
+                record.get("status"),
+                "license_metadata_only_no_audio_change",
+                relative,
+            )
+            self.assertRegex(
+                str(record.get("migrated_at", "")),
+                r"^\d{4}-\d{2}-\d{2}$",
+                relative,
+            )
+            self.assertEqual(
+                record.get("changed_fields"),
+                ["creator", "attribution"],
+                relative,
+            )
+            self.assertIs(record.get("audio_rerendered"), False, relative)
+            self.assertEqual(
+                record.get("reason"),
+                "Only creator and attribution metadata changed; runtime and "
+                "render parameters are unchanged.",
+                relative,
+            )
+            self.assertTrue(str(manifest.get("creator", "")).strip(), relative)
+            self.assertTrue(
+                str(manifest.get("attribution", "")).strip(), relative
+            )
+
+            previous = dict(manifest)
+            previous.pop("creator")
+            previous.pop("attribution")
+            expected_previous_hash = canonical_json_sha256(previous)
+            recorded_previous_hash = record.get(
+                "previous_manifest_canonical_sha256"
+            )
+            self.assertIsInstance(recorded_previous_hash, str, relative)
+            self.assertRegex(recorded_previous_hash, r"^[0-9a-f]{64}$", relative)
+            self.assertEqual(
+                recorded_previous_hash,
+                expected_previous_hash,
+                f"{relative} 的旧清单身份不能由当前清单移除许可字段后复原",
+            )
+
+        self.assertEqual(
+            len(migrated),
+            40,
+            "本轮应恰有 40 件乐器补录许可署名元数据",
         )
 
     def test_audition_event_hashes_match_current_examples(self) -> None:

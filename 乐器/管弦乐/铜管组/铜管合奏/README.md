@@ -1,3 +1,5 @@
+**简体中文** | [English](README.en.md)
+
 # 铜管合奏
 
 基于 Virtual Playing Orchestra 3.3 `all-brass-SEC` 的四声部铜管合奏 `formal`。它同时调度大号、圆号组、长号组和小号组，并复现 SFZ 的键位交叉渐变；不会把整套合奏错误地当成随机单样本，也不会静默回落到 GM SoundFont。

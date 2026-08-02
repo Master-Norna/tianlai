@@ -1,3 +1,5 @@
+**简体中文** | [English](README.en.md)
+
 # 中提琴
 
 当前实现是 **VSCO2-CE 中提琴声部** `formal`，不是独奏中提琴。运行时严格限制在 `libs/VSCO2-CE/Strings/Viola Section` 的纯 CC0 子树，不再读取 No Budget Orchestra、SSO、Mattias Westlund 或 GM fallback。

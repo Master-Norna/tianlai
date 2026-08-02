@@ -1,8 +1,8 @@
 cff-version: 1.2.0
-message: "如果天籁对你的研究或作品流程有帮助，请引用本软件及其原作者。"
-title: "天籁：可编辑、可复算的音乐执行与迭代运行时"
+message: "If Tianlai helps your research or creative workflow, please cite the software and its original author."
+title: "Tianlai: An Editable and Reproducible Music Rendering and Iteration Runtime"
 type: software
 authors:
   - family-names: "Nor.na"
-version: 0.5.0rc3
+version: 0.6.0rc1
 license: Apache-2.0

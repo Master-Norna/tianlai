@@ -61,6 +61,8 @@
   "distribution_origin": "https://virtualplaying.com/virtual-playing-orchestra/",
   "upstream_version": "Virtual Playing Orchestra Standard 3.3 / Wave Files 3.2 local distribution",
   "license": "CC0-1.0",
+  "creator": "Versilian Studios / VSCO 2 Community Edition",
+  "attribution": "VSCO 2 Community Edition by Versilian Studios (CC0-1.0), distributed within Virtual Playing Orchestra. Credit is retained for provenance and does not imply endorsement.",
   "license_scope": "every runtime WAV is confined to libs/VSCO2-CE/Strings/Viola Section",
   "evidence_files": [
     "Documentation/license.htm",

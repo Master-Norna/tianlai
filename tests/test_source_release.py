@@ -24,30 +24,99 @@ release = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = release
 SPEC.loader.exec_module(release)
 
+EXPECTED_PUBLIC_MARKDOWN_PAIRS = (
+    ("README.md", "README.en.md"),
+    ("CONTRIBUTING.md", "CONTRIBUTING.en.md"),
+    ("SECURITY.md", "SECURITY.en.md"),
+    ("TRADEMARKS.md", "TRADEMARKS.en.md"),
+    ("OUTPUT_RIGHTS.md", "OUTPUT_RIGHTS.en.md"),
+    ("docs/README.md", "docs/README.en.md"),
+    ("docs/Linux快速开始.md", "docs/Linux快速开始.en.md"),
+    ("docs/macOS快速开始.md", "docs/macOS快速开始.en.md"),
+    ("docs/MCP.md", "docs/MCP.en.md"),
+    (
+        "docs/VPO音源许可与安装说明.md",
+        "docs/VPO音源许可与安装说明.en.md",
+    ),
+    ("docs/Windows安装与巡检.md", "docs/Windows安装与巡检.en.md"),
+    ("docs/Windows最小启动.md", "docs/Windows最小启动.en.md"),
+    (
+        "docs/从乐谱到第二次渲染.md",
+        "docs/从乐谱到第二次渲染.en.md",
+    ),
+    ("docs/当前状态.md", "docs/当前状态.en.md"),
+    ("docs/音源许可政策.md", "docs/音源许可政策.en.md"),
+    (
+        "docs/音乐创作参考笔记/README.md",
+        "docs/音乐创作参考笔记/README.en.md",
+    ),
+    (
+        "docs/音乐创作参考笔记/天籁音乐宪法-v0.1.md",
+        "docs/音乐创作参考笔记/天籁音乐宪法-v0.1.en.md",
+    ),
+    ("output/README.md", "output/README.en.md"),
+    ("音源/README.md", "音源/README.en.md"),
+    ("乐谱/README.md", "乐谱/README.en.md"),
+)
 EXPECTED_PUBLIC_DOCUMENTS = frozenset(
     {
-        "docs/README.md",
-        "docs/Linux快速开始.md",
-        "docs/MCP.md",
-        "docs/VPO音源许可与安装说明.md",
-        "docs/Windows安装与巡检.md",
-        "docs/Windows最小启动.md",
-        "docs/从乐谱到第二次渲染.md",
-        "docs/当前状态.md",
         "docs/音源许可例外.json",
-        "docs/音源许可政策.md",
+        *(
+            path
+            for pair in EXPECTED_PUBLIC_MARKDOWN_PAIRS
+            for path in pair
+        ),
     }
+)
+EXPECTED_PUBLIC_MUSIC_REFERENCE_DOCUMENTS = frozenset(
+    {
+        "docs/音乐创作参考笔记/README.md",
+        "docs/音乐创作参考笔记/README.en.md",
+        "docs/音乐创作参考笔记/天籁音乐宪法-v0.1.md",
+        "docs/音乐创作参考笔记/天籁音乐宪法-v0.1.en.md",
+    }
+)
+REPOSITORY_ONLY_MUSIC_REFERENCE_PDF = (
+    "docs/音乐创作参考笔记/音乐的“好听”能否被量化.pdf"
+)
+EXPECTED_LIFECYCLE_ANCHORS = frozenset(
+    {
+        "output/README.md",
+        "output/README.en.md",
+        "音源/README.md",
+        "音源/README.en.md",
+        "乐谱/README.md",
+        "乐谱/README.en.md",
+    }
+)
+EXPECTED_INSTRUMENT_DOCUMENT_PAIRS = (
+    ("README.md", "README.en.md"),
+    ("来源.md", "来源.en.md"),
+)
+EXPECTED_INSTRUMENT_DOCUMENT_NAMES = frozenset(
+    name
+    for pair in EXPECTED_INSTRUMENT_DOCUMENT_PAIRS
+    for name in pair
+)
+EXPECTED_FIXTURE_INSTRUMENT_DOCUMENTS = frozenset(
+    f"乐器/键盘乐器/钢琴/{name}"
+    for name in EXPECTED_INSTRUMENT_DOCUMENT_NAMES
 )
 EXPECTED_REPOSITORY_ONLY_DOCUMENTS = frozenset(
     {
         "CHANGELOG.md",
+        "CHANGELOG.en.md",
+        "INTERNAL_NOTES.md",
         "docs/maintainer/operator-notes.md",
+        "docs/maintainer/operator-notes.en.md",
         "docs/maintainer/release-process.md",
         "docs/design/output-notes.md",
         "docs/research/instrument-ledger.md",
         "docs/research/creative-notes.md",
         "docs/research/quality-check.md",
+        REPOSITORY_ONLY_MUSIC_REFERENCE_PDF,
         "乐器/键盘乐器/钢琴/resource-evaluation.md",
+        "乐器/键盘乐器/钢琴/resource-evaluation.en.md",
     }
 )
 EXPECTED_EXCLUDED_ROOT_DOCUMENTS = frozenset(
@@ -121,6 +190,16 @@ class SourceReleaseTests(unittest.TestCase):
         self._write("tianlai/core.py", "VALUE = 'committed'\n")
         self._write("乐器/键盘乐器/钢琴/乐器.json", '{"name": "钢琴"}\n')
         self._write("乐器/键盘乐器/钢琴/乐器.py", "ENGINE = True\n")
+        for chinese, english in EXPECTED_INSTRUMENT_DOCUMENT_PAIRS:
+            prefix = "乐器/键盘乐器/钢琴/"
+            self._write(
+                prefix + chinese,
+                f"[English]({english})\n\n# Public instrument documentation\n",
+            )
+            self._write(
+                prefix + english,
+                f"[Chinese]({chinese})\n\n# Public instrument documentation\n",
+            )
         self._write("schemas/score.schema.json", '{"type": "object"}\n')
         self._write("examples/demo.events.json", '{"events": []}\n')
         for path in EXPECTED_PUBLIC_DOCUMENTS:
@@ -187,6 +266,9 @@ class SourceReleaseTests(unittest.TestCase):
             self.assertIn("tianlai/core.py", names)
             self.assertIn("乐器/键盘乐器/钢琴/乐器.json", names)
             self.assertIn("乐器/键盘乐器/钢琴/乐器.py", names)
+            self.assertTrue(
+                EXPECTED_FIXTURE_INSTRUMENT_DOCUMENTS.issubset(names)
+            )
             self.assertIn("schemas/score.schema.json", names)
             self.assertIn("examples/demo.events.json", names)
             self.assertTrue(EXPECTED_PUBLIC_DOCUMENTS.issubset(names))
@@ -263,7 +345,7 @@ class SourceReleaseTests(unittest.TestCase):
         )
         self.assertEqual(
             set(manifest["exclusions"]["included_lifecycle_anchors"]),
-            {"音源/README.md", "output/README.md", "乐谱/README.md"},
+            set(EXPECTED_LIFECYCLE_ANCHORS),
         )
         self.assertEqual(
             set(manifest["exclusions"]["public_document_allowlist"]),
@@ -271,8 +353,44 @@ class SourceReleaseTests(unittest.TestCase):
         )
         self.assertEqual(release._PUBLIC_DOCUMENT_PATHS, EXPECTED_PUBLIC_DOCUMENTS)
         self.assertEqual(
+            {
+                path
+                for path in release._PUBLIC_DOCUMENT_PATHS
+                if path.startswith("docs/音乐创作参考笔记/")
+            },
+            EXPECTED_PUBLIC_MUSIC_REFERENCE_DOCUMENTS,
+        )
+        self.assertNotIn(
+            REPOSITORY_ONLY_MUSIC_REFERENCE_PDF,
+            release._PUBLIC_DOCUMENT_PATHS,
+        )
+        self.assertEqual(
+            release._PUBLIC_MARKDOWN_PAIRS,
+            EXPECTED_PUBLIC_MARKDOWN_PAIRS,
+        )
+        self.assertEqual(
+            release._ROOT_LIFECYCLE_ANCHORS,
+            EXPECTED_LIFECYCLE_ANCHORS,
+        )
+        self.assertEqual(
+            release._PUBLIC_INSTRUMENT_DOCUMENT_PAIRS,
+            EXPECTED_INSTRUMENT_DOCUMENT_PAIRS,
+        )
+        self.assertEqual(
+            release._PUBLIC_INSTRUMENT_DOCUMENT_NAMES,
+            EXPECTED_INSTRUMENT_DOCUMENT_NAMES,
+        )
+        self.assertEqual(
+            set(
+                manifest["exclusions"][
+                    "public_instrument_document_names"
+                ]
+            ),
+            set(EXPECTED_INSTRUMENT_DOCUMENT_NAMES),
+        )
+        self.assertEqual(
             release._REPOSITORY_ONLY_ROOT_DOCUMENT_PATHS,
-            {"CHANGELOG.md"},
+            {"CHANGELOG.md", "CHANGELOG.en.md"},
         )
         self.assertEqual(
             manifest["exclusions"]["repository_only_document_count"],
@@ -306,6 +424,59 @@ class SourceReleaseTests(unittest.TestCase):
                 self.repo,
                 self.output_root / "empty-public-doc.zip",
             )
+
+    def test_public_markdown_translation_is_required(self) -> None:
+        target = "docs/macOS快速开始.en.md"
+        self._git("rm", "--quiet", target)
+        self._git("commit", "--quiet", "-m", "remove public translation")
+        output = self.output_root / "missing-public-translation.zip"
+        with self.assertRaisesRegex(
+            release.ReleaseBuildError,
+            "public release documents",
+        ) as raised:
+            release.build_source_release(self.repo, output)
+        self.assertIn(target, str(raised.exception))
+        self.assertFalse(output.exists())
+
+    def test_instrument_chinese_document_requires_english_pair(self) -> None:
+        target = "乐器/键盘乐器/钢琴/来源.en.md"
+        self._git("rm", "--quiet", target)
+        self._git("commit", "--quiet", "-m", "remove instrument translation")
+        output = self.output_root / "missing-instrument-english.zip"
+        with self.assertRaisesRegex(
+            release.ReleaseBuildError,
+            "instrument documentation must be bilingual",
+        ) as raised:
+            release.build_source_release(self.repo, output)
+        self.assertIn(target, str(raised.exception))
+        self.assertFalse(output.exists())
+
+    def test_instrument_english_document_requires_chinese_pair(self) -> None:
+        target = "乐器/键盘乐器/钢琴/README.md"
+        self._git("rm", "--quiet", target)
+        self._git("commit", "--quiet", "-m", "remove instrument source text")
+        output = self.output_root / "missing-instrument-chinese.zip"
+        with self.assertRaisesRegex(
+            release.ReleaseBuildError,
+            "instrument documentation must be bilingual",
+        ) as raised:
+            release.build_source_release(self.repo, output)
+        self.assertIn(target, str(raised.exception))
+        self.assertFalse(output.exists())
+
+    def test_instrument_public_document_must_be_nonempty(self) -> None:
+        target = "乐器/键盘乐器/钢琴/README.en.md"
+        self._write(target, " \n")
+        self._git("add", target)
+        self._git("commit", "--quiet", "-m", "empty instrument translation")
+        output = self.output_root / "empty-instrument-translation.zip"
+        with self.assertRaisesRegex(
+            release.ReleaseBuildError,
+            "public instrument documents must be non-empty",
+        ) as raised:
+            release.build_source_release(self.repo, output)
+        self.assertIn(target, str(raised.exception))
+        self.assertFalse(output.exists())
 
     def test_public_markdown_cannot_link_to_repository_only_document(
         self,
@@ -412,7 +583,7 @@ class SourceReleaseTests(unittest.TestCase):
             )
 
     def test_dirty_snapshot_aggregates_unstaged_deletions(self) -> None:
-        (self.repo / "README.md").unlink()
+        (self.repo / "tianlai" / "core.py").unlink()
         output = self.output_root / "dirty-deletion.zip"
         release.build_source_release(
             self.repo,
@@ -421,7 +592,7 @@ class SourceReleaseTests(unittest.TestCase):
         )
         manifest, archive = self._manifest(output)
         with archive:
-            self.assertNotIn("README.md", archive.namelist())
+            self.assertNotIn("tianlai/core.py", archive.namelist())
         self.assertNotIn(
             "excluded_tracked_paths",
             manifest["exclusions"],
@@ -432,7 +603,7 @@ class SourceReleaseTests(unittest.TestCase):
         )
 
     def test_dirty_snapshot_aggregates_staged_deletions_from_commit(self) -> None:
-        self._git("rm", "--quiet", "README.md")
+        self._git("rm", "--quiet", "tianlai/core.py")
         output = self.output_root / "staged-deletion.zip"
         release.build_source_release(
             self.repo,
@@ -441,7 +612,7 @@ class SourceReleaseTests(unittest.TestCase):
         )
         manifest, archive = self._manifest(output)
         with archive:
-            self.assertNotIn("README.md", archive.namelist())
+            self.assertNotIn("tianlai/core.py", archive.namelist())
         self.assertNotIn(
             "excluded_tracked_paths",
             manifest["exclusions"],
@@ -532,7 +703,7 @@ class SourceReleaseTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
         pyproject = pyproject.replace(
             '"OUTPUT_RIGHTS.md"]',
-            '"OUTPUT_RIGHTS.md", "TRADEMARKS.md"]',
+            '"OUTPUT_RIGHTS.md", "LEGAL_EXTRA.md"]',
         )
         self._write("pyproject.toml", pyproject)
         self._git("add", "pyproject.toml")
@@ -564,6 +735,12 @@ class SourceReleaseTests(unittest.TestCase):
                 with self.assertRaises(release.ReleaseBuildError):
                     release._validate_portable_path(path)
 
+        with self.assertRaisesRegex(
+            release.ReleaseBuildError,
+            "not Unicode NFC",
+        ):
+            release._validate_portable_path("docs/Cafe\u0301.md")
+
         entries = [
             release.TrackedFile("Case.py", "100644", "a" * 40),
             release.TrackedFile("case.py", "100644", "b" * 40),
@@ -577,6 +754,17 @@ class SourceReleaseTests(unittest.TestCase):
             "collide",
         ):
             release._select_release_entries(entries)
+
+        normalisation_entries = [
+            release.TrackedFile("Caf\u00e9.py", "100644", "a" * 40),
+            release.TrackedFile("Cafe\u0301.py", "100644", "b" * 40),
+            *[
+                release.TrackedFile(name, "100644", "c" * 40)
+                for name in sorted(release._REQUIRED_ROOT_FILES)
+            ],
+        ]
+        with self.assertRaises(release.ReleaseBuildError):
+            release._select_release_entries(normalisation_entries)
 
     def test_default_refuses_overwrite_and_failed_replace_preserves_old_zip(
         self,

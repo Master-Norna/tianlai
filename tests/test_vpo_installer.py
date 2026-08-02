@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import locale
 import os
 from pathlib import Path
@@ -12,6 +13,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 INSTALLER = ROOT / "安装VPO音源.ps1"
 ALL_RESOURCES_INSTALLER = ROOT / "安装全部音源.ps1"
+RESTORE_MANIFEST = ROOT / "resource_restore_manifest.json"
 DELEGATES = (
     ROOT / "乐器" / "管弦乐" / "木管组" / "长笛" / "获取音源.ps1",
     ROOT / "乐器" / "管弦乐" / "弦乐组" / "小提琴" / "获取音源.ps1",
@@ -150,12 +152,25 @@ class VpoInstallerTests(unittest.TestCase):
                     r"Get-FileHash|Move-Item|Remove-Item",
                 )
 
-    def test_root_collection_installer_uses_the_central_vpo_installer(
+    def test_root_collection_installer_routes_vpo_through_the_unified_manifest(
         self,
     ) -> None:
         text = _read_powershell(ALL_RESOURCES_INSTALLER)
-        self.assertEqual(text.count('"安装VPO音源.ps1"'), 1)
+        self.assertNotIn('"安装VPO音源.ps1"', text)
         self.assertNotIn("木管组\\长笛\\获取音源.ps1", text)
+        self.assertIn('"tianlai.resource_restore"', text)
+        document = json.loads(RESTORE_MANIFEST.read_text(encoding="utf-8"))
+        family = next(
+            item
+            for item in document["families"]
+            if item["id"] == "virtual-playing-orchestra"
+        )
+        self.assertEqual(len(family["instrument_ids"]), 31)
+        self.assertEqual(len(family["archives"]), 2)
+        self.assertEqual(
+            family["install"]["tree"]["sha256"].upper(),
+            EXPECTED_SCALARS["expectedTreeSha256"],
+        )
 
     def test_relevant_scripts_parse_with_powershell(self) -> None:
         executable = shutil.which("pwsh")

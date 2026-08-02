@@ -1,3 +1,5 @@
+**简体中文** | [English](README.en.md)
+
 # 木琴
 
 VPO 3.3 / No Budget Orchestra 专用多采样 `formal`。

@@ -1,3 +1,5 @@
+[中文](README.md) | [English](README.en.md)
+
 # 尼龙弦吉他(formal)
 
 FreePats 西班牙古典吉他(尼龙弦)专用多采样。本目录是 98 项清单 SAM-14 的专用实现,渲染引擎复用

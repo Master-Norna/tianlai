@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import locale
 import os
 from pathlib import Path
@@ -15,6 +16,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 INSTALLER = ROOT / "乐器" / "世界乐器" / "班卓琴" / "获取音源.ps1"
 ALL_RESOURCES_INSTALLER = ROOT / "安装全部音源.ps1"
+RESTORE_MANIFEST = ROOT / "resource_restore_manifest.json"
 ASSET_ROOT = ROOT / "音源" / "itsclipping" / "ganjo-v1.000"
 
 TAG = "v1.000"
@@ -222,13 +224,19 @@ class GanjoInstallerTests(unittest.TestCase):
             compact,
         )
 
-    def test_root_installer_calls_ganjo_dedicated_installer(self) -> None:
+    def test_root_installer_routes_ganjo_through_the_unified_manifest(self) -> None:
         text = ALL_RESOURCES_INSTALLER.read_text(encoding="utf-8-sig")
-        self.assertIn(
-            '乐器\\世界乐器\\班卓琴\\获取音源.ps1',
-            text,
+        self.assertIn('"tianlai.resource_restore"', text)
+        self.assertIn("resource_restore_manifest.json", text)
+        self.assertNotIn('乐器\\世界乐器\\班卓琴\\获取音源.ps1', text)
+        document = json.loads(RESTORE_MANIFEST.read_text(encoding="utf-8"))
+        family = next(
+            item
+            for item in document["families"]
+            if item["id"] == "itsclipping-ganjo"
         )
-        self.assertIn("ganjo", text.lower())
+        self.assertEqual(family["instrument_ids"], ["世界乐器/班卓琴"])
+        self.assertEqual(family["source"]["commit"], COMMIT)
 
     @unittest.skipUnless(ASSET_ROOT.is_dir(), "ganjo 音源尚未安装")
     @pytest.mark.external_assets

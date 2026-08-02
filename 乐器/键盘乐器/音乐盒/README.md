@@ -1,3 +1,5 @@
+[中文](README.md) | [English](README.en.md)
+
 # 音乐盒(formal,确定性建模)
 
 音乐盒钢梳齿模型:非谐分音(1/3.42/8.93 倍)、快衰减、轻机械触点。实现位于 `tianlai/modeled_instruments.py`(profile

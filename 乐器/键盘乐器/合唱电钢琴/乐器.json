@@ -10,6 +10,8 @@
   "origin": "https://github.com/sfzinstruments/GregSullivan.E-Pianos",
   "upstream_version": "8c3e581acda3594b553948ff0222d4f84a698376",
   "license": "CC-BY-3.0",
+  "creator": "Greg Sullivan; SFZ mapping by kinwie",
+  "attribution": "Greg Sullivan E-Pianos by Greg Sullivan; SFZ mapping by kinwie. Licensed under CC BY 3.0.",
   "evidence_files": [
     "LICENSE",
     "README.md"

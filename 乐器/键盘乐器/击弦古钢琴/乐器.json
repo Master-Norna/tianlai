@@ -11,6 +11,8 @@
   "origin": "https://www.simpk.de/museum/besuch/projekte/klaviatur-tastatur-interface/samples.html",
   "upstream_version": "1.0 (SIMPK_03_Clavichord.zip, 2022-10-21)",
   "license": "CC-BY-4.0",
+  "creator": "Staatliches Institut für Musikforschung (SIMPK)",
+  "attribution": "Johann Gottlob Horn clavichord samples by Staatliches Institut für Musikforschung (SIMPK), licensed under CC BY 4.0. Tianlai converted the supplied mapping to SFZ, repaired one label for parsing, mapped the recordings to their measured native octave, and applied per-sample fine tuning; original WAV bytes are unchanged.",
   "evidence_files": [
     "LICENSE",
     "SOURCE.json",

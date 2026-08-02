@@ -1,3 +1,5 @@
+[中文](README.md) | [English](README.en.md)
+
 # 叮叮镲(formal)
 
 VCSL 悬吊镲 1:镲帽与棒尖击作叮叮镲(ride)。本目录是 98 项清单 SAM-24 的专用实现,渲染引擎复用

@@ -1,3 +1,5 @@
+[中文](README.md) | [English](README.en.md)
+
 # 钢琴
 
 基于 Salamander Grand Piano V3 的 Yamaha C5 三角钢琴。

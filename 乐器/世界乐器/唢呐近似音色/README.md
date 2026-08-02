@@ -1,3 +1,5 @@
+[中文](README.md) | [English](README.en.md)
+
 # 唢呐近似音色(formal,确定性建模)
 
 双簧亮音模型:富谐波 + 1.25k/3.15k 鼻音共振峰,入口本身定位为近似音色。实现位于 `tianlai/modeled_instruments.py`(profile

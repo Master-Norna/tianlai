@@ -1,3 +1,5 @@
+**简体中文** | [English](README.en.md)
+
 # 双簧管
 
 基于 Virtual Playing Orchestra Standard 3.3 / Wave 3.2 的独奏双簧管 `formal`，直接读取 SOLO SFZ 与 WAV，不会静默回落到 GM SoundFont。

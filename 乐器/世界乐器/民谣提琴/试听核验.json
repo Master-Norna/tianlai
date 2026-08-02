@@ -16,7 +16,18 @@
   "wav_sha256": "1ab4c88ed3ac0b9862496aae9222cca08af65fef1448cf5efbaa841f0c76c066",
   "hash_algorithm": "SHA-256",
   "canonicalization": "tianlai-json-v1",
-  "manifest_canonical_sha256": "e4a0c326eb9afcdab4d1d7a5e0b3a5f5b34f671ce0d7940a3d0c1bd164b129d3",
+  "manifest_canonical_sha256": "708ed0b9530a417e3e610dc53b6118439967fc9c1efedba241884eed54bcbd28",
+  "license_metadata_migration": {
+    "status": "license_metadata_only_no_audio_change",
+    "migrated_at": "2026-08-02",
+    "previous_manifest_canonical_sha256": "e4a0c326eb9afcdab4d1d7a5e0b3a5f5b34f671ce0d7940a3d0c1bd164b129d3",
+    "changed_fields": [
+      "creator",
+      "attribution"
+    ],
+    "audio_rerendered": false,
+    "reason": "Only creator and attribution metadata changed; runtime and render parameters are unchanged."
+  },
   "events": "examples/全音域上行/世界乐器/民谣提琴_全音域上行.events.json",
   "events_canonical_sha256": "15ed508a8d9f30e36fb580228b132162672ccc956204ec94b080a685dd914479",
   "identity_migration": {

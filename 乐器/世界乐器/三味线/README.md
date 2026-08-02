@@ -1,3 +1,5 @@
+[中文](README.md) | [English](README.en.md)
+
 # 三味线(formal,确定性建模)
 
 扩展 Karplus-Strong 三味线模型:皮面共鸣体、sawari 琴桥嗡振、拨子起音噪。实现位于 `tianlai/modeled_instruments.py`(profile

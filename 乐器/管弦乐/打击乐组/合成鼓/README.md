@@ -1,3 +1,5 @@
+**简体中文** | [English](README.en.md)
+
 # 合成鼓(formal,确定性建模)
 
 模拟鼓机合成鼓:指数降频正弦 + 咔嗒瞬态 + 短噪声,谱面音高定基频。实现位于 `tianlai/modeled_instruments.py`(profile

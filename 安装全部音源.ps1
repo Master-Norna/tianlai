@@ -65,9 +65,16 @@ function Format-ByteSize([long] $Bytes) {
     return "$Bytes B"
 }
 
+function Get-FamilyArchives($Family) {
+    if ($null -ne $Family.PSObject.Properties["archives"]) {
+        return @($Family.archives)
+    }
+    return @($Family.archive)
+}
+
 $manifest = Get-Content -LiteralPath $restoreManifest -Raw -Encoding UTF8 |
     ConvertFrom-Json
-if ($manifest.schema_version -ne 1 -or
+if ($manifest.schema_version -ne 2 -or
     $manifest.kind -ne "tianlai.resource_restore_manifest") {
     throw "无法识别的音源恢复清单版本。"
 }
@@ -114,9 +121,7 @@ foreach ($family in $selectedFamilies) {
     $target = Join-Path $resourceRoot (
         "$($family.install.target)".Replace("/", "\")
     )
-    $archive = Join-Path (
-        Join-Path $resourceRoot "下载缓存"
-    ) "$($family.archive.filename)"
+    $archives = @(Get-FamilyArchives $family)
     $state = if (Test-Path -LiteralPath $target -PathType Container) {
         "已存在，安装时完整复核"
     } elseif (Test-Path -LiteralPath $target) {
@@ -126,8 +131,13 @@ foreach ($family in $selectedFamilies) {
     }
     if ($state -eq "缺失") {
         $missingInstalledBytes += [long]$family.install.tree.bytes
-        if (-not (Test-Path -LiteralPath $archive -PathType Leaf)) {
-            $missingDownloadBytes += [long]$family.archive.estimated_bytes
+        foreach ($archive in $archives) {
+            $archivePath = Join-Path (
+                Join-Path $resourceRoot "下载缓存"
+            ) "$($archive.filename)"
+            if (-not (Test-Path -LiteralPath $archivePath -PathType Leaf)) {
+                $missingDownloadBytes += [long]$archive.estimated_bytes
+            }
         }
     }
     foreach ($derived in @($family.install.derived)) {
@@ -158,7 +168,7 @@ Write-Host (
 )
 Write-Host (
     (
-        "完整 38 件缺口的冻结上限为下载 {0}、安装后 {1}；" +
+        "完整 74 件外部资源的冻结上限为下载 {0}、安装后 {1}；" +
         "建议至少保留 {2} 空间用于归档和同卷 staging。"
     ) -f
     (Format-ByteSize ([long]$manifest.totals.estimated_download_bytes)),
@@ -169,12 +179,12 @@ Write-Host (
 )
 if (-not $RestorableOnly -and -not $LegacyOnly) {
     Write-Host (
-        "此外还会复核或安装既有资源：FluidSynth、Salamander 钢琴、CP80、" +
-        "SIMPK 击弦古钢琴、班卓琴与 VPO；它们不计入上面的 38 件统计。"
+        "此外会安装项目本地 FluidSynth；它是可选 SoundFont 运行库，" +
+        "不计入上面的 74 件外部采样入口。"
     )
 }
 if ($LegacyOnly) {
-    Write-Host "本轮只运行既有资源安装器，不处理上述 38 件资源族。"
+    Write-Host "本轮只安装项目本地 FluidSynth，不处理上述资源族。"
 }
 Write-Host (
     "钢弦吉他只从 FreePats 官方地址原样安装，不镜像/重打包；" +
@@ -196,21 +206,6 @@ if (-not $Yes) {
 if (-not $RestorableOnly) {
     Write-Host "开始安装项目本地 FluidSynth（不默认安装许可未进入公开边界的通用 SoundFont）..."
     & (Join-Path $root "安装通用音源.ps1")
-
-    Write-Host "开始安装高拟真钢琴（Salamander Grand Piano）..."
-    & (Join-Path $root "乐器\键盘乐器\钢琴\获取音源.ps1")
-
-    Write-Host "开始安装 Yamaha CP80 电钢琴（Greg Sullivan E-Pianos）..."
-    & (Join-Path $root "乐器\键盘乐器\获取GregSullivan电钢琴音源.ps1")
-
-    Write-Host "开始安装 SIMPK 1793 击弦古钢琴实录（约 1.5 GB 下载）..."
-    & (Join-Path $root "乐器\键盘乐器\击弦古钢琴\获取音源.ps1")
-
-    Write-Host "开始安装 CC0 ganjo 班卓琴..."
-    & (Join-Path $root "乐器\世界乐器\班卓琴\获取音源.ps1")
-
-    Write-Host "开始安装高拟真管弦音源（Virtual Playing Orchestra，体积较大）..."
-    & (Join-Path $root "安装VPO音源.ps1")
 }
 
 if ($selectedFamilies.Count -gt 0) {

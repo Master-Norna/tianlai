@@ -1,3 +1,5 @@
+[中文](README.md) | [English](README.en.md)
+
 # 强音镲(formal)
 
 VCSL 悬吊镲 2:5 力度层槌击+三档渐强滚奏作强音镲。本目录是 98 项清单 SAM-27 的专用实现,渲染引擎复用

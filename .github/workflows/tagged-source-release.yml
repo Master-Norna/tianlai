@@ -18,18 +18,18 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build-attest:
-    name: Test, build, and attest / Windows
+  build-candidate:
+    name: Test and build one candidate / Windows
     runs-on: windows-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v6
         with:
           ref: ${{ github.ref }}
           fetch-depth: 1
           fetch-tags: true
           persist-credentials: false
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
           cache: pip
@@ -80,23 +80,206 @@ jobs:
             -Encoding utf8 `
             -Value "checksum=$($result.checksum)"
 
+      - name: Upload immutable candidate for platform gates
+        uses: actions/upload-artifact@v7
+        with:
+          name: tianlai-${{ github.ref_name }}-source-stage
+          path: |
+            ${{ steps.build.outputs.archive }}
+            ${{ steps.build.outputs.checksum }}
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
+
+  macos-release-gate:
+    name: Exact candidate / ${{ matrix.runner }} / ${{ matrix.architecture }}
+    needs: build-candidate
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            architecture: arm64
+            machine: arm64
+            runtime-discovery: automatic
+            soundfont: true
+          - runner: macos-15-intel
+            architecture: x64
+            machine: x86_64
+            runtime-discovery: explicit
+            soundfont: true
+          - runner: macos-26
+            architecture: arm64
+            machine: arm64
+            runtime-discovery: automatic
+            soundfont: true
+          - runner: macos-26-intel
+            architecture: x64
+            machine: x86_64
+            runtime-discovery: explicit
+            soundfont: false
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 1
+          fetch-tags: true
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+          architecture: ${{ matrix.architecture }}
+          cache: pip
+      - uses: actions/download-artifact@v8
+        with:
+          name: tianlai-${{ github.ref_name }}-source-stage
+          path: ${{ runner.temp }}/tianlai-release
+
+      - name: Verify and test the exact candidate in a Unicode path
+        env:
+          EXPECTED_MACHINE: ${{ matrix.machine }}
+          TIANLAI_REQUIRE_BSDTAR: "1"
+        run: |
+          test "$(uname -s)" = "Darwin"
+          test "$(uname -m)" = "$EXPECTED_MACHINE"
+          release_dir="$RUNNER_TEMP/tianlai-release"
+          archive="$(find "$release_dir" -maxdepth 1 -type f -name 'tianlai-*-source.zip' -print -quit)"
+          test -n "$archive"
+          test "$(find "$release_dir" -maxdepth 1 -type f -name 'tianlai-*-source.zip' | wc -l | tr -d ' ')" = 1
+          checksum="$archive.sha256"
+          test -f "$checksum"
+          (cd "$release_dir" && shasum -a 256 -c "$(basename "$checksum")")
+          target="$RUNNER_TEMP/天籁 macOS 标签验收"
+          mkdir -p "$target"
+          python -m zipfile -e "$archive" "$target"
+          cd "$target"
+          python - <<'PY'
+          from tianlai.resource_restore import _find_bsdtar_executable
+
+          executable = _find_bsdtar_executable()
+          if not executable:
+              raise SystemExit("macOS tagged gate requires a verified bsdtar executable")
+          print(f"Verified bsdtar executable: {executable}")
+          PY
+          /bin/bash -n ./bootstrap_macos.sh
+          /bin/bash ./bootstrap_macos.sh \
+            --python "$(command -v python)" \
+            --portable-tests
+          .venv/bin/tianlai --version
+          .venv/bin/tianlai-doctor --quick
+
+      - name: Render with the optional FluidSynth backend
+        if: matrix.soundfont
+        env:
+          PYTHONUTF8: "1"
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
+          RUNTIME_DISCOVERY: ${{ matrix.runtime-discovery }}
+          TIANLAI_REQUIRE_NATIVE_FLUIDSYNTH: "1"
+        run: |
+          target="$RUNNER_TEMP/天籁 macOS 标签验收"
+          cd "$target"
+          for attempt in 1 2 3; do
+            if brew list --versions fluid-synth >/dev/null 2>&1 || brew install fluid-synth; then
+              break
+            fi
+            if test "$attempt" = 3; then
+              echo "FluidSynth installation failed after three attempts" >&2
+              exit 1
+            fi
+            sleep "$((attempt * 10))"
+          done
+          .venv/bin/python -m pip install --no-build-isolation -e ".[soundfont]"
+          if test "$RUNTIME_DISCOVERY" = explicit; then
+            export TIANLAI_FLUIDSYNTH_DIR="$(brew --prefix fluid-synth)/lib"
+          else
+            unset TIANLAI_FLUIDSYNTH_DIR
+          fi
+          .venv/bin/python - <<'PY'
+          import importlib.util
+          from pathlib import Path
+
+          from tianlai.soundfont import prepare_fluidsynth_runtime
+
+          if importlib.util.find_spec("fluidsynth") is None:
+              raise SystemExit("macOS FluidSynth gate requires the Python binding")
+          runtime = prepare_fluidsynth_runtime(Path.cwd())
+          if runtime is None:
+              raise SystemExit("macOS FluidSynth gate requires a discoverable native runtime")
+          print(f"Verified FluidSynth Python binding and native runtime: {runtime}")
+          PY
+          .venv/bin/tianlai-doctor --quick
+          .venv/bin/python -m pytest -q \
+            tests/test_smoke_soundfont_builder.py \
+            -k native_backend_loads_unicode_path_and_renders_nonzero_audio
+
+  attest-candidate:
+    name: Linux gate and attest the exact candidate
+    needs: macos-release-gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+      - uses: actions/download-artifact@v8
+        with:
+          name: tianlai-${{ github.ref_name }}-source-stage
+          path: ${{ runner.temp }}/tianlai-release
+      - name: Verify the exact candidate before attestation
+        id: candidate
+        run: |
+          release_dir="$RUNNER_TEMP/tianlai-release"
+          archive="$(find "$release_dir" -maxdepth 1 -type f -name 'tianlai-*-source.zip' -print -quit)"
+          test -n "$archive"
+          test "$(find "$release_dir" -maxdepth 1 -type f -name 'tianlai-*-source.zip' | wc -l | tr -d ' ')" = 1
+          checksum="$archive.sha256"
+          test -f "$checksum"
+          (cd "$release_dir" && sha256sum --check "$(basename "$checksum")")
+          echo "archive=$archive" >> "$GITHUB_OUTPUT"
+          echo "checksum=$checksum" >> "$GITHUB_OUTPUT"
+
+      - name: Install Linux archive tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes libarchive-tools
+
+      - name: Run Linux gates against the exact candidate
+        run: |
+          target="$RUNNER_TEMP/天籁 Linux 标签验收"
+          mkdir -p "$target"
+          python -m zipfile -e "${{ steps.candidate.outputs.archive }}" "$target"
+          cd "$target"
+          /bin/bash -n ./bootstrap_linux.sh
+          /bin/bash ./bootstrap_linux.sh \
+            --python "$(command -v python)" \
+            --portable-tests
+          test -s "output/首次出声/参考振荡器.wav"
+          .venv/bin/python -m pip check
+          .venv/bin/tianlai --version
+          .venv/bin/tianlai-doctor --quick
+          cd "$RUNNER_TEMP/tianlai-release"
+          sha256sum --check "$(basename '${{ steps.candidate.outputs.checksum }}')"
+
       - name: Attest source ZIP
         uses: actions/attest@v4
         with:
-          subject-path: ${{ steps.build.outputs.archive }}
+          subject-path: ${{ steps.candidate.outputs.archive }}
 
       - name: Attest SHA-256 sidecar
         uses: actions/attest@v4
         with:
-          subject-path: ${{ steps.build.outputs.checksum }}
+          subject-path: ${{ steps.candidate.outputs.checksum }}
 
       - name: Upload temporary release candidate
         uses: actions/upload-artifact@v7
         with:
           name: tianlai-${{ github.ref_name }}-source-candidate
           path: |
-            ${{ steps.build.outputs.archive }}
-            ${{ steps.build.outputs.checksum }}
+            ${{ steps.candidate.outputs.archive }}
+            ${{ steps.candidate.outputs.checksum }}
           if-no-files-found: error
           compression-level: 0
           retention-days: 30

@@ -1,3 +1,5 @@
+**简体中文** | [English](README.en.md)
+
 # 钢鼓(formal,确定性建模)
 
 钢鼓模态模型:失谐倍频对拍频(±4 音分)、ping 起音、亮泛音。实现位于 `tianlai/modeled_instruments.py`(profile

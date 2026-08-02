@@ -1,18 +1,18 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "kind": "tianlai.resource_restore_manifest",
-  "updated_at": "2026-07-28",
-  "description": "天籁轻量源码包未内置的大型公开音源恢复清单。下载地址只指向上游，项目不镜像或重打包第三方采样。",
+  "updated_at": "2026-08-02",
+  "description": "天籁轻量源码包未内置的全部 74 件外部音源恢复清单。下载地址只指向上游，项目不镜像或重打包第三方采样。",
   "tree_hash": {
     "algorithm": "tianlai-tree-sha256-v1",
     "record": "<lowercase file sha256><two spaces><relative POSIX path><LF>，按相对路径排序；忽略 .git 与 .tianlai-* 管理文件"
   },
   "totals": {
-    "family_count": 10,
-    "instrument_count": 38,
-    "estimated_download_bytes": 4762288104,
-    "installed_bytes_including_derived": 7049894961,
-    "recommended_free_bytes": 12884901888
+    "family_count": 15,
+    "instrument_count": 74,
+    "estimated_download_bytes": 7696265530,
+    "installed_bytes_including_derived": 10582025333,
+    "recommended_free_bytes": 25769803776
   },
   "families": [
     {
@@ -481,6 +481,308 @@
           "files": 785,
           "bytes": 110931965,
           "sha256": "52debbf1ce99f8621137acbe9d648a8d477dba021314c5524be83d4105513ece"
+        },
+        "derived": []
+      }
+    },
+    {
+      "id": "virtual-playing-orchestra",
+      "group": "vpo",
+      "display_name": "Virtual Playing Orchestra Wave 3.2 + Standard 3.3",
+      "instrument_ids": [
+        "世界乐器/民谣提琴",
+        "人声乐器/合唱啊声",
+        "现代鼓组/牛铃",
+        "电子乐器/管弦重击",
+        "管弦乐/弦乐组/中提琴",
+        "管弦乐/弦乐组/低音提琴",
+        "管弦乐/弦乐组/大提琴",
+        "管弦乐/弦乐组/小提琴",
+        "管弦乐/弦乐组/弦乐合奏",
+        "管弦乐/弦乐组/拨奏弦乐",
+        "管弦乐/弦乐组/颤弓弦乐",
+        "管弦乐/打击乐组/三角铁",
+        "管弦乐/打击乐组/小军鼓",
+        "管弦乐/打击乐组/木琴",
+        "管弦乐/打击乐组/木鱼",
+        "管弦乐/打击乐组/管弦大鼓",
+        "管弦乐/打击乐组/管弦钹",
+        "管弦乐/打击乐组/钟琴",
+        "管弦乐/木管组/单簧管",
+        "管弦乐/木管组/双簧管",
+        "管弦乐/木管组/大管",
+        "管弦乐/木管组/短笛",
+        "管弦乐/木管组/英国管",
+        "管弦乐/木管组/长笛",
+        "管弦乐/铜管组/圆号",
+        "管弦乐/铜管组/大号",
+        "管弦乐/铜管组/小号",
+        "管弦乐/铜管组/弱音小号",
+        "管弦乐/铜管组/铜管合奏",
+        "管弦乐/铜管组/长号",
+        "键盘乐器/钢片琴"
+      ],
+      "license": {
+        "expression": "Mixed upstream licences; see Documentation/license.htm",
+        "status": "grandfathered",
+        "output_attribution_required": true,
+        "components_declared_by_upstream": [
+          {
+            "source": "Sonatina Symphonic Orchestra",
+            "license": "Creative Commons Sampling Plus 1.0"
+          },
+          {
+            "source": "Mattias Westlund additional samples",
+            "license": "Creative Commons Attribution-ShareAlike 3.0 Unported"
+          },
+          {
+            "source": "No Budget Orchestra",
+            "license": "Creative Commons Attribution-ShareAlike 4.0 International"
+          },
+          {
+            "source": "VSCO 2 Community Edition",
+            "license": "CC0 1.0 Universal"
+          },
+          {
+            "source": "University of Iowa Electronic Music",
+            "license": "upstream unrestricted-use statement"
+          },
+          {
+            "source": "stamperadam",
+            "license": "CC0 1.0 Universal"
+          }
+        ],
+        "evidence_scope": "Aggregate declarations in Documentation/license.htm; embedded sublibrary notices govern per-file applicability.",
+        "evidence_files": [
+          "Documentation/license.htm"
+        ]
+      },
+      "source": {
+        "project": "Virtual Playing Orchestra",
+        "repository": "https://virtualplaying.com/virtual-playing-orchestra/",
+        "version": "Wave 3.2 + Standard 3.3",
+        "commit": null
+      },
+      "archives": [
+        {
+          "url": "https://virtualplaying.com/go/virtual-playing-orchestra-v3-2-wave-files-archive/",
+          "filename": "Virtual-Playing-Orchestra3-2-wave-files.zip",
+          "format": "zip",
+          "bytes": 616114842,
+          "estimated_bytes": 616114842,
+          "max_bytes": 616114842,
+          "sha256": "ca8f1e0b56eede35314994646e5f1f307ec349616c967fbecf627c43aa646e90",
+          "verification": "official_archive_sha256_and_complete_merged_tree"
+        },
+        {
+          "url": "https://virtualplaying.com/go/virtual-playing-orchestra-v3-3-standard-scripts/",
+          "filename": "Virtual-Playing-Orchestra3-3-standard-scripts.zip",
+          "format": "zip",
+          "bytes": 544010,
+          "estimated_bytes": 544010,
+          "max_bytes": 544010,
+          "sha256": "f0f2bf0e42d2a39c5f49401addcffa840fd8f5525670f5945bf5093a5442bda5",
+          "verification": "official_archive_sha256_and_complete_merged_tree"
+        }
+      ],
+      "install": {
+        "target": "VirtualPlayingOrchestra/Virtual-Playing-Orchestra3",
+        "strip_single_root": true,
+        "identical_overlaps": {
+          "Documentation/license.htm": "852e3be507b193625eaf76bd18f4740209287781fb95f2a06d78ae9205d4682e"
+        },
+        "tree": {
+          "files": 1922,
+          "bytes": 724695982,
+          "sha256": "b06390c70d9d701481bc6db0cf13b6ed6f3ef6b660dac9a51034b9be368df317"
+        },
+        "derived": []
+      }
+    },
+    {
+      "id": "greg-sullivan-e-pianos",
+      "group": "keyboards",
+      "display_name": "Greg Sullivan E-Pianos / Yamaha CP80",
+      "instrument_ids": [
+        "键盘乐器/合唱电钢琴",
+        "键盘乐器/电钢琴"
+      ],
+      "license": {
+        "expression": "CC-BY-3.0",
+        "status": "approved",
+        "output_attribution_required": true,
+        "evidence_files": [
+          "LICENSE",
+          "README.md"
+        ]
+      },
+      "source": {
+        "project": "sfzinstruments/GregSullivan.E-Pianos",
+        "repository": "https://github.com/sfzinstruments/GregSullivan.E-Pianos",
+        "version": "8c3e581acda3594b553948ff0222d4f84a698376",
+        "commit": "8c3e581acda3594b553948ff0222d4f84a698376"
+      },
+      "archive": {
+        "url": "https://github.com/sfzinstruments/GregSullivan.E-Pianos/archive/8c3e581acda3594b553948ff0222d4f84a698376.zip",
+        "filename": "GregSullivan.E-Pianos-8c3e581acda3.zip",
+        "format": "zip",
+        "bytes": null,
+        "estimated_bytes": 21484396,
+        "max_bytes": 30000000,
+        "sha256": null,
+        "verification": "fixed_commit_and_complete_tree; GitHub codeload container bytes are not treated as stable"
+      },
+      "install": {
+        "target": "GregSullivan.E-Pianos",
+        "strip_single_root": true,
+        "tree": {
+          "files": 178,
+          "bytes": 21484396,
+          "sha256": "bf9524dfddf3c9ac0045f6da5f0c323e19a678fc317b8a83396d8d5f65af245e"
+        },
+        "derived": []
+      }
+    },
+    {
+      "id": "salamander-grand-piano",
+      "group": "keyboards",
+      "display_name": "Salamander Grand Piano",
+      "instrument_ids": [
+        "键盘乐器/钢琴"
+      ],
+      "license": {
+        "expression": "CC-BY-3.0",
+        "status": "approved",
+        "output_attribution_required": true,
+        "evidence_files": [
+          "LICENSE",
+          "README.md"
+        ]
+      },
+      "source": {
+        "project": "sfzinstruments/SalamanderGrandPiano",
+        "repository": "https://github.com/sfzinstruments/SalamanderGrandPiano",
+        "version": "3382bf9496bba2486f5ab0de55a264d1dfc38404",
+        "commit": "3382bf9496bba2486f5ab0de55a264d1dfc38404"
+      },
+      "archive": {
+        "url": "https://github.com/sfzinstruments/SalamanderGrandPiano/archive/3382bf9496bba2486f5ab0de55a264d1dfc38404.zip",
+        "filename": "SalamanderGrandPiano-3382bf9496bb.zip",
+        "format": "zip",
+        "bytes": null,
+        "estimated_bytes": 750000000,
+        "max_bytes": 800000000,
+        "sha256": null,
+        "verification": "fixed_commit_and_complete_tree; GitHub codeload container bytes are not treated as stable"
+      },
+      "install": {
+        "target": "钢琴/SalamanderGrandPiano",
+        "strip_single_root": true,
+        "tree": {
+          "files": 668,
+          "bytes": 748451483,
+          "sha256": "fcf5b194a5e19057f006138f7ec852c0b1354e12d65c8250546f9cdb5cbddb82"
+        },
+        "derived": []
+      }
+    },
+    {
+      "id": "itsclipping-ganjo",
+      "group": "world",
+      "display_name": "itsclipping ganjo v1.000",
+      "instrument_ids": [
+        "世界乐器/班卓琴"
+      ],
+      "license": {
+        "expression": "CC0-1.0",
+        "status": "approved",
+        "output_attribution_required": false,
+        "evidence_files": [
+          "LICENSE.md",
+          "README.md"
+        ]
+      },
+      "source": {
+        "project": "sfzinstruments/ganjo",
+        "repository": "https://github.com/sfzinstruments/ganjo",
+        "version": "v1.000",
+        "commit": "ccff5cd5cd3b513873a48994c07724d9d3c39e1c"
+      },
+      "archive": {
+        "url": "https://github.com/sfzinstruments/ganjo/archive/ccff5cd5cd3b513873a48994c07724d9d3c39e1c.zip",
+        "filename": "ganjo-ccff5cd5cd3b.zip",
+        "format": "zip",
+        "bytes": null,
+        "estimated_bytes": 27000000,
+        "max_bytes": 30000000,
+        "sha256": null,
+        "verification": "fixed_commit_and_complete_tree; GitHub codeload container bytes are not treated as stable"
+      },
+      "install": {
+        "target": "itsclipping/ganjo-v1.000",
+        "strip_single_root": true,
+        "tree": {
+          "files": 66,
+          "bytes": 26113258,
+          "sha256": "aa16fa9940bc962edaae6ac48e1552889781ade51b0d4b2baa2762408b0af91f"
+        },
+        "derived": []
+      }
+    },
+    {
+      "id": "simpk-clavichord",
+      "group": "keyboards",
+      "display_name": "SIMPK Johann Gottlob Horn Clavichord circa 1793",
+      "instrument_ids": [
+        "键盘乐器/击弦古钢琴"
+      ],
+      "license": {
+        "expression": "CC-BY-4.0",
+        "status": "approved",
+        "output_attribution_required": true,
+        "evidence_files": [
+          "LICENSE",
+          "SOURCE.json",
+          "tianlai/tuning.json"
+        ]
+      },
+      "source": {
+        "project": "SIMPK / KlangInstrumente",
+        "repository": "https://www.simpk.de/museum/besuch/projekte/klaviatur-tastatur-interface/samples.html",
+        "version": "SIMPK_03_Clavichord",
+        "commit": null
+      },
+      "archive": {
+        "url": "https://topographie.simpk.de/kti/SIMPK_03_Clavichord.zip",
+        "filename": "SIMPK_03_Clavichord.zip",
+        "format": "zip",
+        "bytes": 1518834178,
+        "estimated_bytes": 1518834178,
+        "max_bytes": 1518834178,
+        "sha256": "470721722d5d4abad0a6f29adab8d7aecc815fd695b531b73ad5d9d07dce39a2",
+        "verification": "official_archive_sha256_source_tree_recipe_and_complete_installed_tree"
+      },
+      "install": {
+        "target": "SIMPK_03_Clavichord",
+        "strip_single_root": true,
+        "source_tree": {
+          "files": 762,
+          "bytes": 2011246107,
+          "sha256": "9e743ee1bb6ffb6c65eb1656aa6ef0ac7787865fa2bf059c11df199375ab0bbd"
+        },
+        "recipe": {
+          "id": "simpk-clavichord-v1",
+          "converter": "乐器/键盘乐器/击弦古钢琴/转换SIMPK音源.py",
+          "converter_sha256": "0d5a588c2c2146060ed7cd8752cfc7d86e2df2c7cd9c0ebc96175532d3ad17c8",
+          "source_evidence": "乐器/键盘乐器/击弦古钢琴/SIMPK来源证据.json",
+          "source_evidence_sha256": "0f427bc8f269f569d097d5ae34852b39c2c398a66e0aafee161cd49bbc1fdf4e",
+          "tuning_table": "乐器/键盘乐器/击弦古钢琴/SIMPK调音表.json",
+          "tuning_table_sha256": "9ebfdf484a03daf5dcd5bfdaf2ae41e8bead4e8d966662dd09109f62221753fe"
+        },
+        "tree": {
+          "files": 766,
+          "bytes": 2011385253,
+          "sha256": "625ce0eaa65db8e4e92728008911c473991c004024063a6ac8c50c046e3caddc"
         },
         "derived": []
       }

@@ -16,7 +16,18 @@
   "wav_sha256": "153bb949a871ed17a2543069ebf891feb732ed7d587b1708a6456e8441ce5728",
   "hash_algorithm": "SHA-256",
   "canonicalization": "tianlai-json-v1",
-  "manifest_canonical_sha256": "b10e385ab152e49eb74bf442e1d4370d64536673486241cfcec2c432afd8a781",
+  "manifest_canonical_sha256": "8f6c1b5f22e4b1047397e45dc67b8136fc86a31e347bc8e2d34fd9737d1a1a0f",
+  "license_metadata_migration": {
+    "status": "license_metadata_only_no_audio_change",
+    "migrated_at": "2026-08-02",
+    "previous_manifest_canonical_sha256": "b10e385ab152e49eb74bf442e1d4370d64536673486241cfcec2c432afd8a781",
+    "changed_fields": [
+      "creator",
+      "attribution"
+    ],
+    "audio_rerendered": false,
+    "reason": "Only creator and attribution metadata changed; runtime and render parameters are unchanged."
+  },
   "events": "examples/全音域上行/世界乐器/班卓琴_全音域上行.events.json",
   "events_canonical_sha256": "c5f67b41deb542f0400b30967f8516786975dec9b4ea916694418be80462b71c",
   "identity_migration": {

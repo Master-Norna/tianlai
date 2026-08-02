@@ -1,3 +1,5 @@
+[中文](README.md) | [English](README.en.md)
+
 # 次中音萨克斯
 
 这是基于 `sfzinstruments/MTG.SoloSax` 的专用采样 `formal`，默认读取真实 FLAC 与上游 SFZ，不会在资源缺失时静默换成 GM SoundFont。

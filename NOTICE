@@ -6,3 +6,9 @@ Tianlai was originally conceived, architected, and developed by Nor.na.
 This NOTICE covers project-authored software and does not claim authorship of
 third-party audio assets, scores, compositions, or other separately licensed
 material identified by the repository's manifests and attribution records.
+
+The text of "Tianlai Music Constitution v0.1" is separately made available
+under Creative Commons Attribution 4.0 International (CC BY 4.0), as stated in
+docs/音乐创作参考笔记/README.md. That license applies only to the identified
+constitution text, does not alter the Apache-2.0 license for Tianlai software,
+and does not license music merely because this guidance was used to create it.

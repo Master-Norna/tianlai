@@ -1,3 +1,5 @@
+[中文](README.md) | [English](README.en.md)
+
 # 钢片琴
 
 基于 Virtual Playing Orchestra 3.3 的真实 Celesta 多采样 `formal`。该实现读取专用 `Keys/celesta.sfz` 与 WAV，不再使用 GM 钟琴或通用 SoundFont 代替。

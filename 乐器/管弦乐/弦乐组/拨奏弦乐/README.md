@@ -1,3 +1,5 @@
+**简体中文** | [English](README.en.md)
+
 # 拨奏弦乐
 
 这是 VPO `all-strings-SEC-pizzicato.sfz` 的专用拨奏入口，不是把弦乐合奏换名，也不接受持续或颤弓奏法。

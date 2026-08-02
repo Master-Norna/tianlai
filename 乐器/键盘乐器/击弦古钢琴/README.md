@@ -1,3 +1,5 @@
+[中文](README.md) | [English](README.en.md)
+
 # 击弦古钢琴（formal）
 
 本入口采用德国国立音乐研究所（SIMPK）乐器博物馆收藏的一台 Johann Gottlob

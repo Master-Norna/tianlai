@@ -1,3 +1,5 @@
+**简体中文** | [English](README.en.md)
+
 # 小提琴
 
 基于 Virtual Playing Orchestra 3.3 的第一独奏小提琴，直接读取上游 SFZ 区域映射和 WAV 内嵌循环点。

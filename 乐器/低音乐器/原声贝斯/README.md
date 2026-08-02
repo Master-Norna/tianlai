@@ -1,3 +1,5 @@
+[中文](README.md) | [English](README.en.md)
+
 # 原声贝斯(formal)
 
 Karoryfer Meatbass 低音提琴,拨奏为主、弓奏备选。本目录是 98 项清单 SAM-10 的专用实现,渲染引擎复用

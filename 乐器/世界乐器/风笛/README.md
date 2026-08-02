@@ -1,3 +1,5 @@
+[中文](README.md) | [English](README.en.md)
+
 # 风笛（formal）
 
 本入口使用 FreePats 2022-12-04 的 G 调风笛实录。上游键盘映射把两根持续低音管

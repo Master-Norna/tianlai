@@ -16,7 +16,18 @@
   "wav_sha256": "d3dac20c1f6158f22cbd8d42821911cfa0c70ce316e04308afd51da41f733ac4",
   "hash_algorithm": "SHA-256",
   "canonicalization": "tianlai-json-v1",
-  "manifest_canonical_sha256": "1c3c3bf719bac5a4f121275ddd554e01f6560556ab77a7890be04a8b4309a632",
+  "manifest_canonical_sha256": "b79804aa99d1dce089b8a4397f375083976c60117709e1999df378ca6a707c6c",
+  "license_metadata_migration": {
+    "status": "license_metadata_only_no_audio_change",
+    "migrated_at": "2026-08-02",
+    "previous_manifest_canonical_sha256": "1c3c3bf719bac5a4f121275ddd554e01f6560556ab77a7890be04a8b4309a632",
+    "changed_fields": [
+      "creator",
+      "attribution"
+    ],
+    "audio_rerendered": false,
+    "reason": "Only creator and attribution metadata changed; runtime and render parameters are unchanged."
+  },
   "events": "examples/全音域上行/现代鼓组/牛铃_全音域上行.events.json",
   "events_canonical_sha256": "4899cd8f16980b7febc96c5d1fdc8c3d04021d02edf45d4b17f048308c706c92",
   "identity_migration": {

@@ -1,3 +1,5 @@
+[中文](README.md) | [English](README.en.md)
+
 # 卡林巴(formal)
 
 VCSL 肯尼亚 15 键卡林巴专用采样。本目录是 98 项清单 SAM-02 的专用实现,渲染引擎复用

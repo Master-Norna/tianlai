@@ -5,12 +5,17 @@ import io
 import json
 import os
 from pathlib import Path
+import subprocess
+import sys
 import tempfile
 import unittest
 from unittest import mock
 
+import tianlai.doctor as doctor_module
 from tianlai import __version__
 from tianlai.doctor import (
+    REPORT_SCHEMA_VERSION,
+    _platform_runtime_supported,
     _python_runtime_supported,
     _relative_or_absolute,
     collect_doctor_report,
@@ -18,6 +23,9 @@ from tianlai.doctor import (
     main,
 )
 from tianlai.runtime_layout import RuntimeLayout
+
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def _write_json(path: Path, document: object) -> None:
@@ -51,6 +59,39 @@ class DoctorTests(unittest.TestCase):
                         implementation="CPython",
                         version=version,
                         bits=64,
+                    )
+                )
+
+    def test_supported_platforms_match_the_public_native_architecture_contract(
+        self,
+    ) -> None:
+        for system, machine in (
+            ("Windows", "AMD64"),
+            ("Linux", "x86_64"),
+            ("Darwin", "arm64"),
+            ("Darwin", "aarch64"),
+            ("Darwin", "x86_64"),
+        ):
+            with self.subTest(system=system, machine=machine):
+                self.assertTrue(
+                    _platform_runtime_supported(
+                        system=system,
+                        machine=machine,
+                        bits=64,
+                    )
+                )
+        for system, machine, bits in (
+            ("Windows", "ARM64", 64),
+            ("Linux", "aarch64", 64),
+            ("Darwin", "i386", 32),
+            ("FreeBSD", "x86_64", 64),
+        ):
+            with self.subTest(system=system, machine=machine, bits=bits):
+                self.assertFalse(
+                    _platform_runtime_supported(
+                        system=system,
+                        machine=machine,
+                        bits=bits,
                     )
                 )
         for implementation, version, bits in (
@@ -123,6 +164,280 @@ class DoctorTests(unittest.TestCase):
             },
         )
         return path
+
+    def test_fluidsynth_capability_reports_homebrew_native_and_binding_layers(
+        self,
+    ) -> None:
+        prefix = self.root / "Homebrew prefix"
+        runtime = prefix / "opt" / "fluid-synth" / "lib"
+        runtime.mkdir(parents=True)
+        library = runtime / "libfluidsynth.dylib"
+        library.write_bytes(b"test dylib placeholder")
+
+        with (
+            mock.patch(
+                "tianlai.soundfont._is_windows_runtime",
+                return_value=False,
+            ),
+            mock.patch(
+                "tianlai.soundfont._is_macos_runtime",
+                return_value=True,
+            ),
+            mock.patch.dict(
+                os.environ,
+                {
+                    "HOMEBREW_PREFIX": str(prefix),
+                    "TIANLAI_FLUIDSYNTH_DIR": "",
+                },
+                clear=False,
+            ),
+            mock.patch(
+                "tianlai.doctor.importlib.util.find_spec",
+                return_value=object(),
+            ),
+            mock.patch(
+                "tianlai.doctor.importlib.metadata.version",
+                return_value="1.4.0",
+            ),
+            mock.patch(
+                "tianlai.doctor.ctypes.util.find_library",
+                return_value=None,
+            ) as system_lookup,
+            mock.patch(
+                "tianlai.doctor._load_native_fluidsynth_library",
+            ) as native_load,
+        ):
+            capability = doctor_module._fluidsynth_capability(self.layout)
+
+        self.assertEqual(capability["status"], "available")
+        self.assertTrue(capability["ready"])
+        self.assertFalse(capability["required_for_core"])
+        self.assertEqual(capability["library"], str(library.resolve()))
+        self.assertEqual(capability["native"]["status"], "available")
+        self.assertTrue(capability["native"]["load_verified"])
+        self.assertEqual(capability["native"]["source"], "homebrew")
+        self.assertEqual(capability["native"]["directory"], str(runtime.resolve()))
+        self.assertEqual(capability["python_binding"]["status"], "available")
+        self.assertEqual(capability["python_binding"]["version"], "1.4.0")
+        native_load.assert_called_once_with(library.resolve())
+        system_lookup.assert_not_called()
+
+    def test_fluidsynth_report_labels_project_and_environment_directories(
+        self,
+    ) -> None:
+        project_runtime = self.root / "音源" / "通用" / "fluidsynth" / "lib"
+        override = self.root / "external FluidSynth"
+        with mock.patch.dict(
+            os.environ,
+            {"TIANLAI_FLUIDSYNTH_DIR": str(override)},
+            clear=False,
+        ):
+            self.assertEqual(
+                doctor_module._fluidsynth_directory_source(
+                    project_runtime,
+                    self.root,
+                ),
+                "project_local",
+            )
+            self.assertEqual(
+                doctor_module._fluidsynth_directory_source(
+                    override,
+                    self.root,
+                ),
+                "environment_override",
+            )
+
+    def test_fluidsynth_capability_keeps_native_and_missing_binding_distinct(
+        self,
+    ) -> None:
+        def locate(name: str) -> str | None:
+            if name == "libfluidsynth-3":
+                return "libfluidsynth.3.dylib"
+            return None
+
+        with (
+            mock.patch(
+                "tianlai.doctor._find_project_fluidsynth_directory",
+                return_value=None,
+            ),
+            mock.patch(
+                "tianlai.doctor.ctypes.util.find_library",
+                side_effect=locate,
+            ),
+            mock.patch(
+                "tianlai.doctor._load_native_fluidsynth_library",
+            ) as native_load,
+            mock.patch.dict(doctor_module.sys.modules) as modules,
+            mock.patch(
+                "tianlai.doctor.importlib.util.find_spec",
+                return_value=None,
+            ),
+            mock.patch(
+                "tianlai.doctor.importlib.metadata.version",
+                side_effect=doctor_module.importlib.metadata.PackageNotFoundError,
+            ),
+        ):
+            modules.pop("fluidsynth", None)
+            capability = doctor_module._fluidsynth_capability(self.layout)
+
+        self.assertEqual(capability["status"], "optional_missing")
+        self.assertFalse(capability["ready"])
+        self.assertEqual(capability["native"]["status"], "available")
+        self.assertTrue(capability["native"]["load_verified"])
+        self.assertEqual(capability["native"]["source"], "system_lookup")
+        self.assertEqual(capability["native"]["probe"], "libfluidsynth-3")
+        self.assertEqual(
+            capability["native"]["library"],
+            "libfluidsynth.3.dylib",
+        )
+        self.assertEqual(
+            capability["python_binding"]["status"],
+            "optional_missing",
+        )
+        self.assertIsNone(capability["python_binding"]["version"])
+        native_load.assert_called_once_with("libfluidsynth.3.dylib")
+
+    def test_damaged_configured_dylib_is_error_not_available(self) -> None:
+        runtime = self.root / "external FluidSynth"
+        runtime.mkdir()
+        library = runtime / "libfluidsynth.dylib"
+        library.write_bytes(b"not a Mach-O library")
+
+        with (
+            mock.patch(
+                "tianlai.soundfont._is_windows_runtime",
+                return_value=False,
+            ),
+            mock.patch(
+                "tianlai.soundfont._is_macos_runtime",
+                return_value=True,
+            ),
+            mock.patch.dict(
+                os.environ,
+                {
+                    "TIANLAI_FLUIDSYNTH_DIR": str(runtime),
+                    "HOMEBREW_PREFIX": "",
+                },
+                clear=False,
+            ),
+            mock.patch(
+                "tianlai.doctor._load_native_fluidsynth_library",
+                side_effect=OSError("mach-o file, but is an incompatible architecture"),
+            ),
+            mock.patch(
+                "tianlai.doctor.importlib.util.find_spec",
+                return_value=object(),
+            ),
+            mock.patch(
+                "tianlai.doctor.importlib.metadata.version",
+                return_value="1.4.0",
+            ),
+        ):
+            capability = doctor_module._fluidsynth_capability(self.layout)
+
+        self.assertEqual(capability["status"], "error")
+        self.assertFalse(capability["ready"])
+        self.assertEqual(capability["native"]["status"], "error")
+        self.assertFalse(capability["native"]["load_verified"])
+        self.assertIn("incompatible architecture", capability["native"]["error"])
+
+    def test_native_loader_rejects_a_file_that_is_not_a_dynamic_library(self) -> None:
+        placeholder = self.root / "libfluidsynth.dylib"
+        placeholder.write_bytes(b"not a dynamic library")
+
+        with self.assertRaises(OSError):
+            doctor_module._load_native_fluidsynth_library(placeholder)
+
+    def test_broken_optional_fluidsynth_degrades_otherwise_ready_report(self) -> None:
+        self._write_self_contained_test_utility()
+        _write_json(
+            self.root / "可信乐器.json",
+            {"trusted": ["测试工具/参考振荡器"]},
+        )
+        with mock.patch(
+            "tianlai.doctor._platform_capabilities",
+            return_value={"fluidsynth": {"status": "error"}},
+        ):
+            report = collect_doctor_report(layout=self.layout)
+
+        self.assertEqual(report["summary"]["status"], "degraded")
+
+    def test_rosetta_diagnostic_is_not_probed_or_reported_off_macos(self) -> None:
+        with mock.patch(
+            "tianlai.doctor._probe_macos_rosetta_translation",
+        ) as probe:
+            capability = doctor_module._macos_rosetta_capability(
+                system="Linux",
+                machine="x86_64",
+                bits=64,
+            )
+
+        self.assertEqual(capability["status"], "not_applicable")
+        self.assertIsNone(capability["translated"])
+        self.assertIsNone(capability["supported"])
+        probe.assert_not_called()
+
+    def test_rosetta_diagnostic_distinguishes_native_arm_and_translation(self) -> None:
+        with mock.patch(
+            "tianlai.doctor._probe_macos_rosetta_translation",
+        ) as probe:
+            native = doctor_module._macos_rosetta_capability(
+                system="Darwin",
+                machine="arm64",
+                bits=64,
+            )
+        self.assertEqual(native["status"], "native")
+        self.assertFalse(native["translated"])
+        self.assertEqual(native["host_architecture"], "arm64")
+        self.assertTrue(native["supported"])
+        probe.assert_not_called()
+
+        with mock.patch(
+            "tianlai.doctor._probe_macos_rosetta_translation",
+            return_value=True,
+        ) as probe:
+            translated = doctor_module._macos_rosetta_capability(
+                system="Darwin",
+                machine="x86_64",
+                bits=64,
+            )
+        self.assertEqual(translated["status"], "translated")
+        self.assertTrue(translated["translated"])
+        self.assertEqual(translated["host_architecture"], "arm64")
+        self.assertFalse(translated["supported"])
+        probe.assert_called_once_with()
+
+        with mock.patch(
+            "tianlai.doctor._probe_macos_rosetta_translation",
+            side_effect=OSError("sysctl unavailable"),
+        ):
+            unknown = doctor_module._macos_rosetta_capability(
+                system="Darwin",
+                machine="x86_64",
+                bits=64,
+            )
+        self.assertEqual(unknown["status"], "unknown")
+        self.assertFalse(unknown["supported"])
+
+    def test_rosetta_translation_makes_the_report_runtime_unsupported(self) -> None:
+        self._write_self_contained_test_utility()
+        _write_json(
+            self.root / "可信乐器.json",
+            {"trusted": ["测试工具/参考振荡器"]},
+        )
+        with (
+            mock.patch("tianlai.doctor.platform.system", return_value="Darwin"),
+            mock.patch("tianlai.doctor.platform.machine", return_value="x86_64"),
+            mock.patch(
+                "tianlai.doctor._probe_macos_rosetta_translation",
+                return_value=True,
+            ),
+        ):
+            report = collect_doctor_report(layout=self.layout)
+
+        self.assertFalse(report["platform"]["supported"])
+        self.assertEqual(report["platform"]["rosetta"]["status"], "translated")
+        self.assertEqual(report["summary"]["status"], "error")
 
     def test_clean_source_without_audio_resources_remains_diagnosable(self) -> None:
         self._write_self_contained_test_utility()
@@ -232,7 +547,10 @@ class DoctorTests(unittest.TestCase):
         self._write_sample_manifest()
         report = collect_doctor_report(layout=self.layout, verify_references=False)
         encoded = doctor_report_json(report)
-        self.assertEqual(json.loads(encoded)["schema_version"], 2)
+        self.assertEqual(
+            json.loads(encoded)["schema_version"],
+            REPORT_SCHEMA_VERSION,
+        )
         self.assertNotIn("\\u4e50", encoded)
 
         with mock.patch.dict(
@@ -252,6 +570,50 @@ class DoctorTests(unittest.TestCase):
                     ["--json", "--quick", "--require-all-resources"]
                 )
             self.assertEqual(strict_result, 2)
+
+    def test_json_cli_explicitly_requests_utf8_for_redirected_stdout(self) -> None:
+        self._write_sample_manifest()
+        stdout = io.StringIO()
+        stdout.reconfigure = mock.Mock()
+        with mock.patch.dict(
+            os.environ,
+            {"TIANLAI_HOME": str(self.root)},
+            clear=False,
+        ), mock.patch("sys.stdout", stdout):
+            self.assertEqual(main(["--json", "--quick"]), 0)
+
+        stdout.reconfigure.assert_called_once_with(
+            encoding="utf-8",
+            errors="strict",
+        )
+        self.assertEqual(
+            json.loads(stdout.getvalue())["schema_version"],
+            REPORT_SCHEMA_VERSION,
+        )
+
+    def test_json_cli_subprocess_emits_utf8_bytes_in_unicode_layout(self) -> None:
+        self._write_sample_manifest()
+        environment = os.environ.copy()
+        environment["TIANLAI_HOME"] = str(self.root)
+        completed = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "tianlai.doctor",
+                "--json",
+                "--quick",
+            ],
+            cwd=ROOT,
+            env=environment,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        decoded = completed.stdout.decode("utf-8", errors="strict")
+        document = json.loads(decoded)
+        self.assertEqual(document["schema_version"], REPORT_SCHEMA_VERSION)
+        self.assertIn("乐器", decoded)
 
     def test_imported_code_version_wins_over_stale_distribution_metadata(self) -> None:
         self._write_self_contained_test_utility()
@@ -298,15 +660,23 @@ class ShippedDoctorTests(unittest.TestCase):
         self.assertEqual(report["summary"]["trusted_count"], 25)
         self.assertEqual(report["summary"]["asset_backed_count"], 74)
         self.assertEqual(report["summary"]["self_contained_count"], 29)
-        expected_available = 74 if os.name == "nt" else 38
-        expected_platform_unavailable = 0 if os.name == "nt" else 36
+        self.assertTrue(report["platform"]["supported"])
+        self.assertIn(report["platform"]["normalised_machine"], {"x86_64", "arm64"})
+        restore_capability = report["capabilities"]["resource_restore"]
+        self.assertEqual(restore_capability["family_count"], 15)
+        self.assertEqual(restore_capability["instrument_count"], 74)
+        self.assertEqual(
+            set(restore_capability["archive_formats"]),
+            {"7z", "tar.xz", "zip"},
+        )
+        self.assertFalse(report["capabilities"]["fluidsynth"]["required_for_core"])
         self.assertEqual(
             report["summary"]["installer_available_count"],
-            expected_available,
+            74,
         )
         self.assertEqual(
             report["summary"]["installer_unavailable_on_platform_count"],
-            expected_platform_unavailable,
+            0,
         )
         self.assertEqual(report["summary"]["installer_unavailable_count"], 0)
         self.assertEqual(report["summary"]["installer_missing_count"], 0)
@@ -334,10 +704,10 @@ class ShippedDoctorTests(unittest.TestCase):
                 verify_references=False,
             )
 
-        self.assertEqual(report["summary"]["installer_available_count"], 38)
+        self.assertEqual(report["summary"]["installer_available_count"], 74)
         self.assertEqual(
             report["summary"]["installer_unavailable_on_platform_count"],
-            36,
+            0,
         )
         by_id = {item["id"]: item for item in report["instruments"]}
         tracked = by_id["管弦乐/木管组/竖笛"]["resource"]["installer"]
@@ -349,14 +719,10 @@ class ShippedDoctorTests(unittest.TestCase):
         )
         self.assertEqual(tracked["arguments"][-2:], ["--family", "vcsl"])
 
-        legacy = next(
-            item["resource"]["installer"]
-            for item in report["instruments"]
-            if item["resource"]["installer"].get("installer_id")
-            == "virtual-playing-orchestra"
-        )
-        self.assertEqual(legacy["status"], "unavailable_on_platform")
-        self.assertEqual(legacy["required_platform"], "Windows")
+        vpo = by_id["管弦乐/弦乐组/小提琴"]["resource"]["installer"]
+        self.assertEqual(vpo["status"], "available")
+        self.assertEqual(vpo["resource_family"], "virtual-playing-orchestra")
+        self.assertEqual(vpo["module"], "tianlai.resource_restore")
 
 
 if __name__ == "__main__":

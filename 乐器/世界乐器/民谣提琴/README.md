@@ -1,3 +1,5 @@
+[中文](README.md) | [English](README.en.md)
+
 # 小提琴·民谣演奏风格(formal)
 
 本入口是“小提琴的民谣演奏风格”，不是另一种声学实体。它复用 VPO

@@ -1,3 +1,5 @@
+[中文](README.md) | [English](README.en.md)
+
 # 日本筝(formal,确定性建模)
 
 扩展 Karplus-Strong 筝模型:洁净拨弦、桐木共鸣体、中长延音。实现位于 `tianlai/modeled_instruments.py`(profile

@@ -16,7 +16,18 @@
   "wav_sha256": "2b9890f83b2844b7dadad7e0bd2cbd32a36b7183e7519272f52f5bef1ddb5a6b",
   "hash_algorithm": "SHA-256",
   "canonicalization": "tianlai-json-v1",
-  "manifest_canonical_sha256": "269185679c70ba3f31f50a166441353d6395dfc363133a473496f90beaa15978",
+  "manifest_canonical_sha256": "709346d0e9ae0fd6a5158c2565842804c01da134b7db870fa0a0341cc533e7e0",
+  "license_metadata_migration": {
+    "status": "license_metadata_only_no_audio_change",
+    "migrated_at": "2026-08-02",
+    "previous_manifest_canonical_sha256": "269185679c70ba3f31f50a166441353d6395dfc363133a473496f90beaa15978",
+    "changed_fields": [
+      "creator",
+      "attribution"
+    ],
+    "audio_rerendered": false,
+    "reason": "Only creator and attribution metadata changed; runtime and render parameters are unchanged."
+  },
   "events": "examples/全音域上行/管弦乐/弦乐组/低音提琴_全音域上行.events.json",
   "events_canonical_sha256": "bb55330c1412e42a8d5f19a89fcbc0ad22fb18e8513782fd40fdf2ca86a6cd95",
   "identity_migration": {

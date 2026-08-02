@@ -1,3 +1,5 @@
+**简体中文** | [English](README.en.md)
+
 # 钟琴
 
 VPO 3.3 / VSCO2-CE 专用多采样 `formal`，实际与记谱音域 F5–C8（MIDI 77–108）。

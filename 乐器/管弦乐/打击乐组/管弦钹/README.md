@@ -1,3 +1,5 @@
+**简体中文** | [English](README.en.md)
+
 # 管弦钹
 
 VPO 3.3 专用多采样 `formal`，无固定音高，共 15 个去重 WAV。

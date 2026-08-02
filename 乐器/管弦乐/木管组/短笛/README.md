@@ -1,3 +1,5 @@
+**简体中文** | [English](README.en.md)
+
 # 短笛
 
 基于 Virtual Playing Orchestra Standard 3.3 / Wave 3.2 的独奏短笛 `formal`，直接读取 SOLO SFZ/WAV，不会静默回落到 GM SoundFont。

@@ -1,3 +1,5 @@
+**简体中文** | [English](README.en.md)
+
 # 长笛
 
 基于 Virtual Playing Orchestra 3.3 / VSCO 2 Community Edition 的独奏长笛，使用单声部气息状态机调度真实录音采样。

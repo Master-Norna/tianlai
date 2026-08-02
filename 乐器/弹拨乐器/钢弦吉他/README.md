@@ -1,3 +1,5 @@
+[中文](README.md) | [English](README.en.md)
+
 # 钢弦吉他(formal)
 
 FreePats FS Seagull 钢弦原声吉他专用多采样。本目录是 98 项清单 SAM-18 的专用实现,渲染引擎复用

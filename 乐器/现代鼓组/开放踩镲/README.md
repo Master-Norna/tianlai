@@ -1,3 +1,5 @@
+[中文](README.md) | [English](README.en.md)
+
 # 开放踩镲(formal)
 
 VCSL 踩镲开放侧:开放击与开-闭击。本目录是 98 项清单 SAM-26 的专用实现,渲染引擎复用

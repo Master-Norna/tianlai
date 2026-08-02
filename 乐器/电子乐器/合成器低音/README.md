@@ -1,3 +1,5 @@
+[中文](README.md) | [English](README.en.md)
+
 # 合成器低音
 
 默认 `synth_bass`（引擎 `1.0.0`，`formal`）组合 PolyBLEP 锯齿、可变脉宽方波和基频正弦，经软饱和与高谐振低通。快速、按指数衰减的滤波包络形成低音“咬字”，短 ADSR 适合节奏线。

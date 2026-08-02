@@ -10,6 +10,8 @@
   "origin": "https://github.com/sfzinstruments/ganjo",
   "upstream_version": "v1.000 @ ccff5cd5cd3b513873a48994c07724d9d3c39e1c",
   "license": "CC0-1.0",
+  "creator": "itsclipping",
+  "attribution": "Ganjo samples recorded, edited, and mapped by itsclipping; dedicated under CC0-1.0. Credit is retained for provenance and does not imply endorsement.",
   "license_status": "approved",
   "evidence_files": [
     "LICENSE.md",

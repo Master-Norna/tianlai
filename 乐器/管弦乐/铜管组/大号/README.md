@@ -1,3 +1,5 @@
+**简体中文** | [English](README.en.md)
+
 # 大号
 
 基于 Virtual Playing Orchestra 3.3 的独奏大号 `formal`，使用专用 SSO/VPO WAV 多采样，不会静默回落到 GM SoundFont。

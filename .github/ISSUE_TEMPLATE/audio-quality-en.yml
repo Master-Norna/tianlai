@@ -1,0 +1,75 @@
+name: Timbre, range, or ensemble issue (English)
+description: Report a reproducible listening problem bound to an instrument, resource, and candidate version
+title: "[Audio] "
+labels:
+  - audio
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Share the smallest reproduction that you may lawfully publish. Do not upload a score, MIDI, recording, or sample that you lack permission to share.
+        “It sounds strange” is useful: a candidate ID, exact timestamp, and stem can turn that impression into a reproducible issue.
+  - type: input
+    id: version
+    attributes:
+      label: Tianlai version or commit
+      description: Run `tianlai --version` (or `天籁.cmd --version` on Windows). Add the Git commit when using a source-development version.
+      placeholder: 0.6.0rc1 / abcdef1
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: macOS 15 arm64, Python 3.13, headphones/speakers if relevant
+    validations:
+      required: true
+  - type: input
+    id: instrument
+    attributes:
+      label: Instrument ID or part
+      placeholder: 管弦乐/弦乐组/小提琴; 04_小提琴 in the candidate
+    validations:
+      required: true
+  - type: input
+    id: location
+    attributes:
+      label: Candidate and time location
+      description: Prefer the candidate ID and exact timestamp. For a single note, pitch, dynamic, and articulation are also useful.
+      placeholder: candidate-..., 34.2 seconds; or G5 / ff / sustain
+    validations:
+      required: true
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Scope
+      options:
+        - Present in the isolated stem
+        - Present only in the ensemble
+        - Stem not yet identified
+    validations:
+      required: true
+  - type: textarea
+    id: observation
+    attributes:
+      label: What you hear and what you expected
+      description: Describe artifacts, range mismatch, dynamic jumps, reverb, masking, or other behavior and the result you expected.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Reproducible evidence
+      description: |
+        Include relevant `tianlai-doctor --json` output, candidate ID, render-receipt hash,
+        `candidate-locate` result, and minimal score/events when useful. Remove private paths and content you cannot publish.
+      render: shell
+  - type: checkboxes
+    id: rights
+    attributes:
+      label: Sharing boundary
+      options:
+        - label: I confirm that this issue contains no work, score, recording, or third-party sample that I lack permission to publish.
+          required: true
+        - label: I understand that one listening report does not automatically classify the instrument as universally accepted or rejected.
+          required: true

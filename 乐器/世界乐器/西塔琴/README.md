@@ -1,3 +1,5 @@
+[中文](README.md) | [English](README.en.md)
+
 # 西塔琴(formal,确定性建模)
 
 扩展 Karplus-Strong 西塔琴模型:jawari 琴桥嗡振 + 四根同情弦。实现位于 `tianlai/modeled_instruments.py`(profile

@@ -1,3 +1,5 @@
+**简体中文** | [English](README.en.md)
+
 # 颤音琴
 
 本入口已迁移为 VCSL `1.2.2-RC` 的严格 CC0 专用多采样

@@ -1,3 +1,5 @@
+[中文](README.md) | [English](README.en.md)
+
 # 爵士电吉他(formal)
 
 Karoryfer Emilyguitar 平卷弦 DI + 确定性爵士音色滤波链。本目录是 98 项清单 SAM-16 的专用实现,采样核心复用
