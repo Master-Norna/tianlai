@@ -26,6 +26,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
 import shutil
 import stat
@@ -77,10 +78,45 @@ def _is_reparse_point(metadata: object) -> bool:
     return bool(attributes & reparse_flag)
 
 
+def _canonicalize_trusted_darwin_root_alias(path: Path) -> Path:
+    """仅改写已验证的 macOS 系统别名，不解析其下后代。"""
+
+    if sys.platform != "darwin" or not path.is_absolute():
+        return path
+    for declared_name, canonical_name in (
+        ("/var", "/private/var"),
+        ("/tmp", "/private/tmp"),
+    ):
+        declared = Path(declared_name)
+        canonical = Path(canonical_name)
+        try:
+            relative = path.relative_to(declared)
+        except ValueError:
+            continue
+        try:
+            declared_metadata = declared.lstat()
+            followed_metadata = declared.stat()
+            canonical_metadata = canonical.lstat()
+        except OSError:
+            return path
+        if (
+            not stat.S_ISLNK(declared_metadata.st_mode)
+            or getattr(declared_metadata, "st_uid", -1) != 0
+            or not stat.S_ISDIR(canonical_metadata.st_mode)
+            or stat.S_ISLNK(canonical_metadata.st_mode)
+            or _is_reparse_point(canonical_metadata)
+            or getattr(canonical_metadata, "st_uid", -1) != 0
+            or not os.path.samestat(followed_metadata, canonical_metadata)
+        ):
+            return path
+        return canonical / relative
+    return path
+
+
 def _reject_redirecting_ancestors(path: Path) -> None:
     """Reject links/junctions without confusing Windows 8.3 aliases for one."""
 
-    current = path
+    current = _canonicalize_trusted_darwin_root_alias(path)
     while True:
         try:
             metadata = current.lstat()

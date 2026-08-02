@@ -243,7 +243,7 @@ if ((portable_tests)); then
 fi
 
 printf 'Installing Tianlai core and the MCP entry point (without large audio assets)...\n'
-run "$venv_python" -m pip install --no-build-isolation -e "$install_target"
+run "$venv_python" -m pip install -e "$install_target"
 run "$venv_python" -m pip check
 
 printf 'Checking the runtime layout, catalogue and installed resource state...\n'

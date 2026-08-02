@@ -599,10 +599,10 @@ class SoundFontInstrumentTests(unittest.TestCase):
 
         def import_backend(name: str) -> types.ModuleType:
             self.assertEqual(name, "fluidsynth")
-            self.assertEqual(
-                soundfont_module.ctypes_util.find_library("fluidsynth"),
-                str(library),
-            )
+            discovered = soundfont_module.ctypes_util.find_library("fluidsynth")
+            self.assertIsNotNone(discovered)
+            assert discovered is not None
+            self.assertTrue(Path(discovered).samefile(library))
             self.assertEqual(
                 soundfont_module.ctypes_util.find_library("unrelated"),
                 "system:unrelated",

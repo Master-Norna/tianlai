@@ -92,7 +92,12 @@ class MinimalWindowsBootstrapTests(unittest.TestCase):
         scripts = project["scripts"]
         self.assertNotIn("pyfluidsynth==1.4.0", dependencies)
         self.assertEqual(extras["soundfont"], ["pyfluidsynth==1.4.0"])
-        self.assertEqual(extras["mcp"], ["mcp==1.28.1"])
+        self.assertIn("mcp==1.28.1", extras["mcp"])
+        self.assertIn(
+            "cryptography>=48,<49; sys_platform == 'darwin' and "
+            "platform_machine == 'x86_64'",
+            extras["mcp"],
+        )
         self.assertTrue(any(item.startswith("pytest") for item in extras["dev"]))
         self.assertTrue(any(item.startswith("jsonschema") for item in extras["dev"]))
         self.assertEqual(scripts["tianlai-doctor"], "tianlai.doctor:main")

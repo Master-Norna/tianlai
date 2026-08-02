@@ -577,8 +577,49 @@ def _is_reparse_point(metadata: os.stat_result) -> bool:
     return bool(attributes & reparse_flag)
 
 
+def _canonicalize_trusted_darwin_root_alias(path: Path) -> Path:
+    """Map only verified macOS system aliases without resolving descendants.
+
+    macOS exposes its private temporary roots through root-owned links such as
+    ``/var -> /private/var``.  Resolving the whole output path would hide an
+    untrusted link farther down the tree, so only the verified system prefix is
+    rewritten and the normal ancestor walk still checks every descendant.
+    """
+
+    if sys.platform != "darwin" or not path.is_absolute():
+        return path
+    for declared_name, canonical_name in (
+        ("/var", "/private/var"),
+        ("/tmp", "/private/tmp"),
+    ):
+        declared = Path(declared_name)
+        canonical = Path(canonical_name)
+        try:
+            relative = path.relative_to(declared)
+        except ValueError:
+            continue
+        try:
+            declared_metadata = declared.lstat()
+            followed_metadata = declared.stat()
+            canonical_metadata = canonical.lstat()
+        except OSError:
+            return path
+        if (
+            not stat.S_ISLNK(declared_metadata.st_mode)
+            or getattr(declared_metadata, "st_uid", -1) != 0
+            or not stat.S_ISDIR(canonical_metadata.st_mode)
+            or stat.S_ISLNK(canonical_metadata.st_mode)
+            or _is_reparse_point(canonical_metadata)
+            or getattr(canonical_metadata, "st_uid", -1) != 0
+            or not os.path.samestat(followed_metadata, canonical_metadata)
+        ):
+            return path
+        return canonical / relative
+    return path
+
+
 def _validate_output_ancestors(path: Path) -> None:
-    current = path
+    current = _canonicalize_trusted_darwin_root_alias(path)
     while True:
         try:
             metadata = current.lstat()

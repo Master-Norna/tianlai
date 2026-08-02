@@ -199,6 +199,19 @@ jobs:
           /bin/bash ./bootstrap_macos.sh \
             --python "$(command -v python)" \
             --portable-tests
+          if test "$EXPECTED_MACHINE" = "x86_64"; then
+            .venv/bin/python - <<'PY'
+          from importlib.metadata import version
+
+          selected = version("cryptography")
+          if selected.partition(".")[0] != "48":
+              raise SystemExit(
+                  "Intel macOS requires the cryptography 48 universal2 line; "
+                  f"installed {selected}"
+              )
+          print(f"Verified Intel-compatible cryptography: {selected}")
+          PY
+          fi
           test -s "output/首次出声/参考振荡器.wav"
           .venv/bin/python -m pip check
           .venv/bin/tianlai --version

@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import tomllib
 import unittest
 
 
@@ -40,6 +41,18 @@ def _usable_bash() -> str | None:
 
 
 class MinimalMacOSBootstrapTests(unittest.TestCase):
+    def test_intel_extra_selects_the_last_universal2_cryptography_line(self) -> None:
+        metadata = tomllib.loads(
+            (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+        )
+        mcp = metadata["project"]["optional-dependencies"]["mcp"]
+        self.assertIn("mcp==1.28.1", mcp)
+        self.assertIn(
+            "cryptography>=48,<49; sys_platform == 'darwin' and "
+            "platform_machine == 'x86_64'",
+            mcp,
+        )
+
     def test_bootstrap_has_a_native_portable_contract(self) -> None:
         raw = BOOTSTRAP.read_bytes()
         self.assertTrue(raw.startswith(b"#!/usr/bin/env bash\n"))
@@ -62,7 +75,7 @@ class MinimalMacOSBootstrapTests(unittest.TestCase):
         self.assertIn("Usage: bash ./bootstrap_macos.sh", text)
         self.assertIn('install_target="${root}[mcp]"', text)
         self.assertIn('install_target="${root}[mcp,dev]"', text)
-        self.assertIn("--no-build-isolation", text)
+        self.assertNotIn("--no-build-isolation", text)
         self.assertIn("-m tianlai.doctor", text)
         self.assertIn("参考振荡器", text)
         self.assertIn("import soundfile as sf", text)
@@ -177,6 +190,18 @@ class MinimalMacOSBootstrapTests(unittest.TestCase):
                 workflow,
             )
             self.assertIn("executable = _find_bsdtar_executable()", workflow)
+            self.assertIn(
+                'if test "$EXPECTED_MACHINE" = "x86_64"; then',
+                mac_job,
+            )
+            self.assertIn(
+                'version("cryptography")',
+                mac_job,
+            )
+            self.assertIn(
+                "Verified Intel-compatible cryptography",
+                mac_job,
+            )
             self.assertLess(
                 mac_job.index("executable = _find_bsdtar_executable()"),
                 mac_job.index("--portable-tests"),
