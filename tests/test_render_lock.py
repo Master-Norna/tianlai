@@ -1,16 +1,15 @@
 from __future__ import annotations
 
-from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack
 import errno
 import json
+import multiprocessing
 import os
 from pathlib import Path
 import stat
 import subprocess
 import sys
 import tempfile
-import threading
 import time
 from types import SimpleNamespace
 import unicodedata
@@ -31,6 +30,41 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class _ContextFailure(Exception):
     pass
+
+
+def _compete_for_initial_render_lock(
+    target_value: str,
+    both_opened,
+    both_attempted,
+    events,
+) -> None:
+    """Exercise the first-use sidecar race in an independent process."""
+
+    real_try_lock = render_lock_module._try_lock
+
+    def synchronized_try_lock(handle) -> None:
+        events.put(("size", os.fstat(handle.fileno()).st_size))
+        both_opened.wait(timeout=30.0)
+        try:
+            real_try_lock(handle)
+        finally:
+            # The winner keeps ownership until the loser has made its
+            # non-blocking operating-system lock attempt.
+            both_attempted.wait(timeout=30.0)
+
+    render_lock_module._try_lock = synchronized_try_lock
+    try:
+        try:
+            with acquire_render_lock(Path(target_value)):
+                outcome = "owned"
+        except RenderLockError:
+            outcome = "busy"
+        events.put(("outcome", outcome))
+    except BaseException as exc:
+        events.put(("error", f"{type(exc).__name__}: {exc}"))
+        raise
+    finally:
+        render_lock_module._try_lock = real_try_lock
 
 
 class RenderLockTests(unittest.TestCase):
@@ -188,6 +222,167 @@ class RenderLockTests(unittest.TestCase):
         self.assertEqual(identity.path, target.resolve())
         self.assertTrue(os.path.samefile(identity.path, short_path))
 
+    @unittest.skipUnless(os.name == "nt", "Windows 8.3 paths are required")
+    def test_windows_short_name_parent_acquires_the_canonical_render_lock(
+        self,
+    ) -> None:
+        import ctypes
+
+        parent = self.root / "Tianlai ordinary parent with spaces"
+        parent.mkdir()
+        buffer = ctypes.create_unicode_buffer(32_768)
+        length = ctypes.windll.kernel32.GetShortPathNameW(
+            str(parent),
+            buffer,
+            len(buffer),
+        )
+        if not length or length >= len(buffer):
+            self.skipTest("GetShortPathNameW did not return an alias")
+        short_parent = Path(buffer.value)
+        if render_lock_module._path_comparison_key(short_parent) == (
+            render_lock_module._path_comparison_key(parent)
+        ):
+            self.skipTest("8.3 short-name generation is disabled on this volume")
+
+        parent_identity = capture_plain_directory(short_parent)
+        with acquire_render_lock(
+            short_parent / "render target",
+            parent_identity=parent_identity,
+        ) as owned:
+            self.assertEqual(
+                owned.output_directory,
+                parent.resolve() / "render target",
+            )
+            self.assertEqual(owned.lock_path.parent, parent.resolve())
+
+    def test_render_lock_rejects_a_different_verified_parent(self) -> None:
+        requested_parent = self.root / "requested"
+        authorised_parent = self.root / "authorised"
+        requested_parent.mkdir()
+        authorised_parent.mkdir()
+        identity = capture_plain_directory(authorised_parent)
+
+        with self.assertRaises(OSError) as raised:
+            with acquire_render_lock(
+                requested_parent / "render",
+                parent_identity=identity,
+            ):
+                self.fail("a mismatched parent identity was accepted")
+
+        self.assertEqual(raised.exception.errno, errno.EPERM)
+
+    def test_directory_alias_binding_propagates_final_revalidation_failure(
+        self,
+    ) -> None:
+        authorised = render_lock_module.PlainDirectoryIdentity(
+            path=self.root / "canonical",
+            device=7,
+            inode=11,
+        )
+        observed = render_lock_module.PlainDirectoryIdentity(
+            path=authorised.path,
+            device=7,
+            inode=11,
+        )
+        changed = OSError(errno.ESTALE, "injected final revalidation failure")
+
+        with (
+            mock.patch(
+                "tianlai.render_lock.capture_plain_directory",
+                return_value=observed,
+            ),
+            mock.patch(
+                "tianlai.render_lock.revalidate_plain_directory",
+                side_effect=(authorised.path, authorised.path, changed),
+            ),
+            self.assertRaises(OSError) as raised,
+        ):
+            render_lock_module._bind_plain_directory_path(
+                self.root / "RUNNER~1",
+                authorised,
+                message="must remain bound",
+            )
+
+        self.assertIs(raised.exception, changed)
+
+    def test_directory_alias_binding_rejects_distinct_zero_identities(
+        self,
+    ) -> None:
+        authorised = render_lock_module.PlainDirectoryIdentity(
+            path=self.root / "canonical",
+            device=0,
+            inode=0,
+        )
+        observed = render_lock_module.PlainDirectoryIdentity(
+            path=self.root / "different",
+            device=0,
+            inode=0,
+        )
+
+        with (
+            mock.patch(
+                "tianlai.render_lock.capture_plain_directory",
+                return_value=observed,
+            ),
+            mock.patch(
+                "tianlai.render_lock.revalidate_plain_directory",
+                return_value=authorised.path,
+            ),
+            self.assertRaises(OSError) as raised,
+        ):
+            render_lock_module._bind_plain_directory_path(
+                self.root / "RUNNER~1",
+                authorised,
+                message="must remain bound",
+            )
+
+        self.assertEqual(raised.exception.errno, errno.EPERM)
+
+    def test_capture_rejects_zero_inode_on_the_final_directory_only(
+        self,
+    ) -> None:
+        requested = self.root / "zero-identity"
+        status = SimpleNamespace(st_dev=7, st_ino=0)
+
+        with (
+            mock.patch(
+                "tianlai.render_lock._is_windows_runtime",
+                return_value=False,
+            ),
+            mock.patch(
+                "tianlai.render_lock._is_macos_runtime",
+                return_value=False,
+            ),
+            mock.patch.object(Path, "resolve", return_value=requested),
+            mock.patch(
+                "tianlai.render_lock._plain_directory_status",
+                return_value=status,
+            ),
+        ):
+            with self.assertRaises(OSError) as raised:
+                capture_plain_directory(requested)
+
+        self.assertEqual(raised.exception.errno, errno.ENOTSUP)
+
+    def test_open_lock_validation_rejects_zero_file_identity(self) -> None:
+        path = self.root / "zero-identity.lock"
+        status = SimpleNamespace(
+            st_mode=stat.S_IFREG,
+            st_ino=0,
+            st_nlink=1,
+        )
+
+        with (
+            mock.patch("tianlai.render_lock.os.fstat", return_value=status),
+            mock.patch("tianlai.render_lock.os.lstat", return_value=status),
+            mock.patch("tianlai.render_lock.os.path.samestat") as samestat,
+            self.assertRaises(OSError) as raised,
+        ):
+            render_lock_module._validate_open_lock_file(path, 123)
+
+        self.assertEqual(raised.exception.errno, errno.ENOTSUP)
+        samestat.assert_not_called()
+
     def test_windows_alias_exception_still_revalidates_every_ancestor(
         self,
     ) -> None:
@@ -276,6 +471,7 @@ class RenderLockTests(unittest.TestCase):
         ordinary = SimpleNamespace(
             st_mode=stat.S_IFDIR,
             st_file_attributes=0,
+            st_ino=17,
         )
         reparse = SimpleNamespace(
             st_mode=stat.S_IFDIR,
@@ -284,6 +480,7 @@ class RenderLockTests(unittest.TestCase):
                 "FILE_ATTRIBUTE_REPARSE_POINT",
                 0x0400,
             ),
+            st_ino=19,
         )
 
         def fake_lstat(path: Path) -> SimpleNamespace:
@@ -364,39 +561,47 @@ class RenderLockTests(unittest.TestCase):
         self,
     ) -> None:
         target = self.root / "first-use-race"
-        both_opened = threading.Barrier(2)
-        both_attempted = threading.Barrier(2)
-        observed_sizes: list[int] = []
-        observations_lock = threading.Lock()
-        real_try_lock = render_lock_module._try_lock
+        context = multiprocessing.get_context("spawn")
+        both_opened = context.Barrier(2)
+        both_attempted = context.Barrier(2)
+        events = context.Queue()
+        processes = [
+            context.Process(
+                target=_compete_for_initial_render_lock,
+                args=(str(target), both_opened, both_attempted, events),
+                name=f"render-lock-first-use-{index}",
+            )
+            for index in range(2)
+        ]
+        records: list[tuple[str, object]] = []
+        try:
+            for process in processes:
+                process.start()
+            deadline = time.monotonic() + 45.0
+            for process in processes:
+                process.join(timeout=max(0.0, deadline - time.monotonic()))
 
-        def synchronized_try_lock(handle) -> None:
-            with observations_lock:
-                observed_sizes.append(os.fstat(handle.fileno()).st_size)
-            both_opened.wait(timeout=10.0)
-            try:
-                real_try_lock(handle)
-            finally:
-                # The winner keeps its byte-range lock until the loser has
-                # actually made its non-blocking attempt.
-                both_attempted.wait(timeout=10.0)
+            self.assertFalse(
+                any(process.is_alive() for process in processes),
+                "render-lock competitors did not finish",
+            )
+            self.assertEqual(
+                [process.exitcode for process in processes],
+                [0, 0],
+            )
+            records = [events.get(timeout=5.0) for _ in range(4)]
+        finally:
+            for process in processes:
+                if process.is_alive():
+                    process.terminate()
+                process.join(timeout=10.0)
+            events.close()
+            events.join_thread()
 
-        def compete() -> str:
-            try:
-                with acquire_render_lock(target):
-                    return "owned"
-            except RenderLockError:
-                return "busy"
-
-        with (
-            mock.patch(
-                "tianlai.render_lock._try_lock",
-                side_effect=synchronized_try_lock,
-            ),
-            ThreadPoolExecutor(max_workers=2) as executor,
-        ):
-            results = [executor.submit(compete) for _ in range(2)]
-            outcomes = [future.result(timeout=10.0) for future in results]
+        errors = [value for kind, value in records if kind == "error"]
+        self.assertEqual(errors, [])
+        observed_sizes = [value for kind, value in records if kind == "size"]
+        outcomes = [value for kind, value in records if kind == "outcome"]
 
         self.assertEqual(observed_sizes, [0, 0])
         self.assertEqual(sorted(outcomes), ["busy", "owned"])

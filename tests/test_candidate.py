@@ -325,6 +325,46 @@ def _tree_snapshot(directory: Path) -> dict[str, bytes]:
 
 
 class CandidateTests(unittest.TestCase):
+    @unittest.skipUnless(os.name == "nt", "Windows 8.3 paths are required")
+    def test_candidate_round_trip_accepts_a_short_name_output_ancestor(
+        self,
+    ) -> None:
+        import ctypes
+
+        with tempfile.TemporaryDirectory(
+            prefix="Tianlai candidate parent with spaces "
+        ) as temporary:
+            long_parent = Path(temporary)
+            buffer = ctypes.create_unicode_buffer(32_768)
+            length = ctypes.windll.kernel32.GetShortPathNameW(
+                str(long_parent),
+                buffer,
+                len(buffer),
+            )
+            if not length or length >= len(buffer):
+                self.skipTest("GetShortPathNameW did not return an alias")
+            short_parent = Path(buffer.value)
+            if short_parent == long_parent:
+                self.skipTest(
+                    "8.3 short-name generation is disabled on this volume"
+                )
+
+            published = _publish(
+                short_parent / "output",
+                output_id="short-path-candidate",
+            )
+            directory, document = load_candidate(published, verify=True)
+
+            self.assertEqual(directory, published.resolve())
+            self.assertTrue(directory.is_relative_to(long_parent.resolve()))
+            self.assertEqual(
+                document["candidate_id"],
+                candidate_module.portable_slug(
+                    "short-path-candidate",
+                    maximum_length=96,
+                ),
+            )
+
     def test_atomic_json_uses_exclusive_temp_without_truncating_collision(
         self,
     ) -> None:

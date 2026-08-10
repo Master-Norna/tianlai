@@ -326,6 +326,12 @@ def capture_plain_directory(
         _revalidate_plain_directory_ancestry(requested_ancestry)
         _revalidate_plain_directory_ancestry(resolved_ancestry)
     resolved_status = _plain_directory_status(resolved)
+    if int(resolved_status.st_ino) == 0:
+        raise OSError(
+            errno.ENOTSUP,
+            "render directory has no stable filesystem identity",
+            str(requested),
+        )
     if not os.path.samestat(status, resolved_status):
         raise OSError(
             errno.ESTALE,
@@ -399,6 +405,34 @@ def revalidate_plain_directory(identity: PlainDirectoryIdentity) -> Path:
             str(identity.path),
         )
     return identity.path
+
+
+def _bind_plain_directory_path(
+    directory: Path,
+    identity: PlainDirectoryIdentity,
+    *,
+    message: str,
+) -> Path:
+    """Bind a caller spelling to an already authorised directory identity.
+
+    On Windows the caller may name an ordinary ancestor through its 8.3 alias
+    while ``identity.path`` uses the long spelling.  Comparing those strings
+    would reject the same directory; recapturing the caller spelling retains
+    all symlink/reparse checks and lets the filesystem identity decide.
+    """
+
+    authorised = revalidate_plain_directory(identity)
+    observed = capture_plain_directory(directory)
+    if (
+        _path_comparison_key(observed.path)
+        != _path_comparison_key(identity.path)
+        or observed.device != identity.device
+        or observed.inode != identity.inode
+    ):
+        raise OSError(errno.EPERM, message, str(directory))
+    revalidate_plain_directory(identity)
+    revalidate_plain_directory(observed)
+    return authorised
 
 
 def ensure_authorized_child_directory(
@@ -560,6 +594,12 @@ def _validate_open_lock_file(path: Path, descriptor: int) -> None:
             "路径不是普通文件"
         )
         raise _unsafe_lock_file(path, reason, errno.ELOOP)
+    if int(descriptor_status.st_ino) == 0 or int(path_status.st_ino) == 0:
+        raise _unsafe_lock_file(
+            path,
+            "stable file identity is unavailable",
+            errno.ENOTSUP,
+        )
     if not os.path.samestat(descriptor_status, path_status):
         raise _unsafe_lock_file(
             path,
@@ -588,13 +628,12 @@ def _open_lock_file(
     if parent_identity is None:
         path.parent.mkdir(parents=True, exist_ok=True)
         parent_identity = capture_plain_directory(path.parent)
-    parent = revalidate_plain_directory(parent_identity)
-    if _path_comparison_key(path.parent) != _path_comparison_key(parent):
-        raise OSError(
-            errno.EPERM,
-            "render lock escaped its verified parent directory",
-            str(path),
-        )
+    parent = _bind_plain_directory_path(
+        path.parent,
+        parent_identity,
+        message="render lock escaped its verified parent directory",
+    )
+    path = parent / path.name
     flags = os.O_RDWR | os.O_CREAT
     nofollow = getattr(os, "O_NOFOLLOW", 0)
     if nofollow:
@@ -738,19 +777,29 @@ def acquire_render_lock(
     if parent_identity is None:
         requested_parent = requested.parent
         parent_identity = ensure_plain_directory_tree(requested_parent)
-    parent = revalidate_plain_directory(parent_identity)
-    if (
-        _path_comparison_key(requested.parent) != _path_comparison_key(parent)
-        or requested.name in {"", ".", ".."}
-    ):
+    if requested.name in {"", ".", ".."}:
         raise OSError(
             errno.EPERM,
             "render target is not inside its verified parent directory",
             str(requested),
         )
-    if os.path.lexists(requested):
-        capture_plain_directory(requested)
+    parent = _bind_plain_directory_path(
+        requested.parent,
+        parent_identity,
+        message="render target is not inside its verified parent directory",
+    )
     resolved = parent / requested.name
+    if os.path.lexists(requested):
+        target_identity = capture_plain_directory(requested)
+        if _path_comparison_key(target_identity.path.parent) != (
+            _path_comparison_key(parent)
+        ):
+            raise OSError(
+                errno.EPERM,
+                "render target is not inside its verified parent directory",
+                str(requested),
+            )
+        resolved = target_identity.path
     identity = _lock_identity(resolved).encode(
         "utf-8", errors="surrogatepass"
     )

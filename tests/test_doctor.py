@@ -545,9 +545,8 @@ class DoctorTests(unittest.TestCase):
             ),
             mock.patch(
                 "tianlai.doctor._probe_macos_rosetta_translation",
-                side_effect=forbidden,
+                return_value=False,
             ) as rosetta_probe,
-            mock.patch("tianlai.doctor.ctypes.CDLL", side_effect=forbidden) as cdll,
             mock.patch(
                 "subprocess.check_output",
                 side_effect=forbidden,
@@ -566,8 +565,7 @@ class DoctorTests(unittest.TestCase):
         system_lookup.assert_not_called()
         import_probe.assert_not_called()
         write_probe.assert_not_called()
-        rosetta_probe.assert_not_called()
-        cdll.assert_not_called()
+        rosetta_probe.assert_called_once_with()
         subprocess_probe.assert_not_called()
         self.assertEqual(
             report["probe_policy"],
@@ -575,12 +573,18 @@ class DoctorTests(unittest.TestCase):
                 "active_probes": False,
                 "native_library_load_performed": False,
                 "archive_tool_probe_performed": False,
-                "rosetta_probe_performed": False,
+                "rosetta_probe_performed": True,
+                "passive_identity_checks": {
+                    "macos_rosetta_translation": True,
+                },
                 "writability_probe_performed": False,
             },
         )
-        self.assertEqual(report["platform"]["rosetta"]["status"], "not_probed")
-        self.assertFalse(report["platform"]["rosetta"]["probe_performed"])
+        self.assertEqual(report["platform"]["rosetta"]["status"], "native")
+        self.assertTrue(report["platform"]["rosetta"]["probe_performed"])
+        self.assertTrue(report["platform"]["rosetta"]["supported"])
+        self.assertTrue(report["platform"]["supported"])
+        self.assertNotEqual(report["summary"]["status"], "error")
         native = report["capabilities"]["fluidsynth"]["native"]
         self.assertEqual(native["status"], "not_probed")
         self.assertEqual(native["availability_estimate"], "not_inspected")

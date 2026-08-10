@@ -362,6 +362,12 @@ def generate_sampled_pitch_calibration(
         if abs(detune) > 50.0:
             outliers.append({"sample": relative, "detune_cents": round(detune, 3)})
 
+    if not detunes:
+        raise ValueError(
+            "音准校准未获得任何可靠测量: "
+            f"{len(skipped)} 个无法分析，{len(unreliable)} 个撞到搜索边界"
+        )
+
     sample_count = (
         len(included_root_samples) if include_globs is not None else len(samples)
     )

@@ -237,9 +237,12 @@ configuration, and candidate rules, and [Creative Workflow](docs/创作工作流
 for the honesty boundary, state machine, and disconnect recovery. Runtime and project-readiness checks
 passively summarize contract, resource, platform, and output-location
 assessments; formal `render` performs actual instantiation, audio processing,
-and candidate writes. When passive inspection cannot establish Rosetta status
-on macOS x86_64, run `tianlai-doctor` locally for confirmation. Missing resources
-can be passed to `plan_resource_restore` for a path-redacted restoration plan.
+and candidate writes. On macOS x86_64, a read-only in-process `sysctlbyname`
+check verifies Rosetta status without starting an external program or writing a
+file. Only verified native Intel makes readiness authorize a render attempt;
+translation or an unverifiable identity keeps readiness blocked. Missing
+resources can be passed to `plan_resource_restore` for a path-redacted
+restoration plan.
 `validate_project`, `check_project_readiness`, and `render` also return the same
 graded `project_review`. Hard contract findings remain explicit gates in
 `issues`; renderable range, onset, articulation, and orchestration candidates

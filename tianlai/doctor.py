@@ -173,7 +173,12 @@ def _passive_platform_identity() -> tuple[str, str, str, str]:
 
 
 def _probe_macos_rosetta_translation() -> bool:
-    """Query the current macOS process without spawning a shell."""
+    """Read the current macOS process identity without external activity.
+
+    ``sysctlbyname`` is called in-process against a read-only kernel value.  It
+    starts no program, loads no external library, writes nothing and performs
+    no network access, so it is safe to use in passive MCP diagnosis.
+    """
 
     libc = ctypes.CDLL(None, use_errno=True)
     sysctlbyname = libc.sysctlbyname
@@ -208,9 +213,8 @@ def _macos_rosetta_capability(
     system: str,
     machine: str,
     bits: int,
-    active_probes: bool = True,
 ) -> dict[str, Any]:
-    """Describe Rosetta separately from the supported process architecture."""
+    """Verify the native-only macOS contract from passive process identity."""
 
     process_architecture = _normalised_machine(machine)
     if system != "Darwin":
@@ -236,20 +240,6 @@ def _macos_rosetta_capability(
             "process_architecture": process_architecture,
             "host_architecture": process_architecture,
             "supported": supported,
-            "probe_performed": False,
-            "error": None,
-        }
-
-    if not active_probes:
-        return {
-            "status": "not_probed",
-            "translated": None,
-            "process_architecture": process_architecture,
-            "host_architecture": None,
-            # An x86_64 process on macOS may be native Intel or translated by
-            # Rosetta.  Passive mode cannot distinguish the two and therefore
-            # must not claim that the native-only public contract is verified.
-            "supported": False,
             "probe_performed": False,
             "error": None,
         }
@@ -1206,7 +1196,9 @@ def collect_doctor_report(
     """Return a JSON-serialisable runtime, catalogue and resource report.
 
     ``active_probes=False`` performs no create/delete writability probe, native
-    library load, archive-tool process discovery or Rosetta sysctl query.
+    library load or archive-tool process discovery.  On macOS x86_64 it still
+    performs the read-only in-process Rosetta identity check required by the
+    native-only platform contract.
     ``selected_instrument_ids`` limits manifest/resource/SFZ inspection to the
     named catalogue entries; unknown IDs are intentionally ignored here so a
     calling protocol can apply its own validation policy.
@@ -1373,9 +1365,10 @@ def collect_doctor_report(
         system=platform_system,
         machine=platform_machine,
         bits=python_bits,
-        active_probes=active_probes,
     )
     if platform_system == "Darwin":
+        # The public contract is native-only.  Confirmed translation and an
+        # unavailable identity check both fail closed before render readiness.
         platform_supported = platform_supported and rosetta["supported"] is True
     platform_capabilities = _platform_capabilities(
         layout,
@@ -1455,6 +1448,11 @@ def collect_doctor_report(
                 )
             ),
             "rosetta_probe_performed": bool(rosetta.get("probe_performed")),
+            "passive_identity_checks": {
+                "macos_rosetta_translation": bool(
+                    rosetta.get("probe_performed")
+                ),
+            },
             "writability_probe_performed": any(
                 item["probe_performed"] for item in writability.values()
             ),

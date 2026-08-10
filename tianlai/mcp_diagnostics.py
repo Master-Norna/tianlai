@@ -189,6 +189,12 @@ def _safe_render_environment(
     output = _safe_writability(_passive_directory_writability(output_target))
     python_supported = python.get("supported") is True
     platform_supported = platform.get("supported") is True
+    rosetta = (
+        platform.get("rosetta")
+        if isinstance(platform.get("rosetta"), dict)
+        else {}
+    )
+    macos_translation_identity = rosetta.get("probe_performed") is True
     output_writable_estimate = output["writable_estimate"] is True
     return {
         "ready_for_render_attempt": (
@@ -196,6 +202,9 @@ def _safe_render_environment(
         ),
         "python_supported": python_supported,
         "platform_supported": platform_supported,
+        "macos_translation_identity_check_performed": (
+            macos_translation_identity
+        ),
         "output": output,
         "active_write_probe_performed": output["probe_performed"],
     }
@@ -339,7 +348,10 @@ def collect_runtime_diagnosis(
                 severity="error",
                 code="runtime.platform_unsupported",
                 stage="platform",
-                message="The active operating-system architecture is unsupported.",
+                message=(
+                    "The active platform is unsupported, translated, or its "
+                    "native execution identity could not be verified."
+                ),
             )
         )
     if not distribution_matches:
@@ -491,6 +503,7 @@ def collect_runtime_diagnosis(
     raw_source = str(raw_layout.get("source") or "")
     rosetta = platform.get("rosetta")
     rosetta = rosetta if isinstance(rosetta, dict) else {}
+    macos_translation_identity = rosetta.get("probe_performed") is True
     native_source = str(native.get("source") or "")
     checks = {
         "python": {
@@ -524,6 +537,7 @@ def collect_runtime_diagnosis(
                     if isinstance(rosetta.get("translated"), bool)
                     else None
                 ),
+                "identity_check_performed": macos_translation_identity,
             },
         },
         "distribution": {
@@ -647,6 +661,7 @@ def collect_runtime_diagnosis(
         "passive_checks": {
             "filesystem_metadata": True,
             "instrument_reference_scan": check_level == "references",
+            "macos_translation_identity": macos_translation_identity,
         },
         "network": False,
         "persistent_writes": False,
@@ -783,8 +798,8 @@ def collect_instrument_resource_readiness(
                 code="runtime.platform_unsupported_or_unverified",
                 stage="render_environment",
                 message=(
-                    "The active platform is unsupported or cannot be verified "
-                    "without an operator-side runtime probe."
+                    "The active platform is unsupported, translated, or its "
+                    "native execution identity could not be verified."
                 ),
             )
         )
@@ -842,6 +857,9 @@ def collect_instrument_resource_readiness(
         "passive_checks": {
             "filesystem_metadata": True,
             "selected_instrument_reference_scan": bool(verify_references),
+            "macos_translation_identity": environment[
+                "macos_translation_identity_check_performed"
+            ],
         },
         "instruments": rows,
         "restore_plan_handoff": {"instrument_ids": restore_ids},

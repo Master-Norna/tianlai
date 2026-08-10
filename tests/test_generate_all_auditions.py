@@ -71,6 +71,16 @@ class GenerateAllAuditionsTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.temporary.cleanup()
 
+    def _assert_only_recovery_directory(self, recovery: Path) -> None:
+        candidates = list(
+            (self.root / "output").glob(".生成全音域试音-*")
+        )
+        self.assertEqual(len(candidates), 1, candidates)
+        self.assertTrue(
+            recovery.samefile(candidates[0]),
+            f"{recovery} is not the same filesystem entry as {candidates[0]}",
+        )
+
     def _make_instrument(
         self,
         relative: str,
@@ -903,10 +913,7 @@ class GenerateAllAuditionsTests(unittest.TestCase):
 
         recovery = raised.exception.recovery_path
         self.assertTrue(recovery.is_dir())
-        self.assertIn(
-            recovery,
-            list((self.root / "output").glob(".生成全音域试音-*")),
-        )
+        self._assert_only_recovery_directory(recovery)
         backups = list((recovery / "previous-selected-files").glob("*.previous"))
         self.assertTrue(backups)
         self.assertTrue(
@@ -1215,10 +1222,7 @@ class GenerateAllAuditionsTests(unittest.TestCase):
         self.assertTrue(commit_interrupted)
         recovery = raised.exception.recovery_path
         self.assertTrue(recovery.is_dir())
-        self.assertIn(
-            recovery,
-            list((self.root / "output").glob(".生成全音域试音-*")),
-        )
+        self._assert_only_recovery_directory(recovery)
         backups = list((recovery / "previous-reports").glob("*.previous.json"))
         self.assertEqual(len(backups), 2)
         self.assertIn(old_first_report, [path.read_bytes() for path in backups])

@@ -51,6 +51,34 @@ def _project(tmp_path: Path, title: str = "天籁 工程"):
     return root, create_authoring_project(root, title=title)
 
 
+@pytest.mark.skipif(os.name != "nt", reason="Windows 8.3 paths are required")
+def test_authoring_round_trip_accepts_a_short_name_parent(
+    tmp_path: Path,
+) -> None:
+    import ctypes
+
+    parent = tmp_path / "Tianlai authoring parent with spaces"
+    parent.mkdir()
+    buffer = ctypes.create_unicode_buffer(32_768)
+    length = ctypes.windll.kernel32.GetShortPathNameW(
+        str(parent),
+        buffer,
+        len(buffer),
+    )
+    if not length or length >= len(buffer):
+        pytest.skip("GetShortPathNameW did not return an alias")
+    short_parent = Path(buffer.value)
+    if short_parent == parent:
+        pytest.skip("8.3 short-name generation is disabled on this volume")
+
+    requested_root = short_parent / "project"
+    created = create_authoring_project(requested_root, title="Short path")
+    opened = open_authoring_project(requested_root)
+
+    assert opened == created
+    assert (parent / "project").is_dir()
+
+
 def test_failed_entry_cleanup_preserves_a_last_moment_replacement(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

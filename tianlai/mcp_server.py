@@ -2469,8 +2469,9 @@ def diagnose_runtime(
     """检查当前 MCP 运行时、平台、目录、资源汇总与可选能力。
 
     ``quick`` 检查清单显式引用；``references`` 还会展开专用 SFZ 的样本引用。
-    两种模式都严格被动：不加载原生库、不启动外部程序、不创建临时文件，也不
-    联网、下载、安装或返回任何本机绝对路径。目录可写性只是无写入权限估计。
+    两种模式都严格被动：不加载外部原生库、不启动外部程序、不创建临时文件，也不
+    联网、下载、安装或返回任何本机绝对路径。macOS x86_64 会在当前进程内执行只读
+    sysctl 身份查询以拒绝 Rosetta；目录可写性仍只是无写入权限估计。
     """
 
     try:
@@ -3330,7 +3331,8 @@ def check_project_readiness(
     实际使用的乐器检查 manifest/SFZ 引用。结果叫 ``ready_for_render_attempt``，
     因为它仍不会实例化乐器或声称音频后端已成功运行。无关乐器缺资源不会阻断
     当前项目；缺失资源会提供可直接交给 ``plan_resource_restore`` 的 handoff。
-    平台与输出目录只做被动兼容/权限估计；实际写入和音频仍由 render 验证。
+    平台与输出目录只做被动兼容/权限估计；macOS x86_64 的只读进程内身份查询会在
+    此处拒绝 Rosetta 或无法核验的执行态。实际写入和音频仍由 render 验证。
     """
 
     try:
@@ -3562,6 +3564,12 @@ def check_project_readiness(
     resource_details = dict(resources)
     resource_details.pop("issues", None)
     resource_details["issues_reported_at"] = "$.issues"
+    resource_passive_checks = resources.get("passive_checks")
+    resource_passive_checks = (
+        resource_passive_checks
+        if isinstance(resource_passive_checks, dict)
+        else {}
+    )
     result.update(
         {
             "ok": ready,
@@ -3582,6 +3590,12 @@ def check_project_readiness(
                 "filesystem_metadata": compilation.roster is not None,
                 "selected_instrument_reference_scan": (
                     compilation.roster is not None and verify_references
+                ),
+                "macos_translation_identity": (
+                    resource_passive_checks.get(
+                        "macos_translation_identity"
+                    )
+                    is True
                 ),
             },
             "checks": checks,

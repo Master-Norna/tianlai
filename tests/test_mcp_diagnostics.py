@@ -249,6 +249,7 @@ class RuntimeDiagnosisTests(unittest.TestCase):
             {
                 "filesystem_metadata": True,
                 "instrument_reference_scan": True,
+                "macos_translation_identity": False,
             },
         )
         self.assertTrue(result["core_ready"])

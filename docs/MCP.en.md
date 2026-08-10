@@ -170,9 +170,11 @@ parameters remain compatible:
 
 “No” means the tool writes neither audio nor project files; import and candidate
 inspection still read authorized local files. `diagnose_runtime` and
-`check_project_readiness` are strictly passive: they do not load native
-libraries, start `tar`, `bsdtar`, or any external program, or create temporary
-files. Writability of the actual MCP target `output/mcp` is only a no-write
+`check_project_readiness` are strictly passive: they do not load external
+native libraries, start `tar`, `bsdtar`, or any external program, or create
+temporary files. On macOS x86_64, the only additional operation is a read-only
+in-process `sysctlbyname` identity query; it starts no process, writes nothing,
+and uses no network. Writability of the actual MCP target `output/mcp` is only a no-write
 estimate based on the target or parent directory's metadata and permissions, not an actual write
 verification. `plan_resource_restore` performs no networking, downloading,
 extraction, or installation. `patch_score` returns a new in-memory object, and
@@ -558,10 +560,11 @@ check_project_readiness(
 
 `diagnose_runtime` with `quick` checks explicit manifest references;
 `references` additionally expands sample references in dedicated SFZ files and
-is therefore slower. Both levels are strictly passive: they do not load native
-libraries, start `tar`, `bsdtar`, or any external program, create temporary
+is therefore slower. Both levels are strictly passive: they do not load external
+native libraries, start `tar`, `bsdtar`, or any external program, create temporary
 files, access the network, download or install anything, decode audio, or
-perform a playback probe. The actual MCP target `output/mcp` has a `writable_estimate` that is only a
+perform a playback probe. The read-only in-process `sysctlbyname` identity query
+on macOS x86_64 is a passive platform check, not an active capability probe. The actual MCP target `output/mcp` has a `writable_estimate` that is only a
 passive estimate based on filesystem metadata and permissions;
 `probe_performed=false` means that no actual write probe ran.
 
@@ -572,9 +575,12 @@ references, platform assessment, and output-location evaluation are ready.
 `render` then performs instrument construction, audio processing, and candidate
 writing.
 
-On macOS x86_64, MCP diagnosis reports passively available architecture
-information. When native Intel versus Rosetta translation status needs local
-confirmation, the result directs the operator to run `tianlai-doctor`.
+On macOS x86_64, MCP diagnosis verifies the current process's Rosetta status.
+Only verified native Intel makes the platform and render environment ready;
+confirmed translation or unavailable identity information fails closed, so
+readiness does not authorize the client to continue to `render`. The protocol
+itself cannot force a client that bypasses readiness to honor that governance
+decision.
 
 When resources are missing, pass `restore_plan_handoff.instrument_ids`
 unchanged to:

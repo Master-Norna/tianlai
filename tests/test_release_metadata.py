@@ -98,6 +98,28 @@ class ReleaseMetadataTests(unittest.TestCase):
         self.assertIn("正式产品是项目提供的轻量源码 ZIP", readme)
         self.assertIn("只提供可复用的 Python 引擎", readme)
 
+    def test_mcp_docs_keep_the_passive_native_macos_gate_explicit(self) -> None:
+        chinese = "\n".join(
+            (ROOT / path).read_text(encoding="utf-8")
+            for path in ("README.md", "docs/MCP.md")
+        )
+        english = "\n".join(
+            (ROOT / path).read_text(encoding="utf-8")
+            for path in ("README.en.md", "docs/MCP.en.md")
+        )
+
+        self.assertIn("只读 `sysctlbyname`", chinese)
+        self.assertIn("readiness 授权继续渲染", chinese)
+        self.assertIn("readiness 不授权客户端", chinese)
+        self.assertIn("协议本身不能强迫", chinese)
+        self.assertNotIn("无法通过被动检查确认 Rosetta", chinese)
+
+        self.assertIn("read-only in-process `sysctlbyname`", english)
+        self.assertIn("Only verified native Intel", english)
+        self.assertIn("translation or an unverifiable", english)
+        self.assertIn("client that bypasses readiness", english)
+        self.assertNotIn("passive inspection cannot establish Rosetta", english)
+
     def test_default_pytest_collection_is_confined_to_the_test_suite(self) -> None:
         project = tomllib.loads(
             (ROOT / "pyproject.toml").read_text(encoding="utf-8")

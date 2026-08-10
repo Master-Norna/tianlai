@@ -26,6 +26,16 @@ class _Instrument:
 
 
 class SampledPitchCalibrationTests(unittest.TestCase):
+    def _noncanonical_root(self, temporary: str) -> Path:
+        """Return one physical directory through a portable lexical alias."""
+
+        base = Path(temporary)
+        (base / "detour").mkdir()
+        (base / "fixture").mkdir()
+        root = base / "detour" / ".." / "fixture"
+        self.assertNotEqual(root, root.resolve())
+        return root
+
     def _fixture(
         self,
         root: Path,
@@ -60,7 +70,7 @@ class SampledPitchCalibrationTests(unittest.TestCase):
         self,
     ) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = self._noncanonical_root(temporary)
             globs = ["Pitched/[A-Z]4.wav", "Pitched/**/C5.wav"]
             manifest_path, instrument = self._fixture(
                 root,
@@ -73,9 +83,10 @@ class SampledPitchCalibrationTests(unittest.TestCase):
                 include_globs=globs,
             )
             analysed: list[str] = []
+            canonical_asset_root = (root / "assets").resolve()
 
             def analyse(path: Path, root_hz: float, **_: object) -> object:
-                relative = path.relative_to(root / "assets").as_posix()
+                relative = path.relative_to(canonical_asset_root).as_posix()
                 analysed.append(relative)
                 if relative.endswith("C5.wav"):
                     raise ValueError("fixture is intentionally too short")
@@ -113,16 +124,17 @@ class SampledPitchCalibrationTests(unittest.TestCase):
         self,
     ) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = self._noncanonical_root(temporary)
             manifest_path, instrument = self._fixture(
                 root,
                 ["Pitched/A4.wav", "Mechanical/key-release.wav"],
                 include_globs=None,
             )
             analysed: list[str] = []
+            canonical_asset_root = (root / "assets").resolve()
 
             def analyse(path: Path, root_hz: float, **_: object) -> object:
-                analysed.append(path.relative_to(root / "assets").as_posix())
+                analysed.append(path.relative_to(canonical_asset_root).as_posix())
                 return SimpleNamespace(measured_hz=root_hz)
 
             with (
@@ -145,6 +157,33 @@ class SampledPitchCalibrationTests(unittest.TestCase):
             self.assertNotIn("excluded_count", report["summary"])
             self.assertNotIn("pitch_calibration_include_globs", report)
             self.assertNotIn("excluded_samples", report)
+
+    def test_all_unanalysable_samples_fail_with_a_domain_error(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            manifest_path, instrument = self._fixture(
+                root,
+                ["Pitched/A4.wav", "Pitched/C5.wav"],
+                include_globs=None,
+            )
+
+            with (
+                mock.patch(
+                    "tianlai.instrument_audit.create_instrument",
+                    return_value=instrument,
+                ),
+                mock.patch(
+                    "tianlai.analysis.analyze_file_harmonic_pitch",
+                    side_effect=ValueError("fixture is intentionally too short"),
+                ),
+                self.assertRaisesRegex(
+                    ValueError,
+                    "音准校准未获得任何可靠测量.*2 个无法分析",
+                ),
+            ):
+                generate_sampled_pitch_calibration(manifest_path)
+
+            self.assertFalse((root / "pitch.json").exists())
 
     def test_explicit_globs_must_match_at_least_one_loaded_pitched_sample(
         self,

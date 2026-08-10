@@ -199,9 +199,10 @@ diagnose_runtime(check_level="quick")
 44 工具表、输入根配置和候选规则见 [MCP 接口](docs/MCP.md)；工作流的诚信边界、
 状态机和断线恢复见 [创作工作流](docs/创作工作流.md)。运行时与项目就绪
 自检以被动方式汇总合同、资源、平台与输出位置评估；正式 `render` 完成实际实例化、
-音频处理和候选写入。macOS x86_64 无法通过被动检查确认 Rosetta 状态时，可在本机
-运行 `tianlai-doctor` 进一步确认。缺失资源可交给 `plan_resource_restore` 生成
-脱敏恢复计划。
+音频处理和候选写入。macOS x86_64 会在当前进程内以只读 `sysctlbyname` 核验
+Rosetta 状态；该身份检查不启动外部程序、不写文件，只有确认原生 Intel 才会让
+readiness 授权继续渲染，已转译或无法核验都会令 readiness 保持阻断。缺失资源可交给
+`plan_resource_restore` 生成脱敏恢复计划。
 `validate_project`、`check_project_readiness` 与 `render` 还会返回同一套分级
 `project_review`：硬合同问题继续由 `issues` 明确门禁；可渲染的音域、发音、奏法与
 编配候选则携带稳定 ID、定位范围、证据和多个复核方向，交由创作者结合试听决定。

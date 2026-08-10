@@ -151,8 +151,9 @@ v0.7 的持久创作工程使用更窄的独立边界。客户端只传小写 AS
 | `stop_creative_workflow` | **是** | 按冻结的 agent 权限停止流程；不会伪造创作者批准。 |
 
 表中的“否”表示不写音频或项目文件；导入和候选检查工具仍会读取已授权的本机
-文件。`diagnose_runtime` 和 `check_project_readiness` 严格被动：不加载原生库，
-不启动 `tar`、`bsdtar` 或任何外部程序，也不创建临时文件。实际 MCP 输出目标
+文件。`diagnose_runtime` 和 `check_project_readiness` 严格被动：不加载外部原生库，
+不启动 `tar`、`bsdtar` 或任何外部程序，也不创建临时文件。macOS x86_64 唯一额外
+执行的是当前进程内只读 `sysctlbyname` 身份查询；它不启动进程、不写盘、不联网。实际 MCP 输出目标
 `output/mcp` 的可写性仅是
 依据目录或父目录元数据与权限做出的无写入估计，不是实际写入验证。
 `plan_resource_restore` 不联网、不下载、不解压、不安装，也不产生持久写入。
@@ -555,8 +556,9 @@ check_project_readiness(
 ```
 
 `diagnose_runtime` 的 `quick` 检查 manifest 显式引用；`references` 还会展开专用 SFZ
-的样本引用，所以更慢。两种级别都严格被动：不加载原生库，不启动 `tar`、
+的样本引用，所以更慢。两种级别都严格被动：不加载外部原生库，不启动 `tar`、
 `bsdtar` 或任何外部程序，不创建临时文件，也不联网、下载、安装、解码或试播音频。
+macOS x86_64 的只读进程内 `sysctlbyname` 身份查询属于被动平台检查，而不是主动能力探针。
 实际 MCP 输出目标 `output/mcp` 的 `writable_estimate` 只是基于文件系统元数据与权限的被动估计；
 `probe_performed=false` 表示没有执行实际写入探针。
 
@@ -564,8 +566,9 @@ check_project_readiness(
 `ready_for_render_attempt=true` 汇总表示合同预检、资源引用、平台判断与输出位置
 评估均已就绪；随后由 `render` 执行乐器实例化、音频处理和候选写入。
 
-macOS x86_64 下，MCP 自检报告被动取得的架构信息；需要确认原生 Intel 或 Rosetta
-转译状态时，结果会引导使用者在本机运行 `tianlai-doctor` 完成平台确认。
+macOS x86_64 下，MCP 自检会直接核验当前进程的 Rosetta 状态。确认原生 Intel 才会
+令平台与渲染环境就绪；确认转译或无法读取身份信息都会失败关闭，readiness 不授权客户端
+继续调用 `render`。协议本身不能强迫绕过 readiness 的客户端遵守这项治理决定。
 
 资源缺失时，把 `restore_plan_handoff.instrument_ids` 原样交给：
 

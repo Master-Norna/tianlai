@@ -63,6 +63,7 @@ def _resource_result(
             "ready_for_render_attempt": True,
             "python_supported": True,
             "platform_supported": True,
+            "macos_translation_identity_check_performed": False,
             "output": {
                 "status": "estimated_ready",
                 "writable": None,
@@ -161,6 +162,15 @@ class ProjectReadinessToolTests(unittest.TestCase):
                 side_effect=forbidden,
             ) as native_probe,
             mock.patch(
+                "tianlai.doctor._passive_platform_identity",
+                return_value=(
+                    "Linux",
+                    "6.0.0",
+                    "x86_64",
+                    "Linux-6.0.0-x86_64",
+                ),
+            ),
+            mock.patch(
                 "tianlai.doctor._probe_macos_rosetta_translation",
                 side_effect=forbidden,
             ) as rosetta_probe,
@@ -205,6 +215,116 @@ class ProjectReadinessToolTests(unittest.TestCase):
             probe.assert_not_called()
         self.assertFalse(any(runtime["active_probes"].values()))
         self.assertFalse(any(readiness["active_probes"].values()))
+
+    def test_passive_intel_macos_diagnosis_verifies_native_process(self) -> None:
+        with (
+            mock.patch(
+                "tianlai.doctor._passive_platform_identity",
+                return_value=(
+                    "Darwin",
+                    "25.0.0",
+                    "x86_64",
+                    "Darwin-25.0.0-x86_64",
+                ),
+            ),
+            mock.patch(
+                "tianlai.doctor._probe_macos_rosetta_translation",
+                return_value=False,
+            ) as rosetta_probe,
+        ):
+            runtime = self.m.diagnose_runtime()
+            readiness = self.m.check_project_readiness(
+                self.score,
+                self.roster,
+                trusted_only=False,
+            )
+
+        platform_check = runtime["checks"]["platform"]
+        self.assertTrue(platform_check["supported"], runtime)
+        self.assertEqual(platform_check["status"], "ready")
+        self.assertEqual(platform_check["machine"], "x86_64")
+        self.assertEqual(platform_check["rosetta"]["status"], "native")
+        self.assertFalse(platform_check["rosetta"]["translated"])
+        self.assertTrue(
+            platform_check["rosetta"]["identity_check_performed"]
+        )
+        self.assertTrue(runtime["core_ready"], runtime)
+        self.assertTrue(readiness["render_environment_ready"], readiness)
+        self.assertTrue(runtime["passive_checks"]["macos_translation_identity"])
+        self.assertTrue(
+            readiness["passive_checks"]["macos_translation_identity"]
+        )
+        self.assertFalse(any(runtime["active_probes"].values()))
+        self.assertFalse(any(readiness["active_probes"].values()))
+        self.assertEqual(rosetta_probe.call_count, 2)
+
+    def test_passive_rosetta_process_is_blocked_before_render(self) -> None:
+        with (
+            mock.patch(
+                "tianlai.doctor._passive_platform_identity",
+                return_value=(
+                    "Darwin",
+                    "25.0.0",
+                    "x86_64",
+                    "Darwin-25.0.0-x86_64",
+                ),
+            ),
+            mock.patch(
+                "tianlai.doctor._probe_macos_rosetta_translation",
+                return_value=True,
+            ) as rosetta_probe,
+        ):
+            runtime = self.m.diagnose_runtime()
+            readiness = self.m.check_project_readiness(
+                self.score,
+                self.roster,
+                trusted_only=False,
+            )
+
+        platform_check = runtime["checks"]["platform"]
+        self.assertFalse(platform_check["supported"], runtime)
+        self.assertEqual(platform_check["status"], "unsupported")
+        self.assertEqual(platform_check["rosetta"]["status"], "translated")
+        self.assertTrue(platform_check["rosetta"]["translated"])
+        self.assertFalse(runtime["core_ready"], runtime)
+        self.assertFalse(readiness["render_environment_ready"], readiness)
+        self.assertFalse(readiness["ready_for_render_attempt"], readiness)
+        self.assertIn(
+            "runtime.platform_unsupported_or_unverified",
+            {issue["code"] for issue in readiness["issues"]},
+        )
+        self.assertEqual(rosetta_probe.call_count, 2)
+
+    def test_unverifiable_intel_macos_identity_fails_closed(self) -> None:
+        with (
+            mock.patch(
+                "tianlai.doctor._passive_platform_identity",
+                return_value=(
+                    "Darwin",
+                    "25.0.0",
+                    "x86_64",
+                    "Darwin-25.0.0-x86_64",
+                ),
+            ),
+            mock.patch(
+                "tianlai.doctor._probe_macos_rosetta_translation",
+                side_effect=OSError("sysctl unavailable"),
+            ) as rosetta_probe,
+        ):
+            runtime = self.m.diagnose_runtime()
+            readiness = self.m.check_project_readiness(
+                self.score,
+                self.roster,
+                trusted_only=False,
+            )
+
+        platform_check = runtime["checks"]["platform"]
+        self.assertFalse(platform_check["supported"], runtime)
+        self.assertEqual(platform_check["rosetta"]["status"], "unknown")
+        self.assertFalse(runtime["core_ready"], runtime)
+        self.assertFalse(readiness["render_environment_ready"], readiness)
+        self.assertFalse(readiness["ready_for_render_attempt"], readiness)
+        self.assertEqual(rosetta_probe.call_count, 2)
 
     def test_missing_project_resource_blocks_attempt_and_hands_off_ids(self) -> None:
         with mock.patch.object(
