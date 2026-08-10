@@ -349,12 +349,17 @@ class TaggedReleaseTests(unittest.TestCase):
             workflow,
         )
         self.assertIn('TIANLAI_REQUIRE_BSDTAR: "1"', workflow)
-        self.assertIn(
+        probe = (
+            'executable="$(python -S '
+            './tianlai/resource_restore.py verify-bsdtar)"'
+        )
+        self.assertIn(probe, workflow)
+        self.assertNotIn(
             "from tianlai.resource_restore import _find_bsdtar_executable",
             workflow,
         )
         self.assertLess(
-            workflow.index("executable = _find_bsdtar_executable()"),
+            workflow.index(probe),
             workflow.index("--portable-tests"),
         )
         self.assertIn(

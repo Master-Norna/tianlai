@@ -37,6 +37,7 @@ from .authoring_json import (
 )
 from .canonical_json import CANONICALIZATION, canonical_json_sha256
 from .plain_file import read_plain_file_bytes, revalidate_plain_file
+from .render_lock import capture_plain_directory
 from .render_profile import parse_render_profile
 from .resource_limits import ProjectLimits, validate_score_resource_limits
 from .score import parse_score_document
@@ -420,24 +421,16 @@ def _absolute_root(value: str | os.PathLike[str]) -> Path:
         raise AuthoringProjectError("invalid_project_root") from exc
     if not raw.is_absolute() or raw.name in {"", ".", ".."}:
         raise AuthoringProjectError("invalid_project_root")
-    lexical = raw.absolute()
     if _lexists(raw):
         try:
-            resolved = raw.resolve(strict=True)
+            return capture_plain_directory(raw).path
         except (OSError, RuntimeError) as exc:
             raise AuthoringProjectError("invalid_project_root") from exc
-        if lexical != resolved:
-            raise AuthoringProjectError("invalid_project_root")
-        _require_plain_directory(raw, code="invalid_project_root")
-        return resolved
     try:
         parent = raw.parent
-        resolved_parent = parent.resolve(strict=True)
+        resolved_parent = capture_plain_directory(parent).path
     except (OSError, RuntimeError) as exc:
         raise AuthoringProjectError("invalid_project_root") from exc
-    if parent.absolute() != resolved_parent:
-        raise AuthoringProjectError("invalid_project_root")
-    _require_plain_directory(parent, code="invalid_project_root")
     final = resolved_parent / raw.name
     try:
         final.relative_to(resolved_parent)
@@ -446,12 +439,16 @@ def _absolute_root(value: str | os.PathLike[str]) -> Path:
     return final
 
 
-def _managed_path(root: Path, *parts: str) -> Path:
+def _managed_path(
+    root: Path,
+    *parts: str,
+    escape_code: str = "managed_path_escape",
+) -> Path:
     path = root.joinpath(*parts)
     try:
         path.resolve(strict=False).relative_to(root)
     except (OSError, RuntimeError, ValueError) as exc:
-        raise AuthoringProjectError("managed_path_escape") from exc
+        raise AuthoringProjectError(escape_code) from exc
     return path
 
 
@@ -1243,14 +1240,30 @@ def _replace_manifest_pointer(root: Path, manifest: dict[str, Any]) -> None:
 
 def _validate_managed_layout(root: Path) -> tuple[Path, Path, Path]:
     _require_plain_directory(root, code="unsafe_project_root")
-    private = _managed_path(root, PRIVATE_DIRECTORY_NAME)
-    revisions = _managed_path(
-        root, PRIVATE_DIRECTORY_NAME, REVISIONS_DIRECTORY_NAME
+    private = _managed_path(
+        root,
+        PRIVATE_DIRECTORY_NAME,
+        escape_code="unsafe_private_directory",
     )
-    renders = _managed_path(root, RENDERS_DIRECTORY_NAME)
+    revisions = _managed_path(
+        root,
+        PRIVATE_DIRECTORY_NAME,
+        REVISIONS_DIRECTORY_NAME,
+        escape_code="unsafe_revisions_directory",
+    )
+    renders = _managed_path(
+        root,
+        RENDERS_DIRECTORY_NAME,
+        escape_code="unsafe_renders_directory",
+    )
     _require_plain_directory(private, code="unsafe_private_directory")
     lock_status = _require_plain_file(
-        _managed_path(root, PRIVATE_DIRECTORY_NAME, PROJECT_LOCK_NAME),
+        _managed_path(
+            root,
+            PRIVATE_DIRECTORY_NAME,
+            PROJECT_LOCK_NAME,
+            escape_code="unsafe_project_lock",
+        ),
         code="unsafe_project_lock",
     )
     if lock_status.st_size != 1:

@@ -6,6 +6,7 @@ import errno
 import json
 import os
 from pathlib import Path
+import stat
 import subprocess
 import sys
 import tempfile
@@ -160,6 +161,138 @@ class RenderLockTests(unittest.TestCase):
         self.assertEqual(identity.path.as_posix(), "/private/var")
         with self.assertRaises(OSError) as raised:
             capture("/opt/alias", "/srv/real")
+        self.assertEqual(raised.exception.errno, errno.ELOOP)
+
+    @unittest.skipUnless(os.name == "nt", "Windows 8.3 paths are required")
+    def test_windows_short_name_alias_is_captured_as_plain_directory(self) -> None:
+        import ctypes
+
+        target = self.root / "Tianlai ordinary directory with spaces"
+        target.mkdir()
+        buffer = ctypes.create_unicode_buffer(32_768)
+        length = ctypes.windll.kernel32.GetShortPathNameW(
+            str(target),
+            buffer,
+            len(buffer),
+        )
+        if not length or length >= len(buffer):
+            self.skipTest("GetShortPathNameW did not return an alias")
+        short_path = Path(buffer.value)
+        if render_lock_module._path_comparison_key(short_path) == (
+            render_lock_module._path_comparison_key(target)
+        ):
+            self.skipTest("8.3 short-name generation is disabled on this volume")
+
+        identity = capture_plain_directory(short_path)
+
+        self.assertEqual(identity.path, target.resolve())
+        self.assertTrue(os.path.samefile(identity.path, short_path))
+
+    def test_windows_alias_exception_still_revalidates_every_ancestor(
+        self,
+    ) -> None:
+        requested = self.root / "RUNNER~1" / "output"
+        resolved = self.root / "Runner Name" / "output"
+        status = SimpleNamespace(st_dev=7, st_ino=11)
+        requested_ancestry = ((requested, status),)
+        resolved_ancestry = ((resolved, status),)
+
+        with (
+            mock.patch(
+                "tianlai.render_lock._is_windows_runtime",
+                return_value=True,
+            ),
+            mock.patch.object(Path, "resolve", return_value=resolved),
+            mock.patch(
+                "tianlai.render_lock._windows_long_path_name",
+                side_effect=(resolved, resolved),
+            ) as long_path_name,
+            mock.patch(
+                "tianlai.render_lock._capture_plain_directory_ancestry",
+                side_effect=(requested_ancestry, resolved_ancestry),
+            ) as capture_ancestry,
+            mock.patch(
+                "tianlai.render_lock._revalidate_plain_directory_ancestry",
+            ) as revalidate_ancestry,
+            mock.patch(
+                "tianlai.render_lock._plain_directory_status",
+                return_value=status,
+            ),
+            mock.patch(
+                "tianlai.render_lock.os.path.samestat",
+                return_value=True,
+            ),
+        ):
+            identity = capture_plain_directory(requested)
+
+        self.assertEqual(identity.path, resolved)
+        self.assertEqual(long_path_name.call_args_list, [
+            mock.call(requested),
+            mock.call(requested),
+        ])
+        self.assertEqual(capture_ancestry.call_args_list, [
+            mock.call(requested),
+            mock.call(resolved),
+        ])
+        self.assertEqual(revalidate_ancestry.call_args_list, [
+            mock.call(requested_ancestry),
+            mock.call(resolved_ancestry),
+        ])
+
+    def test_windows_alias_exception_rejects_non_short_name_resolution(
+        self,
+    ) -> None:
+        requested = self.root / "RUNNER~1" / "output"
+        expanded = self.root / "Runner Name" / "output"
+        resolved = self.root / "outside" / "output"
+        status = SimpleNamespace(st_dev=7, st_ino=11)
+
+        with (
+            mock.patch(
+                "tianlai.render_lock._is_windows_runtime",
+                return_value=True,
+            ),
+            mock.patch.object(Path, "resolve", return_value=resolved),
+            mock.patch(
+                "tianlai.render_lock._windows_long_path_name",
+                side_effect=(expanded, expanded),
+            ),
+            mock.patch(
+                "tianlai.render_lock._capture_plain_directory_ancestry",
+                return_value=((requested, status),),
+            ),
+            mock.patch(
+                "tianlai.render_lock._plain_directory_status",
+                return_value=status,
+            ),
+        ):
+            with self.assertRaises(OSError) as raised:
+                capture_plain_directory(requested)
+
+        self.assertEqual(raised.exception.errno, errno.ELOOP)
+
+    def test_plain_directory_ancestry_rejects_a_reparse_ancestor(self) -> None:
+        target = self.root / "linked" / "output"
+        ordinary = SimpleNamespace(
+            st_mode=stat.S_IFDIR,
+            st_file_attributes=0,
+        )
+        reparse = SimpleNamespace(
+            st_mode=stat.S_IFDIR,
+            st_file_attributes=getattr(
+                stat,
+                "FILE_ATTRIBUTE_REPARSE_POINT",
+                0x0400,
+            ),
+        )
+
+        def fake_lstat(path: Path) -> SimpleNamespace:
+            return reparse if Path(path).name == "linked" else ordinary
+
+        with mock.patch("tianlai.render_lock.os.lstat", side_effect=fake_lstat):
+            with self.assertRaises(OSError) as raised:
+                render_lock_module._capture_plain_directory_ancestry(target)
+
         self.assertEqual(raised.exception.errno, errno.ELOOP)
 
     def test_macos_case_and_unicode_aliases_share_one_lock(self) -> None:

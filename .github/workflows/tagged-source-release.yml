@@ -155,14 +155,9 @@ jobs:
           mkdir -p "$target"
           python -m zipfile -e "$archive" "$target"
           cd "$target"
-          python - <<'PY'
-          from tianlai.resource_restore import _find_bsdtar_executable
-
-          executable = _find_bsdtar_executable()
-          if not executable:
-              raise SystemExit("macOS tagged gate requires a verified bsdtar executable")
-          print(f"Verified bsdtar executable: {executable}")
-          PY
+          executable="$(python -S ./tianlai/resource_restore.py verify-bsdtar)"
+          test -n "$executable"
+          printf 'Verified bsdtar executable: %s\n' "$executable"
           /bin/bash -n ./bootstrap_macos.sh
           /bin/bash ./bootstrap_macos.sh \
             --python "$(command -v python)" \

@@ -8,6 +8,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+import tomllib
 from zipfile import ZipFile
 
 import pytest
@@ -26,8 +27,27 @@ DOCUMENTS = (
         "C0.03",
     ),
 )
+CONSTITUTION_LF_RULES = {
+    "docs/音乐创作参考笔记/天籁音乐宪法-v0.1*.md text eol=lf",
+    "tianlai/_resources/constitutions/*.md text eol=lf",
+}
 
 
+def test_gitattributes_forces_constitution_sources_to_lf() -> None:
+    rules = {
+        line.strip()
+        for line in (ROOT / ".gitattributes")
+        .read_text(encoding="utf-8")
+        .splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    }
+    assert CONSTITUTION_LF_RULES <= rules
+
+
+@pytest.mark.skipif(
+    not (ROOT / ".git").exists(),
+    reason="Git metadata is intentionally absent from source distributions",
+)
 @pytest.mark.parametrize(
     "relative_path",
     tuple(
@@ -39,12 +59,14 @@ DOCUMENTS = (
         )
     ),
 )
-def test_constitution_sources_are_forced_to_lf_by_git(
+def test_git_applies_constitution_lf_rules(
     relative_path: str,
 ) -> None:
+    git = shutil.which("git")
+    assert git is not None, "a Git checkout must have git available"
     checked = subprocess.run(
         [
-            "git",
+            git,
             "-C",
             str(ROOT),
             "check-attr",
@@ -78,9 +100,20 @@ def test_packaged_constitution_is_byte_exact_docs_copy(
     assert hashlib.sha256(packaged_payload).hexdigest() == expected_sha256
 
 
+def test_pyproject_declares_constitutions_as_package_data() -> None:
+    project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    setuptools = project["tool"]["setuptools"]
+
+    assert setuptools["include-package-data"] is False
+    assert setuptools["package-data"]["tianlai"] == [
+        "_resources/constitutions/*.md"
+    ]
+
+
 @pytest.mark.skipif(
-    importlib.util.find_spec("mcp") is None,
-    reason="optional mcp package is not installed",
+    importlib.util.find_spec("mcp") is None
+    or importlib.util.find_spec("setuptools") is None,
+    reason="wheel lookup test needs the optional mcp and setuptools packages",
 )
 def test_wheel_contains_constitutions_and_lookup_needs_no_repo_docs(
     tmp_path: Path,

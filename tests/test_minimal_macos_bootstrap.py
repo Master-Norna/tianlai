@@ -4,12 +4,14 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tomllib
 import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
 BOOTSTRAP = ROOT / "bootstrap_macos.sh"
+RESOURCE_RESTORE = ROOT / "tianlai" / "resource_restore.py"
 CI_WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
 TAGGED_WORKFLOW = ROOT / ".github" / "workflows" / "tagged-source-release.yml"
 
@@ -130,6 +132,24 @@ class MinimalMacOSBootstrapTests(unittest.TestCase):
         self.assertIn("--python", result.stdout)
         self.assertIn("Apple Silicon or Intel", result.stdout)
 
+    def test_bsdtar_gate_runs_without_site_packages(self) -> None:
+        result = subprocess.run(
+            [sys.executable, "-S", str(RESOURCE_RESTORE), "verify-bsdtar"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            errors="replace",
+            timeout=30,
+            check=False,
+        )
+        combined = result.stdout + result.stderr
+        self.assertIn(result.returncode, (0, 2), combined)
+        self.assertNotIn("ModuleNotFoundError", combined)
+        if result.returncode == 0:
+            self.assertTrue(result.stdout.strip())
+        else:
+            self.assertIn("bsdtar/libarchive", result.stderr)
+
     def test_macos_workflows_pin_native_bash_and_render_a_real_smoke_bank(self) -> None:
         ci = CI_WORKFLOW.read_text(encoding="utf-8")
         tagged = TAGGED_WORKFLOW.read_text(encoding="utf-8")
@@ -185,11 +205,15 @@ class MinimalMacOSBootstrapTests(unittest.TestCase):
             self.assertIn("HOMEBREW_NO_AUTO_UPDATE", workflow)
             self.assertIn("attempt in 1 2 3", workflow)
             self.assertIn('TIANLAI_REQUIRE_BSDTAR: "1"', workflow)
-            self.assertIn(
-                "from tianlai.resource_restore import _find_bsdtar_executable",
-                workflow,
+            probe = (
+                'executable="$(python -S '
+                './tianlai/resource_restore.py verify-bsdtar)"'
             )
-            self.assertIn("executable = _find_bsdtar_executable()", workflow)
+            self.assertIn(probe, mac_job)
+            self.assertNotIn(
+                "from tianlai.resource_restore import _find_bsdtar_executable",
+                mac_job,
+            )
             self.assertIn(
                 'if test "$EXPECTED_MACHINE" = "x86_64"; then',
                 mac_job,
@@ -203,7 +227,7 @@ class MinimalMacOSBootstrapTests(unittest.TestCase):
                 mac_job,
             )
             self.assertLess(
-                mac_job.index("executable = _find_bsdtar_executable()"),
+                mac_job.index(probe),
                 mac_job.index("--portable-tests"),
             )
             self.assertIn(

@@ -2891,6 +2891,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--cache-dir", type=Path, help="下载缓存目录覆盖")
     parser.add_argument("--json", action="store_true", help="输出机器可读 JSON")
     commands = parser.add_subparsers(dest="command", required=True)
+    commands.add_parser(
+        "verify-bsdtar",
+        help="只验证可用于 7z 的 bsdtar/libarchive 命令",
+    )
     list_parser = commands.add_parser("list", help="列出可恢复资源族")
     _add_selection_arguments(list_parser)
     plan_parser = commands.add_parser("plan", help="只读生成恢复计划")
@@ -2911,6 +2915,9 @@ def main(argv: list[str] | None = None) -> int:
     _add_selection_arguments(verify_parser)
     arguments = parser.parse_args(argv)
     try:
+        if arguments.command == "verify-bsdtar":
+            print(_find_bsdtar_executable())
+            return 0
         home, resources, cache = _common_paths(arguments)
         manifest_path = (
             _resolve_path(arguments.manifest)

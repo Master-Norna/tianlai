@@ -2385,11 +2385,18 @@ def _plain_bound_artifact(
         raise CreativeWorkflowError("candidate_artifact_path_escape", source=label)
     lexical = directory.joinpath(*portable.parts)
     try:
+        resolved_root = directory.resolve(strict=True)
         resolved = lexical.resolve(strict=True)
-        resolved.relative_to(directory)
+        resolved.relative_to(resolved_root)
     except (OSError, RuntimeError, ValueError) as exc:
         raise CreativeWorkflowError("candidate_artifact_path_escape", source=label) from exc
-    if resolved != lexical.absolute():
+    try:
+        root_identity = capture_plain_directory(directory)
+        parent_identity = capture_plain_directory(lexical.parent)
+        parent_identity.path.relative_to(root_identity.path)
+    except (OSError, RuntimeError, ValueError) as exc:
+        raise CreativeWorkflowError("unsafe_candidate_artifact", source=label) from exc
+    if resolved.parent != parent_identity.path:
         raise CreativeWorkflowError("unsafe_candidate_artifact", source=label)
     expected = _checked_revision(expected_sha256, code="invalid_candidate_artifact_hash")
     try:

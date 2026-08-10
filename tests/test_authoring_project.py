@@ -372,14 +372,22 @@ def test_current_revision_tamper_is_rejected_without_leaking_a_path(
     assert str(root) not in repr(failure.to_issue())
 
 
-def test_symlink_or_reparse_managed_directory_is_rejected(tmp_path: Path) -> None:
+@pytest.mark.parametrize("target_outside_project", (False, True))
+def test_symlink_or_reparse_managed_directory_is_rejected(
+    tmp_path: Path,
+    target_outside_project: bool,
+) -> None:
     root, _state = _project(tmp_path)
     renders = root / "renders"
     renders.rmdir()
-    outside = tmp_path / "outside"
-    outside.mkdir()
+    target = (
+        tmp_path / "outside"
+        if target_outside_project
+        else root / "unmanaged-render-target"
+    )
+    target.mkdir()
     try:
-        os.symlink(outside, renders, target_is_directory=True)
+        os.symlink(target, renders, target_is_directory=True)
     except (NotImplementedError, OSError):
         pytest.skip("directory symlinks are unavailable for this test account")
     assert _code(lambda: open_authoring_project(root)) == "unsafe_renders_directory"

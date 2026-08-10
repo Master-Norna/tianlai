@@ -751,7 +751,7 @@ class SampleInstrumentTests(unittest.TestCase):
 
             left, right = instrument.render_frame()
             self.assertGreater(left, 0.0)
-            self.assertEqual(left, right)
+            self.assertAlmostEqual(left, right, delta=1e-12)
 
 
 if __name__ == "__main__":

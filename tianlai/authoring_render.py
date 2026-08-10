@@ -12,7 +12,6 @@ import math
 import os
 from pathlib import Path
 import re
-import stat
 import time
 from typing import Any, Callable
 
@@ -65,7 +64,6 @@ RENDER_STAGES = (
 )
 _STAGE_ORDER = {stage: index for index, stage in enumerate(RENDER_STAGES)}
 _SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
-_REPARSE_POINT = 0x400
 _MANAGED_REUSE_WAIT_SECONDS = 30.0
 _MANAGED_REUSE_POLL_SECONDS = 0.02
 
@@ -165,18 +163,6 @@ class _Controller:
             raise AuthoringRenderCancelled(stage=stage)
 
 
-def _plain_directory(path: Path) -> bool:
-    try:
-        status = os.lstat(path)
-    except OSError:
-        return False
-    return (
-        stat.S_ISDIR(status.st_mode)
-        and not stat.S_ISLNK(status.st_mode)
-        and not bool(getattr(status, "st_file_attributes", 0) & _REPARSE_POINT)
-    )
-
-
 def _canonical_plain_directory(
     value: str | os.PathLike[str],
     *,
@@ -189,13 +175,9 @@ def _canonical_plain_directory(
     if not requested.is_absolute():
         raise AuthoringRenderError(code, stage="validate")
     try:
-        lexical = requested.absolute()
-        resolved = requested.resolve(strict=True)
+        return capture_plain_directory(requested).path
     except (OSError, RuntimeError) as exc:
         raise AuthoringRenderError(code, stage="validate") from exc
-    if lexical != resolved or not _plain_directory(requested):
-        raise AuthoringRenderError(code, stage="validate")
-    return resolved
 
 
 def _extended_windows_path(path: Path) -> Path:

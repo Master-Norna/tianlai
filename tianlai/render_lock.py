@@ -145,6 +145,112 @@ def _plain_directory_status(path: Path) -> os.stat_result:
     return status
 
 
+def _capture_plain_directory_ancestry(
+    directory: Path,
+) -> tuple[tuple[Path, os.stat_result], ...]:
+    """Capture every lexical ancestor without following a reparse point.
+
+    Windows may canonicalise an ordinary 8.3 component such as
+    ``RUNNER~1`` to its long spelling when ``Path.resolve`` is called.  A
+    spelling comparison therefore cannot distinguish that harmless alias
+    from a junction.  Walking the lexical path with ``lstat`` retains the
+    security property we actually need: every component selected by the
+    caller must be an ordinary directory rather than a symlink or reparse
+    point.
+    """
+
+    absolute = Path(os.path.abspath(os.fspath(directory)))
+    ancestry = tuple(reversed((absolute, *absolute.parents)))
+    return tuple(
+        (path, _plain_directory_status(path)) for path in ancestry
+    )
+
+
+def _revalidate_plain_directory_ancestry(
+    ancestry: tuple[tuple[Path, os.stat_result], ...],
+) -> None:
+    """Fail closed if a captured lexical ancestor changed or became linked."""
+
+    for path, captured_status in ancestry:
+        current_status = _plain_directory_status(path)
+        if not os.path.samestat(captured_status, current_status):
+            raise OSError(
+                errno.ESTALE,
+                "render directory ancestry changed while it was captured",
+                str(path),
+            )
+
+
+def _windows_long_path_name(path: Path) -> Path:
+    """Expand Windows 8.3 components without resolving filesystem links.
+
+    ``GetLongPathNameW`` requires traversal permission for every parent and
+    can fail on otherwise usable sandboxed temp paths.  ``FindFirstFileW``
+    exposes the on-disk long name of one lexical entry, so query only prefixes
+    containing the DOS short-name marker.  An unreadable marked component
+    keeps its caller spelling; that is fail-closed because a real expansion
+    will then disagree with ``Path.resolve`` below.
+    """
+
+    requested = Path(os.path.abspath(os.fspath(path)))
+    parts = requested.parts
+    if not parts or not requested.anchor:
+        raise OSError(errno.EINVAL, "Windows directory path has no anchor")
+    if not any("~" in component for component in parts[1:]):
+        return requested
+
+    import ctypes
+    from ctypes import wintypes
+
+    class _WindowsFindData(ctypes.Structure):
+        _fields_ = (
+            ("dwFileAttributes", wintypes.DWORD),
+            ("ftCreationTime", wintypes.FILETIME),
+            ("ftLastAccessTime", wintypes.FILETIME),
+            ("ftLastWriteTime", wintypes.FILETIME),
+            ("nFileSizeHigh", wintypes.DWORD),
+            ("nFileSizeLow", wintypes.DWORD),
+            ("dwReserved0", wintypes.DWORD),
+            ("dwReserved1", wintypes.DWORD),
+            ("cFileName", wintypes.WCHAR * 260),
+            ("cAlternateFileName", wintypes.WCHAR * 14),
+        )
+
+    kernel32 = ctypes.WinDLL(
+        "kernel32",
+        use_last_error=True,
+    )
+    find_first_file = kernel32.FindFirstFileW
+    find_first_file.argtypes = (
+        wintypes.LPCWSTR,
+        ctypes.POINTER(_WindowsFindData),
+    )
+    find_first_file.restype = wintypes.HANDLE
+    find_close = kernel32.FindClose
+    find_close.argtypes = (wintypes.HANDLE,)
+    find_close.restype = wintypes.BOOL
+    invalid_handle = ctypes.c_void_p(-1).value
+
+    lexical = Path(parts[0])
+    expanded = Path(parts[0])
+    for component in parts[1:]:
+        lexical /= component
+        if "~" not in component:
+            expanded /= component
+            continue
+        data = _WindowsFindData()
+        handle = find_first_file(os.fspath(lexical), ctypes.byref(data))
+        if handle == invalid_handle:
+            long_component = component
+        else:
+            try:
+                long_component = data.cFileName
+            finally:
+                find_close(handle)
+        expanded /= long_component
+    return expanded
+
+
 def capture_plain_directory(
     directory: str | os.PathLike[str],
 ) -> PlainDirectoryIdentity:
@@ -153,6 +259,15 @@ def capture_plain_directory(
     requested = Path(directory)
     if not requested.is_absolute():
         requested = requested.absolute()
+    windows_runtime = _is_windows_runtime()
+    requested_long_path = (
+        _windows_long_path_name(requested) if windows_runtime else None
+    )
+    requested_ancestry = (
+        _capture_plain_directory_ancestry(requested)
+        if windows_runtime
+        else ()
+    )
     try:
         resolved = requested.resolve(strict=True)
     except (OSError, RuntimeError) as exc:
@@ -171,12 +286,45 @@ def capture_plain_directory(
     status = _plain_directory_status(
         resolved if exact_macos_system_alias else requested
     )
-    if _path_comparison_key(requested) != _path_comparison_key(resolved):
+    spelling_changed = (
+        _path_comparison_key(requested) != _path_comparison_key(resolved)
+    )
+    if spelling_changed and not windows_runtime:
         raise OSError(
             errno.ELOOP,
             "render directory path contains a symlink or reparse point",
             str(requested),
         )
+    if windows_runtime:
+        # The component metadata expansion above does not resolve symlinks or
+        # junctions.  Requiring Path.resolve() to agree with that narrower
+        # canonicalisation means the Windows exception cannot admit an
+        # arbitrary linked spelling, including one briefly swapped in only
+        # during the resolve/status window.
+        assert requested_long_path is not None
+        current_long_path = _windows_long_path_name(requested)
+        if _path_comparison_key(current_long_path) != _path_comparison_key(
+            requested_long_path
+        ):
+            raise OSError(
+                errno.ESTALE,
+                "render directory long-name identity changed while captured",
+                str(requested),
+            )
+        if _path_comparison_key(resolved) != _path_comparison_key(
+            current_long_path
+        ):
+            raise OSError(
+                errno.ELOOP,
+                "render directory path contains a symlink or reparse point",
+                str(requested),
+            )
+        # Validate both spellings.  The first walk proves that no caller-chosen
+        # component is a link/junction; the second proves that the canonical
+        # target is itself reached entirely through ordinary directories.
+        resolved_ancestry = _capture_plain_directory_ancestry(resolved)
+        _revalidate_plain_directory_ancestry(requested_ancestry)
+        _revalidate_plain_directory_ancestry(resolved_ancestry)
     resolved_status = _plain_directory_status(resolved)
     if not os.path.samestat(status, resolved_status):
         raise OSError(
