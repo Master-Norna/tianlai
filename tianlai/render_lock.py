@@ -655,12 +655,38 @@ def _open_lock_file(
                     "render lock parent changed before open",
                     str(parent),
                 )
-            descriptor = os.open(
-                path.name,
-                flags,
-                0o600,
-                dir_fd=parent_descriptor,
-            )
+            try:
+                descriptor = os.open(
+                    path.name,
+                    flags,
+                    0o600,
+                    dir_fd=parent_descriptor,
+                )
+            except FileNotFoundError as first_error:
+                # Darwin has been observed to return one transient ENOENT when
+                # two processes concurrently O_CREAT the same new sidecar,
+                # even though this verified parent descriptor remains valid.
+                # Retry only after proving both the path and descriptor still
+                # name the authorised directory.  The descriptor anchors the
+                # second open, while O_NOFOLLOW and the descriptor/path checks
+                # below continue to reject replacement attacks.
+                revalidate_plain_directory(parent_identity)
+                retry_parent_status = os.fstat(parent_descriptor)
+                if (
+                    int(retry_parent_status.st_dev) != parent_identity.device
+                    or int(retry_parent_status.st_ino) != parent_identity.inode
+                ):
+                    raise OSError(
+                        errno.ESTALE,
+                        "render lock parent changed before retry",
+                        str(parent),
+                    ) from first_error
+                descriptor = os.open(
+                    path.name,
+                    flags,
+                    0o600,
+                    dir_fd=parent_descriptor,
+                )
         else:
             descriptor = os.open(path, flags, 0o600)
     except BaseException:

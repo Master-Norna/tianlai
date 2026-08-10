@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.metadata
 import importlib.util
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -31,6 +33,69 @@ CONSTITUTION_LF_RULES = {
     "docs/音乐创作参考笔记/天籁音乐宪法-v0.1*.md text eol=lf",
     "tianlai/_resources/constitutions/*.md text eol=lf",
 }
+SETUPTOOLS_BUILD_REQUIREMENT = "setuptools>=77"
+
+
+def _requirement_contains_version(requirement: str, version: str) -> bool:
+    """Evaluate the build requirement without adding a test dependency.
+
+    ``packaging`` is normally available either directly or through
+    setuptools.  The conservative fallback supports this project's exact
+    lower-bound contract so collection still works in a minimal environment.
+    """
+
+    try:
+        from packaging.requirements import Requirement
+    except ModuleNotFoundError:
+        try:
+            from setuptools._vendor.packaging.requirements import Requirement
+        except (ImportError, ModuleNotFoundError):
+            Requirement = None  # type: ignore[assignment,misc]
+    if Requirement is not None:
+        parsed = Requirement(requirement)
+        return parsed.specifier.contains(version)
+
+    matched_requirement = re.fullmatch(
+        r"setuptools>=(\d+(?:\.\d+)*)",
+        requirement,
+        flags=re.IGNORECASE,
+    )
+    matched_version = re.match(
+        r"(\d+(?:\.\d+)*)(.*)",
+        version,
+        flags=re.IGNORECASE,
+    )
+    if matched_requirement is None or matched_version is None:
+        return False
+
+    def release(value: str) -> tuple[int, ...]:
+        fields = [int(field) for field in value.split(".")]
+        while len(fields) > 1 and fields[-1] == 0:
+            fields.pop()
+        return tuple(fields)
+
+    installed_release = release(matched_version.group(1))
+    required_release = release(matched_requirement.group(1))
+    suffix = matched_version.group(2).lower()
+    if any(marker in suffix for marker in ("a", "b", "rc", "dev")):
+        return False
+    width = max(len(installed_release), len(required_release))
+    return installed_release + (0,) * (width - len(installed_release)) >= (
+        required_release + (0,) * (width - len(required_release))
+    )
+
+
+def _installed_setuptools_satisfies_build_contract() -> bool:
+    if importlib.util.find_spec("setuptools") is None:
+        return False
+    try:
+        installed = importlib.metadata.version("setuptools")
+    except importlib.metadata.PackageNotFoundError:
+        return False
+    return _requirement_contains_version(
+        SETUPTOOLS_BUILD_REQUIREMENT,
+        installed,
+    )
 
 
 def test_gitattributes_forces_constitution_sources_to_lf() -> None:
@@ -110,10 +175,62 @@ def test_pyproject_declares_constitutions_as_package_data() -> None:
     ]
 
 
+def test_build_and_dev_contract_require_pep639_capable_setuptools() -> None:
+    project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    build_system = project["build-system"]
+    package = project["project"]
+
+    assert build_system["build-backend"] == "setuptools.build_meta"
+    assert SETUPTOOLS_BUILD_REQUIREMENT in build_system["requires"]
+    assert SETUPTOOLS_BUILD_REQUIREMENT in package["optional-dependencies"]["dev"]
+    assert SETUPTOOLS_BUILD_REQUIREMENT not in package["dependencies"]
+
+
+@pytest.mark.parametrize(
+    ("version", "expected"),
+    (
+        ("76.9.9", False),
+        ("77.0.0rc1", False),
+        ("77.0.0", True),
+        ("83.0.0", True),
+    ),
+)
+def test_setuptools_build_requirement_gate(
+    version: str,
+    expected: bool,
+) -> None:
+    assert (
+        _requirement_contains_version(SETUPTOOLS_BUILD_REQUIREMENT, version)
+        is expected
+    )
+
+
+@pytest.mark.parametrize(
+    ("installed", "expected"),
+    (("76.9.9", False), ("77.0.0", True)),
+)
+def test_installed_setuptools_gate_uses_the_build_contract(
+    monkeypatch: pytest.MonkeyPatch,
+    installed: str,
+    expected: bool,
+) -> None:
+    monkeypatch.setattr(
+        importlib.util,
+        "find_spec",
+        lambda name: object() if name == "setuptools" else None,
+    )
+    monkeypatch.setattr(importlib.metadata, "version", lambda _name: installed)
+
+    assert _installed_setuptools_satisfies_build_contract() is expected
+
+
 @pytest.mark.skipif(
     importlib.util.find_spec("mcp") is None
-    or importlib.util.find_spec("setuptools") is None,
-    reason="wheel lookup test needs the optional mcp and setuptools packages",
+    or not _installed_setuptools_satisfies_build_contract(),
+    reason=(
+        "wheel lookup test needs optional mcp and an installed setuptools "
+        "satisfying the pyproject build-system requirement"
+    ),
 )
 def test_wheel_contains_constitutions_and_lookup_needs_no_repo_docs(
     tmp_path: Path,

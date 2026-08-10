@@ -383,6 +383,113 @@ class RenderLockTests(unittest.TestCase):
         self.assertEqual(raised.exception.errno, errno.ENOTSUP)
         samestat.assert_not_called()
 
+    @unittest.skipUnless(
+        os.name != "nt" and os.open in os.supports_dir_fd,
+        "POSIX directory-relative open is required",
+    )
+    def test_relative_lock_create_retries_one_transient_enoent(self) -> None:
+        target = self.root / "transient-create"
+        expected_lock = render_lock_path(target)
+        real_open = os.open
+        relative_attempts = 0
+
+        def transient_first_open(
+            path,
+            flags: int,
+            mode: int = 0o777,
+            *,
+            dir_fd=None,
+        ) -> int:
+            nonlocal relative_attempts
+            if dir_fd is not None and os.fspath(path) == expected_lock.name:
+                relative_attempts += 1
+                if relative_attempts == 1:
+                    raise FileNotFoundError(
+                        errno.ENOENT,
+                        "injected concurrent-create ENOENT",
+                        os.fspath(path),
+                    )
+            return real_open(path, flags, mode, dir_fd=dir_fd)
+
+        with mock.patch(
+            "tianlai.render_lock.os.open",
+            side_effect=transient_first_open,
+        ) as patched_open:
+            with mock.patch.object(
+                render_lock_module.os,
+                "supports_dir_fd",
+                {patched_open},
+            ):
+                with acquire_render_lock(target) as owned:
+                    self.assertEqual(owned.lock_path, expected_lock)
+
+        self.assertEqual(relative_attempts, 2)
+        self.assertGreaterEqual(expected_lock.stat().st_size, 1)
+
+    @unittest.skipUnless(
+        os.name != "nt" and os.open in os.supports_dir_fd,
+        "POSIX directory-relative open is required",
+    )
+    def test_transient_create_retry_fails_if_parent_identity_changed(
+        self,
+    ) -> None:
+        target = self.root / "changed-parent"
+        expected_lock = render_lock_path(target)
+        real_open = os.open
+        real_revalidate = render_lock_module.revalidate_plain_directory
+        retry_started = False
+        relative_attempts = 0
+
+        def transient_first_open(
+            path,
+            flags: int,
+            mode: int = 0o777,
+            *,
+            dir_fd=None,
+        ) -> int:
+            nonlocal retry_started, relative_attempts
+            if dir_fd is not None and os.fspath(path) == expected_lock.name:
+                relative_attempts += 1
+                retry_started = True
+                raise FileNotFoundError(
+                    errno.ENOENT,
+                    "injected concurrent-create ENOENT",
+                    os.fspath(path),
+                )
+            return real_open(path, flags, mode, dir_fd=dir_fd)
+
+        def reject_changed_parent(identity):
+            if retry_started:
+                raise OSError(
+                    errno.ESTALE,
+                    "injected parent identity replacement",
+                    str(identity.path),
+                )
+            return real_revalidate(identity)
+
+        with (
+            mock.patch(
+                "tianlai.render_lock.os.open",
+                side_effect=transient_first_open,
+            ) as patched_open,
+            mock.patch(
+                "tianlai.render_lock.revalidate_plain_directory",
+                side_effect=reject_changed_parent,
+            ),
+            mock.patch.object(
+                render_lock_module.os,
+                "supports_dir_fd",
+                {patched_open},
+            ),
+            self.assertRaises(OSError) as raised,
+        ):
+            with acquire_render_lock(target):
+                self.fail("a changed parent reached the lock retry")
+
+        self.assertEqual(raised.exception.errno, errno.ESTALE)
+        self.assertEqual(relative_attempts, 1)
+        self.assertFalse(expected_lock.exists())
+
     def test_windows_alias_exception_still_revalidates_every_ancestor(
         self,
     ) -> None:
@@ -493,9 +600,14 @@ class RenderLockTests(unittest.TestCase):
         self.assertEqual(raised.exception.errno, errno.ELOOP)
 
     def test_macos_case_and_unicode_aliases_share_one_lock(self) -> None:
-        nfc_target = self.root / "Café Output"
-        case_alias = self.root / "CAFÉ OUTPUT"
-        nfd_alias = self.root / unicodedata.normalize("NFD", "Café Output")
+        # Keep this simulated-macOS path domain canonical on the real host.
+        # In particular, a Windows CI temp path may contain RUNNER~1; after the
+        # Windows runtime predicate is mocked off that spelling must not be
+        # mistaken for a caller-created macOS symlink.
+        macos_root = self.root.resolve(strict=True)
+        nfc_target = macos_root / "Café Output"
+        case_alias = macos_root / "CAFÉ OUTPUT"
+        nfd_alias = macos_root / unicodedata.normalize("NFD", "Café Output")
 
         with (
             mock.patch(

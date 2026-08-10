@@ -41,7 +41,8 @@ mcp = [
 soundfont = ["pyfluidsynth==1.4.0"]
 dev = [
   "jsonschema==4.26.0",
-  "pytest>=8,<9"
+  "pytest>=8,<9",
+  "setuptools>=77"
 ]
 
 [project.scripts]
