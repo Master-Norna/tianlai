@@ -1,0 +1,33 @@
+{
+  "status": "machine_pass_human_pending",
+  "rendered_at": "2026-08-08",
+  "platform": "Windows Chinese-path workspace",
+  "sample_rate": 48000,
+  "channels": 2,
+  "subtype": "PCM_24",
+  "frame_count": 487200,
+  "duration_seconds": 10.15,
+  "peak_active_voices": 2,
+  "peak": 0.591166,
+  "rms": 0.106018,
+  "clipped_samples": 0,
+  "wav": "output/电钢琴_candidate.wav",
+  "wav_persistence": "temporary",
+  "wav_sha256": "a1dd854aeb29c2f627d1728e6e8ac73ac3725e45882516f27e5dbfc17fe90909",
+  "hash_algorithm": "SHA-256",
+  "canonicalization": "tianlai-json-v1",
+  "manifest_canonical_sha256": "34a596f7822762d9ac41529b21591cbf3650d881b16fe8fab5d0025d2bc886f6",
+  "events": "examples/电钢琴_奏法.events.json",
+  "events_canonical_sha256": "3a4f0a1bea972f6b466dfdd5aab184092843d1eb4ac4df3a35c768b3335da2dc",
+  "audition_profile": "fixed-example",
+  "audition_protocol": "instrument-fixed-example-v1",
+  "coverage": [
+    "A0-C8 低/中/高音域",
+    "PP/MP/F/FF 四档真实力度层与长短音",
+    "81 个 44.1 kHz 单声道 FLAC 经版本化带限重采样输出到 48 kHz",
+    "端到端宽频根音检查,禁止整八度映射错误",
+    "奏法:normal",
+    "note-off 释放与尾音"
+  ],
+  "human_review": "pending"
+}

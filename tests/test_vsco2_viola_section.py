@@ -10,6 +10,11 @@ import unittest
 
 import pytest
 
+from tianlai.canonical_json import (
+    CANONICALIZATION,
+    HASH_ALGORITHM,
+    canonical_json_file_sha256,
+)
 from tianlai.events import PerformanceEvent
 from tianlai.instrument import create_instrument
 from tianlai.tuning import EqualTemperament
@@ -336,6 +341,7 @@ class Vsco2ViolaSectionTests(unittest.TestCase):
         self.assertLess(first_peak, 1.0)
 
     def test_resource_report_freezes_license_formats_and_signal_gates(self) -> None:
+        self.assertEqual(self.resource["schema_version"], 2)
         self.assertEqual(self.resource["status"], "passed")
         self.assertEqual(self.resource["license"], "CC0-1.0")
         self.assertEqual(self.resource["license_status"], "approved")
@@ -368,9 +374,14 @@ class Vsco2ViolaSectionTests(unittest.TestCase):
                 "sustain_loop_seam_review_limit"
             ],
         )
+        self.assertEqual(self.resource["hash_algorithm"], HASH_ALGORITHM)
         self.assertEqual(
-            self.resource["manifest_sha256"],
-            hashlib.sha256(MANIFEST_PATH.read_bytes()).hexdigest(),
+            self.resource["canonicalization"],
+            CANONICALIZATION,
+        )
+        self.assertEqual(
+            self.resource["manifest_canonical_sha256"],
+            canonical_json_file_sha256(MANIFEST_PATH),
         )
         self.assertEqual(
             self.resource["mapping_sha256"],

@@ -767,6 +767,7 @@ def main(argv: list[str] | None = None) -> int:
             from .conductor import ExpressionSettings, build_plan
             from .ensemble import render_plan
             from .preflight import enforce_roster_availability
+            from .project_review import build_project_review_safely
             from .render_profile import parse_render_profile
             from .resource_limits import (
                 validate_render_request_resource_limits,
@@ -803,6 +804,15 @@ def main(argv: list[str] | None = None) -> int:
                 stem_cache_enabled=profile.use_stem_cache,
             )
             plan_sha256 = canonical_json_sha256(plan.to_dict())
+            project_review = build_project_review_safely(
+                plan,
+                roster,
+                binding={
+                    "score_sha256": canonical_json_sha256(raw_score),
+                    "roster_sha256": canonical_json_sha256(raw_roster),
+                    "performance_plan_sha256": plan_sha256,
+                },
+            )
             title = (
                 args.title
                 or str(raw_score.get("title", "")).strip()
@@ -823,8 +833,12 @@ def main(argv: list[str] | None = None) -> int:
                     args.expected_receipt_sha256
                 ),
             )
-            for warning in plan.warnings:
-                print(f"warning: {warning}", file=sys.stderr)
+            for item in project_review["items"]:
+                if item["level"] == "warning":
+                    print(
+                        f"review[{item['code']}]: {item['message']}",
+                        file=sys.stderr,
+                    )
             with candidate_publication(target) as staging:
                 result = render_plan(
                     plan,
@@ -853,12 +867,19 @@ def main(argv: list[str] | None = None) -> int:
                     raise ValueError(
                         "渲染成功但没有生成可绑定的渲染回执"
                     )
+                if not result.post_render_check_path:
+                    raise ValueError(
+                        "渲染成功但没有生成可绑定的渲染后自检"
+                    )
                 staging_root = staging.directory.resolve()
                 mix_relative = Path(result.mix_path).resolve().relative_to(
                     staging_root
                 )
                 receipt_relative = Path(
                     result.receipt_path
+                ).resolve().relative_to(staging_root)
+                post_render_check_relative = Path(
+                    result.post_render_check_path
                 ).resolve().relative_to(staging_root)
                 manifest = publish_candidate_metadata(
                     staging,
@@ -894,6 +915,15 @@ def main(argv: list[str] | None = None) -> int:
                                 target.directory / receipt_relative
                             ).resolve()
                         ),
+                        "post_render_check": str(
+                            (
+                                target.directory
+                                / post_render_check_relative
+                            ).resolve()
+                        ),
+                        "post_render_check_summary": (
+                            result.post_render_check_summary
+                        ),
                         "duration_seconds": result.duration_seconds,
                         "mix_peak": result.mix_peak,
                         "score_sha256": manifest["project"]["score"][
@@ -907,6 +937,7 @@ def main(argv: list[str] | None = None) -> int:
                         ]["canonical_sha256"],
                         "performance_plan_sha256": plan_sha256,
                         "render_preflight": resource_preflight,
+                        "project_review": project_review,
                     },
                     ensure_ascii=False,
                     indent=2,
@@ -1247,10 +1278,12 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         if args.command == "ensemble":
+            from .canonical_json import canonical_json_sha256
             from .capability import load_capabilities
             from .conductor import ExpressionSettings, build_plan
             from .ensemble import render_plan
             from .preflight import enforce_roster_availability
+            from .project_review import build_project_review_safely
             from .render_profile import (
                 parse_render_profile,
                 profile_with_overrides,
@@ -1267,7 +1300,8 @@ def main(argv: list[str] | None = None) -> int:
             score = parse_score_document(raw_score)
             validate_score_resource_limits(raw_score, score)
             table = load_capabilities(_catalog_path(args.root))
-            roster = parse_roster_document(load_json_object(args.roster), table)
+            raw_roster = load_json_object(args.roster)
+            roster = parse_roster_document(raw_roster, table)
             enforce_roster_availability(roster)
             profile = parse_render_profile(
                 load_json_object(args.render_profile)
@@ -1321,9 +1355,23 @@ def main(argv: list[str] | None = None) -> int:
                 collaboration_mode=profile.collaboration_mode,
                 stem_cache_enabled=profile.use_stem_cache,
             )
+            plan_sha256 = canonical_json_sha256(plan.to_dict())
+            project_review = build_project_review_safely(
+                plan,
+                roster,
+                binding={
+                    "score_sha256": canonical_json_sha256(raw_score),
+                    "roster_sha256": canonical_json_sha256(raw_roster),
+                    "performance_plan_sha256": plan_sha256,
+                },
+            )
             directory = Path(args.output)
-            for warning in plan.warnings:
-                print(f"warning: {warning}", file=sys.stderr)
+            for item in project_review["items"]:
+                if item["level"] == "warning":
+                    print(
+                        f"review[{item['code']}]: {item['message']}",
+                        file=sys.stderr,
+                    )
             print(
                 f"{len(plan.parts)} 个执行器,{sum(len(part.trace) for part in plan.parts)} 个音符,"
                 f"{plan.duration_seconds:.2f}s"
@@ -1353,9 +1401,19 @@ def main(argv: list[str] | None = None) -> int:
                     ),
                     encoding="utf-8",
                 )
+                review_path = directory / "创作自检.json"
+                review_path.write_text(
+                    json.dumps(
+                        project_review,
+                        ensure_ascii=False,
+                        indent=2,
+                    ),
+                    encoding="utf-8",
+                )
                 print(f"演奏计划: {plan_path.resolve()}")
                 print(f"渲染配置: {profile_path.resolve()}")
                 print(f"资源预检: {preflight_path.resolve()}")
+                print(f"创作自检: {review_path.resolve()}")
                 return 0
             result = render_plan(
                 plan,
@@ -1398,7 +1456,14 @@ def main(argv: list[str] | None = None) -> int:
                 profile.to_dict(),
                 overwrite=True,
             )
+            review_path = directory / "创作自检.json"
+            _write_json_atomic(
+                review_path,
+                project_review,
+                overwrite=True,
+            )
             print(f"渲染配置: {profile_path.resolve()}")
+            print(f"创作自检: {review_path.resolve()}")
             if result.plan_path:
                 print(f"演奏计划: {Path(result.plan_path).resolve()}")
             for stem in result.stems:
@@ -1452,6 +1517,35 @@ def main(argv: list[str] | None = None) -> int:
                     "署名说明: "
                     f"{Path(result.attribution_path).resolve()}"
                 )
+            post_render_check_path = getattr(
+                result,
+                "post_render_check_path",
+                None,
+            )
+            if post_render_check_path:
+                print(
+                    "渲染后自检: "
+                    f"{Path(post_render_check_path).resolve()}"
+                )
+            post_render_check_summary = getattr(
+                result,
+                "post_render_check_summary",
+                None,
+            )
+            if post_render_check_summary:
+                summary = post_render_check_summary
+                status = str(summary.get("status", "unknown"))
+                counts = []
+                for key, label in (
+                    ("blocking_count", "阻断"),
+                    ("review_count", "待复核"),
+                    ("advisory_count", "提示"),
+                ):
+                    value = summary.get(key)
+                    if isinstance(value, int) and not isinstance(value, bool):
+                        counts.append(f"{label} {value}")
+                suffix = f" ({', '.join(counts)})" if counts else ""
+                print(f"渲染后自检状态: {status}{suffix}")
             return 0
 
         if args.command == "catalog":
@@ -1536,6 +1630,35 @@ def main(argv: list[str] | None = None) -> int:
                     "署名说明: "
                     f"{Path(result.attribution_path).resolve()}"
                 )
+            post_render_check_path = getattr(
+                result,
+                "post_render_check_path",
+                None,
+            )
+            if post_render_check_path:
+                print(
+                    "渲染后自检: "
+                    f"{Path(post_render_check_path).resolve()}"
+                )
+            post_render_check_summary = getattr(
+                result,
+                "post_render_check_summary",
+                None,
+            )
+            if post_render_check_summary:
+                summary = post_render_check_summary
+                status = str(summary.get("status", "unknown"))
+                counts = []
+                for key, label in (
+                    ("blocking_count", "阻断"),
+                    ("review_count", "待复核"),
+                    ("advisory_count", "提示"),
+                ):
+                    value = summary.get(key)
+                    if isinstance(value, int) and not isinstance(value, bool):
+                        counts.append(f"{label} {value}")
+                suffix = f" ({', '.join(counts)})" if counts else ""
+                print(f"渲染后自检状态: {status}{suffix}")
             return 0
 
         manifest_path = Path(args.instrument).resolve()

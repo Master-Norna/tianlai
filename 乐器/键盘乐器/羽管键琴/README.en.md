@@ -12,7 +12,9 @@ SoundFont.
 
 - Upstream: sgossner/VCSL (Versilian Community Sample Library).
 - SFZ release: `v1.2.2-RC`, corresponding to commit `b6e6ac82d22248edee98a0bde185eb9ef6d439ad`.
-- License: CC0-1.0; the frozen upstream `README.md` explicitly declares the complete resource CC0.
+- License: [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/);
+  the frozen upstream `README.md` explicitly declares the complete resource
+  CC0.
 - Per-file SHA-256, format, and region statistics are in [`资源核验.json`](资源核验.json); recompute them with [`核验资源.py`](核验资源.py).
 
 ## Mappings, articulations, and actual ranges
@@ -49,14 +51,29 @@ The adopted resources are 44.1 kHz, 24-bit, stereo WAV. Sustain samples retain
 release samples last 0.636–1.869 seconds. There are 108 unique WAV files. Across
 the three articulations, the mappings reference 108 sustain regions and 108
 key-release regions.
+Both sustain and release layers explicitly use the versioned `bandlimited`
+resampler for 48 kHz output. Each 8′/4′ component is processed at its own actual
+playback step; `full` is not mixed first and transposed as one signal. The
+algorithm choice is part of runtime variant identity, while the upstream WAV
+and SFZ bytes remain unchanged.
+
+The entry gain is calibrated to `0.8` with a two-hand ten-note stress score at
+maximum input velocity, the `full` dual registration, and genuine release
+layers. Its internal peak remains below `0.90`, preventing a normal single-note
+check from hiding strict-gate overload on a real chord. Raise the part gain in
+an ensemble when more presence is required rather than sacrificing instrument
+headroom.
 
 ## Listening check
 
-Fixed events are in `examples/羽管键琴_奏法.events.json` and cover low, middle,
-and high keys, long and short notes, all three registrations, and key releases.
-Machine-verification metrics and current WAV/manifest/events Hash values are in
-[`试听核验.json`](试听核验.json); recompute them with
-[`核验试听.py`](核验试听.py).
+[`试听核验.json`](试听核验.json) is the 56-key full-range ascending stress scan
+using the default `full` registration; rebuild it with
+`tools/生成全部试音.py --only 键盘乐器/羽管键琴`.
+[`表现力试听核验.json`](表现力试听核验.json) uses
+`examples/羽管键琴_奏法.events.json` to cover low, middle, and high keys,
+short/long notes, all three registrations, and genuine release layers;
+recompute it with [`核验试听.py`](核验试听.py). Each report binds its own events,
+manifest, and WAV Hash without overwriting the other.
 
 ## Known limitations
 

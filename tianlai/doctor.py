@@ -137,6 +137,41 @@ def _platform_runtime_supported(
     }
 
 
+def _passive_platform_identity() -> tuple[str, str, str, str]:
+    """Return OS identity without invoking :mod:`platform` command fallbacks."""
+
+    if os.name == "nt":
+        system = "Windows"
+        machine = (
+            os.environ.get("PROCESSOR_ARCHITEW6432")
+            or os.environ.get("PROCESSOR_ARCHITECTURE")
+            or "unknown"
+        )
+        get_windows_version = getattr(sys, "getwindowsversion", None)
+        if callable(get_windows_version):
+            version = get_windows_version()
+            release = f"{version.major}.{version.minor}.{version.build}"
+        else:
+            release = "unknown"
+    elif hasattr(os, "uname"):
+        identity = os.uname()
+        system = {
+            "darwin": "Darwin",
+            "linux": "Linux",
+        }.get(sys.platform.casefold(), identity.sysname)
+        machine = identity.machine or "unknown"
+        release = identity.release or "unknown"
+    else:
+        system = {
+            "darwin": "Darwin",
+            "linux": "Linux",
+        }.get(sys.platform.casefold(), sys.platform or "unknown")
+        machine = "unknown"
+        release = "unknown"
+    description = f"{system}-{release}-{machine}"
+    return system, release, machine, description
+
+
 def _probe_macos_rosetta_translation() -> bool:
     """Query the current macOS process without spawning a shell."""
 
@@ -173,6 +208,7 @@ def _macos_rosetta_capability(
     system: str,
     machine: str,
     bits: int,
+    active_probes: bool = True,
 ) -> dict[str, Any]:
     """Describe Rosetta separately from the supported process architecture."""
 
@@ -184,6 +220,7 @@ def _macos_rosetta_capability(
             "process_architecture": process_architecture,
             "host_architecture": None,
             "supported": None,
+            "probe_performed": False,
             "error": None,
         }
 
@@ -199,6 +236,21 @@ def _macos_rosetta_capability(
             "process_architecture": process_architecture,
             "host_architecture": process_architecture,
             "supported": supported,
+            "probe_performed": False,
+            "error": None,
+        }
+
+    if not active_probes:
+        return {
+            "status": "not_probed",
+            "translated": None,
+            "process_architecture": process_architecture,
+            "host_architecture": None,
+            # An x86_64 process on macOS may be native Intel or translated by
+            # Rosetta.  Passive mode cannot distinguish the two and therefore
+            # must not claim that the native-only public contract is verified.
+            "supported": False,
+            "probe_performed": False,
             "error": None,
         }
 
@@ -214,6 +266,7 @@ def _macos_rosetta_capability(
             # cannot prove whether it is native Intel or Rosetta-translated,
             # do not advertise it as a supported runtime.
             "supported": False,
+            "probe_performed": True,
             "error": f"{type(exc).__name__}: {exc}",
         }
     return {
@@ -222,6 +275,7 @@ def _macos_rosetta_capability(
         "process_architecture": process_architecture,
         "host_architecture": "arm64" if translated else process_architecture,
         "supported": supported and not translated,
+        "probe_performed": True,
         "error": None,
     }
 
@@ -284,8 +338,28 @@ def _load_native_fluidsynth_library(library: str | Path) -> None:
         ) from exc
 
 
-def _native_fluidsynth_capability(layout: RuntimeLayout) -> dict[str, Any]:
+def _native_fluidsynth_capability(
+    layout: RuntimeLayout,
+    *,
+    active_probes: bool = True,
+) -> dict[str, Any]:
     """Mirror discovery and prove the selected native library can be loaded."""
+
+    if not active_probes:
+        # Candidate discovery on macOS consults host-specific search locations.
+        # A strict passive MCP report does not need to resolve or touch them;
+        # operator-side doctor mode remains the authority for native readiness.
+        return {
+            "status": "not_probed",
+            "library": None,
+            "directory": None,
+            "source": None,
+            "probe": None,
+            "load_verified": False,
+            "probe_performed": False,
+            "availability_estimate": "not_inspected",
+            "error": None,
+        }
 
     try:
         directory = _find_project_fluidsynth_directory(layout.home)
@@ -304,6 +378,8 @@ def _native_fluidsynth_capability(layout: RuntimeLayout) -> dict[str, Any]:
                         "source": source,
                         "probe": None,
                         "load_verified": False,
+                        "probe_performed": True,
+                        "availability_estimate": "candidate_present",
                         "error": f"{type(exc).__name__}: {exc}",
                     }
                 return {
@@ -313,6 +389,8 @@ def _native_fluidsynth_capability(layout: RuntimeLayout) -> dict[str, Any]:
                     "source": source,
                     "probe": None,
                     "load_verified": True,
+                    "probe_performed": True,
+                    "availability_estimate": "candidate_present",
                     "error": None,
                 }
 
@@ -336,6 +414,8 @@ def _native_fluidsynth_capability(layout: RuntimeLayout) -> dict[str, Any]:
                     "source": "system_lookup",
                     "probe": probe,
                     "load_verified": True,
+                    "probe_performed": True,
+                    "availability_estimate": "candidate_present",
                     "error": None,
                 }
         if load_errors:
@@ -347,6 +427,8 @@ def _native_fluidsynth_capability(layout: RuntimeLayout) -> dict[str, Any]:
                 "source": "system_lookup",
                 "probe": probe,
                 "load_verified": False,
+                "probe_performed": True,
+                "availability_estimate": "candidate_present",
                 "error": "; ".join(
                     f"{candidate_probe} -> {candidate_library}: {error}"
                     for candidate_probe, candidate_library, error in load_errors
@@ -360,6 +442,8 @@ def _native_fluidsynth_capability(layout: RuntimeLayout) -> dict[str, Any]:
             "source": None,
             "probe": None,
             "load_verified": False,
+            "probe_performed": False,
+            "availability_estimate": "unknown",
             "error": f"{type(exc).__name__}: {exc}",
         }
     return {
@@ -369,6 +453,8 @@ def _native_fluidsynth_capability(layout: RuntimeLayout) -> dict[str, Any]:
         "source": None,
         "probe": None,
         "load_verified": False,
+        "probe_performed": False,
+        "availability_estimate": "candidate_not_found",
         "error": None,
     }
 
@@ -431,17 +517,57 @@ def _pyfluidsynth_capability() -> dict[str, Any]:
     }
 
 
-def _fluidsynth_capability(layout: RuntimeLayout) -> dict[str, Any]:
-    native = _native_fluidsynth_capability(layout)
-    binding = _pyfluidsynth_capability()
+def _passive_pyfluidsynth_capability() -> dict[str, Any]:
+    """Inspect distribution metadata without invoking import-system finders."""
+
+    try:
+        version = importlib.metadata.version("pyfluidsynth")
+    except importlib.metadata.PackageNotFoundError:
+        version = None
+    except (OSError, RuntimeError, ValueError):
+        version = None
+    return {
+        "status": "not_probed",
+        "distribution": "pyfluidsynth",
+        "module": "fluidsynth",
+        "module_available": "fluidsynth" in sys.modules,
+        "version": version,
+        "required_version": _PYFLUIDSYNTH_REQUIRED_VERSION,
+        "error": None,
+    }
+
+
+def _fluidsynth_capability(
+    layout: RuntimeLayout,
+    *,
+    active_probes: bool = True,
+) -> dict[str, Any]:
+    native = _native_fluidsynth_capability(
+        layout,
+        active_probes=active_probes,
+    )
+    binding = (
+        _pyfluidsynth_capability()
+        if active_probes
+        else _passive_pyfluidsynth_capability()
+    )
     ready = native["status"] == "available" and binding["status"] == "available"
     broken = native["status"] == "error" or binding["status"] in {
         "error",
         "incompatible",
     }
     return {
-        "status": "available" if ready else "error" if broken else "optional_missing",
+        "status": (
+            "not_probed"
+            if not active_probes
+            else "available"
+            if ready
+            else "error"
+            if broken
+            else "optional_missing"
+        ),
         "ready": ready,
+        "readiness_verified": active_probes,
         "required_for_core": False,
         # Retain the previous convenience field while exposing both independent
         # layers explicitly for machine consumers.
@@ -451,7 +577,11 @@ def _fluidsynth_capability(layout: RuntimeLayout) -> dict[str, Any]:
     }
 
 
-def _platform_capabilities(layout: RuntimeLayout) -> dict[str, Any]:
+def _platform_capabilities(
+    layout: RuntimeLayout,
+    *,
+    active_probes: bool = True,
+) -> dict[str, Any]:
     restore_manifest = default_manifest_path(layout.home)
     resource_restore: dict[str, Any] = {
         "status": "unavailable",
@@ -460,6 +590,8 @@ def _platform_capabilities(layout: RuntimeLayout) -> dict[str, Any]:
         "instrument_count": 0,
         "archive_formats": [],
         "seven_zip_extractor": None,
+        "seven_zip_extractor_status": "not_required",
+        "seven_zip_extractor_probe_performed": False,
         "error": None,
     }
     if restore_manifest.is_file():
@@ -481,11 +613,24 @@ def _platform_capabilities(layout: RuntimeLayout) -> dict[str, Any]:
             )
             extractor: str | None = None
             if "7z" in formats:
-                extractor = _find_bsdtar_executable()
+                if active_probes:
+                    extractor = _find_bsdtar_executable()
             resource_restore.update(
                 {
                     "status": "available",
                     "seven_zip_extractor": extractor,
+                    "seven_zip_extractor_status": (
+                        "not_probed"
+                        if "7z" in formats and not active_probes
+                        else "available"
+                        if extractor is not None
+                        else "missing"
+                        if "7z" in formats
+                        else "not_required"
+                    ),
+                    "seven_zip_extractor_probe_performed": (
+                        "7z" in formats and active_probes
+                    ),
                 }
             )
         except (OSError, RuntimeError, ValueError, ResourceRestoreError) as exc:
@@ -494,7 +639,10 @@ def _platform_capabilities(layout: RuntimeLayout) -> dict[str, Any]:
 
     return {
         "resource_restore": resource_restore,
-        "fluidsynth": _fluidsynth_capability(layout),
+        "fluidsynth": _fluidsynth_capability(
+            layout,
+            active_probes=active_probes,
+        ),
     }
 
 
@@ -617,6 +765,10 @@ def _directory_writability(path: Path) -> dict[str, Any]:
             "path": str(requested),
             "exists": True,
             "writable": False,
+            "writable_estimate": False,
+            "writability_status": "unwritable",
+            "probe_performed": False,
+            "verification": "filesystem_metadata",
             "probe_directory": None,
             "error": "path exists but is not a directory",
         }
@@ -629,6 +781,10 @@ def _directory_writability(path: Path) -> dict[str, Any]:
             "path": str(requested),
             "exists": requested.exists(),
             "writable": False,
+            "writable_estimate": False,
+            "writability_status": "unwritable",
+            "probe_performed": False,
+            "verification": "filesystem_metadata",
             "probe_directory": str(probe_directory),
             "error": "no existing parent directory is available",
         }
@@ -653,8 +809,53 @@ def _directory_writability(path: Path) -> dict[str, Any]:
         "path": str(requested),
         "exists": requested.is_dir(),
         "writable": writable,
+        "writable_estimate": writable,
+        "writability_status": (
+            "verified_writable" if writable else "verified_unwritable"
+        ),
+        "probe_performed": True,
+        "verification": "active_probe",
         "probe_directory": str(probe_directory),
         "error": error,
+    }
+
+
+def _passive_directory_writability(path: Path) -> dict[str, Any]:
+    """Estimate writability from metadata without creating or deleting files."""
+
+    requested = path.resolve()
+    if requested.exists() and not requested.is_dir():
+        return {
+            "path": str(requested),
+            "exists": True,
+            "writable": None,
+            "writable_estimate": False,
+            "writability_status": "not_probed",
+            "probe_performed": False,
+            "verification": "passive_estimate",
+            "probe_directory": None,
+            "error": "path exists but is not a directory",
+        }
+
+    probe_directory = requested
+    while not probe_directory.exists() and probe_directory != probe_directory.parent:
+        probe_directory = probe_directory.parent
+    available = probe_directory.is_dir()
+    return {
+        "path": str(requested),
+        "exists": requested.is_dir(),
+        # Keep verified writability explicitly unknown.  ``os.access`` is only
+        # a permission/identity estimate and cannot prove that a future create
+        # will succeed (ACLs, quotas and read-only mounts may still intervene).
+        "writable": None,
+        "writable_estimate": bool(
+            available and os.access(probe_directory, os.W_OK)
+        ),
+        "writability_status": "not_probed",
+        "probe_performed": False,
+        "verification": "passive_estimate",
+        "probe_directory": str(probe_directory) if available else None,
+        "error": None if available else "no existing parent directory is available",
     }
 
 
@@ -980,21 +1181,57 @@ def _catalog_entries(
         ]
 
 
+def _selected_instrument_ids(
+    values: Iterable[str] | None,
+) -> frozenset[str] | None:
+    if values is None:
+        return None
+    if isinstance(values, str):
+        values = (values,)
+    return frozenset(
+        str(value).strip().replace("\\", "/").strip("/")
+        for value in values
+        if str(value).strip().replace("\\", "/").strip("/")
+    )
+
+
 def collect_doctor_report(
     *,
     start: str | Path | None = None,
     layout: RuntimeLayout | None = None,
     verify_references: bool = True,
+    active_probes: bool = True,
+    selected_instrument_ids: Iterable[str] | None = None,
 ) -> dict[str, Any]:
-    """Return a JSON-serialisable runtime, catalogue and resource report."""
+    """Return a JSON-serialisable runtime, catalogue and resource report.
+
+    ``active_probes=False`` performs no create/delete writability probe, native
+    library load, archive-tool process discovery or Rosetta sysctl query.
+    ``selected_instrument_ids`` limits manifest/resource/SFZ inspection to the
+    named catalogue entries; unknown IDs are intentionally ignored here so a
+    calling protocol can apply its own validation policy.
+    """
 
     layout = layout or discover_runtime_layout(start=start)
-    entries, catalog_errors = _catalog_entries(layout)
+    all_entries, catalog_errors = _catalog_entries(layout)
     trusted, trusted_report = _load_allowlist(
         layout.allowlist,
-        entries,
+        all_entries,
         catalog_root=layout.catalog,
     )
+    selected = _selected_instrument_ids(selected_instrument_ids)
+    if selected is None:
+        entries = all_entries
+    else:
+        entries = [
+            entry
+            for entry in all_entries
+            if _relative_or_absolute(
+                Path(entry.manifest_path).parent,
+                layout.catalog,
+            )
+            in selected
+        ]
 
     instruments: list[dict[str, Any]] = []
     for entry in entries:
@@ -1097,11 +1334,31 @@ def collect_doctor_report(
         "installer_missing_count": installer_counts.get("missing", 0),
     }
     distribution_version = _distribution_version()
-    implementation = platform.python_implementation()
     python_version = sys.version_info[:2]
     python_bits = struct.calcsize("P") * 8
-    platform_system = platform.system()
-    platform_machine = platform.machine()
+    if active_probes:
+        implementation = platform.python_implementation()
+        python_version_text = platform.python_version()
+        platform_system = platform.system()
+        platform_release = platform.release()
+        platform_machine = platform.machine()
+        platform_description = platform.platform()
+    else:
+        implementation_name = getattr(sys.implementation, "name", "")
+        implementation = (
+            "CPython"
+            if implementation_name.casefold() == "cpython"
+            else implementation_name or "unknown"
+        )
+        python_version_text = ".".join(
+            str(value) for value in sys.version_info[:3]
+        )
+        (
+            platform_system,
+            platform_release,
+            platform_machine,
+            platform_description,
+        ) = _passive_platform_identity()
     python_supported = _python_runtime_supported(
         implementation=implementation,
         version=python_version,
@@ -1116,10 +1373,14 @@ def collect_doctor_report(
         system=platform_system,
         machine=platform_machine,
         bits=python_bits,
+        active_probes=active_probes,
     )
     if platform_system == "Darwin":
         platform_supported = platform_supported and rosetta["supported"] is True
-    platform_capabilities = _platform_capabilities(layout)
+    platform_capabilities = _platform_capabilities(
+        layout,
+        active_probes=active_probes,
+    )
     if not python_supported or not platform_supported:
         summary["status"] = "error"
     elif (
@@ -1133,6 +1394,18 @@ def collect_doctor_report(
         # Optional capabilities degrade rather than invalidate the core
         # runtime, but must not be hidden behind an overall ``ready`` label.
         summary["status"] = "degraded"
+    writability = {
+        name: (
+            _directory_writability(path)
+            if active_probes
+            else _passive_directory_writability(path)
+        )
+        for name, path in (
+            ("home", layout.home),
+            ("resources", layout.resources),
+            ("output", layout.output),
+        )
+    }
     return {
         "schema_version": REPORT_SCHEMA_VERSION,
         "version": _installed_version(),
@@ -1145,7 +1418,7 @@ def collect_doctor_report(
             ),
         },
         "python": {
-            "version": platform.python_version(),
+            "version": python_version_text,
             "implementation": implementation,
             "executable": sys.executable,
             "bits": python_bits,
@@ -1153,10 +1426,10 @@ def collect_doctor_report(
         },
         "platform": {
             "system": platform_system,
-            "release": platform.release(),
+            "release": platform_release,
             "machine": platform_machine,
             "normalised_machine": _normalised_machine(platform_machine),
-            "platform": platform.platform(),
+            "platform": platform_description,
             "supported": platform_supported,
             "rosetta": rosetta,
             "validated_architectures": sorted(
@@ -1169,17 +1442,36 @@ def collect_doctor_report(
                 }
             ),
         },
+        "probe_policy": {
+            "active_probes": active_probes,
+            "native_library_load_performed": bool(
+                platform_capabilities.get("fluidsynth", {})
+                .get("native", {})
+                .get("probe_performed")
+            ),
+            "archive_tool_probe_performed": bool(
+                platform_capabilities.get("resource_restore", {}).get(
+                    "seven_zip_extractor_probe_performed"
+                )
+            ),
+            "rosetta_probe_performed": bool(rosetta.get("probe_performed")),
+            "writability_probe_performed": any(
+                item["probe_performed"] for item in writability.values()
+            ),
+        },
         "capabilities": platform_capabilities,
         "layout": layout.to_dict(),
-        "writability": {
-            "home": _directory_writability(layout.home),
-            "resources": _directory_writability(layout.resources),
-            "output": _directory_writability(layout.output),
-        },
+        "writability": writability,
         "catalog": {
             "status": catalog_status,
             "count": len(instruments),
+            "total_count": len(all_entries),
             "errors": catalog_errors,
+        },
+        "selection": {
+            "active": selected is not None,
+            "requested_count": len(selected) if selected is not None else None,
+            "matched_count": len(entries),
         },
         "trusted": trusted_report,
         "instruments": instruments,
@@ -1226,58 +1518,171 @@ def _human_summary(report: dict[str, Any]) -> str:
     summary = report["summary"]
     layout = report["layout"]
     fluidsynth = report["capabilities"]["fluidsynth"]
+    status = str(summary["status"])
+    if status == "ready":
+        result_label = "已就绪"
+    elif status == "degraded" and summary["resource_missing_count"]:
+        result_label = "可运行（按需补充乐器资源）"
+    elif status == "degraded":
+        result_label = "可运行（有可选能力提醒）"
+    else:
+        result_label = "需要处理"
+
     lines = [
-        f"天籁 {report['version']} 运行诊断：{summary['status']}",
+        f"天籁 {report['version']} 自检：{result_label}",
+        f"机器状态：{status}",
+        "",
+        "[运行环境]",
         (
-            f"Python {report['python']['version']} "
-            f"({report['python']['bits']}-bit)，{report['platform']['system']} "
-            f"{report['platform']['release']}"
-        ),
-        f"项目目录：{layout['home']}（{layout['source']}）",
-        (
-            f"目录：{summary['catalog_count']}，正式乐器："
-            f"{summary['production_count']}，可信：{summary['trusted_count']}"
-        ),
-        (
-            f"正式资源：ready={summary['resource_ready_count']}，"
-            f"missing={summary['resource_missing_count']}，"
-            f"invalid={summary['resource_invalid_count']}"
+            f"  - Python {report['python']['version']} "
+            f"({report['python']['bits']}-bit，"
+            f"{report['python']['implementation']})："
+            f"{'支持' if report['python']['supported'] else '不支持'}"
         ),
         (
-            f"外部资源安装器：available="
-            f"{summary['installer_available_count']}，"
-            "unavailable_on_platform="
-            f"{summary['installer_unavailable_on_platform_count']}，"
-            f"unavailable={summary['installer_unavailable_count']}，"
-            f"missing={summary['installer_missing_count']}"
+            f"  - {report['platform']['system']} {report['platform']['release']} "
+            f"({report['platform']['normalised_machine']})："
+            f"{'支持' if report['platform']['supported'] else '不支持'}"
         ),
+        f"  - 项目目录：{layout['home']}（来源：{layout['source']}）",
         (
-            f"可选 FluidSynth：{fluidsynth['status']}（原生库="
-            f"{fluidsynth['native']['status']}，pyfluidsynth="
-            f"{fluidsynth['python_binding']['status']}）"
+            f"  - 乐器目录：共 {summary['catalog_count']} 件，"
+            f"正式 {summary['production_count']} 件，"
+            f"策展子集 {summary['trusted_count']} 件"
         ),
     ]
     if report["platform"]["system"] == "Darwin":
         rosetta = report["platform"]["rosetta"]
-        lines.insert(
-            2,
-            "macOS 进程模式："
+        lines.append(
+            "  - macOS 进程模式："
             f"{rosetta['status']}（进程={rosetta['process_architecture']}，"
-            f"宿主={rosetta['host_architecture'] or 'unknown'}）",
+            f"宿主={rosetta['host_architecture'] or 'unknown'}）"
         )
-    missing = [
-        item for item in report["instruments"] if item["resource"]["status"] != "ready"
+
+    mandatory: list[str] = []
+    if not report["python"]["supported"]:
+        mandatory.append(
+            "当前 Python 运行时不在支持范围内；请改用受支持的 64 位 CPython。"
+        )
+    if not report["platform"]["supported"]:
+        mandatory.append(
+            "当前操作系统或处理器架构不在支持范围内。"
+        )
+    if report["catalog"]["status"] != "ready":
+        message = f"乐器目录状态为 {report['catalog']['status']}"
+        catalog_errors = report["catalog"].get("errors", [])
+        if catalog_errors:
+            message += f"：{catalog_errors[0].get('message', '请检查目录内容')}"
+        mandatory.append(message)
+    if report["trusted"]["status"] != "ready":
+        message = f"可信乐器策略状态为 {report['trusted']['status']}"
+        if report["trusted"].get("error"):
+            message += f"：{report['trusted']['error']}"
+        mandatory.append(message)
+
+    invalid = [
+        item
+        for item in report["instruments"]
+        if item.get("production") is not False
+        and item["resource"]["status"] == "invalid"
     ]
-    if missing:
-        lines.append("未就绪乐器：")
-        visible = missing[:10]
-        for item in visible:
-            first = item["resource"]["problems"][0]["message"]
-            lines.append(f"  - {item['id']}：{first}")
-        if len(missing) > len(visible):
-            lines.append(
-                f"  - ……其余 {len(missing) - len(visible)} 件请使用 --json 查看"
+    if invalid:
+        mandatory.append(
+            f"{len(invalid)} 件正式乐器的资源合同无效；"
+            "请修复清单、许可/来源证据或资源引用。"
+        )
+
+    lines.extend(("", "[必须处理]"))
+    if mandatory:
+        lines.extend(f"  - {message}" for message in mandatory)
+        for item in invalid[:5]:
+            problems = item["resource"].get("problems", [])
+            first = (
+                problems[0].get("message", "资源合同无效")
+                if problems
+                else "资源合同无效"
             )
+            lines.append(f"    · {item['id']}：{first}")
+        if len(invalid) > 5:
+            lines.append(f"    · 另有 {len(invalid) - 5} 件；使用 --json 查看详情")
+    else:
+        lines.append("  - 无")
+
+    missing = [
+        item
+        for item in report["instruments"]
+        if item.get("production") is not False
+        and item["resource"]["status"] == "missing"
+    ]
+    missing_families = {
+        str(family)
+        for item in missing
+        for family in (item["resource"].get("installer", {}).get("resource_family"),)
+        if family
+    }
+    lines.extend(("", "[按需安装]"))
+    if missing:
+        family_text = (
+            f"，涉及 {len(missing_families)} 个资源包"
+            if missing_families
+            else ""
+        )
+        lines.extend(
+            (
+                (
+                    f"  - {len(missing)} 件正式乐器的资源文件尚未就绪"
+                    f"{family_text}；已就绪 "
+                    f"{summary['resource_ready_count']}/"
+                    f"{summary['production_count']} 件。"
+                ),
+                "  - 这些缺失项不影响已就绪或自包含乐器；"
+                "只需在项目实际使用对应乐器前安装。",
+                (
+                    "  - 安装入口：可用 "
+                    f"{summary['installer_available_count']}，"
+                    "仅其他平台可用 "
+                    f"{summary['installer_unavailable_on_platform_count']}，"
+                    "无自动入口 "
+                    f"{summary['installer_unavailable_count']}，"
+                    "入口文件缺失 "
+                    f"{summary['installer_missing_count']}。"
+                ),
+                "  - 使用 --json 查看具体乐器与恢复入口；"
+                "需要完整资源门禁时再加 --require-all-resources。",
+            )
+        )
+    else:
+        lines.append("  - 当前检查范围内没有待安装资源。")
+
+    restore = report["capabilities"]["resource_restore"]
+    fluid_label = {
+        "available": "可用",
+        "optional_missing": "未安装",
+        "not_probed": "未主动探测",
+        "error": "本地探测异常",
+    }.get(str(fluidsynth["status"]), str(fluidsynth["status"]))
+    restore_label = {
+        "available": "可用",
+        "unavailable": "未提供",
+        "degraded": "部分能力异常",
+    }.get(str(restore["status"]), str(restore["status"]))
+    lines.extend(
+        (
+            "",
+            "[可选能力]",
+            (
+                f"  - FluidSynth：{fluid_label}（原生库="
+                f"{fluidsynth['native']['status']}，pyfluidsynth="
+                f"{fluidsynth['python_binding']['status']}）；不属于核心渲染依赖。"
+            ),
+            f"  - 统一资源恢复：{restore_label}。",
+        )
+    )
+    if report["distribution"]["matches_imported_code"] is False:
+        lines.append(
+            "  - 安装包版本元数据与当前导入代码不一致；"
+            "开发工作区可继续诊断，正式安装建议核对来源。"
+        )
     return "\n".join(lines)
 
 

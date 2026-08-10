@@ -13,6 +13,7 @@ import soundfile as sf
 
 from tianlai.cli import main as cli_main
 from tianlai.events import parse_performance_document
+from tianlai.post_render_check import POST_RENDER_CHECK_NAME
 from tianlai.renderer import load_json_object
 
 
@@ -132,6 +133,12 @@ class AtomicCliRenderTests(unittest.TestCase):
             sidecar["audio_artifacts"][0]["path"],
             output.name,
         )
+        post_render_check = Path(f"{output}.{POST_RENDER_CHECK_NAME}")
+        self.assertTrue(post_render_check.is_file())
+        report = json.loads(post_render_check.read_text(encoding="utf-8"))
+        self.assertIsInstance(report.get("summary"), dict)
+        self.assertIn(str(post_render_check.resolve()), stdout)
+        self.assertIn("渲染后自检状态:", stdout)
 
     def test_unreadable_part_preserves_existing_target_and_is_removed(
         self,

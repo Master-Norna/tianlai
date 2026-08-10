@@ -14,6 +14,12 @@
       "minLength": 1,
       "pattern": "^(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*//)(?!.*\\\\)(?!.*:).+$"
     },
+    "assetRelativePosixGlob": {
+      "description": "Case-sensitive glob over canonical asset-root-relative POSIX paths. A single star stays within one path segment; a double-star segment may span directories.",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*//)(?!.*\\\\)(?!.*:).+$"
+    },
     "midiNote": {
       "type": "integer",
       "minimum": 0,
@@ -263,6 +269,15 @@
         },
         "pitch_calibration": {
           "$ref": "#/$defs/nonEmptyString"
+        },
+        "pitch_calibration_include_globs": {
+          "description": "Optional allowlist of loaded pitched samples to analyse, expressed as case-sensitive asset-root-relative POSIX globs.",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/assetRelativePosixGlob"
+          }
         },
         "calibration_not_applicable_reason": {
           "$ref": "#/$defs/nonEmptyString"
@@ -627,6 +642,13 @@
         "velocity_exponent": {
           "$ref": "#/$defs/positiveNumber"
         },
+        "resampling_quality": {
+          "type": "string",
+          "enum": [
+            "linear",
+            "bandlimited"
+          ]
+        },
         "pan": {
           "type": "number",
           "minimum": -1,
@@ -753,6 +775,12 @@
         },
         "resonance_velocity_exponent": {
           "$ref": "#/$defs/positiveNumber"
+        },
+        "resonance_v3_velocity_exponent": {
+          "$ref": "#/$defs/positiveNumber"
+        },
+        "resonance_v3_rt_decay_db_per_second": {
+          "$ref": "#/$defs/nonNegativeNumber"
         },
         "pedal_noise": {
           "$ref": "#/$defs/nonNegativeNumber"

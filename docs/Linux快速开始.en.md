@@ -19,7 +19,7 @@ Keep these support layers distinct:
 | 29 project-authored programmatic instruments | Require no third-party audio assets and are directly usable | Other sound entries need separate resource restoration |
 | 74 external resources | Diagnostics expose a cross-platform Python restorer; `plan` resolves all 15 resource families | Download size, upstream availability, license conditions, and system unpacking dependencies vary; CI does not download large resources |
 
-Windows 10/11 x64 remains the complete reference platform for `0.6.0rc1`.
+Windows 10/11 x64 remains the complete reference platform for `0.7.0rc1`.
 Linux covers core programmatic instruments, portable self-checks, CLI, and MCP;
 large third-party resource coverage is not identical to Windows.
 
@@ -170,16 +170,17 @@ The actual service uses stdio. After the client starts, call these first:
 
 ```text
 score_and_roster_format()
-list_instruments(trusted_only=true, pitched_only=false)
+list_instruments()
 ```
 
 Then follow this loop:
 
 ```text
 import_score_project → confirm_roster → validate_project
-    → render(**render_handoff)
+    → check_project_readiness → render(**render_handoff)
     → locate_rendered_candidate → get_score_slice → patch_score
-    → validate_project → render(parent_candidate_id=..., **render_handoff)
+    → validate_project → check_project_readiness
+    → render(parent_candidate_id=..., **render_handoff)
     → compare_rendered_candidates
 ```
 

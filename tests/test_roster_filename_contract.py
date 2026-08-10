@@ -81,6 +81,13 @@ class PortableExecutorFilenameTests(unittest.TestCase):
             "prn.txt",
             "Aux.WAV",
             "nul.json",
+            "CONIN$",
+            "conout$.wav",
+            "COM¹",
+            "com².txt",
+            "LPT³.wav",
+            "COM¹²³",
+            "lpt³²¹.wav",
             *(f"COM{number}.wav" for number in range(1, 10)),
             *(f"lpt{number}" for number in range(1, 10)),
         ]
@@ -92,8 +99,39 @@ class PortableExecutorFilenameTests(unittest.TestCase):
                 ):
                     _parse([_instrument("part", name)])
 
-    def test_trailing_dot_or_space_is_rejected_instead_of_trimmed(self) -> None:
-        for name in ("violin.", "violin "):
+    def test_utf8_and_utf16_component_budgets_include_wav_suffix(self) -> None:
+        accepted = (
+            "a" * 251,
+            "乐" * 83,
+            "😀" * 62,
+        )
+        rejected = (
+            "a" * 252,
+            "乐" * 84,
+            "😀" * 63,
+        )
+        for name in accepted:
+            with self.subTest(accepted=len(name)):
+                roster = _parse([_instrument("part", name)])
+                self.assertEqual(roster.executors[0].executor_id, name)
+        for name in rejected:
+            with self.subTest(rejected=len(name)):
+                with self.assertRaisesRegex(ValueError, "255"):
+                    _parse([_instrument("part", name)])
+
+    def test_kit_expansion_rechecks_final_executor_filename_budget(self) -> None:
+        with self.assertRaisesRegex(ValueError, "255"):
+            _parse(
+                [
+                    {
+                        "part": "a" * 251,
+                        "kit": {"C2": "测试乐器"},
+                    }
+                ]
+            )
+
+    def test_boundary_whitespace_or_dot_is_rejected_instead_of_trimmed(self) -> None:
+        for name in (" violin", "violin.", "violin "):
             with self.subTest(name=name):
                 with self.assertRaisesRegex(ValueError, "不能以.*结尾"):
                     _parse([_instrument("part", name)])
@@ -163,14 +201,34 @@ class PortableExecutorFilenameTests(unittest.TestCase):
         self.assertEqual(part["pattern"], executor_id["pattern"])
         self.assertIn("Unicode NFC + casefold", executor_id["description"])
         self.assertIn("Windows 保留设备名", executor_id["description"])
+        self.assertIn("UTF-8 bytes", executor_id["description"])
+        self.assertEqual(executor_id["maxLength"], 251)
 
         validator = Draft202012Validator(schema)
-        for name in ("violin.", "violin ", "violin/name", "violin\x1f"):
+        for name in (
+            " violin",
+            "violin.",
+            "violin ",
+            "violin/name",
+            "violin\x1f",
+        ):
             with self.subTest(name=repr(name)):
                 document = {
                     "assignments": [_instrument("part", name)],
                 }
                 self.assertTrue(list(validator.iter_errors(document)))
+
+        for field in ("part", "executor_id"):
+            with self.subTest(leading_whitespace_field=field):
+                assignment_document = _instrument("part", "executor")
+                assignment_document[field] = f" {assignment_document[field]}"
+                self.assertTrue(
+                    list(
+                        validator.iter_errors(
+                            {"assignments": [assignment_document]}
+                        )
+                    )
+                )
 
 
 if __name__ == "__main__":

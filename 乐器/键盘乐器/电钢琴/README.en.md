@@ -11,7 +11,8 @@ to a general-purpose SoundFont.
 
 - Upstream: Greg Sullivan E-Pianos / Yamaha CP80
 - Pinned commit: `8c3e581acda3594b553948ff0222d4f84a698376`
-- License: CC-BY-3.0; see [`来源.md`](来源.en.md) for attribution and license evidence
+- License: [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/); see
+  [`来源.md`](来源.en.md) for attribution and license evidence
 - Per-file SHA-256 values and statistics are in [`资源核验.json`](资源核验.json); recompute them with [`核验资源.py`](核验资源.py)
 
 ## Obtaining the resources
@@ -29,6 +30,11 @@ overwrites or merges existing content.
 
 Four genuine velocity levels, PP / MP / F / FF. The default articulation is
 `normal`; `pitch_mode=pitched`.
+All 81 source samples are 44.1 kHz mono FLAC files. This entry explicitly uses
+the versioned `bandlimited` resampler for 48 kHz output and narrows the
+downsampling bandwidth from the actual playback step. The algorithm choice is
+part of runtime variant identity; the upstream SFZ and FLAC bytes are not
+modified.
 
 ## Range
 
@@ -42,9 +48,13 @@ calibration must detect root-note mapping errors of ±1200 cents.
 
 ## Listening check
 
-Fixed events are in `examples/电钢琴_奏法.events.json`; metrics and the WAV Hash
-are recomputed by [`核验试听.py`](核验试听.py). This document makes no promise of
-an additional fine-grained articulation matrix or expert listening conclusion.
+[`试听核验.json`](试听核验.json) is the full 88-key ascending stress scan and can
+be rebuilt with `tools/生成全部试音.py --only 键盘乐器/电钢琴`.
+[`表现力试听核验.json`](表现力试听核验.json) uses
+`examples/电钢琴_奏法.events.json` to cover all four recorded velocity levels
+and short/long notes; recompute it with [`核验试听.py`](核验试听.py). The two
+reports bind their own events, manifest, and WAV Hash without overwriting one
+another. Manual listening conclusions remain separate.
 
 ## Known limitations
 

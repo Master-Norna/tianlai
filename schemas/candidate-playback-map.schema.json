@@ -1,0 +1,318 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tianlai.local/schemas/candidate-playback-map.schema.json",
+  "title": "Tianlai Verified Candidate Playback Map",
+  "description": "一次性验证不可变候选后生成的帧寻址音符门控映射。note_off.frame 是 exclusive 结束边界；采样释音、共鸣和空间尾声不在精确门控合同内。",
+  "type": "object",
+  "required": [
+    "$schema",
+    "kind",
+    "schema_version",
+    "candidate",
+    "bindings",
+    "timeline",
+    "limits",
+    "events",
+    "summary"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "https://tianlai.local/schemas/candidate-playback-map.schema.json"
+    },
+    "kind": { "const": "tianlai.candidate_playback_map" },
+    "schema_version": { "const": 1 },
+    "candidate": {
+      "type": "object",
+      "required": [
+        "candidate_id",
+        "work_id",
+        "title",
+        "created_at_utc",
+        "parent_candidate_id"
+      ],
+      "properties": {
+        "candidate_id": { "type": "string", "minLength": 1 },
+        "work_id": { "type": "string", "minLength": 1 },
+        "title": { "type": "string" },
+        "created_at_utc": { "type": "string", "format": "date-time" },
+        "parent_candidate_id": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "bindings": {
+      "type": "object",
+      "required": [
+        "candidate_manifest",
+        "score",
+        "performance_plan",
+        "render_receipt",
+        "mix"
+      ],
+      "properties": {
+        "candidate_manifest": {
+          "allOf": [
+            { "$ref": "#/$defs/fileBinding" },
+            {
+              "properties": { "path": { "const": "候选.json" } }
+            }
+          ]
+        },
+        "score": { "$ref": "#/$defs/canonicalJsonBinding" },
+        "performance_plan": { "$ref": "#/$defs/canonicalJsonBinding" },
+        "render_receipt": { "$ref": "#/$defs/fileBinding" },
+        "mix": {
+          "type": "object",
+          "required": ["path", "sha256", "size_bytes"],
+          "properties": {
+            "path": { "$ref": "#/$defs/artifactPath" },
+            "sha256": { "$ref": "#/$defs/sha256" },
+            "size_bytes": { "type": "integer", "minimum": 1 }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "timeline": {
+      "type": "object",
+      "required": [
+        "basis",
+        "sample_rate",
+        "frame_count",
+        "duration_seconds",
+        "sample_rounding",
+        "note_off_frame_exclusive",
+        "audible_release_or_space_tail_exact"
+      ],
+      "properties": {
+        "basis": { "const": "scheduled_note_gate" },
+        "sample_rate": {
+          "type": "integer",
+          "minimum": 8000,
+          "maximum": 384000
+        },
+        "frame_count": { "type": "integer", "minimum": 1 },
+        "duration_seconds": { "type": "number", "exclusiveMinimum": 0 },
+        "sample_rounding": { "const": "python_round_ties_to_even" },
+        "note_off_frame_exclusive": { "const": true },
+        "audible_release_or_space_tail_exact": { "const": false }
+      },
+      "additionalProperties": false
+    },
+    "limits": {
+      "type": "object",
+      "required": ["max_scheduled_note_count"],
+      "properties": {
+        "max_scheduled_note_count": { "const": 250000 }
+      },
+      "additionalProperties": false
+    },
+    "events": {
+      "type": "array",
+      "maxItems": 250000,
+      "items": { "$ref": "#/$defs/playbackEvent" }
+    },
+    "summary": {
+      "type": "object",
+      "required": [
+        "score_schema_version",
+        "score_event_count",
+        "scheduled_note_count",
+        "stable_identity_count",
+        "legacy_unstable_identity_count",
+        "executor_count"
+      ],
+      "properties": {
+        "score_schema_version": {
+          "oneOf": [
+            { "const": 1 },
+            { "type": "null" }
+          ]
+        },
+        "score_event_count": { "type": "integer", "minimum": 0 },
+        "scheduled_note_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 250000
+        },
+        "stable_identity_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 250000
+        },
+        "legacy_unstable_identity_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 250000
+        },
+        "executor_count": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "artifactPath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?![A-Za-z]:)(?![/\\\\])(?!.*(?:^|[/\\\\])\\.\\.(?:[/\\\\]|$)).+$"
+    },
+    "fileBinding": {
+      "type": "object",
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "$ref": "#/$defs/artifactPath" },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      },
+      "additionalProperties": false
+    },
+    "canonicalJsonBinding": {
+      "type": "object",
+      "required": ["path", "canonical_sha256", "file_sha256"],
+      "properties": {
+        "path": { "$ref": "#/$defs/artifactPath" },
+        "canonical_sha256": { "$ref": "#/$defs/sha256" },
+        "file_sha256": { "$ref": "#/$defs/sha256" }
+      },
+      "additionalProperties": false
+    },
+    "noteOn": {
+      "type": "object",
+      "required": ["seconds", "frame", "velocity"],
+      "properties": {
+        "seconds": { "type": "number", "minimum": 0 },
+        "frame": { "type": "integer", "minimum": 0 },
+        "velocity": { "type": "number", "minimum": 0, "maximum": 1 },
+        "midi_note": { "type": "number" },
+        "pitch_hz": { "type": "number", "exclusiveMinimum": 0 }
+      },
+      "oneOf": [
+        {
+          "required": ["midi_note"],
+          "not": { "required": ["pitch_hz"] }
+        },
+        {
+          "required": ["pitch_hz"],
+          "not": { "required": ["midi_note"] }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "noteOff": {
+      "type": "object",
+      "required": ["seconds", "frame"],
+      "properties": {
+        "seconds": { "type": "number", "minimum": 0 },
+        "frame": { "type": "integer", "minimum": 1 },
+        "release_velocity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "trace": {
+      "type": "object",
+      "required": [
+        "bar",
+        "beat",
+        "sounding_pitch",
+        "resolved_articulation",
+        "resolved_velocity"
+      ],
+      "properties": {
+        "bar": {
+          "oneOf": [
+            { "type": "integer", "minimum": 1 },
+            { "type": "null" }
+          ]
+        },
+        "beat": {
+          "oneOf": [
+            { "type": "number", "minimum": 1 },
+            { "type": "null" }
+          ]
+        },
+        "sounding_pitch": { "type": "string", "minLength": 1 },
+        "resolved_articulation": { "type": ["string", "null"] },
+        "resolved_velocity": {
+          "oneOf": [
+            { "type": "number", "minimum": 0, "maximum": 1 },
+            { "type": "null" }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "playbackEvent": {
+      "type": "object",
+      "required": [
+        "executor_id",
+        "part_id",
+        "instrument",
+        "note_id",
+        "source_event_id",
+        "stable_identity",
+        "note_on",
+        "note_off",
+        "trace"
+      ],
+      "properties": {
+        "executor_id": { "type": "string", "minLength": 1 },
+        "part_id": { "type": "string", "minLength": 1 },
+        "instrument": { "type": "string", "minLength": 1 },
+        "note_id": { "type": "integer", "minimum": 1 },
+        "source_event_id": {
+          "oneOf": [
+            { "type": "string", "minLength": 1, "pattern": "\\S" },
+            { "type": "null" }
+          ]
+        },
+        "stable_identity": { "type": "boolean" },
+        "note_on": { "$ref": "#/$defs/noteOn" },
+        "note_off": { "$ref": "#/$defs/noteOff" },
+        "trace": { "$ref": "#/$defs/trace" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "stable_identity": { "const": true } },
+            "required": ["stable_identity"]
+          },
+          "then": {
+            "properties": {
+              "source_event_id": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "trace": {
+                "properties": {
+                  "bar": { "type": "integer", "minimum": 1 },
+                  "beat": { "type": "number", "minimum": 1 }
+                }
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "source_event_id": { "type": "null" },
+              "trace": {
+                "properties": {
+                  "bar": { "type": "null" },
+                  "beat": { "type": "null" }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "additionalProperties": false
+    }
+  }
+}

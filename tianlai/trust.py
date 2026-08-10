@@ -47,8 +47,12 @@ def load_trusted_instruments(
         capability = capabilities.get(instrument)
         if capability is None:
             invalid.append(f"{instrument}(目录中不存在)")
+        elif capability.quality_tier != "formal":
+            invalid.append(f"{instrument}(不是 formal 正式声音入口)")
         elif capability.license_status == "quarantined":
             invalid.append(f"{instrument}(许可证据已隔离)")
+        elif capability.license_status not in {"approved", "grandfathered"}:
+            invalid.append(f"{instrument}(没有公开可用的许可证状态)")
         elif capability.implementation_type == "soundfont":
             invalid.append(f"{instrument}(仅限本机兼容 SoundFont)")
     if invalid:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 import hashlib
 import json
 import unittest
@@ -333,6 +334,54 @@ class OnsetSchedulerTests(unittest.TestCase):
             _events(uncompensated, "note_off")[0]["time"],
         )
         self.assertTrue(any("负时间" in warning for warning in compensated.warnings))
+        self.assertIn(
+            "onset.compensation_clipped_at_zero",
+            {item.code for item in compensated.advisories},
+        )
+        self.assertNotIn("advisories", compensated.to_dict())
+        self.assertEqual(
+            _canonical_plan_sha256(compensated),
+            _canonical_plan_sha256(replace(compensated, advisories=())),
+        )
+
+    def test_dominant_auto_articulation_is_review_only_and_unhashed(self) -> None:
+        capability = _capability(
+            _onset("accent", frames=40),
+            _onset("sustain", frames=260),
+            articulations=("accent", "sustain"),
+            duration_articulation_rules=(
+                DurationArticulationRule(
+                    rule_id="test-neutral-short-v1",
+                    source_articulation="sustain",
+                    target_articulation="accent",
+                    below_seconds=1.2,
+                ),
+            ),
+        )
+        notes = [
+            {
+                "bar": 1 + index // 4,
+                "beat": 1 + index % 4,
+                "duration_beats": 0.25,
+                "pitch": "C4",
+            }
+            for index in range(8)
+        ]
+
+        plan = _build(capability, notes, structural=True)
+
+        advisory = next(
+            item
+            for item in plan.advisories
+            if item.code == "articulation.auto_dominant"
+        )
+        self.assertEqual(advisory.level, "warning")
+        self.assertEqual(advisory.evidence["automatic_articulation_count"], 8)
+        self.assertEqual(advisory.evidence["ratio"], 1.0)
+        self.assertEqual(
+            _canonical_plan_sha256(plan),
+            _canonical_plan_sha256(replace(plan, advisories=())),
+        )
 
     def test_negative_opening_humanize_is_clamped_before_release_and_audit(
         self,

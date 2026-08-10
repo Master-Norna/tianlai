@@ -341,19 +341,14 @@ class StemCache:
             prefix=f".{path.name}.", suffix=".tmp", dir=path.parent
         )
         temporary = Path(temporary_name)
-        try:
-            with os.fdopen(descriptor, "wb") as target:
-                target.write(payload)
-                target.flush()
-                os.fsync(target.fileno())
-            os.replace(temporary, path)
-        finally:
-            # This removes only the temporary file this call created, never a
-            # directory tree or an unrelated cache entry.
-            try:
-                temporary.unlink(missing_ok=True)
-            except OSError:
-                pass
+        with os.fdopen(descriptor, "wb") as target:
+            target.write(payload)
+            target.flush()
+            os.fsync(target.fileno())
+        # Success consumes the temporary name.  Failure preserves it: a
+        # path-based cleanup could otherwise unlink a concurrently installed
+        # entry at the same name.
+        os.replace(temporary, path)
 
     @staticmethod
     def _write_audio_atomic(path: Path, audio: np.ndarray) -> None:
@@ -363,17 +358,13 @@ class StemCache:
             dir=path.parent,
         )
         temporary = Path(temporary_name)
-        try:
-            with os.fdopen(descriptor, "wb") as target:
-                audio.tofile(target)
-                target.flush()
-                os.fsync(target.fileno())
-            os.replace(temporary, path)
-        finally:
-            try:
-                temporary.unlink(missing_ok=True)
-            except OSError:
-                pass
+        with os.fdopen(descriptor, "wb") as target:
+            audio.tofile(target)
+            target.flush()
+            os.fsync(target.fileno())
+        # See ``_write_atomic``: never resolve a failed publication by
+        # deleting a mutable pathname.
+        os.replace(temporary, path)
 
     def store(
         self,

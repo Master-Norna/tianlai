@@ -21,6 +21,11 @@ if str(HERE) not in sys.path:
     sys.path.insert(0, str(HERE))
 
 from tianlai.audio import wav_loop_points  # noqa: E402
+from tianlai.canonical_json import (  # noqa: E402
+    CANONICALIZATION,
+    HASH_ALGORITHM,
+    canonical_json_file_sha256,
+)
 from tianlai.instrument import create_instrument  # noqa: E402
 from tianlai.instrument_audit import collect_loaded_samples  # noqa: E402
 from VSCO2中提琴映射 import (  # noqa: E402
@@ -408,7 +413,7 @@ def verify() -> dict[str, Any]:
         )
 
     document: dict[str, Any] = {
-        "schema_version": 1,
+        "schema_version": 2,
         "status": "passed" if not failures else "failed",
         "upstream": manifest["upstream"],
         "origin": manifest["origin"],
@@ -428,9 +433,11 @@ def verify() -> dict[str, Any]:
             "numeric roots, key zones, gain, pan and B4 offset only; runtime "
             "does not parse these mixed-library SFZ files"
         ),
-        "manifest_sha256": hashlib.sha256(
-            manifest_path.read_bytes()
-        ).hexdigest(),
+        "hash_algorithm": HASH_ALGORITHM,
+        "canonicalization": CANONICALIZATION,
+        "manifest_canonical_sha256": canonical_json_file_sha256(
+            manifest_path
+        ),
         "mapping_sha256": hashlib.sha256(
             (HERE / "VSCO2中提琴映射.py").read_bytes()
         ).hexdigest(),

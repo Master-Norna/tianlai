@@ -3,7 +3,7 @@
   "type": "dedicated_fx",
   "quality_tier": "formal",
   "collaboration_review_status": "untested",
-  "upgrade_status": "greg_sullivan_cp80_dedicated_multisample_fx_chain",
+  "upgrade_status": "greg_sullivan_cp80_dedicated_multisample_fx_chain_bandlimited",
   "fallback_policy": "explicit_only_no_silent_gm",
   "asset_root": "../../../音源/GregSullivan.E-Pianos",
   "upstream": "Greg Sullivan E-Pianos / Yamaha CP80",
@@ -11,7 +11,7 @@
   "upstream_version": "8c3e581acda3594b553948ff0222d4f84a698376",
   "license": "CC-BY-3.0",
   "creator": "Greg Sullivan; SFZ mapping by kinwie",
-  "attribution": "Greg Sullivan E-Pianos by Greg Sullivan; SFZ mapping by kinwie. Licensed under CC BY 3.0.",
+  "attribution": "Greg Sullivan E-Pianos by Greg Sullivan; SFZ mapping by kinwie. CC BY 3.0: https://creativecommons.org/licenses/by/3.0/. Upstream SFZ and FLAC files remain unmodified; Tianlai renders them through deterministic band-limited sample replay followed by a project-authored stereo chorus.",
   "evidence_files": [
     "LICENSE",
     "README.md"
@@ -36,6 +36,7 @@
   "gain": 0.9,
   "output_gain": 1.2476,
   "velocity_exponent": 0.72,
+  "resampling_quality": "bandlimited",
   "release_seconds": 0.5,
   "auxiliary_note_id_base": 1873000000,
   "note_min": 21,

@@ -178,6 +178,17 @@ class WindowsExtendedPathContractTests(unittest.TestCase):
 
 
 class ShippedResourceRestoreManifestTests(unittest.TestCase):
+    def test_embedded_windows_drive_component_is_not_a_relative_manifest_path(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        document = json.loads(
+            (root / "resource_restore_manifest.json").read_text(encoding="utf-8")
+        )
+        document["families"][0]["install"]["target"] = (
+            "safe/C:/Users/private/resources"
+        )
+        with self.assertRaisesRegex(ResourceRestoreError, "safe relative path"):
+            validate_restore_manifest(document)
+
     def test_manifest_maps_all_74_external_resource_catalogue_entries(self) -> None:
         root = Path(__file__).resolve().parents[1]
         manifest = load_restore_manifest(home=root)
@@ -365,7 +376,14 @@ class ShippedResourceRestoreManifestTests(unittest.TestCase):
     def test_cmd_plan_covers_all_74_external_resource_entries(self) -> None:
         root = Path(__file__).resolve().parents[1]
         all_assets = subprocess.run(
-            ["cmd.exe", "/d", "/c", "安装可恢复音源.cmd -PlanOnly"],
+            [
+                "cmd.exe",
+                "/d",
+                "/c",
+                "call",
+                ".\\安装可恢复音源.cmd",
+                "-PlanOnly",
+            ],
             cwd=root,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
@@ -381,7 +399,10 @@ class ShippedResourceRestoreManifestTests(unittest.TestCase):
                 "cmd.exe",
                 "/d",
                 "/c",
-                "安装可恢复音源.cmd -RestorableOnly -PlanOnly",
+                "call",
+                ".\\安装可恢复音源.cmd",
+                "-RestorableOnly",
+                "-PlanOnly",
             ],
             cwd=root,
             stdout=subprocess.PIPE,

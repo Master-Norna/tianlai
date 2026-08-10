@@ -27,18 +27,17 @@ from dataclasses import dataclass, field
 import math
 from numbers import Real
 from typing import Any
-import unicodedata
 
 from .capability import InstrumentCapability, resolve_capability
+from .portable_filename import (
+    PortableFilenameError,
+    is_windows_reserved_filename,
+    portable_filename_key,
+    validate_executor_id,
+)
 from .score import ScoreDocument, parse_pitch, pitch_name
 
 
-_ID_FORBIDDEN = set('/\\:*?"<>|')
-_WINDOWS_RESERVED_BASENAMES = frozenset(
-    ("con", "prn", "aux", "nul")
-    + tuple(f"com{number}" for number in range(1, 10))
-    + tuple(f"lpt{number}" for number in range(1, 10))
-)
 _ROSTER_KEYS = frozenset(
     ("name", "drop_parts", "assignments", "collaboration")
 )
@@ -430,7 +429,7 @@ def _portable_filename_key(value: str) -> str:
     two executors can never target the same portable output filename.
     """
 
-    return unicodedata.normalize("NFC", value).casefold()
+    return portable_filename_key(value)
 
 
 def _is_windows_reserved_filename(value: str) -> bool:
@@ -441,32 +440,22 @@ def _is_windows_reserved_filename(value: str) -> bool:
     that Windows path normalization may collapse.
     """
 
-    basename = _portable_filename_key(value).partition(".")[0].rstrip(" ")
-    return basename in _WINDOWS_RESERVED_BASENAMES
+    return is_windows_reserved_filename(value)
 
 
 def _check_id(value: str, label: str) -> str:
-    if value.endswith((" ", ".")):
-        ending = "空格" if value.endswith(" ") else "句点"
-        raise ValueError(
-            f"{label} {value!r} 不能以{ending}结尾；Windows 会折叠该文件名"
-        )
-    text = value.strip()
-    if not text:
-        raise ValueError(f"{label} must not be empty")
-    if any(
-        character in _ID_FORBIDDEN or ord(character) < 32
-        for character in value
-    ):
-        raise ValueError(
-            f"{label} {value!r} 含有不能用作文件名的字符;分轨文件以它命名"
-        )
-    if _is_windows_reserved_filename(text):
-        raise ValueError(
-            f"{label} {value!r} 使用了 Windows 保留设备名"
-            "（CON/PRN/AUX/NUL/COM1..9/LPT1..9，带扩展名也不允许）"
-        )
-    return text
+    try:
+        return validate_executor_id(value)
+    except PortableFilenameError as exc:
+        if "reserved Windows" in exc.reason:
+            reason = f"Windows 保留设备名: {exc.reason}"
+        elif "boundary whitespace/dot" in exc.reason:
+            reason = f"不能以空格或句点结尾: {exc.reason}"
+        elif "filename-unsafe character" in exc.reason:
+            reason = f"含有不能用作文件名的字符: {exc.reason}"
+        else:
+            reason = exc.reason
+        raise ValueError(f"{label} {value!r}: {reason}") from exc
 
 
 def _register_executor_id(
@@ -1016,6 +1005,11 @@ def parse_roster_document(
         if not isinstance(kit, dict) or not kit:
             raise ValueError(f"{label} kit must be a non-empty object")
         for notehead, reference in sorted(kit.items()):
+            if not isinstance(notehead, str) or not notehead or len(notehead) > 255:
+                raise ValueError(
+                    f"{label} kit noteheads must be non-empty strings "
+                    "of at most 255 characters"
+                )
             midi = parse_pitch(notehead)
             # kit 条目可以是乐器路径字符串,也可以是 {instrument, transpose}:
             # 打击件多按特定键位映射(踩镲 42~44、镲 63~66…),谱面鼓音未必落在

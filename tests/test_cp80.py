@@ -152,6 +152,183 @@ class GregSullivanCp80Tests(unittest.TestCase):
                 self.assertEqual(len(matches), 1)
                 self.assertIn(layer, Path(matches[0]["sample"]).name)
 
+    @pytest.mark.external_assets
+    def test_real_cp80_bandlimited_replay_preserves_selection_and_onset(
+        self,
+    ) -> None:
+        manifest_path = KEYBOARD_ROOT / "电钢琴" / "乐器.json"
+        manifest = load_json(manifest_path)
+        asset_root = (
+            manifest_path.parent / str(manifest["asset_root"])
+        ).resolve()
+        if not asset_root.is_dir():
+            self.skipTest(f"CP80 resource is not installed: {asset_root}")
+
+        sample_rate = 48_000
+        frame_count = sample_rate // 10
+        onset_frame_count = sample_rate // 20
+        one_db_low = 10.0 ** (-1.0 / 20.0)
+        one_db_high = 10.0 ** (1.0 / 20.0)
+        tuning = EqualTemperament()
+        probes = (
+            ("range-A0", 21, 0.72),
+            ("range-F#1", 30, 0.72),
+            ("range-C4", 60, 0.72),
+            ("range-C8", 108, 0.72),
+            ("velocity-PP", 66, 0.20),
+            ("velocity-MP", 66, 0.50),
+            ("velocity-F", 66, 0.72),
+            ("velocity-FF", 66, 0.95),
+        )
+
+        def render_probe(
+            quality: str,
+            midi_note: int,
+            velocity: float,
+        ) -> tuple[np.ndarray, tuple[tuple[int, str, str], ...]]:
+            runtime_manifest = dict(manifest)
+            runtime_manifest["resampling_quality"] = quality
+            instrument = create_instrument(
+                runtime_manifest,
+                sample_rate,
+                base_directory=str(manifest_path.parent),
+            )
+            try:
+                instrument.handle_event(
+                    PerformanceEvent(
+                        0,
+                        0,
+                        "note_on",
+                        {
+                            "note_id": 1,
+                            "midi_note": midi_note,
+                            "velocity": velocity,
+                        },
+                    ),
+                    tuning,
+                )
+                route = instrument.routes[1]
+                articulation = instrument.articulations[route.articulation]
+                selection = tuple(
+                    (
+                        voice.layer_index,
+                        articulation.attack_layers[
+                            voice.layer_index
+                        ].engine.voices[
+                            voice.internal_note_id
+                        ].region.stable_key,
+                        articulation.attack_layers[
+                            voice.layer_index
+                        ].engine.voices[
+                            voice.internal_note_id
+                        ].region.path.as_posix(),
+                    )
+                    for voice in route.voices
+                )
+                frames = np.array(
+                    [instrument.render_frame() for _ in range(frame_count)],
+                    dtype=np.float64,
+                )
+                return frames, selection
+            finally:
+                close = getattr(instrument, "close", None)
+                if callable(close):
+                    close()
+
+        def rms(values: np.ndarray) -> float:
+            return float(np.sqrt(np.mean(np.square(values))))
+
+        def first_one_percent_crossing(values: np.ndarray) -> int:
+            absolute = np.abs(values)
+            threshold = float(np.max(absolute)) * 0.01
+            matches = np.flatnonzero(absolute >= threshold)
+            self.assertGreater(matches.size, 0)
+            return int(matches[0])
+
+        for label, midi_note, velocity in probes:
+            with self.subTest(
+                probe=label,
+                midi_note=midi_note,
+                velocity=velocity,
+            ):
+                linear, linear_selection = render_probe(
+                    "linear",
+                    midi_note,
+                    velocity,
+                )
+                bandlimited, bandlimited_selection = render_probe(
+                    "bandlimited",
+                    midi_note,
+                    velocity,
+                )
+
+                self.assertEqual(linear_selection, bandlimited_selection)
+                self.assertTrue(np.all(np.isfinite(linear)))
+                self.assertTrue(np.all(np.isfinite(bandlimited)))
+                self.assertFalse(np.array_equal(linear, bandlimited))
+
+                linear_mono = linear[:, 0]
+                bandlimited_mono = bandlimited[:, 0]
+                correlation = float(
+                    np.corrcoef(linear_mono, bandlimited_mono)[0, 1]
+                )
+                self.assertTrue(np.isfinite(correlation))
+                self.assertGreaterEqual(correlation, 0.99)
+
+                linear_rms = rms(linear_mono)
+                bandlimited_rms = rms(bandlimited_mono)
+                linear_peak = float(np.max(np.abs(linear_mono)))
+                bandlimited_peak = float(np.max(np.abs(bandlimited_mono)))
+                self.assertGreater(linear_rms, 0.0)
+                self.assertGreater(linear_peak, 0.0)
+                self.assertGreaterEqual(
+                    bandlimited_rms / linear_rms,
+                    one_db_low,
+                )
+                self.assertLessEqual(
+                    bandlimited_rms / linear_rms,
+                    one_db_high,
+                )
+                self.assertGreaterEqual(
+                    bandlimited_peak / linear_peak,
+                    one_db_low,
+                )
+                self.assertLessEqual(
+                    bandlimited_peak / linear_peak,
+                    one_db_high,
+                )
+
+                linear_onset_rms = rms(
+                    linear_mono[:onset_frame_count]
+                )
+                bandlimited_onset_rms = rms(
+                    bandlimited_mono[:onset_frame_count]
+                )
+                self.assertGreater(linear_onset_rms, 0.0)
+                self.assertGreaterEqual(
+                    bandlimited_onset_rms / linear_onset_rms,
+                    one_db_low,
+                )
+                self.assertLessEqual(
+                    bandlimited_onset_rms / linear_onset_rms,
+                    one_db_high,
+                )
+
+                self.assertLessEqual(
+                    abs(
+                        first_one_percent_crossing(bandlimited_mono)
+                        - first_one_percent_crossing(linear_mono)
+                    ),
+                    2,
+                )
+                self.assertLessEqual(
+                    abs(
+                        int(np.argmax(np.abs(bandlimited_mono)))
+                        - int(np.argmax(np.abs(linear_mono)))
+                    ),
+                    2,
+                )
+
     def test_frozen_reports_match_the_installed_cp80(self) -> None:
         for instrument_name in INSTRUMENTS:
             directory = KEYBOARD_ROOT / instrument_name

@@ -15,6 +15,7 @@ import tianlai.doctor as doctor_module
 from tianlai import __version__
 from tianlai.doctor import (
     REPORT_SCHEMA_VERSION,
+    _human_summary,
     _platform_runtime_supported,
     _python_runtime_supported,
     _relative_or_absolute,
@@ -147,6 +148,26 @@ class DoctorTests(unittest.TestCase):
             },
         )
 
+    def _write_self_contained_formal_instrument(self) -> None:
+        _write_json(
+            self.catalog / "电子乐器" / "测试合成器" / "乐器.json",
+            {
+                "name": "测试合成器",
+                "type": "synthesizer",
+                "patch": "test",
+                "engine_version": "1.0.0",
+                "quality_tier": "formal",
+                "collaboration_review_status": "untested",
+                "note_min": 0,
+                "note_max": 127,
+                "provenance_kind": "project_authored_dsp",
+                "implementation_license": "Apache-2.0",
+                "external_audio_assets": [],
+                "audio_asset_license": "not_applicable",
+                "license_status": "approved",
+            },
+        )
+
     def _write_sample_manifest(self, asset_root: str = "../../../音源/库") -> Path:
         path = self.catalog / "管弦乐" / "样本乐器" / "乐器.json"
         _write_json(
@@ -161,6 +182,9 @@ class DoctorTests(unittest.TestCase):
                 "pitch_mode": "pitched",
                 "note_min": 60,
                 "note_max": 60,
+                "quality_tier": "formal",
+                "collaboration_review_status": "untested",
+                "license_status": "approved",
             },
         )
         return path
@@ -350,9 +374,10 @@ class DoctorTests(unittest.TestCase):
 
     def test_broken_optional_fluidsynth_degrades_otherwise_ready_report(self) -> None:
         self._write_self_contained_test_utility()
+        self._write_self_contained_formal_instrument()
         _write_json(
             self.root / "可信乐器.json",
-            {"trusted": ["测试工具/参考振荡器"]},
+            {"trusted": ["电子乐器/测试合成器"]},
         )
         with mock.patch(
             "tianlai.doctor._platform_capabilities",
@@ -421,9 +446,10 @@ class DoctorTests(unittest.TestCase):
 
     def test_rosetta_translation_makes_the_report_runtime_unsupported(self) -> None:
         self._write_self_contained_test_utility()
+        self._write_self_contained_formal_instrument()
         _write_json(
             self.root / "可信乐器.json",
-            {"trusted": ["测试工具/参考振荡器"]},
+            {"trusted": ["电子乐器/测试合成器"]},
         )
         with (
             mock.patch("tianlai.doctor.platform.system", return_value="Darwin"),
@@ -438,6 +464,243 @@ class DoctorTests(unittest.TestCase):
         self.assertFalse(report["platform"]["supported"])
         self.assertEqual(report["platform"]["rosetta"]["status"], "translated")
         self.assertEqual(report["summary"]["status"], "error")
+
+    def test_passive_mode_never_runs_active_runtime_or_writability_probes(
+        self,
+    ) -> None:
+        self._write_self_contained_test_utility()
+        self._write_self_contained_formal_instrument()
+        _write_json(
+            self.root / "可信乐器.json",
+            {"trusted": ["电子乐器/测试合成器"]},
+        )
+        restore_manifest = self.root / "resource-restore-manifest.json"
+        restore_manifest.write_text("{}\n", encoding="utf-8")
+        native_directory = self.root / "native"
+        native_directory.mkdir()
+        native_library = native_directory / "libfluidsynth.dylib"
+        native_library.write_bytes(b"candidate only")
+        restore_document = {
+            "families": [
+                {
+                    "id": "test-family",
+                    "group": "test",
+                    "instrument_ids": [],
+                    "archives": [{"format": "7z"}],
+                }
+            ],
+            "totals": {"family_count": 1, "instrument_count": 0},
+        }
+
+        forbidden = AssertionError("active probe must not run")
+        with (
+            mock.patch(
+                "tianlai.doctor.default_manifest_path",
+                return_value=restore_manifest,
+            ),
+            mock.patch(
+                "tianlai.doctor.load_restore_manifest",
+                return_value=restore_document,
+            ),
+            mock.patch(
+                "tianlai.doctor._find_bsdtar_executable",
+                side_effect=forbidden,
+            ) as archive_probe,
+            mock.patch(
+                "tianlai.doctor._find_project_fluidsynth_directory",
+                return_value=native_directory,
+            ) as native_discovery,
+            mock.patch(
+                "tianlai.doctor._native_fluidsynth_libraries",
+                return_value=[native_library],
+            ) as native_listing,
+            mock.patch(
+                "tianlai.doctor._fluidsynth_directory_source",
+                return_value="project_local",
+            ) as native_source,
+            mock.patch(
+                "tianlai.doctor._load_native_fluidsynth_library",
+                side_effect=forbidden,
+            ) as native_probe,
+            mock.patch(
+                "tianlai.doctor.ctypes.util.find_library",
+                side_effect=forbidden,
+            ) as system_lookup,
+            mock.patch(
+                "tianlai.doctor.importlib.util.find_spec",
+                side_effect=forbidden,
+            ) as import_probe,
+            mock.patch(
+                "tianlai.doctor._directory_writability",
+                side_effect=forbidden,
+            ) as write_probe,
+            mock.patch(
+                "tianlai.doctor._passive_platform_identity",
+                return_value=(
+                    "Darwin",
+                    "25.0.0",
+                    "x86_64",
+                    "Darwin-25.0.0-x86_64",
+                ),
+            ),
+            mock.patch(
+                "tianlai.doctor._probe_macos_rosetta_translation",
+                side_effect=forbidden,
+            ) as rosetta_probe,
+            mock.patch("tianlai.doctor.ctypes.CDLL", side_effect=forbidden) as cdll,
+            mock.patch(
+                "subprocess.check_output",
+                side_effect=forbidden,
+            ) as subprocess_probe,
+        ):
+            report = collect_doctor_report(
+                layout=self.layout,
+                active_probes=False,
+            )
+
+        archive_probe.assert_not_called()
+        native_discovery.assert_not_called()
+        native_listing.assert_not_called()
+        native_source.assert_not_called()
+        native_probe.assert_not_called()
+        system_lookup.assert_not_called()
+        import_probe.assert_not_called()
+        write_probe.assert_not_called()
+        rosetta_probe.assert_not_called()
+        cdll.assert_not_called()
+        subprocess_probe.assert_not_called()
+        self.assertEqual(
+            report["probe_policy"],
+            {
+                "active_probes": False,
+                "native_library_load_performed": False,
+                "archive_tool_probe_performed": False,
+                "rosetta_probe_performed": False,
+                "writability_probe_performed": False,
+            },
+        )
+        self.assertEqual(report["platform"]["rosetta"]["status"], "not_probed")
+        self.assertFalse(report["platform"]["rosetta"]["probe_performed"])
+        native = report["capabilities"]["fluidsynth"]["native"]
+        self.assertEqual(native["status"], "not_probed")
+        self.assertEqual(native["availability_estimate"], "not_inspected")
+        self.assertFalse(native["load_verified"])
+        self.assertFalse(native["probe_performed"])
+        restore = report["capabilities"]["resource_restore"]
+        self.assertEqual(restore["seven_zip_extractor_status"], "not_probed")
+        self.assertFalse(restore["seven_zip_extractor_probe_performed"])
+        for item in report["writability"].values():
+            self.assertIsNone(item["writable"])
+            self.assertIsInstance(item["writable_estimate"], bool)
+            self.assertEqual(item["writability_status"], "not_probed")
+            self.assertFalse(item["probe_performed"])
+            self.assertEqual(item["verification"], "passive_estimate")
+
+    def test_default_mode_still_runs_active_probes(self) -> None:
+        restore_manifest = self.root / "resource-restore-manifest.json"
+        restore_manifest.write_text("{}\n", encoding="utf-8")
+        native_directory = self.root / "native"
+        native_directory.mkdir()
+        native_library = native_directory / "libfluidsynth.dylib"
+        native_library.write_bytes(b"candidate only")
+        restore_document = {
+            "families": [
+                {
+                    "id": "test-family",
+                    "group": "test",
+                    "instrument_ids": [],
+                    "archives": [{"format": "7z"}],
+                }
+            ],
+            "totals": {"family_count": 1, "instrument_count": 0},
+        }
+
+        with (
+            mock.patch(
+                "tianlai.doctor.default_manifest_path",
+                return_value=restore_manifest,
+            ),
+            mock.patch(
+                "tianlai.doctor.load_restore_manifest",
+                return_value=restore_document,
+            ),
+            mock.patch(
+                "tianlai.doctor._find_bsdtar_executable",
+                return_value="bsdtar",
+            ) as archive_probe,
+            mock.patch(
+                "tianlai.doctor._find_project_fluidsynth_directory",
+                return_value=native_directory,
+            ),
+            mock.patch(
+                "tianlai.doctor._native_fluidsynth_libraries",
+                return_value=[native_library],
+            ),
+            mock.patch(
+                "tianlai.doctor._fluidsynth_directory_source",
+                return_value="project_local",
+            ),
+            mock.patch(
+                "tianlai.doctor._load_native_fluidsynth_library",
+            ) as native_probe,
+            mock.patch(
+                "tianlai.doctor._directory_writability",
+                wraps=doctor_module._directory_writability,
+            ) as write_probe,
+            mock.patch("tianlai.doctor.platform.system", return_value="Darwin"),
+            mock.patch("tianlai.doctor.platform.machine", return_value="x86_64"),
+            mock.patch(
+                "tianlai.doctor._probe_macos_rosetta_translation",
+                return_value=False,
+            ) as rosetta_probe,
+        ):
+            report = collect_doctor_report(layout=self.layout)
+
+        archive_probe.assert_called_once_with()
+        native_probe.assert_called_once_with(native_library.resolve())
+        rosetta_probe.assert_called_once_with()
+        self.assertEqual(write_probe.call_count, 3)
+        self.assertTrue(report["probe_policy"]["active_probes"])
+        self.assertTrue(report["probe_policy"]["native_library_load_performed"])
+        self.assertTrue(report["probe_policy"]["archive_tool_probe_performed"])
+        self.assertTrue(report["probe_policy"]["rosetta_probe_performed"])
+        self.assertTrue(report["probe_policy"]["writability_probe_performed"])
+
+    def test_instrument_selection_skips_unrelated_resource_and_sfz_checks(
+        self,
+    ) -> None:
+        self._write_self_contained_test_utility()
+        self._write_sample_manifest()
+
+        with (
+            mock.patch(
+                "tianlai.doctor._resource_status",
+                wraps=doctor_module._resource_status,
+            ) as resource_status,
+            mock.patch(
+                "tianlai.dedicated_candidates.dedicated_manifest_sources",
+                side_effect=AssertionError("unselected SFZ must not be expanded"),
+            ) as sfz_expansion,
+        ):
+            report = collect_doctor_report(
+                layout=self.layout,
+                selected_instrument_ids=["测试工具\\参考振荡器"],
+            )
+
+        resource_status.assert_called_once()
+        checked_manifest = resource_status.call_args.kwargs["manifest_path"]
+        self.assertEqual(checked_manifest.parent.name, "参考振荡器")
+        sfz_expansion.assert_not_called()
+        self.assertEqual(
+            [item["id"] for item in report["instruments"]],
+            ["测试工具/参考振荡器"],
+        )
+        self.assertEqual(report["catalog"]["count"], 1)
+        self.assertEqual(report["catalog"]["total_count"], 2)
+        self.assertEqual(
+            report["selection"],
+            {"active": True, "requested_count": 1, "matched_count": 1},
+        )
 
     def test_clean_source_without_audio_resources_remains_diagnosable(self) -> None:
         self._write_self_contained_test_utility()
@@ -467,6 +730,65 @@ class DoctorTests(unittest.TestCase):
         self.assertTrue(report["writability"]["resources"]["writable"])
         self.assertFalse((self.root / "音源").exists())
         self.assertEqual(list(self.root.glob(".tianlai-write-probe-*")), [])
+
+    def test_human_summary_treats_missing_resources_as_bounded_on_demand_work(
+        self,
+    ) -> None:
+        self._write_self_contained_test_utility()
+        self._write_sample_manifest()
+
+        report = collect_doctor_report(
+            layout=self.layout,
+            verify_references=False,
+        )
+        text = _human_summary(report)
+
+        self.assertEqual(report["summary"]["status"], "degraded")
+        self.assertIn("自检：可运行（按需补充乐器资源）", text)
+        self.assertIn("[必须处理]\n  - 无", text)
+        self.assertIn("[按需安装]", text)
+        self.assertIn("1 件正式乐器的资源文件尚未就绪", text)
+        self.assertIn("不影响已就绪或自包含乐器", text)
+        self.assertIn("--require-all-resources", text)
+        self.assertNotIn("未就绪乐器：", text)
+        self.assertNotIn("管弦乐/样本乐器：", text)
+        self.assertNotIn("asset_root directory is missing", text)
+
+    def test_human_summary_keeps_invalid_resource_contracts_actionable(self) -> None:
+        manifest = self._write_sample_manifest()
+        document = json.loads(manifest.read_text(encoding="utf-8"))
+        document.pop("asset_root")
+        document["type"] = "unknown_backend"
+        _write_json(manifest, document)
+
+        report = collect_doctor_report(
+            layout=self.layout,
+            verify_references=False,
+        )
+        text = _human_summary(report)
+
+        self.assertEqual(report["summary"]["status"], "error")
+        self.assertIn("自检：需要处理", text)
+        self.assertIn("[必须处理]", text)
+        self.assertIn("1 件正式乐器的资源合同无效", text)
+        self.assertIn("管弦乐/样本乐器", text)
+        self.assertNotIn("[必须处理]\n  - 无", text)
+
+    def test_human_summary_marks_unsupported_runtime_as_mandatory(self) -> None:
+        self._write_self_contained_test_utility()
+        self._write_sample_manifest()
+        report = collect_doctor_report(
+            layout=self.layout,
+            verify_references=False,
+        )
+        report["python"]["supported"] = False
+        report["summary"]["status"] = "error"
+
+        text = _human_summary(report)
+
+        self.assertIn("自检：需要处理", text)
+        self.assertIn("Python 运行时不在支持范围内", text)
+        self.assertIn("[按需安装]", text)
 
     def test_dedicated_check_expands_sfz_without_constructing_instrument(self) -> None:
         manifest = self._write_sample_manifest()
@@ -640,6 +962,10 @@ class DoctorTests(unittest.TestCase):
         self.assertEqual(report["trusted"]["status"], "invalid")
         self.assertIn("目录中不存在", report["trusted"]["error"])
         self.assertEqual(report["summary"]["status"], "error")
+        human = _human_summary(report)
+        self.assertIn("自检：需要处理", human)
+        self.assertIn("可信乐器策略状态为 invalid", human)
+        self.assertIn("目录中不存在", human)
         with mock.patch.dict(
             os.environ,
             {"TIANLAI_HOME": str(self.root)},

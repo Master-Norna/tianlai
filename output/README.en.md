@@ -32,11 +32,14 @@ A reproducible work version should retain at least:
 
 - the score and roster, plus any space or render parameters used;
 - the ensemble and required stems;
+- `渲染后自检.json`;
 - `渲染回执.json`;
 - `许可与署名.json/.txt`.
 
-A directory containing only a WAV, without reproducible input and a receipt,
-is not a complete project archive.
+A directory containing only a WAV, without reproducible input, a self-check,
+and a receipt, is not a complete project archive. A self-check warning must be
+reviewed with stems and actual listening; it is not a machine verdict that the
+work is bad.
 
 ## Workspaces and caches
 

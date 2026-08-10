@@ -88,7 +88,8 @@ class RosterAvailabilityPolicyTests(unittest.TestCase):
             trusted_instruments=(),
         )
         self.assertEqual(len(problems), 1)
-        self.assertIn("不在可信白名单", problems[0])
+        self.assertIn("不在当前调用方提供的允许乐器集合", problems[0])
+        self.assertNotIn("trusted_only=false", problems[0])
 
     def test_requested_trusted_policy_without_allowlist_fails_closed(
         self,

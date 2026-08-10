@@ -1,0 +1,733 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tianlai.local/schemas/post-render-check.schema.json",
+  "title": "Tianlai deterministic post-render quality report",
+  "type": "object",
+  "required": [
+    "$schema",
+    "format",
+    "version",
+    "artifact",
+    "performance_plan",
+    "audio_format",
+    "measurement",
+    "policy",
+    "measurements",
+    "issues",
+    "summary"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "https://tianlai.local/schemas/post-render-check.schema.json"
+    },
+    "format": { "const": "tianlai.post_render_check" },
+    "version": { "type": "integer", "const": 1 },
+    "artifact": {
+      "type": "object",
+      "required": ["path", "sha256", "size_bytes"],
+      "properties": {
+        "path": { "$ref": "#/$defs/artifactPath" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "size_bytes": { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": false
+    },
+    "performance_plan": {
+      "type": "object",
+      "required": ["sha256"],
+      "properties": {
+        "sha256": {
+          "oneOf": [
+            { "$ref": "#/$defs/sha256" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "audio_format": {
+      "type": "object",
+      "required": [
+        "container",
+        "encoding",
+        "bits_per_sample",
+        "channels",
+        "sample_rate",
+        "frame_count"
+      ],
+      "properties": {
+        "container": { "const": "WAV" },
+        "encoding": { "const": "PCM" },
+        "bits_per_sample": { "type": "integer", "const": 24 },
+        "channels": { "type": "integer", "const": 2 },
+        "sample_rate": {
+          "type": "integer",
+          "minimum": 8000,
+          "maximum": 384000
+        },
+        "frame_count": { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": false
+    },
+    "measurement": { "$ref": "#/$defs/measurementContract" },
+    "policy": { "$ref": "#/$defs/policyContract" },
+    "measurements": {
+      "type": "object",
+      "required": [
+        "sample",
+        "channels",
+        "stereo",
+        "extrema",
+        "boundaries",
+        "sustained_dc",
+        "true_peak",
+        "loudness"
+      ],
+      "properties": {
+        "sample": { "$ref": "#/$defs/sampleMeasurements" },
+        "channels": { "$ref": "#/$defs/channelsMeasurements" },
+        "stereo": { "$ref": "#/$defs/stereoMeasurements" },
+        "extrema": { "$ref": "#/$defs/extremaMeasurements" },
+        "boundaries": { "$ref": "#/$defs/boundariesMeasurements" },
+        "sustained_dc": { "$ref": "#/$defs/sustainedDc" },
+        "true_peak": { "$ref": "#/$defs/truePeak" },
+        "loudness": { "$ref": "#/$defs/loudness" }
+      },
+      "additionalProperties": false
+    },
+    "issues": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/issue" }
+    },
+    "summary": { "$ref": "#/$defs/summary" }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "artifactPath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*\\\\)(?!.*:)(?!\\.{1,2}(?:/|$))(?!.*\\/\\.{1,2}(?:/|$))[^/\\u0000-\\u001f\\u007f]+(?:/[^/\\u0000-\\u001f\\u007f]+)*$"
+    },
+    "nullableNumber": {
+      "type": ["number", "null"]
+    },
+    "nonnegativeInteger": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "measurementContract": {
+      "type": "object",
+      "required": [
+        "version",
+        "sample_domain",
+        "loudness",
+        "lra",
+        "true_peak",
+        "certified_sample_rate_hz",
+        "audio_modified"
+      ],
+      "properties": {
+        "version": { "type": "integer", "const": 1 },
+        "sample_domain": { "const": "decoded_pcm24_float64" },
+        "loudness": {
+          "const": "ITU-R BS.1770-5 48kHz K-weighting; EBU Tech 3341"
+        },
+        "lra": { "const": "EBU Tech 3342-2023" },
+        "true_peak": {
+          "const": "ITU-R BS.1770-5 Annex 2 four-phase 48-tap FIR"
+        },
+        "certified_sample_rate_hz": { "type": "integer", "const": 48000 },
+        "audio_modified": { "const": false }
+      },
+      "additionalProperties": false
+    },
+    "policyContract": {
+      "type": "object",
+      "required": [
+        "version",
+        "name",
+        "structural_mismatch_raises",
+        "expected_activity_silence_blocks",
+        "true_peak_is_advisory",
+        "loudness_targets_block",
+        "lra_blocks",
+        "automatic_audio_changes",
+        "thresholds"
+      ],
+      "properties": {
+        "version": { "type": "integer", "const": 1 },
+        "name": { "const": "tianlai.strict_foundation.v1" },
+        "structural_mismatch_raises": { "const": true },
+        "expected_activity_silence_blocks": { "const": true },
+        "true_peak_is_advisory": { "const": true },
+        "loudness_targets_block": { "const": false },
+        "lra_blocks": { "const": false },
+        "automatic_audio_changes": { "const": false },
+        "thresholds": {
+          "type": "object",
+          "required": [
+            "expected_activity_maximum_peak",
+            "near_silent_peak",
+            "true_peak_overload_warning_dbtp",
+            "true_peak_headroom_warning_dbtp",
+            "full_scale_run_warning",
+            "dc_window_seconds",
+            "dc_consecutive_windows",
+            "mono_fold_delta_warning_db",
+            "channel_difference_warning_db",
+            "tail_window_seconds",
+            "tail_relative_warning_db",
+            "final_sample_warning",
+            "final_jump_warning"
+          ],
+          "properties": {
+            "expected_activity_maximum_peak": { "const": 0.0 },
+            "near_silent_peak": { "const": 0.0001 },
+            "true_peak_overload_warning_dbtp": { "const": 0.0 },
+            "true_peak_headroom_warning_dbtp": { "const": -1.0 },
+            "full_scale_run_warning": { "type": "integer", "const": 3 },
+            "dc_window_seconds": { "const": 0.4 },
+            "dc_consecutive_windows": { "type": "integer", "const": 3 },
+            "mono_fold_delta_warning_db": { "const": -6.0 },
+            "channel_difference_warning_db": { "const": 40.0 },
+            "tail_window_seconds": { "const": 0.25 },
+            "tail_relative_warning_db": { "const": -50.0 },
+            "final_sample_warning": { "const": 0.02 },
+            "final_jump_warning": { "const": 0.05 }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "sampleMeasurements": {
+      "type": "object",
+      "required": [
+        "sample_peak",
+        "sample_peak_dbfs",
+        "sample_peak_frame",
+        "sample_peak_channel",
+        "stereo_rms",
+        "stereo_rms_dbfs",
+        "crest_factor_db"
+      ],
+      "properties": {
+        "sample_peak": { "type": "number", "minimum": 0, "maximum": 1 },
+        "sample_peak_dbfs": { "$ref": "#/$defs/nullableNumber" },
+        "sample_peak_frame": { "type": "integer", "minimum": 0 },
+        "sample_peak_channel": { "enum": ["left", "right"] },
+        "stereo_rms": { "type": "number", "minimum": 0, "maximum": 1 },
+        "stereo_rms_dbfs": { "$ref": "#/$defs/nullableNumber" },
+        "crest_factor_db": { "$ref": "#/$defs/nullableNumber" }
+      },
+      "additionalProperties": false
+    },
+    "channelMeasurements": {
+      "type": "object",
+      "required": [
+        "sample_peak",
+        "sample_peak_dbfs",
+        "sample_peak_frame",
+        "rms",
+        "rms_dbfs",
+        "dc_mean",
+        "dc_level_dbfs"
+      ],
+      "properties": {
+        "sample_peak": { "type": "number", "minimum": 0, "maximum": 1 },
+        "sample_peak_dbfs": { "$ref": "#/$defs/nullableNumber" },
+        "sample_peak_frame": { "type": "integer", "minimum": 0 },
+        "rms": { "type": "number", "minimum": 0, "maximum": 1 },
+        "rms_dbfs": { "$ref": "#/$defs/nullableNumber" },
+        "dc_mean": { "type": "number", "minimum": -1, "maximum": 1 },
+        "dc_level_dbfs": { "$ref": "#/$defs/nullableNumber" }
+      },
+      "additionalProperties": false
+    },
+    "channelsMeasurements": {
+      "type": "object",
+      "required": ["left", "right", "rms_level_difference_db"],
+      "properties": {
+        "left": { "$ref": "#/$defs/channelMeasurements" },
+        "right": { "$ref": "#/$defs/channelMeasurements" },
+        "rms_level_difference_db": { "$ref": "#/$defs/nullableNumber" }
+      },
+      "additionalProperties": false
+    },
+    "stereoMeasurements": {
+      "type": "object",
+      "required": [
+        "left_right_correlation",
+        "mono_fold_rms",
+        "mono_fold_rms_dbfs",
+        "mono_fold_delta_db",
+        "mono_fold_silent",
+        "mid_rms",
+        "mid_rms_dbfs",
+        "side_rms",
+        "side_rms_dbfs",
+        "side_to_mid_ratio",
+        "side_to_mid_db"
+      ],
+      "properties": {
+        "left_right_correlation": { "$ref": "#/$defs/nullableNumber" },
+        "mono_fold_rms": { "type": "number", "minimum": 0, "maximum": 1 },
+        "mono_fold_rms_dbfs": { "$ref": "#/$defs/nullableNumber" },
+        "mono_fold_delta_db": { "$ref": "#/$defs/nullableNumber" },
+        "mono_fold_silent": { "type": "boolean" },
+        "mid_rms": { "type": "number", "minimum": 0, "maximum": 1 },
+        "mid_rms_dbfs": { "$ref": "#/$defs/nullableNumber" },
+        "side_rms": { "type": "number", "minimum": 0, "maximum": 1 },
+        "side_rms_dbfs": { "$ref": "#/$defs/nullableNumber" },
+        "side_to_mid_ratio": { "$ref": "#/$defs/nullableNumber" },
+        "side_to_mid_db": { "$ref": "#/$defs/nullableNumber" }
+      },
+      "additionalProperties": false
+    },
+    "extremaMeasurements": {
+      "type": "object",
+      "required": [
+        "full_scale_threshold",
+        "full_scale_sample_count",
+        "longest_full_scale_run",
+        "left_full_scale_sample_count",
+        "right_full_scale_sample_count",
+        "left_longest_full_scale_run",
+        "right_longest_full_scale_run",
+        "exact_zero_sample_count",
+        "left_exact_zero_sample_count",
+        "right_exact_zero_sample_count",
+        "longest_left_zero_run",
+        "longest_right_zero_run",
+        "exact_zero_frame_count",
+        "longest_exact_zero_frame_run"
+      ],
+      "properties": {
+        "full_scale_threshold": { "type": "number", "minimum": 0, "maximum": 1 },
+        "full_scale_sample_count": { "$ref": "#/$defs/nonnegativeInteger" },
+        "longest_full_scale_run": { "$ref": "#/$defs/nonnegativeInteger" },
+        "left_full_scale_sample_count": { "$ref": "#/$defs/nonnegativeInteger" },
+        "right_full_scale_sample_count": { "$ref": "#/$defs/nonnegativeInteger" },
+        "left_longest_full_scale_run": { "$ref": "#/$defs/nonnegativeInteger" },
+        "right_longest_full_scale_run": { "$ref": "#/$defs/nonnegativeInteger" },
+        "exact_zero_sample_count": { "$ref": "#/$defs/nonnegativeInteger" },
+        "left_exact_zero_sample_count": { "$ref": "#/$defs/nonnegativeInteger" },
+        "right_exact_zero_sample_count": { "$ref": "#/$defs/nonnegativeInteger" },
+        "longest_left_zero_run": { "$ref": "#/$defs/nonnegativeInteger" },
+        "longest_right_zero_run": { "$ref": "#/$defs/nonnegativeInteger" },
+        "exact_zero_frame_count": { "$ref": "#/$defs/nonnegativeInteger" },
+        "longest_exact_zero_frame_run": { "$ref": "#/$defs/nonnegativeInteger" }
+      },
+      "additionalProperties": false
+    },
+    "windowMetrics": {
+      "type": "object",
+      "required": [
+        "frame_count",
+        "sample_peak",
+        "sample_peak_dbfs",
+        "stereo_rms",
+        "stereo_rms_dbfs"
+      ],
+      "properties": {
+        "frame_count": { "$ref": "#/$defs/nonnegativeInteger" },
+        "sample_peak": { "type": "number", "minimum": 0, "maximum": 1 },
+        "sample_peak_dbfs": { "$ref": "#/$defs/nullableNumber" },
+        "stereo_rms": { "type": "number", "minimum": 0, "maximum": 1 },
+        "stereo_rms_dbfs": { "$ref": "#/$defs/nullableNumber" }
+      },
+      "additionalProperties": false
+    },
+    "trailingWindowMetrics": {
+      "type": "object",
+      "required": [
+        "frame_count",
+        "sample_peak",
+        "sample_peak_dbfs",
+        "stereo_rms",
+        "stereo_rms_dbfs",
+        "peak_relative_to_full_track_db"
+      ],
+      "properties": {
+        "frame_count": { "$ref": "#/$defs/nonnegativeInteger" },
+        "sample_peak": { "type": "number", "minimum": 0, "maximum": 1 },
+        "sample_peak_dbfs": { "$ref": "#/$defs/nullableNumber" },
+        "stereo_rms": { "type": "number", "minimum": 0, "maximum": 1 },
+        "stereo_rms_dbfs": { "$ref": "#/$defs/nullableNumber" },
+        "peak_relative_to_full_track_db": { "$ref": "#/$defs/nullableNumber" }
+      },
+      "additionalProperties": false
+    },
+    "boundariesMeasurements": {
+      "type": "object",
+      "required": ["window_seconds", "leading", "trailing", "final_sample", "final_jump"],
+      "properties": {
+        "window_seconds": { "const": 0.25 },
+        "leading": { "$ref": "#/$defs/windowMetrics" },
+        "trailing": { "$ref": "#/$defs/trailingWindowMetrics" },
+        "final_sample": { "$ref": "#/$defs/stereoPoint" },
+        "final_jump": { "$ref": "#/$defs/nullableStereoPoint" }
+      },
+      "additionalProperties": false
+    },
+    "stereoPoint": {
+      "type": "object",
+      "required": ["left", "right", "maximum_absolute"],
+      "properties": {
+        "left": { "type": "number", "minimum": -1, "maximum": 1 },
+        "right": { "type": "number", "minimum": -1, "maximum": 1 },
+        "maximum_absolute": { "type": "number", "minimum": 0, "maximum": 1 }
+      },
+      "additionalProperties": false
+    },
+    "nullableStereoPoint": {
+      "type": "object",
+      "required": ["left", "right", "maximum_absolute"],
+      "properties": {
+        "left": { "$ref": "#/$defs/nullableNumber" },
+        "right": { "$ref": "#/$defs/nullableNumber" },
+        "maximum_absolute": { "$ref": "#/$defs/nullableNumber" }
+      },
+      "additionalProperties": false
+    },
+    "dcChannel": {
+      "type": "object",
+      "required": [
+        "qualifying_window_count",
+        "longest_qualifying_run",
+        "max_abs_mean",
+        "max_mean_to_rms_ratio"
+      ],
+      "properties": {
+        "qualifying_window_count": { "$ref": "#/$defs/nonnegativeInteger" },
+        "longest_qualifying_run": { "$ref": "#/$defs/nonnegativeInteger" },
+        "max_abs_mean": { "type": "number", "minimum": 0, "maximum": 1 },
+        "max_mean_to_rms_ratio": { "type": "number", "minimum": 0, "maximum": 1 }
+      },
+      "additionalProperties": false
+    },
+    "sustainedDc": {
+      "type": "object",
+      "required": [
+        "window_seconds",
+        "window_frames",
+        "required_consecutive_windows",
+        "criterion",
+        "left",
+        "right"
+      ],
+      "properties": {
+        "window_seconds": { "const": 0.4 },
+        "window_frames": { "type": "integer", "minimum": 1 },
+        "required_consecutive_windows": { "type": "integer", "const": 3 },
+        "criterion": { "const": "abs(mean) > max(0.01, 0.25 * window_rms)" },
+        "left": { "$ref": "#/$defs/dcChannel" },
+        "right": { "$ref": "#/$defs/dcChannel" }
+      },
+      "additionalProperties": false
+    },
+    "truePeak": {
+      "type": "object",
+      "required": [
+        "status",
+        "reason",
+        "oversampling_ratio",
+        "oversampled_rate_hz",
+        "left",
+        "right",
+        "maximum",
+        "left_dbtp",
+        "right_dbtp",
+        "maximum_dbtp"
+      ],
+      "properties": {
+        "status": { "enum": ["available", "unavailable"] },
+        "reason": { "type": ["string", "null"] },
+        "oversampling_ratio": { "type": ["integer", "null"] },
+        "oversampled_rate_hz": { "type": ["integer", "null"] },
+        "left": { "$ref": "#/$defs/nullableNumber" },
+        "right": { "$ref": "#/$defs/nullableNumber" },
+        "maximum": { "$ref": "#/$defs/nullableNumber" },
+        "left_dbtp": { "$ref": "#/$defs/nullableNumber" },
+        "right_dbtp": { "$ref": "#/$defs/nullableNumber" },
+        "maximum_dbtp": { "$ref": "#/$defs/nullableNumber" }
+      },
+      "additionalProperties": false
+    },
+    "loudness": {
+      "type": "object",
+      "required": [
+        "status",
+        "reason",
+        "integrated_lufs",
+        "max_momentary_lufs",
+        "max_short_term_lufs",
+        "block_seconds",
+        "block_overlap_ratio",
+        "block_count",
+        "absolute_gate_lufs",
+        "absolute_gated_block_count",
+        "relative_gate_lu",
+        "relative_gate_lufs",
+        "final_gated_block_count",
+        "lra"
+      ],
+      "properties": {
+        "status": { "enum": ["available", "unavailable"] },
+        "reason": { "type": ["string", "null"] },
+        "integrated_lufs": { "$ref": "#/$defs/nullableNumber" },
+        "max_momentary_lufs": { "$ref": "#/$defs/nullableNumber" },
+        "max_short_term_lufs": { "$ref": "#/$defs/nullableNumber" },
+        "block_seconds": { "const": 0.4 },
+        "block_overlap_ratio": { "const": 0.75 },
+        "block_count": { "type": "integer", "minimum": 0 },
+        "absolute_gate_lufs": { "const": -70.0 },
+        "absolute_gated_block_count": { "type": "integer", "minimum": 0 },
+        "relative_gate_lu": { "const": -10.0 },
+        "relative_gate_lufs": { "$ref": "#/$defs/nullableNumber" },
+        "final_gated_block_count": { "type": "integer", "minimum": 0 },
+        "lra": { "$ref": "#/$defs/lra" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "status": { "const": "available" } },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {
+              "reason": { "type": "null" },
+              "integrated_lufs": { "type": "number" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "status": { "const": "unavailable" } },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {
+              "reason": { "type": "string", "minLength": 1 },
+              "integrated_lufs": { "type": "null" }
+            }
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "lra": {
+      "type": "object",
+      "required": [
+        "status",
+        "stability",
+        "value_lu",
+        "short_term_window_seconds",
+        "measurement_rate_hz",
+        "absolute_gate_lufs",
+        "relative_gate_lu",
+        "relative_gate_lufs",
+        "low_percentile",
+        "high_percentile",
+        "short_term_sample_count",
+        "absolute_gated_sample_count",
+        "relative_gated_sample_count",
+        "p10_lufs",
+        "p95_lufs"
+      ],
+      "properties": {
+        "status": { "enum": ["available", "unavailable"] },
+        "stability": { "enum": ["stable", "not_recommended"] },
+        "value_lu": { "$ref": "#/$defs/nullableNumber" },
+        "short_term_window_seconds": { "const": 3.0 },
+        "measurement_rate_hz": { "const": 10.0 },
+        "absolute_gate_lufs": { "const": -70.0 },
+        "relative_gate_lu": { "const": -20.0 },
+        "relative_gate_lufs": { "$ref": "#/$defs/nullableNumber" },
+        "low_percentile": { "const": 10.0 },
+        "high_percentile": { "const": 95.0 },
+        "short_term_sample_count": { "type": "integer", "minimum": 0 },
+        "absolute_gated_sample_count": { "type": "integer", "minimum": 0 },
+        "relative_gated_sample_count": { "type": "integer", "minimum": 0 },
+        "p10_lufs": { "$ref": "#/$defs/nullableNumber" },
+        "p95_lufs": { "$ref": "#/$defs/nullableNumber" }
+      },
+      "additionalProperties": false
+    },
+    "issue": {
+      "type": "object",
+      "required": [
+        "issue_schema_version",
+        "id",
+        "severity",
+        "decision",
+        "blocking",
+        "code",
+        "category",
+        "stage",
+        "basis",
+        "confidence",
+        "gate",
+        "scope",
+        "message",
+        "suggestions",
+        "override",
+        "automatic_change",
+        "evidence"
+      ],
+      "properties": {
+        "issue_schema_version": { "type": "integer", "const": 1 },
+        "id": {
+          "type": "string",
+          "pattern": "^selfcheck-[0-9a-f]{20}$"
+        },
+        "severity": { "enum": ["error", "warning", "info"] },
+        "decision": { "enum": ["block", "review", "inform"] },
+        "blocking": { "type": "boolean" },
+        "code": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+(?:\\.[a-z0-9_]+)+$"
+        },
+        "category": { "type": "string", "minLength": 1 },
+        "stage": { "type": "string", "minLength": 1 },
+        "basis": { "type": "string", "minLength": 1 },
+        "confidence": { "enum": ["low", "medium", "high"] },
+        "gate": { "enum": ["render", "none"] },
+        "scope": {
+          "type": "object",
+          "required": ["kind", "path"],
+          "properties": {
+            "kind": { "const": "artifact" },
+            "path": { "$ref": "#/$defs/artifactPath" }
+          },
+          "additionalProperties": false
+        },
+        "message": { "type": "string", "minLength": 1 },
+        "suggestions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "override": {
+          "type": "object",
+          "required": ["mode"],
+          "properties": {
+            "mode": { "enum": ["forbidden", "not_needed"] }
+          },
+          "additionalProperties": false
+        },
+        "automatic_change": { "const": false },
+        "evidence": { "type": "object" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "severity": { "const": "error" } },
+            "required": ["severity"]
+          },
+          "then": {
+            "properties": {
+              "decision": { "const": "block" },
+              "blocking": { "const": true },
+              "gate": { "const": "render" },
+              "override": {
+                "properties": { "mode": { "const": "forbidden" } }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "severity": { "const": "warning" } },
+            "required": ["severity"]
+          },
+          "then": {
+            "properties": {
+              "decision": { "const": "review" },
+              "blocking": { "const": false },
+              "gate": { "const": "none" },
+              "override": {
+                "properties": { "mode": { "const": "not_needed" } }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "severity": { "const": "info" } },
+            "required": ["severity"]
+          },
+          "then": {
+            "properties": {
+              "decision": { "const": "inform" },
+              "blocking": { "const": false },
+              "gate": { "const": "none" },
+              "override": {
+                "properties": { "mode": { "const": "not_needed" } }
+              }
+            }
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "summary": {
+      "type": "object",
+      "required": [
+        "status",
+        "can_proceed",
+        "blocking_count",
+        "review_count",
+        "advisory_count",
+        "severity_counts",
+        "decision_counts",
+        "category_counts",
+        "policy",
+        "issue_count",
+        "expected_activity"
+      ],
+      "properties": {
+        "status": {
+          "enum": ["blocked", "review_recommended", "informational", "clear"]
+        },
+        "can_proceed": { "type": "boolean" },
+        "blocking_count": { "type": "integer", "minimum": 0 },
+        "review_count": { "type": "integer", "minimum": 0 },
+        "advisory_count": { "type": "integer", "minimum": 0 },
+        "severity_counts": { "$ref": "#/$defs/counts" },
+        "decision_counts": { "$ref": "#/$defs/counts" },
+        "category_counts": { "$ref": "#/$defs/counts" },
+        "policy": {
+          "type": "object",
+          "required": [
+            "only_explicit_contract_failures_block",
+            "warnings_block",
+            "information_blocks",
+            "automatic_changes"
+          ],
+          "properties": {
+            "only_explicit_contract_failures_block": { "const": true },
+            "warnings_block": { "const": false },
+            "information_blocks": { "const": false },
+            "automatic_changes": { "const": false }
+          },
+          "additionalProperties": false
+        },
+        "issue_count": { "type": "integer", "minimum": 0 },
+        "expected_activity": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      }
+    }
+  }
+}

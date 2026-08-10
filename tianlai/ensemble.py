@@ -39,9 +39,9 @@ from numbers import Real
 import os
 from pathlib import Path
 from pathlib import PurePosixPath
-import shutil
 import tempfile
-from typing import Any
+from typing import Any, Callable
+import uuid
 import warnings
 
 from .audio import write_wav_pcm24
@@ -70,8 +70,22 @@ from .orchestration_topology import (
     analyze_orchestration_topology,
     attach_orchestration_topology,
 )
+from .post_render_check import (
+    POST_RENDER_CHECK_NAME,
+    REPORT_FORMAT as POST_RENDER_CHECK_FORMAT,
+    REPORT_VERSION as POST_RENDER_CHECK_VERSION,
+    analyze_rendered_wav,
+    require_post_render_check_pass,
+    write_post_render_check,
+)
+from .portable_filename import portable_stem_filename
 from .renderer import render_document
-from .render_lock import acquire_render_lock
+from .render_lock import (
+    PlainDirectoryIdentity,
+    acquire_render_lock,
+    capture_plain_directory,
+    revalidate_plain_directory,
+)
 from .resource_limits import validate_render_request_resource_limits
 from .roster import CollaborationSettings
 from .stem_cache import (
@@ -81,9 +95,14 @@ from .stem_cache import (
     current_source_tree_matches,
 )
 from .stereo_stage_metrics import analyze_stereo_stage
+from .workflow_binding import validate_workflow_authorization
 
 
-RENDER_RECEIPT_VERSION = 2
+RENDER_RECEIPT_VERSION = 3
+_LEGACY_RENDER_RECEIPT_VERSIONS = frozenset({2})
+_SUPPORTED_RENDER_RECEIPT_VERSIONS = (
+    _LEGACY_RENDER_RECEIPT_VERSIONS | {RENDER_RECEIPT_VERSION}
+)
 RENDER_RECEIPT_NAME = "渲染回执.json"
 PERFORMANCE_PLAN_NAME = "演奏计划.json"
 CACHE_TELEMETRY_NAME = "缓存遥测.json"
@@ -91,6 +110,7 @@ CACHE_TELEMETRY_FORMAT = "tianlai.render_cache_telemetry"
 CACHE_TELEMETRY_VERSION = 1
 RAW_STEM_CACHE_STAGE = "raw_instrument_render_pre_assignment_gain_v1"
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
+_LOWER_HEX = frozenset("0123456789abcdef")
 
 _RENDER_ARTIFACT_NAMES = (
     PERFORMANCE_PLAN_NAME,
@@ -99,9 +119,43 @@ _RENDER_ARTIFACT_NAMES = (
     ENSEMBLE_LICENSE_SIDECAR_NAME,
     ENSEMBLE_ATTRIBUTION_NAME,
     MIX_REPORT_NAME,
+    POST_RENDER_CHECK_NAME,
     CACHE_TELEMETRY_NAME,
     RENDER_RECEIPT_NAME,
 )
+
+
+def _authoring_project_receipt_binding(
+    value: object,
+) -> dict[str, str] | None:
+    if value is None:
+        return None
+    if not isinstance(value, dict) or set(value) != {
+        "project_id",
+        "revision",
+        "authoring_roster_canonical_sha256",
+    }:
+        raise ValueError("authoring project binding has an invalid shape")
+    project_id = value.get("project_id")
+    revision = value.get("revision")
+    roster_hash = value.get("authoring_roster_canonical_sha256")
+    if (
+        not isinstance(project_id, str)
+        or len(project_id) != 32
+        or any(character not in _LOWER_HEX for character in project_id)
+        or not isinstance(revision, str)
+        or len(revision) != 64
+        or any(character not in _LOWER_HEX for character in revision)
+        or not isinstance(roster_hash, str)
+        or len(roster_hash) != 64
+        or any(character not in _LOWER_HEX for character in roster_hash)
+    ):
+        raise ValueError("authoring project binding contains an invalid identity")
+    return {
+        "project_id": project_id,
+        "revision": revision,
+        "authoring_roster_canonical_sha256": roster_hash,
+    }
 
 
 def _finite_float(value: Any, label: str) -> float:
@@ -111,6 +165,65 @@ def _finite_float(value: Any, label: str) -> float:
     if not math.isfinite(number):
         raise ValueError(f"{label} 必须是有限数值")
     return number
+
+
+def _performance_has_explicit_expected_activity(performance: Any) -> bool:
+    """Return true only for an explicitly positive note-on in one document."""
+
+    if not isinstance(performance, dict):
+        return False
+    events = performance.get("events")
+    if not isinstance(events, list):
+        return False
+    for event in events:
+        if not isinstance(event, dict) or event.get("type") != "note_on":
+            continue
+        velocity = event.get("velocity")
+        if (
+            isinstance(velocity, Real)
+            and not isinstance(velocity, bool)
+            and math.isfinite(float(velocity))
+            and float(velocity) > 0.0
+        ):
+            return True
+    return False
+
+
+def _plan_has_explicit_expected_activity(plan: PerformancePlan) -> bool:
+    """Conservatively identify a plan that explicitly requests audible notes.
+
+    This value is only allowed to strengthen the exact-digital-silence
+    contract in the post-render checker.  A malformed or unfamiliar
+    performance shape therefore returns ``False`` instead of guessing.  The
+    conductor currently writes an explicit positive velocity on every
+    compiled note-on, while an empty/rest-only part has no such event.
+    """
+
+    parts = getattr(plan, "parts", None)
+    if not isinstance(parts, (tuple, list)):
+        return False
+    for part in parts:
+        if _performance_has_explicit_expected_activity(
+            getattr(part, "performance", None)
+        ):
+            return True
+    return False
+
+
+def _plan_document_has_explicit_expected_activity(document: Any) -> bool:
+    """Re-derive the activity contract from a receipt-bound plan document."""
+
+    if not isinstance(document, dict):
+        return False
+    parts = document.get("parts")
+    if not isinstance(parts, list):
+        return False
+    for part in parts:
+        if isinstance(part, dict) and _performance_has_explicit_expected_activity(
+            part.get("performance")
+        ):
+            return True
+    return False
 
 
 def _resolved_collaboration_settings(
@@ -179,30 +292,96 @@ def _write_json_atomic(path: Path, document: dict[str, Any]) -> None:
         suffix=".tmp",
     )
     temporary = Path(temporary_name)
+    with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as output:
+        output.write(payload)
+        output.flush()
+        os.fsync(output.fileno())
+    # Successful replacement consumes the random temporary name.  If it
+    # fails, retain whatever currently occupies that name; an unconditional
+    # unlink could delete a post-failure replacement installed by a racer.
+    os.replace(temporary, path)
+
+
+def _warn_preserved_render_directory(message: str) -> None:
     try:
-        with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as output:
-            output.write(payload)
-            output.flush()
-            os.fsync(output.fileno())
-        os.replace(temporary, path)
-    finally:
-        temporary.unlink(missing_ok=True)
+        warnings.warn(message, RuntimeWarning, stacklevel=3)
+    except BaseException:
+        # Cleanup is best-effort after commit or while another exception is
+        # already propagating; warning filters must not change that outcome.
+        pass
 
 
-def _remove_private_render_directory(path: Path, parent: Path, prefix: str) -> None:
-    """Delete only a renderer-owned staging/backup directory.
+def _remove_private_render_directory(
+    path: Path,
+    parent: Path,
+    prefix: str,
+    *,
+    parent_identity: PlainDirectoryIdentity | None = None,
+    directory_identity: PlainDirectoryIdentity | None = None,
+) -> Path | None:
+    """Retire one renderer-owned staging/backup entry without deletion.
 
-    This guard is deliberately strict because cleanup runs on exception paths.
-    It must never turn a malformed output path into a recursive delete outside
-    the selected output parent.
+    The active entry is first renamed to an unpredictable same-parent name.
+    Empty and non-empty directories, files, links, and entries replaced after
+    an identity check all remain recoverable under
+    ``.cleanup-preserved-*``.  Even a non-recursive ``rmdir`` is deliberately
+    avoided: a writer could replace the preserved path after its final
+    identity check and otherwise have that replacement removed by name.
     """
 
-    resolved_parent = parent.resolve()
-    resolved = path.resolve()
-    if resolved.parent != resolved_parent or not resolved.name.startswith(prefix):
-        raise RuntimeError(f"拒绝清理非渲染器私有目录: {resolved}")
-    if resolved.exists():
-        shutil.rmtree(resolved)
+    if parent_identity is None:
+        parent_identity = capture_plain_directory(parent)
+    resolved_parent = revalidate_plain_directory(parent_identity)
+    if (
+        path.parent != resolved_parent
+        or path != resolved_parent / path.name
+        or not path.name.startswith(prefix)
+    ):
+        raise RuntimeError(f"拒绝清理非渲染器私有目录: {path}")
+    if directory_identity is None:
+        directory_identity = capture_plain_directory(path)
+    identity_changed = False
+    try:
+        revalidate_plain_directory(directory_identity)
+    except BaseException:
+        identity_changed = True
+    revalidate_plain_directory(parent_identity)
+    if not os.path.lexists(path):
+        return None
+
+    preserved: Path | None = None
+    for _ in range(16):
+        candidate = resolved_parent / (
+            f"{path.name}.cleanup-preserved-{uuid.uuid4().hex}"
+        )
+        if os.path.lexists(candidate):
+            continue
+        try:
+            os.rename(path, candidate)
+        except FileExistsError:
+            continue
+        preserved = candidate
+        break
+    if preserved is None:
+        raise RuntimeError("无法为渲染私有目录预留安全的保全名称")
+    revalidate_plain_directory(parent_identity)
+
+    if not identity_changed:
+        try:
+            moved_identity = capture_plain_directory(preserved)
+            if (
+                moved_identity.device != directory_identity.device
+                or moved_identity.inode != directory_identity.inode
+            ):
+                identity_changed = True
+        except BaseException:
+            identity_changed = True
+    if identity_changed:
+        _warn_preserved_render_directory(
+            "渲染私有目录在清理期间发生身份替换，"
+            f"已安全保全于 {preserved}"
+        )
+    return preserved
 
 
 def _artifact_exists(path: Path) -> bool:
@@ -375,6 +554,114 @@ def _verify_cache_telemetry(
         )
 
 
+def _verify_post_render_check(
+    directory: Path,
+    receipt: dict[str, Any],
+    *,
+    plan_document: dict[str, Any],
+) -> dict[str, Any]:
+    """Verify the v3 report against the exact receipt-bound mix and plan."""
+
+    binding = receipt.get("post_render_check")
+    if not isinstance(binding, dict) or binding.get("path") != POST_RENDER_CHECK_NAME:
+        raise RuntimeError("v3 渲染回执缺少固定路径的渲染后自检绑定")
+    report_path = _verify_hash_binding(
+        directory,
+        binding,
+        "post_render_check",
+    )
+    try:
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise RuntimeError("渲染后自检不是合法 UTF-8 JSON") from exc
+    if (
+        not isinstance(report, dict)
+        or binding.get("format") != POST_RENDER_CHECK_FORMAT
+        or isinstance(binding.get("version"), bool)
+        or not isinstance(binding.get("version"), int)
+        or binding.get("version") != POST_RENDER_CHECK_VERSION
+        or report.get("format") != POST_RENDER_CHECK_FORMAT
+        or isinstance(report.get("version"), bool)
+        or not isinstance(report.get("version"), int)
+        or report.get("version") != POST_RENDER_CHECK_VERSION
+    ):
+        raise RuntimeError("渲染后自检身份或版本与渲染回执不一致")
+    try:
+        require_post_render_check_pass(report)
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError("渲染后自检报告结构无效或包含硬阻断项") from exc
+
+    mix_binding = receipt.get("mix")
+    plan_binding = receipt.get("performance_plan")
+    audio_format = receipt.get("audio_format")
+    if (
+        not isinstance(mix_binding, dict)
+        or not isinstance(plan_binding, dict)
+        or not isinstance(audio_format, dict)
+    ):
+        raise RuntimeError("v3 渲染回执缺少自检所需的音频或计划绑定")
+    receipt_sample_rate = audio_format.get("sample_rate")
+    receipt_frame_count = mix_binding.get("frame_count")
+    if (
+        audio_format.get("container") != "WAV"
+        or audio_format.get("encoding") != "PCM"
+        or audio_format.get("bits_per_sample") != 24
+        or audio_format.get("channels") != 2
+        or isinstance(receipt_sample_rate, bool)
+        or not isinstance(receipt_sample_rate, int)
+        or receipt_sample_rate <= 0
+        or isinstance(receipt_frame_count, bool)
+        or not isinstance(receipt_frame_count, int)
+        or receipt_frame_count <= 0
+    ):
+        raise RuntimeError("v3 渲染回执的音频格式或帧数合同无效")
+
+    artifact = report.get("artifact")
+    if (
+        not isinstance(artifact, dict)
+        or artifact.get("path") != mix_binding.get("path")
+        or artifact.get("sha256") != mix_binding.get("sha256")
+    ):
+        raise RuntimeError("渲染后自检没有绑定当前合奏音频")
+    mix_path = _bound_artifact_path(
+        directory,
+        mix_binding.get("path"),
+        "mix",
+    )
+    if artifact.get("size_bytes") != mix_path.stat().st_size:
+        raise RuntimeError("渲染后自检记录的音频字节数与当前合奏不一致")
+    report_plan = report.get("performance_plan")
+    if (
+        not isinstance(report_plan, dict)
+        or report_plan.get("sha256") != plan_binding.get("sha256")
+    ):
+        raise RuntimeError("渲染后自检没有绑定当前演奏计划")
+
+    report_audio_format = report.get("audio_format")
+    expected_audio_format = {
+        "container": audio_format.get("container"),
+        "encoding": audio_format.get("encoding"),
+        "bits_per_sample": audio_format.get("bits_per_sample"),
+        "channels": audio_format.get("channels"),
+        "sample_rate": receipt_sample_rate,
+        "frame_count": receipt_frame_count,
+    }
+    if not isinstance(report_audio_format, dict) or any(
+        report_audio_format.get(field) != value
+        for field, value in expected_audio_format.items()
+    ):
+        raise RuntimeError("渲染后自检记录的音频格式或帧数与回执不一致")
+    summary = report.get("summary")
+    if not isinstance(summary, dict) or summary.get("can_proceed") is not True:
+        raise RuntimeError("渲染后自检没有给出可发布的硬合同结论")
+    expected_activity = _plan_document_has_explicit_expected_activity(
+        plan_document
+    )
+    if summary.get("expected_activity") is not expected_activity:
+        raise RuntimeError("渲染后自检的活动内容结论与演奏计划不一致")
+    return report
+
+
 def _verify_render_generation(directory: Path) -> None:
     """Verify every published file hash before a generation is accepted."""
 
@@ -385,11 +672,40 @@ def _verify_render_generation(directory: Path) -> None:
         raise RuntimeError("渲染回执不存在、不可读或不是合法 JSON") from exc
     if not isinstance(receipt, dict):
         raise RuntimeError("渲染回执顶层必须是对象")
+    receipt_version = receipt.get("version")
     if (
         receipt.get("format") != "tianlai.render_receipt"
-        or receipt.get("version") != RENDER_RECEIPT_VERSION
+        or isinstance(receipt_version, bool)
+        or not isinstance(receipt_version, int)
+        or receipt_version not in _SUPPORTED_RENDER_RECEIPT_VERSIONS
     ):
         raise RuntimeError("渲染回执格式或版本不受支持")
+    try:
+        receipt_authoring_binding = _authoring_project_receipt_binding(
+            receipt.get("authoring_project")
+        )
+    except ValueError as exc:
+        raise RuntimeError("渲染回执的作者工程身份绑定无效") from exc
+    if "authoring_project" in receipt and receipt_authoring_binding is None:
+        raise RuntimeError("渲染回执的作者工程身份绑定不得为 null")
+    try:
+        receipt_workflow_binding = validate_workflow_authorization(
+            receipt.get("authoring_workflow")
+        )
+    except ValueError as exc:
+        raise RuntimeError("渲染回执的作者工作流授权绑定无效") from exc
+    if "authoring_workflow" in receipt and receipt_workflow_binding is None:
+        raise RuntimeError("渲染回执的作者工作流授权绑定不得为 null")
+    if receipt_workflow_binding is not None:
+        if receipt_authoring_binding is None:
+            raise RuntimeError("作者工作流授权缺少作者工程身份绑定")
+        if (
+            receipt_workflow_binding["project_id"]
+            != receipt_authoring_binding["project_id"]
+            or receipt_workflow_binding["authoring_revision"]
+            != receipt_authoring_binding["revision"]
+        ):
+            raise RuntimeError("作者工作流授权与作者工程身份不一致")
 
     plan_binding = receipt.get("performance_plan")
     if not isinstance(plan_binding, dict):
@@ -467,6 +783,12 @@ def _verify_render_generation(directory: Path) -> None:
             raise RuntimeError("manual 模式不得保留协奏诊断")
     else:
         raise RuntimeError("collaboration.report_enabled 必须是布尔值")
+    if receipt_version == RENDER_RECEIPT_VERSION:
+        _verify_post_render_check(
+            directory,
+            receipt,
+            plan_document=plan_document,
+        )
     _verify_cache_telemetry(directory, receipt)
 
 
@@ -476,7 +798,8 @@ def verify_render_generation(directory: str | Path) -> None:
     This public boundary is shared by the renderer and the immutable-candidate
     publisher.  Keeping one verifier prevents the outer publication layer from
     accepting a receipt whose plan, mix, stems, licence sidecar, attribution
-    notice, or collaboration report changed after the renderer returned.
+    notice, collaboration report, or v3 post-render check changed after the
+    renderer returned.
     """
 
     _verify_render_generation(Path(directory).resolve())
@@ -495,8 +818,10 @@ def _publish_render_artifacts(staging: Path, final: Path) -> None:
 
     parent = final.parent
     final.mkdir(parents=True, exist_ok=True)
+    parent_identity = capture_plain_directory(parent)
     backup_prefix = f".{final.name}.render-backup."
     backup = Path(tempfile.mkdtemp(dir=parent, prefix=backup_prefix))
+    backup_identity = capture_plain_directory(backup)
 
     old_order = (
         RENDER_RECEIPT_NAME,
@@ -566,16 +891,35 @@ def _publish_render_artifacts(staging: Path, final: Path) -> None:
                 rollback_errors.append(f"恢复旧产物 {name}: {exc}")
         if rollback_errors:
             cleanup_backup = False
+            try:
+                preserved_backup = _remove_private_render_directory(
+                    backup,
+                    parent,
+                    backup_prefix,
+                    parent_identity=parent_identity,
+                    directory_identity=backup_identity,
+                )
+            except BaseException as cleanup_error:
+                preserved_backup = backup
+                rollback_errors.append(
+                    f"保全旧产物备份: {cleanup_error}"
+                )
             raise RuntimeError(
                 "渲染发布失败且回滚不完整；旧产物备份保留在 "
-                f"{backup}: " + "; ".join(rollback_errors)
+                f"{preserved_backup or backup}: " + "; ".join(rollback_errors)
             )
         raise
     finally:
         if cleanup_backup:
             try:
-                _remove_private_render_directory(backup, parent, backup_prefix)
-            except OSError as exc:
+                _remove_private_render_directory(
+                    backup,
+                    parent,
+                    backup_prefix,
+                    parent_identity=parent_identity,
+                    directory_identity=backup_identity,
+                )
+            except BaseException as exc:
                 # At this point either the new generation was committed or
                 # the original exception is already propagating.  Backup
                 # cleanup must not turn a valid visible generation into a
@@ -629,6 +973,9 @@ class EnsembleResult:
     plan_path: str | None = None
     mix_report_path: str | None = None
     mix_report: dict[str, Any] | None = None
+    post_render_check_path: str | None = None
+    post_render_check: dict[str, Any] | None = None
+    post_render_check_summary: dict[str, Any] | None = None
     collaboration_mode: str = "manual"
     receipt_path: str | None = None
     license_sidecar_path: str | None = None
@@ -663,6 +1010,12 @@ class EnsembleResult:
             data["mix_report_path"] = self.mix_report_path
         if self.mix_report is not None:
             data["mix_report"] = self.mix_report
+        if self.post_render_check_path is not None:
+            data["post_render_check_path"] = self.post_render_check_path
+        if self.post_render_check is not None:
+            data["post_render_check"] = self.post_render_check
+        if self.post_render_check_summary is not None:
+            data["post_render_check_summary"] = self.post_render_check_summary
         data["collaboration_mode"] = self.collaboration_mode
         if self.receipt_path is not None:
             data["receipt_path"] = self.receipt_path
@@ -1160,6 +1513,9 @@ def _render_plan_generation(
     stem_cache_directory: str | Path | None = None,
     refresh_stem_cache: bool = False,
     analysis_cache_directory: str | Path | None = None,
+    _authoring_project_binding: dict[str, str] | None = None,
+    _authoring_workflow_binding: dict[str, Any] | None = None,
+    _progress_callback: Callable[[str, int, int], None] | None = None,
 ) -> EnsembleResult:
     """Render every executor to a stem and sum them into one mix.
 
@@ -1283,8 +1639,11 @@ def _render_plan_generation(
     analysis_cache_summary: dict[str, Any] | None = None
 
     render_loop_completed = False
+    render_part_total = max(1, len(plan.parts))
+    if _progress_callback is not None:
+        _progress_callback("render_parts", 0, render_part_total)
     try:
-        for part in plan.parts:
+        for part_index, part in enumerate(plan.parts):
             if stem_cache is None or stem_cache_summary is None:
                 buffer, peak_voices, manifest_sha256 = _render_part(
                     part,
@@ -1335,8 +1694,8 @@ def _render_plan_generation(
                 mix_report_builder.add_stem(part.executor, buffer)
             stem_path: str | None = None
             if write_stems:
-                target = (
-                    stem_directory / f"{part.executor.executor_id}.wav"
+                target = stem_directory / portable_stem_filename(
+                    part.executor.executor_id
                 )
                 write_wav_pcm24(
                     target,
@@ -1386,6 +1745,12 @@ def _render_plan_generation(
                     ),
                 )
             )
+            if _progress_callback is not None:
+                _progress_callback(
+                    "render_parts",
+                    part_index + 1,
+                    render_part_total,
+                )
         render_loop_completed = True
     finally:
         if (
@@ -1395,6 +1760,9 @@ def _render_plan_generation(
             mix_report_builder.close()
     if stem_cache_summary is not None:
         _finalize_stem_cache_summary(stem_cache_summary)
+
+    if _progress_callback is not None:
+        _progress_callback("mix", 0, 1)
 
     # Finish dry-stem diagnostics before allocating/processing the shared
     # hall.  The builder closes and deletes its relation memmaps in build(),
@@ -1507,6 +1875,12 @@ def _render_plan_generation(
         ((float(row[0]), float(row[1])) for row in bus),
         plan.sample_rate,
     )
+    if _progress_callback is not None:
+        _progress_callback("mix", 1, 1)
+    # Bind the exact writer output before any downstream reader sees it.  The
+    # post-render checker is specified as read-only; keeping this digest lets
+    # the orchestration layer fail closed if that invariant ever regresses.
+    mix_sha256 = _sha256_file(mix_path)
 
     stem_receipts: list[dict[str, Any]] = []
     instrument_uses: list[InstrumentUse] = []
@@ -1597,6 +1971,52 @@ def _render_plan_generation(
         audio_artifacts=audio_artifacts,
     )
 
+    post_render_check_path = directory / POST_RENDER_CHECK_NAME
+    if _progress_callback is not None:
+        _progress_callback("post_check", 0, 1)
+    post_render_check_report = analyze_rendered_wav(
+        mix_path,
+        artifact_path=mix_path.relative_to(directory).as_posix(),
+        expected_sample_rate=plan.sample_rate,
+        expected_frame_count=frame_count,
+        expected_activity=_plan_has_explicit_expected_activity(plan),
+        plan_sha256=plan_sha256,
+    )
+    if _sha256_file(mix_path) != mix_sha256:
+        raise RuntimeError("渲染后自检不得修改已经写出的合奏音频")
+    try:
+        require_post_render_check_pass(post_render_check_report)
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError(f"渲染后自检未通过: {exc}") from exc
+    post_render_check_summary = post_render_check_report.get("summary")
+    if not isinstance(post_render_check_summary, dict):  # defensive typing
+        raise RuntimeError("渲染后自检缺少 summary 对象")
+    write_post_render_check(
+        post_render_check_path,
+        post_render_check_report,
+    )
+    if _progress_callback is not None:
+        _progress_callback("post_check", 1, 1)
+
+    authoring_binding = _authoring_project_receipt_binding(
+        _authoring_project_binding
+    )
+    workflow_binding = validate_workflow_authorization(
+        _authoring_workflow_binding
+    )
+    if workflow_binding is not None:
+        if authoring_binding is None:
+            raise ValueError(
+                "authoring workflow binding requires an authoring project binding"
+            )
+        if (
+            workflow_binding["project_id"] != authoring_binding["project_id"]
+            or workflow_binding["authoring_revision"]
+            != authoring_binding["revision"]
+        ):
+            raise ValueError(
+                "authoring workflow and project bindings disagree"
+            )
     receipt_path = directory / RENDER_RECEIPT_NAME
     receipt: dict[str, Any] = {
         "format": "tianlai.render_receipt",
@@ -1645,7 +2065,7 @@ def _render_plan_generation(
         ),
         "mix": {
             "path": mix_path.relative_to(directory).as_posix(),
-            "sha256": _sha256_file(mix_path),
+            "sha256": mix_sha256,
             "peak": mix_peak,
             "frame_count": frame_count,
         },
@@ -1658,7 +2078,17 @@ def _render_plan_generation(
             "path": attribution_path.relative_to(directory).as_posix(),
             "sha256": license_sidecars.text_sha256,
         },
+        "post_render_check": {
+            "path": post_render_check_path.relative_to(directory).as_posix(),
+            "sha256": _sha256_file(post_render_check_path),
+            "format": post_render_check_report["format"],
+            "version": post_render_check_report["version"],
+        },
     }
+    if authoring_binding is not None:
+        receipt["authoring_project"] = authoring_binding
+    if workflow_binding is not None:
+        receipt["authoring_workflow"] = workflow_binding
     if mix_report_path is not None and mix_report is not None:
         receipt["mix_report"] = {
             "path": mix_report_path.relative_to(directory).as_posix(),
@@ -1710,6 +2140,9 @@ def _render_plan_generation(
             str(mix_report_path) if mix_report_path is not None else None
         ),
         mix_report=mix_report,
+        post_render_check_path=str(post_render_check_path),
+        post_render_check=post_render_check_report,
+        post_render_check_summary=post_render_check_summary,
         collaboration_mode=collaboration.mode,
         receipt_path=str(receipt_path),
         license_sidecar_path=str(license_sidecar_path),
@@ -1736,16 +2169,18 @@ def _render_plan_locked(
     stem_cache_directory: str | Path | None = None,
     refresh_stem_cache: bool = False,
     analysis_cache_directory: str | Path | None = None,
+    _authoring_project_binding: dict[str, str] | None = None,
+    _authoring_workflow_binding: dict[str, Any] | None = None,
+    _progress_callback: Callable[[str, int, int], None] | None = None,
 ) -> EnsembleResult:
     final_directory = Path(output_directory)
     parent = final_directory.parent
     parent.mkdir(parents=True, exist_ok=True)
+    parent_identity = capture_plain_directory(parent)
     staging_prefix = f".{final_directory.name}.render-stage."
-    with tempfile.TemporaryDirectory(
-        dir=parent,
-        prefix=staging_prefix,
-    ) as temporary_name:
-        staging = Path(temporary_name)
+    staging = Path(tempfile.mkdtemp(dir=parent, prefix=staging_prefix))
+    staging_identity = capture_plain_directory(staging)
+    try:
         staged = _render_plan_generation(
             plan,
             staging,
@@ -1757,6 +2192,9 @@ def _render_plan_locked(
             stem_cache_directory=stem_cache_directory,
             refresh_stem_cache=refresh_stem_cache,
             analysis_cache_directory=analysis_cache_directory,
+            _authoring_project_binding=_authoring_project_binding,
+            _authoring_workflow_binding=_authoring_workflow_binding,
+            _progress_callback=_progress_callback,
         )
         _verify_render_generation(staging)
         published_stems = tuple(
@@ -1783,6 +2221,9 @@ def _render_plan_locked(
                 if staged.mix_report_path is not None
                 else None
             ),
+            post_render_check_path=str(
+                final_directory / POST_RENDER_CHECK_NAME
+            ),
             receipt_path=str(final_directory / RENDER_RECEIPT_NAME),
             license_sidecar_path=str(
                 final_directory / ENSEMBLE_LICENSE_SIDECAR_NAME
@@ -1796,8 +2237,26 @@ def _render_plan_locked(
                 else None
             ),
         )
+        if _progress_callback is not None:
+            _progress_callback("publish", 0, 1)
         _publish_render_artifacts(staging, final_directory)
+        if _progress_callback is not None:
+            _progress_callback("publish", 1, 1)
         return published
+    finally:
+        try:
+            _remove_private_render_directory(
+                staging,
+                parent,
+                staging_prefix,
+                parent_identity=parent_identity,
+                directory_identity=staging_identity,
+            )
+        except BaseException as exc:
+            _warn_preserved_render_directory(
+                f"渲染私有暂存目录无法退出活跃命名空间 "
+                f"{staging}: {exc}"
+            )
 
 
 def render_plan(
@@ -1813,6 +2272,9 @@ def render_plan(
     refresh_stem_cache: bool = False,
     analysis_cache_directory: str | Path | None = None,
     _acquire_output_lock: bool = True,
+    _authoring_project_binding: dict[str, str] | None = None,
+    _authoring_workflow_binding: dict[str, Any] | None = None,
+    _progress_callback: Callable[[str, int, int], None] | None = None,
 ) -> EnsembleResult:
     """Render and publish one self-verified generation under exclusive ownership.
 
@@ -1839,6 +2301,26 @@ def render_plan(
         raise ValueError("refresh_stem_cache 必须是布尔值")
     if not isinstance(_acquire_output_lock, bool):
         raise ValueError("_acquire_output_lock 必须是布尔值")
+    normalized_authoring_binding = _authoring_project_receipt_binding(
+        _authoring_project_binding
+    )
+    normalized_workflow_binding = validate_workflow_authorization(
+        _authoring_workflow_binding
+    )
+    if normalized_workflow_binding is not None:
+        if normalized_authoring_binding is None:
+            raise ValueError(
+                "authoring workflow binding requires an authoring project binding"
+            )
+        if (
+            normalized_workflow_binding["project_id"]
+            != normalized_authoring_binding["project_id"]
+            or normalized_workflow_binding["authoring_revision"]
+            != normalized_authoring_binding["revision"]
+        ):
+            raise ValueError(
+                "authoring workflow and project bindings disagree"
+            )
     # This gate runs before the lock creates its parent directory and before
     # NumPy allocates a full-length mix bus.  Validation and rendering therefore
     # agree on the same finite, bounded operational contract.
@@ -1858,6 +2340,9 @@ def render_plan(
         "stem_cache_directory": stem_cache_directory,
         "refresh_stem_cache": refresh_stem_cache,
         "analysis_cache_directory": analysis_cache_directory,
+        "_authoring_project_binding": normalized_authoring_binding,
+        "_authoring_workflow_binding": normalized_workflow_binding,
+        "_progress_callback": _progress_callback,
     }
     if not _acquire_output_lock:
         # Immutable-candidate publication already owns the stable final

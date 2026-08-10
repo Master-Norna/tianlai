@@ -20,7 +20,7 @@
       "const": "tianlai.candidate"
     },
     "version": {
-      "const": 1
+      "enum": [1, 2]
     },
     "candidate_id": {
       "type": "string",
@@ -35,7 +35,9 @@
     },
     "created_at_utc": {
       "type": "string",
-      "format": "date-time"
+      "format": "date-time",
+      "maxLength": 64,
+      "pattern": "^[^\\u0000-\\u001F\\u007F]+$"
     },
     "parent_candidate_id": {
       "type": ["string", "null"]
@@ -77,6 +79,116 @@
       },
       "additionalProperties": false
     },
+    "authoring_project": {
+      "type": "object",
+      "required": ["project_id", "revision", "authoring_roster"],
+      "properties": {
+        "project_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{32}$"
+        },
+        "revision": {
+          "$ref": "#/$defs/sha256"
+        },
+        "authoring_roster": {
+          "type": "object",
+          "required": ["path", "canonical_sha256", "file_sha256"],
+          "properties": {
+            "path": { "const": "authoring-roster.json" },
+            "canonical_sha256": { "$ref": "#/$defs/sha256" },
+            "file_sha256": { "$ref": "#/$defs/sha256" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "authoring_workflow": {
+      "type": "object",
+      "required": [
+        "workflow_id",
+        "project_id",
+        "reservation_revision",
+        "iteration_number",
+        "operation_id",
+        "authoring_revision",
+        "candidate_work_id",
+        "candidate_id",
+        "parent_work_id",
+        "parent_candidate_id",
+        "parent_manifest_sha256"
+      ],
+      "properties": {
+        "workflow_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{32}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{32}$"
+        },
+        "reservation_revision": {
+          "$ref": "#/$defs/sha256"
+        },
+        "iteration_number": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 256
+        },
+        "operation_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{32}$"
+        },
+        "authoring_revision": {
+          "$ref": "#/$defs/sha256"
+        },
+        "candidate_work_id": {
+          "$ref": "#/$defs/workflowCandidateId"
+        },
+        "candidate_id": {
+          "$ref": "#/$defs/workflowCandidateId"
+        },
+        "parent_work_id": {
+          "oneOf": [
+            { "$ref": "#/$defs/workflowCandidateId" },
+            { "type": "null" }
+          ]
+        },
+        "parent_candidate_id": {
+          "oneOf": [
+            { "$ref": "#/$defs/workflowCandidateId" },
+            { "type": "null" }
+          ]
+        },
+        "parent_manifest_sha256": {
+          "oneOf": [
+            { "$ref": "#/$defs/sha256" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": { "parent_candidate_id": { "type": "null" } },
+            "required": ["parent_candidate_id"]
+          },
+          "then": {
+            "properties": {
+              "parent_work_id": { "type": "null" },
+              "parent_manifest_sha256": { "type": "null" }
+            }
+          },
+          "else": {
+            "properties": {
+              "parent_work_id": { "$ref": "#/$defs/workflowCandidateId" },
+              "parent_manifest_sha256": { "$ref": "#/$defs/sha256" }
+            }
+          }
+        }
+      ]
+    },
     "cache_telemetry": {
       "type": "object",
       "required": ["path", "sha256"],
@@ -92,10 +204,42 @@
     }
   },
   "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": { "version": { "const": 2 } },
+        "required": ["version"]
+      },
+      "then": {
+        "properties": {
+          "created_at_utc": {
+            "pattern": "^[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])T(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]\\.[0-9]{3}Z$"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["authoring_workflow"]
+      },
+      "then": {
+        "required": ["authoring_project"],
+        "properties": {
+          "version": { "const": 2 }
+        }
+      }
+    }
+  ],
   "$defs": {
     "sha256": {
       "type": "string",
       "pattern": "^[0-9a-f]{64}$"
+    },
+    "workflowCandidateId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^(?!\\.{1,2}$)(?!.*[ .]$)[^<>:\"/\\\\|?*\\u0000-\\u001F\\u007F]+$"
     },
     "jsonBinding": {
       "type": "object",

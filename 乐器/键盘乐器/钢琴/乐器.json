@@ -14,9 +14,12 @@
   "hammer_rt_decay_db_per_second": 2.0,
   "string_resonance": 0.18,
   "resonance_velocity_exponent": 1.84,
+  "resonance_v3_velocity_exponent": 1.92,
+  "resonance_v3_rt_decay_db_per_second": 2.0,
   "pedal_noise": 0.12,
   "main_retrigger_release_seconds": 0.04,
   "sustain_threshold": 0.5,
+  "resampling_quality": "bandlimited",
   "quality_tier": "formal",
   "collaboration_review_status": "untested",
   "upgrade_status": "piano_dedicated_multisample",
@@ -26,9 +29,15 @@
   "upstream_version": "V3 48kHz 24bit",
   "license": "CC-BY-3.0",
   "creator": "Alexander Holm; SFZ remapping by kinwie",
-  "attribution": "Salamander Grand Piano v3 by Alexander Holm; SFZ remapping by kinwie. Licensed under CC BY 3.0.",
+  "attribution": "Salamander Grand Piano v3 by Alexander Holm; SFZ remapping by kinwie. CC BY 3.0: https://creativecommons.org/licenses/by/3.0/. Upstream FLAC files remain unmodified; Tianlai renders them through a custom sample map, C8 pitch declaration, performance state machine, and band-limited resampling.",
   "resource_verification": "资源核验.json",
   "pitch_calibration": "音准校准.json",
+  "pitch_calibration_include_globs": [
+    "Samples/*v[0-9]*.flac",
+    "Samples/harmS*.flac",
+    "Samples/harmL*.flac",
+    "Samples/harmV3*.flac"
+  ],
   "evidence_files": [
     "LICENSE",
     "README.md"

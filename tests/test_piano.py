@@ -46,6 +46,43 @@ class PianoInstrumentTests(unittest.TestCase):
         loaded = [region.sample.path.name for region in piano.main.regions if region.sample.frames is not None]
         self.assertEqual(loaded, ["A4v8.flac"])
 
+    def test_b7_and_c8_use_the_corrected_c8_source_zone(self) -> None:
+        piano = self._create_piano()
+        tuning = EqualTemperament(440.0)
+
+        for note_id, midi_note in enumerate((107.0, 108.0), start=1):
+            piano.handle_event(
+                PerformanceEvent(
+                    sample=note_id - 1,
+                    sequence=note_id - 1,
+                    type="note_on",
+                    payload={
+                        "note_id": note_id,
+                        "midi_note": midi_note,
+                        "velocity": 0.5,
+                    },
+                ),
+                tuning,
+            )
+            voice = piano.main.voices[note_id]
+            self.assertEqual(voice.region.path.name, "C8v8.flac")
+
+    def test_every_piano_sample_layer_uses_bandlimited_resampling(self) -> None:
+        piano = self._create_piano()
+        for name in (
+            "main",
+            "hammer",
+            "resonance",
+            "resonance_v3",
+            "pedal_down",
+            "pedal_up",
+        ):
+            with self.subTest(layer=name):
+                self.assertEqual(
+                    getattr(piano, name).resampling_quality,
+                    "bandlimited",
+                )
+
     def test_release_and_pedal_layers_are_triggered(self) -> None:
         piano = self._create_piano()
         tuning = EqualTemperament(440.0)
@@ -69,6 +106,7 @@ class PianoInstrumentTests(unittest.TestCase):
         )
         self.assertEqual(piano.hammer.active_voice_count, 1)
         self.assertEqual(piano.resonance.active_voice_count, 1)
+        self.assertEqual(piano.resonance_v3.active_voice_count, 1)
 
         piano.handle_event(
             PerformanceEvent(
@@ -164,6 +202,7 @@ class PianoInstrumentTests(unittest.TestCase):
         )
         self.assertEqual(piano.hammer.active_voice_count, 0)
         self.assertEqual(piano.resonance.active_voice_count, 0)
+        self.assertEqual(piano.resonance_v3.active_voice_count, 0)
 
         piano.handle_event(
             PerformanceEvent(
@@ -176,6 +215,7 @@ class PianoInstrumentTests(unittest.TestCase):
         )
         self.assertEqual(piano.hammer.active_voice_count, 1)
         self.assertEqual(piano.resonance.active_voice_count, 1)
+        self.assertEqual(piano.resonance_v3.active_voice_count, 1)
 
         # 重复发送同一踏板状态不应再次释放同一个音。
         piano.handle_event(
@@ -189,6 +229,102 @@ class PianoInstrumentTests(unittest.TestCase):
         )
         self.assertEqual(piano.hammer.active_voice_count, 1)
         self.assertEqual(piano.resonance.active_voice_count, 1)
+        self.assertEqual(piano.resonance_v3.active_voice_count, 1)
+
+    def test_sustain_same_key_restrike_does_not_emit_a_stale_release(self) -> None:
+        piano = self._create_piano()
+        tuning = EqualTemperament(440.0)
+
+        piano.handle_event(
+            PerformanceEvent(
+                0,
+                0,
+                "note_on",
+                {"note_id": 1, "midi_note": 60.0, "velocity": 0.6},
+            ),
+            tuning,
+        )
+        piano.handle_event(
+            PerformanceEvent(
+                100,
+                1,
+                "control",
+                {"name": "sustain_pedal", "value": 1.0},
+            ),
+            tuning,
+        )
+        piano.handle_event(
+            PerformanceEvent(
+                200,
+                2,
+                "note_off",
+                {"note_id": 1, "release_velocity": 0.5},
+            ),
+            tuning,
+        )
+        self.assertIn(1, piano.deferred_releases)
+
+        piano.handle_event(
+            PerformanceEvent(
+                300,
+                3,
+                "note_on",
+                {"note_id": 2, "midi_note": 60.0, "velocity": 0.7},
+            ),
+            tuning,
+        )
+        self.assertNotIn(1, piano.deferred_releases)
+
+        # Releasing the pedal while the replacement strike is still held
+        # must not play the old key cycle's hammer/string release layers.
+        piano.handle_event(
+            PerformanceEvent(
+                400,
+                4,
+                "control",
+                {"name": "sustain_pedal", "value": 0.0},
+            ),
+            tuning,
+        )
+        self.assertEqual(piano.hammer.active_voice_count, 0)
+        self.assertEqual(piano.resonance.active_voice_count, 0)
+        self.assertEqual(piano.resonance_v3.active_voice_count, 0)
+
+        piano.handle_event(
+            PerformanceEvent(
+                500,
+                5,
+                "note_off",
+                {"note_id": 2, "release_velocity": 0.5},
+            ),
+            tuning,
+        )
+        self.assertEqual(piano.hammer.active_voice_count, 1)
+        self.assertEqual(piano.resonance.active_voice_count, 1)
+        self.assertEqual(piano.resonance_v3.active_voice_count, 1)
+        release_voices = (
+            next(iter(piano.hammer.voices.values())),
+            next(iter(piano.resonance.voices.values())),
+            next(iter(piano.resonance_v3.voices.values())),
+        )
+
+        # A duplicate note_off no longer owns a held note and therefore must
+        # not restart any one-shot release sample.
+        piano.handle_event(
+            PerformanceEvent(
+                600,
+                6,
+                "note_off",
+                {"note_id": 2, "release_velocity": 0.5},
+            ),
+            tuning,
+        )
+        self.assertIs(next(iter(piano.hammer.voices.values())), release_voices[0])
+        self.assertIs(next(iter(piano.resonance.voices.values())), release_voices[1])
+        self.assertIs(
+            next(iter(piano.resonance_v3.voices.values())),
+            release_voices[2],
+        )
 
     def test_notes_above_resonance_mapping_only_trigger_hammer_release(self) -> None:
         piano = self._create_piano()
@@ -213,6 +349,7 @@ class PianoInstrumentTests(unittest.TestCase):
         )
         self.assertEqual(piano.hammer.active_voice_count, 1)
         self.assertEqual(piano.resonance.active_voice_count, 0)
+        self.assertEqual(piano.resonance_v3.active_voice_count, 0)
 
     def test_release_layers_limit_same_pitch_polyphony_but_keep_other_pitches(
         self,
@@ -248,10 +385,12 @@ class PianoInstrumentTests(unittest.TestCase):
         release(2, 60.0, 480)
         self.assertEqual(piano.hammer.active_voice_count, 1)
         self.assertEqual(piano.resonance.active_voice_count, 1)
+        self.assertEqual(piano.resonance_v3.active_voice_count, 1)
 
         release(3, 62.0, 960)
         self.assertEqual(piano.hammer.active_voice_count, 2)
         self.assertEqual(piano.resonance.active_voice_count, 2)
+        self.assertEqual(piano.resonance_v3.active_voice_count, 2)
 
     def test_same_key_retrigger_damps_the_previous_main_voice_only(self) -> None:
         piano = self._create_piano()
@@ -321,6 +460,43 @@ class PianoInstrumentTests(unittest.TestCase):
 
         short = hammer_amplitude(0.1)
         long = hammer_amplitude(2.0)
+        expected_ratio = 10.0 ** (-(2.0 - 0.1) * 2.0 / 20.0)
+        self.assertLess(long, short)
+        self.assertAlmostEqual(long / short, expected_ratio, delta=0.03)
+
+    def test_v3_release_uses_upstream_velocity_curve_and_hold_decay(self) -> None:
+        tuning = EqualTemperament(440.0)
+
+        def v3_amplitude(velocity: float, hold_seconds: float) -> float:
+            piano = self._create_piano()
+            self.assertAlmostEqual(piano.resonance_v3.velocity_exponent, 1.92)
+            piano.handle_event(
+                PerformanceEvent(
+                    0,
+                    0,
+                    "note_on",
+                    {"note_id": 1, "midi_note": 60.0, "velocity": velocity},
+                ),
+                tuning,
+            )
+            piano.handle_event(
+                PerformanceEvent(
+                    round(hold_seconds * SAMPLE_RATE),
+                    1,
+                    "note_off",
+                    {"note_id": 1, "release_velocity": 0.5},
+                ),
+                tuning,
+            )
+            self.assertEqual(piano.resonance_v3.active_voice_count, 1)
+            return next(iter(piano.resonance_v3.voices.values())).amplitude
+
+        soft = v3_amplitude(0.4, 0.1)
+        loud = v3_amplitude(0.8, 0.1)
+        self.assertAlmostEqual(loud / soft, (0.8 / 0.4) ** 1.92, delta=0.03)
+
+        short = v3_amplitude(0.7, 0.1)
+        long = v3_amplitude(0.7, 2.0)
         expected_ratio = 10.0 ** (-(2.0 - 0.1) * 2.0 / 20.0)
         self.assertLess(long, short)
         self.assertAlmostEqual(long / short, expected_ratio, delta=0.03)

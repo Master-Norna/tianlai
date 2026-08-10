@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 from pathlib import Path
 import runpy
 import tempfile
@@ -11,6 +12,9 @@ import pytest
 
 from tianlai.analysis import analyze_instrument_pitch
 from tianlai.dedicated_candidates import dedicated_manifest_sources
+from tianlai.dedicated_sfz import DedicatedSfzInstrument
+from tianlai.events import PerformanceEvent
+from tianlai.tuning import EqualTemperament
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -55,6 +59,90 @@ class HarpsichordAuditTests(unittest.TestCase):
                 f"missing: {', '.join(str(path) for path in missing)}"
             )
         cls.inventory = dedicated_manifest_sources(MANIFEST)
+
+    @classmethod
+    def _render_registration_probe_sequence(
+        cls,
+        articulation: str,
+    ) -> tuple[
+        list[tuple[float, float]],
+        list[tuple[range, range]],
+        list[tuple[int, ...]],
+    ]:
+        """Render the same low/middle/high attack and release probes."""
+
+        sample_rate = 48_000
+        instrument = DedicatedSfzInstrument(
+            sample_rate,
+            cls.manifest,
+            str(MANIFEST.parent),
+        )
+        tuning = EqualTemperament()
+        instrument.handle_event(
+            PerformanceEvent(
+                0,
+                0,
+                "articulation",
+                {"name": articulation},
+            ),
+            tuning,
+        )
+
+        frames: list[tuple[float, float]] = []
+        spans: list[tuple[range, range]] = []
+        release_voice_counts: list[tuple[int, ...]] = []
+        current_sample = 0
+        attack_frames = 2_048
+        release_frames = 4_096
+        for sequence, midi_note in enumerate((29, 56, 84), start=1):
+            note_id = 10_000 + sequence
+            instrument.handle_event(
+                PerformanceEvent(
+                    current_sample,
+                    sequence * 2 - 1,
+                    "note_on",
+                    {
+                        "note_id": note_id,
+                        "midi_note": midi_note,
+                        "velocity": 0.72,
+                    },
+                ),
+                tuning,
+            )
+            attack_start = len(frames)
+            for _ in range(attack_frames):
+                frames.append(instrument.render_frame())
+                current_sample += 1
+            attack_stop = len(frames)
+
+            instrument.handle_event(
+                PerformanceEvent(
+                    current_sample,
+                    sequence * 2,
+                    "note_off",
+                    {"note_id": note_id},
+                ),
+                tuning,
+            )
+            runtime = instrument.articulations[articulation]
+            release_voice_counts.append(
+                tuple(
+                    layer.engine.active_voice_count
+                    for layer in runtime.release_layers
+                )
+            )
+            release_start = len(frames)
+            for _ in range(release_frames):
+                frames.append(instrument.render_frame())
+                current_sample += 1
+            release_stop = len(frames)
+            spans.append(
+                (
+                    range(attack_start, attack_stop),
+                    range(release_start, release_stop),
+                )
+            )
+        return frames, spans, release_voice_counts
 
     def test_release_tag_cc0_and_frozen_hashes_are_consistent(self) -> None:
         self.assertEqual(self.manifest["upstream_version"], "1.2.2-RC")
@@ -118,6 +206,136 @@ class HarpsichordAuditTests(unittest.TestCase):
                             {"/Releases/Low/" in p for p in release_paths},
                             {False, True},
                         )
+
+    def test_every_attack_and_release_layer_is_bound_to_bandlimited_resampling(
+        self,
+    ) -> None:
+        self.assertEqual(self.manifest["resampling_quality"], "bandlimited")
+        self.assertEqual(self.manifest["gain"], 0.8)
+        instrument = DedicatedSfzInstrument(
+            48_000,
+            self.manifest,
+            str(MANIFEST.parent),
+        )
+        expected_layer_counts = {
+            "full": (2, 2),
+            "eight_foot": (1, 1),
+            "four_foot": (1, 1),
+        }
+        for articulation, (attack_count, release_count) in expected_layer_counts.items():
+            with self.subTest(articulation=articulation):
+                runtime = instrument.articulations[articulation]
+                self.assertEqual(len(runtime.attack_layers), attack_count)
+                self.assertEqual(len(runtime.release_layers), release_count)
+                for layer in (*runtime.attack_layers, *runtime.release_layers):
+                    self.assertEqual(
+                        layer.engine.resampling_quality,
+                        "bandlimited",
+                    )
+
+    def test_full_registration_equals_eight_plus_four_foot_during_attack_and_release(
+        self,
+    ) -> None:
+        full, spans, full_release_counts = (
+            self._render_registration_probe_sequence("full")
+        )
+        eight, eight_spans, eight_release_counts = (
+            self._render_registration_probe_sequence("eight_foot")
+        )
+        four, four_spans, four_release_counts = (
+            self._render_registration_probe_sequence("four_foot")
+        )
+        self.assertEqual(spans, eight_spans)
+        self.assertEqual(spans, four_spans)
+        self.assertEqual(len(full), len(eight))
+        self.assertEqual(len(full), len(four))
+
+        for probe_index, midi_note in enumerate((29, 56, 84)):
+            with self.subTest(midi_note=midi_note):
+                expected_active_releases = probe_index + 1
+                self.assertEqual(
+                    full_release_counts[probe_index],
+                    (expected_active_releases, expected_active_releases),
+                )
+                self.assertEqual(
+                    eight_release_counts[probe_index],
+                    (expected_active_releases,),
+                )
+                self.assertEqual(
+                    four_release_counts[probe_index],
+                    (expected_active_releases,),
+                )
+
+                attack_span, release_span = spans[probe_index]
+                for phase, indices in (
+                    ("attack", attack_span),
+                    ("release", release_span),
+                ):
+                    maximum_difference = max(
+                        abs(
+                            full[index][channel]
+                            - (eight[index][channel] + four[index][channel])
+                        )
+                        for index in indices
+                        for channel in (0, 1)
+                    )
+                    self.assertLessEqual(
+                        maximum_difference,
+                        1.0e-12,
+                        f"{midi_note=} {phase=}",
+                    )
+
+    def test_full_ten_note_maximum_velocity_chord_keeps_render_headroom(
+        self,
+    ) -> None:
+        instrument = DedicatedSfzInstrument(
+            48_000,
+            self.manifest,
+            str(MANIFEST.parent),
+        )
+        tuning = EqualTemperament()
+        instrument.handle_event(
+            PerformanceEvent(0, 0, "articulation", {"name": "full"}),
+            tuning,
+        )
+        notes = (36, 43, 48, 52, 55, 60, 64, 67, 72, 76)
+        for note_id, midi_note in enumerate(notes, start=1):
+            instrument.handle_event(
+                PerformanceEvent(
+                    0,
+                    note_id,
+                    "note_on",
+                    {
+                        "note_id": note_id,
+                        "midi_note": midi_note,
+                        "velocity": 1.0,
+                    },
+                ),
+                tuning,
+            )
+
+        peak = 0.0
+        for _ in range(9_600):
+            frame = instrument.render_frame()
+            self.assertTrue(all(math.isfinite(channel) for channel in frame))
+            peak = max(peak, *(abs(channel) for channel in frame))
+        for note_id in range(1, len(notes) + 1):
+            instrument.handle_event(
+                PerformanceEvent(
+                    9_600,
+                    20 + note_id,
+                    "note_off",
+                    {"note_id": note_id},
+                ),
+                tuning,
+            )
+        for _ in range(9_600):
+            frame = instrument.render_frame()
+            self.assertTrue(all(math.isfinite(channel) for channel in frame))
+            peak = max(peak, *(abs(channel) for channel in frame))
+
+        self.assertGreater(peak, 0.1)
+        self.assertLess(peak, 0.90)
 
     def test_register_aware_calibration_is_reproducible(self) -> None:
         namespace = runpy.run_path(str(CALIBRATION_SCRIPT))

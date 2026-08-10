@@ -1,0 +1,169 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tianlai.local/schemas/project-review.schema.json",
+  "title": "Tianlai Creator-Owned Project Review",
+  "type": "object",
+  "required": [
+    "$schema",
+    "kind",
+    "schema_version",
+    "status",
+    "review_recommended",
+    "continuation_allowed",
+    "blocking_count",
+    "review_count",
+    "advisory_count",
+    "item_counts",
+    "items",
+    "items_truncated",
+    "policy"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "https://tianlai.local/schemas/project-review.schema.json"
+    },
+    "kind": { "const": "tianlai.project_review" },
+    "schema_version": { "const": 1 },
+    "status": {
+      "enum": ["clear", "informational", "review_recommended"]
+    },
+    "review_recommended": { "type": "boolean" },
+    "continuation_allowed": { "const": true },
+    "blocking_count": { "const": 0 },
+    "review_count": { "type": "integer", "minimum": 0 },
+    "advisory_count": { "type": "integer", "minimum": 0 },
+    "item_counts": {
+      "type": "object",
+      "properties": {
+        "warning": { "type": "integer", "minimum": 0 },
+        "info": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "items": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/reviewItem" }
+    },
+    "items_truncated": { "type": "boolean" },
+    "policy": {
+      "type": "object",
+      "required": [
+        "hard_contracts_reported_separately",
+        "review_findings_block_render",
+        "automatic_score_changes",
+        "automatic_audio_changes",
+        "generic_force_override"
+      ],
+      "properties": {
+        "hard_contracts_reported_separately": { "const": true },
+        "review_findings_block_render": { "const": false },
+        "automatic_score_changes": { "const": false },
+        "automatic_audio_changes": { "const": false },
+        "generic_force_override": { "const": false }
+      },
+      "additionalProperties": false
+    },
+    "binding": {
+      "type": "object",
+      "properties": {
+        "score_sha256": { "$ref": "#/$defs/sha256" },
+        "roster_sha256": { "$ref": "#/$defs/sha256" },
+        "plan_input_sha256": { "$ref": "#/$defs/sha256" },
+        "performance_plan_sha256": { "$ref": "#/$defs/sha256" }
+      },
+      "additionalProperties": false
+    },
+    "diagnostics": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "reviewItem": {
+      "type": "object",
+      "required": [
+        "id",
+        "level",
+        "decision",
+        "blocking",
+        "code",
+        "stage",
+        "basis",
+        "confidence",
+        "gate",
+        "scope",
+        "message",
+        "evidence",
+        "suggestions",
+        "override",
+        "automatic_change"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^selfcheck-[0-9a-f]{20}$"
+        },
+        "level": { "enum": ["warning", "info"] },
+        "decision": { "enum": ["review", "inform"] },
+        "blocking": { "const": false },
+        "code": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+(?:\\.[a-z0-9_]+)+$"
+        },
+        "stage": {
+          "type": "string",
+          "minLength": 1
+        },
+        "basis": {
+          "type": "string",
+          "minLength": 1
+        },
+        "confidence": {
+          "enum": ["low", "medium", "high"]
+        },
+        "gate": { "const": "none" },
+        "scope": { "type": "object" },
+        "message": { "type": "string", "minLength": 1 },
+        "evidence": { "type": "object" },
+        "suggestions": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "override": {
+          "type": "object",
+          "required": ["mode"],
+          "properties": {
+            "mode": { "const": "not_needed" }
+          },
+          "additionalProperties": false
+        },
+        "automatic_change": { "const": false }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "level": { "const": "warning" } },
+            "required": ["level"]
+          },
+          "then": {
+            "properties": { "decision": { "const": "review" } }
+          }
+        },
+        {
+          "if": {
+            "properties": { "level": { "const": "info" } },
+            "required": ["level"]
+          },
+          "then": {
+            "properties": { "decision": { "const": "inform" } }
+          }
+        }
+      ],
+      "additionalProperties": false
+    }
+  }
+}

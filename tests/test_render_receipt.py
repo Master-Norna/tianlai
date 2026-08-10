@@ -129,6 +129,53 @@ class RenderReceiptTests(unittest.TestCase):
         with patch("tianlai.ensemble._render_part", return_value=fake_result):
             return render_plan(self.plan, directory, **kwargs)
 
+    def test_expected_activity_requires_an_explicit_positive_note_on(self) -> None:
+        self.assertFalse(
+            ensemble_module._plan_has_explicit_expected_activity(self.plan)
+        )
+        self.plan.parts[0].performance = {
+            "events": [
+                {
+                    "type": "note_on",
+                    "note_id": 1,
+                    "midi_note": 60,
+                }
+            ]
+        }
+        self.assertFalse(
+            ensemble_module._plan_has_explicit_expected_activity(self.plan)
+        )
+        self.plan.parts[0].performance["events"][0]["velocity"] = 0.0
+        self.assertFalse(
+            ensemble_module._plan_has_explicit_expected_activity(self.plan)
+        )
+        self.plan.parts[0].performance["events"][0]["velocity"] = 0.7
+        self.assertTrue(
+            ensemble_module._plan_has_explicit_expected_activity(self.plan)
+        )
+
+    def test_explicit_activity_with_exact_silence_fails_before_publication(
+        self,
+    ) -> None:
+        self.plan.parts[0].performance = {
+            "events": [
+                {
+                    "type": "note_on",
+                    "note_id": 1,
+                    "midi_note": 60,
+                    "velocity": 0.7,
+                }
+            ]
+        }
+        self.buffer.fill(0.0)
+        directory = self.root / "expected-activity-silence"
+
+        with self.assertRaisesRegex(RuntimeError, "未通过"):
+            self._render(directory, write_stems=False)
+
+        self.assertFalse((directory / "渲染回执.json").exists())
+        self.assertFalse((directory / "渲染后自检.json").exists())
+
     def test_receipt_binds_plan_dsp_manifests_and_wavs(self) -> None:
         directory = self.root / "render"
         space = SpaceConfig(
@@ -155,7 +202,7 @@ class RenderReceiptTests(unittest.TestCase):
         self.assertEqual(result.receipt_path, str(receipt_path.resolve()))
         receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
         self.assertEqual(receipt["format"], "tianlai.render_receipt")
-        self.assertEqual(receipt["version"], 2)
+        self.assertEqual(receipt["version"], 3)
         plan_path = directory / "演奏计划.json"
         self.assertEqual(result.plan_path, str(plan_path.resolve()))
         self.assertEqual(receipt["performance_plan"]["path"], "演奏计划.json")
@@ -231,6 +278,30 @@ class RenderReceiptTests(unittest.TestCase):
                 "report_enabled": False,
             },
         )
+        self.assertFalse((directory / "混音诊断.json").exists())
+        post_render_check_path = directory / "渲染后自检.json"
+        self.assertEqual(
+            result.post_render_check_path,
+            str(post_render_check_path.resolve()),
+        )
+        self.assertEqual(
+            receipt["post_render_check"],
+            {
+                "path": "渲染后自检.json",
+                "sha256": _sha256(post_render_check_path),
+                "format": result.post_render_check["format"],
+                "version": result.post_render_check["version"],
+            },
+        )
+        post_render_check = json.loads(
+            post_render_check_path.read_text(encoding="utf-8")
+        )
+        self.assertEqual(post_render_check, result.post_render_check)
+        self.assertEqual(
+            post_render_check["summary"],
+            result.post_render_check_summary,
+        )
+        self.assertIs(post_render_check["summary"]["can_proceed"], True)
         self.assertEqual(receipt["normalize"]["requested_peak_dbfs"], -1.0)
         self.assertTrue(
             math.isfinite(receipt["normalize"]["applied_gain_db"])
@@ -358,6 +429,111 @@ class RenderReceiptTests(unittest.TestCase):
             (first / "许可与署名.txt").read_bytes(),
             (second / "许可与署名.txt").read_bytes(),
         )
+        self.assertEqual(
+            (first / "渲染后自检.json").read_bytes(),
+            (second / "渲染后自检.json").read_bytes(),
+        )
+
+    def test_legacy_v2_receipt_remains_verifiable_without_post_render_check(
+        self,
+    ) -> None:
+        directory = self.root / "legacy-v2"
+        self._render(directory)
+        receipt_path = directory / "渲染回执.json"
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+        receipt["version"] = 2
+        receipt.pop("post_render_check")
+        (directory / "渲染后自检.json").unlink()
+        receipt_path.write_text(
+            json.dumps(
+                receipt,
+                ensure_ascii=False,
+                sort_keys=True,
+                indent=2,
+                allow_nan=False,
+            )
+            + "\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+
+        ensemble_module.verify_render_generation(directory)
+
+    def test_v3_post_render_check_content_cannot_be_rebound_to_wrong_mix(
+        self,
+    ) -> None:
+        directory = self.root / "tampered-post-render-check"
+        self._render(directory)
+        report_path = directory / "渲染后自检.json"
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+        report["artifact"]["sha256"] = "0" * 64
+        report_path.write_text(
+            json.dumps(
+                report,
+                ensure_ascii=False,
+                sort_keys=True,
+                indent=2,
+                allow_nan=False,
+            )
+            + "\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        receipt_path = directory / "渲染回执.json"
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+        receipt["post_render_check"]["sha256"] = _sha256(report_path)
+        receipt_path.write_text(
+            json.dumps(
+                receipt,
+                ensure_ascii=False,
+                sort_keys=True,
+                indent=2,
+                allow_nan=False,
+            )
+            + "\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+
+        with self.assertRaisesRegex(RuntimeError, "当前合奏音频"):
+            ensemble_module.verify_render_generation(directory)
+
+    def test_v3_rejects_a_forged_post_render_summary(self) -> None:
+        directory = self.root / "forged-post-render-summary"
+        self._render(directory)
+        report_path = directory / "渲染后自检.json"
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+        report["summary"]["blocking_count"] = 1
+        report_path.write_text(
+            json.dumps(
+                report,
+                ensure_ascii=False,
+                sort_keys=True,
+                indent=2,
+                allow_nan=False,
+            )
+            + "\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        receipt_path = directory / "渲染回执.json"
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+        receipt["post_render_check"]["sha256"] = _sha256(report_path)
+        receipt_path.write_text(
+            json.dumps(
+                receipt,
+                ensure_ascii=False,
+                sort_keys=True,
+                indent=2,
+                allow_nan=False,
+            )
+            + "\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+
+        with self.assertRaisesRegex(RuntimeError, "结构无效"):
+            ensemble_module.verify_render_generation(directory)
 
     def test_nonfinite_inputs_fail_before_artifacts_are_created(self) -> None:
         cases = (
@@ -525,6 +701,77 @@ class RenderReceiptTests(unittest.TestCase):
         }
         self.assertEqual(after, before)
 
+    def test_post_render_analysis_failure_leaves_previous_generation_unchanged(
+        self,
+    ) -> None:
+        directory = self.root / "failed-post-render-analysis"
+        self._render(directory, write_stems=True)
+        before = {
+            path.relative_to(directory).as_posix(): _sha256(path)
+            for path in directory.rglob("*")
+            if path.is_file()
+        }
+        fake_result = (
+            self.buffer.copy() * 0.5,
+            1,
+            _sha256(self.manifest),
+        )
+        with (
+            patch("tianlai.ensemble._render_part", return_value=fake_result),
+            patch(
+                "tianlai.ensemble.analyze_rendered_wav",
+                side_effect=RuntimeError("simulated post-render failure"),
+            ),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "post-render failure"):
+                render_plan(self.plan, directory, write_stems=True)
+        after = {
+            path.relative_to(directory).as_posix(): _sha256(path)
+            for path in directory.rglob("*")
+            if path.is_file()
+        }
+        self.assertEqual(after, before)
+
+    def test_blocking_post_render_result_is_not_published(self) -> None:
+        directory = self.root / "blocked-post-render-result"
+        self._render(directory, write_stems=True)
+        before = {
+            path.relative_to(directory).as_posix(): _sha256(path)
+            for path in directory.rglob("*")
+            if path.is_file()
+        }
+        fake_result = (
+            self.buffer.copy() * 0.5,
+            1,
+            _sha256(self.manifest),
+        )
+        blocked_report = {
+            "format": ensemble_module.POST_RENDER_CHECK_FORMAT,
+            "version": ensemble_module.POST_RENDER_CHECK_VERSION,
+            "summary": {
+                "status": "blocked",
+                "can_proceed": False,
+                "blocking_count": 1,
+            },
+        }
+        with (
+            patch("tianlai.ensemble._render_part", return_value=fake_result),
+            patch(
+                "tianlai.ensemble.analyze_rendered_wav",
+                return_value=blocked_report,
+            ),
+            patch("tianlai.ensemble.write_post_render_check") as writer,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "未通过"):
+                render_plan(self.plan, directory, write_stems=True)
+            writer.assert_not_called()
+        after = {
+            path.relative_to(directory).as_posix(): _sha256(path)
+            for path in directory.rglob("*")
+            if path.is_file()
+        }
+        self.assertEqual(after, before)
+
     def test_successful_no_stems_rerender_removes_previous_stem_directory(
         self,
     ) -> None:
@@ -579,6 +826,51 @@ class RenderReceiptTests(unittest.TestCase):
             patch("tianlai.ensemble.os.replace", side_effect=replace_once),
         ):
             with self.assertRaisesRegex(OSError, "publish failure"):
+                render_plan(self.plan, directory, write_stems=True)
+        after = {
+            path.relative_to(directory).as_posix(): _sha256(path)
+            for path in directory.rglob("*")
+            if path.is_file()
+        }
+        self.assertEqual(after, before)
+
+    def test_post_render_check_publish_failure_rolls_back_previous_generation(
+        self,
+    ) -> None:
+        directory = self.root / "post-render-publish-rollback"
+        self._render(directory, write_stems=True)
+        before = {
+            path.relative_to(directory).as_posix(): _sha256(path)
+            for path in directory.rglob("*")
+            if path.is_file()
+        }
+        real_replace = __import__("os").replace
+        failed = False
+
+        def replace_once(source, target):
+            nonlocal failed
+            source_path = Path(source)
+            target_path = Path(target)
+            if (
+                not failed
+                and source_path.name == "渲染后自检.json"
+                and target_path.resolve(strict=False)
+                == (directory / "渲染后自检.json").resolve(strict=False)
+            ):
+                failed = True
+                raise OSError("simulated post-render publish failure")
+            return real_replace(source, target)
+
+        fake_result = (
+            self.buffer.copy() * 0.5,
+            1,
+            _sha256(self.manifest),
+        )
+        with (
+            patch("tianlai.ensemble._render_part", return_value=fake_result),
+            patch("tianlai.ensemble.os.replace", side_effect=replace_once),
+        ):
+            with self.assertRaisesRegex(OSError, "post-render publish failure"):
                 render_plan(self.plan, directory, write_stems=True)
         after = {
             path.relative_to(directory).as_posix(): _sha256(path)

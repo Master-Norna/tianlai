@@ -41,6 +41,8 @@ _INCLUDE = re.compile(r'#include\s+(?:"([^"]+)"|<([^>]+)>)')
 _TRIGGERS = frozenset(("attack", "release"))
 _LOOP_MODES = frozenset(("no_loop", "one_shot", "loop_continuous", "loop_sustain"))
 _PITCH_MODES = frozenset(("pitched", "fixed", "ignore"))
+_VELOCITY_CROSSFADE_CURVES = frozenset(("gain", "power"))
+_RESAMPLING_QUALITIES = frozenset(("linear", "bandlimited"))
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,22 +82,42 @@ class DedicatedSfzRegionMetadata:
     velocity_fade_in: tuple[float, float] | None
     velocity_fade_out: tuple[float, float] | None
     rt_decay_db_per_second: float | None
+    xf_velcurve: str = "power"
 
     def velocity_gain(self, velocity: float) -> float:
         midi_velocity = min(127.0, max(0.0, velocity * 127.0))
+
+        def curve(linear_gain: float) -> float:
+            if self.xf_velcurve == "power":
+                # SFZ's default velocity crossfade keeps the sum of the
+                # overlapping regions' squared amplitudes constant.  Each
+                # side therefore receives the square root of its normalized
+                # linear position.  ``gain`` deliberately retains the
+                # historical straight-amplitude crossfade.
+                return math.sqrt(linear_gain)
+            return linear_gain
+
         gain = 1.0
         if self.velocity_fade_in is not None:
             low, high = self.velocity_fade_in
             if high == low:
-                gain *= 1.0 if midi_velocity >= high else 0.0
+                linear_gain = 1.0 if midi_velocity >= high else 0.0
             else:
-                gain *= min(1.0, max(0.0, (midi_velocity - low) / (high - low)))
+                linear_gain = min(
+                    1.0,
+                    max(0.0, (midi_velocity - low) / (high - low)),
+                )
+            gain *= curve(linear_gain)
         if self.velocity_fade_out is not None:
             low, high = self.velocity_fade_out
             if high == low:
-                gain *= 1.0 if midi_velocity <= low else 0.0
+                linear_gain = 1.0 if midi_velocity <= low else 0.0
             else:
-                gain *= min(1.0, max(0.0, (high - midi_velocity) / (high - low)))
+                linear_gain = min(
+                    1.0,
+                    max(0.0, (high - midi_velocity) / (high - low)),
+                )
+            gain *= curve(linear_gain)
         return gain
 
 
@@ -705,6 +727,12 @@ def dedicated_regions_to_manifest(
             "xfout_hivel",
             region_index=region.index,
         )
+        xf_velcurve = values.get("xf_velcurve", "power").strip().lower()
+        if xf_velcurve not in _VELOCITY_CROSSFADE_CURVES:
+            raise ValueError(
+                f"SFZ region {region.index} has unsupported xf_velcurve "
+                f"{values.get('xf_velcurve')!r}: {source}"
+            )
         rt_decay = float(values["rt_decay"]) if "rt_decay" in values else None
         if rt_decay is not None and rt_decay < 0.0:
             raise ValueError(f"SFZ region {region.index} has negative rt_decay: {source}")
@@ -778,6 +806,7 @@ def dedicated_regions_to_manifest(
             off_time=(float(values["off_time"]) if "off_time" in values else None),
             velocity_fade_in=fade_in,
             velocity_fade_out=fade_out,
+            xf_velcurve=xf_velcurve,
             rt_decay_db_per_second=rt_decay,
         )
     if not converted and requested_trigger == "attack":
@@ -835,6 +864,17 @@ def _manifest_playable_ranges(
         ranges.append((low, high))
         previous_high = high
     return tuple(ranges)
+
+
+def _resampling_quality(value: object, *, context: str) -> str:
+    """Validate one explicit sampler quality without coercing foreign types."""
+
+    if not isinstance(value, str) or value not in _RESAMPLING_QUALITIES:
+        choices = ", ".join(sorted(_RESAMPLING_QUALITIES))
+        raise ValueError(
+            f"{context} resampling_quality must be one of {choices}"
+        )
+    return value
 
 
 def _articulation_envelope_override(
@@ -1034,6 +1074,7 @@ def _same_round_robin_family(
     return (
         first_metadata.velocity_fade_in == second_metadata.velocity_fade_in
         and first_metadata.velocity_fade_out == second_metadata.velocity_fade_out
+        and first_metadata.xf_velcurve == second_metadata.xf_velcurve
         and first_metadata.group == second_metadata.group
         and first_metadata.off_by == second_metadata.off_by
     )
@@ -1109,6 +1150,7 @@ def _round_robin_family_signature(
         float(region["velocity_max"]),
         runtime.velocity_fade_in,
         runtime.velocity_fade_out,
+        runtime.xf_velcurve,
         runtime.group,
         runtime.off_by,
     )
@@ -1199,7 +1241,8 @@ class DedicatedSfzInstrument(Instrument):
     * optional ``note_min``, ``note_max`` and disjoint ``playable_ranges``;
       plus ``default_articulation``, gains, envelope defaults, embedded-loop
       policy, expression smoothing, exact region exclusions and per-sample
-      gain corrections.
+      gain corrections. ``resampling_quality`` defaults to ``linear`` for
+      backwards compatibility and applies consistently to every articulation.
 
     Every SFZ/include/sample is validated at construction.  There is no
     SoundFont or General MIDI fallback path.
@@ -1306,6 +1349,10 @@ class DedicatedSfzInstrument(Instrument):
         default_gain = float(manifest.get("gain", 1.0))
         velocity_exponent = float(manifest.get("velocity_exponent", 1.0))
         release_seconds = float(manifest.get("release_seconds", 0.25))
+        default_resampling_quality = _resampling_quality(
+            manifest.get("resampling_quality", "linear"),
+            context="dedicated_sfz manifest",
+        )
         embedded_default = bool(manifest.get("use_embedded_loops", True))
         release_trigger_gain = float(manifest.get("release_trigger_gain", 1.0))
         sample_region_exclusions = _read_sample_region_exclusions(manifest)
@@ -1480,6 +1527,7 @@ class DedicatedSfzInstrument(Instrument):
                             "gain": layer_gain,
                             "velocity_exponent": articulation_velocity_exponent,
                             "release_seconds": layer_release_seconds,
+                            "resampling_quality": default_resampling_quality,
                         },
                         sample_rate,
                         base_directory=str(asset_root),

@@ -15,6 +15,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 INSTALLER = ROOT / "乐器" / "键盘乐器" / "钢琴" / "获取音源.ps1"
+MANIFEST = ROOT / "乐器" / "键盘乐器" / "钢琴" / "乐器.json"
 ASSET_ROOT = ROOT / "音源" / "钢琴" / "SalamanderGrandPiano"
 AUDIT_SCRIPT = ROOT / "乐器" / "键盘乐器" / "钢琴" / "核验资源.py"
 AUDIT_REPORT = ROOT / "乐器" / "键盘乐器" / "钢琴" / "资源核验.json"
@@ -189,14 +190,11 @@ class SalamanderInstallerTests(unittest.TestCase):
                 "README.md": README_SHA256.lower(),
             },
         )
-        self.assertEqual(report["sample_count"], 618)
-        self.assertEqual(report["sample_bytes"], 744_464_130)
+        self.assertEqual(report["sample_count"], FLAC_COUNT)
+        self.assertEqual(report["sample_bytes"], FLAC_BYTES)
         self.assertEqual(
             report["sample_set_sha256"],
-            (
-                "4e8451c71f7e1f6345f826d926688bbf"
-                "eb0f3eac88c6ae2b82a5fc83b55c7254"
-            ),
+            FLAC_SET_SHA256.lower(),
         )
 
         generator = AUDIT_SCRIPT.read_text(encoding="utf-8")
@@ -205,6 +203,19 @@ class SalamanderInstallerTests(unittest.TestCase):
             'evidence_files=("LICENSE", "README.md")',
             generator,
         )
+
+    def test_render_attribution_names_the_license_uri_and_runtime_changes(
+        self,
+    ) -> None:
+        manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+        attribution = manifest["attribution"]
+        self.assertIn(
+            "https://creativecommons.org/licenses/by/3.0/",
+            attribution,
+        )
+        self.assertIn("FLAC files remain unmodified", attribution)
+        self.assertIn("custom sample map", attribution)
+        self.assertIn("band-limited resampling", attribution)
 
     def test_stage_is_verified_before_atomic_switch_and_has_rollback(
         self,

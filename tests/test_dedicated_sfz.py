@@ -1309,10 +1309,22 @@ class DedicatedSfzInstrumentTests(unittest.TestCase):
             ]
             self.assertTrue(all(voice.attack_samples == 80 for voice in voices))
             self.assertTrue(all(voice.decay_samples == 160 for voice in voices))
-            # 输入力度 0.5 会先对齐到 SFZ 的整数力度网格(64/127),
-            # 等功率交叉渐变的振幅和因此等于对齐后的力度。
+            # The input first snaps to SFZ's integer velocity grid (64/127).
+            # ``xf_velcurve`` defaults to equal-power, so both midpoint gains
+            # are sqrt(1/2), not the historical linear 1/2.
+            snapped_velocity = round(0.5 * 127.0) / 127.0
+            self.assertTrue(
+                all(
+                    math.isclose(
+                        voice.amplitude,
+                        snapped_velocity / math.sqrt(2.0),
+                    )
+                    for voice in voices
+                )
+            )
             self.assertAlmostEqual(
-                sum(voice.amplitude for voice in voices), round(0.5 * 127.0) / 127.0
+                math.sqrt(sum(voice.amplitude**2 for voice in voices)),
+                snapped_velocity,
             )
             for _ in range(80):
                 instrument.render_frame()
@@ -1340,6 +1352,96 @@ class DedicatedSfzInstrumentTests(unittest.TestCase):
                 0.5 * 10.0 ** (-12.0 / 20.0),
                 places=7,
             )
+
+    def test_velocity_crossfade_curve_endpoints_midpoint_and_explicit_gain(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            directory = Path(temporary_directory)
+            samples = directory / "专用 音源"
+            write_constant_wav(samples / "soft.wav", 0.4, frame_count=4096)
+            write_constant_wav(samples / "hard.wav", 0.4, frame_count=4096)
+
+            def amplitudes(
+                curve: str | None,
+                velocity: float,
+            ) -> tuple[dict[str, float], set[str]]:
+                prefix = "" if curve is None else f"<global> xf_velcurve={curve}\n"
+                instrument = self._instrument(
+                    directory,
+                    prefix
+                    + "<region> sample=soft.wav key=60 "
+                    "xfout_lovel=32 xfout_hivel=96 loop_mode=one_shot\n"
+                    "<region> sample=hard.wav key=60 "
+                    "xfin_lovel=32 xfin_hivel=96 loop_mode=one_shot\n",
+                )
+                instrument.handle_event(
+                    event(
+                        "note_on",
+                        0,
+                        note_id=1,
+                        midi_note=60,
+                        velocity=velocity,
+                    ),
+                    EqualTemperament(),
+                )
+                runtime = instrument.articulations["default"]
+                route = instrument.routes[1]
+                selected: dict[str, float] = {}
+                curves: set[str] = set()
+                for routed in route.voices:
+                    layer = runtime.attack_layers[routed.layer_index]
+                    voice = layer.engine.voices[routed.internal_note_id]
+                    selected[voice.region.path.name] = voice.amplitude
+                    curves.add(
+                        layer.region_runtime[
+                            voice.region.stable_key
+                        ].xf_velcurve
+                    )
+                return selected, curves
+
+            low_velocity = 32.0 / 127.0
+            midpoint_velocity = 64.0 / 127.0
+            high_velocity = 96.0 / 127.0
+
+            low, low_curves = amplitudes(None, low_velocity)
+            high, high_curves = amplitudes(None, high_velocity)
+            midpoint, midpoint_curves = amplitudes(None, midpoint_velocity)
+
+            self.assertEqual(low_curves, {"power"})
+            self.assertEqual(high_curves, {"power"})
+            self.assertEqual(midpoint_curves, {"power"})
+            self.assertEqual(set(low), {"soft.wav"})
+            self.assertEqual(set(high), {"hard.wav"})
+            self.assertAlmostEqual(low["soft.wav"], low_velocity)
+            self.assertAlmostEqual(high["hard.wav"], high_velocity)
+            self.assertEqual(set(midpoint), {"soft.wav", "hard.wav"})
+            for amplitude in midpoint.values():
+                self.assertAlmostEqual(
+                    amplitude,
+                    midpoint_velocity / math.sqrt(2.0),
+                )
+            self.assertAlmostEqual(
+                math.sqrt(sum(value**2 for value in midpoint.values())),
+                midpoint_velocity,
+            )
+
+            linear, linear_curves = amplitudes("gain", midpoint_velocity)
+            self.assertEqual(linear_curves, {"gain"})
+            self.assertEqual(set(linear), {"soft.wav", "hard.wav"})
+            for amplitude in linear.values():
+                self.assertAlmostEqual(amplitude, midpoint_velocity * 0.5)
+            self.assertAlmostEqual(sum(linear.values()), midpoint_velocity)
+
+            with self.assertRaisesRegex(
+                ValueError,
+                "unsupported xf_velcurve 'unknown'",
+            ):
+                self._instrument(
+                    directory,
+                    "<region> sample=soft.wav key=60 xf_velcurve=unknown "
+                    "xfin_lovel=32 xfin_hivel=96\n",
+                )
 
     def test_cc10_pan_idiom_lands_centred_instead_of_hard_left(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:

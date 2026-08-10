@@ -1,6 +1,5 @@
 """复算手风琴的上游 SFZ、采样、许可、Hash 与高音边界证据。"""
 
-import hashlib
 import json
 from pathlib import Path
 import sys
@@ -13,6 +12,11 @@ if str(ROOT) not in sys.path:
 from tianlai.dedicated_candidates import (
     dedicated_manifest_sources,
     generate_dedicated_resource_verification,
+)
+from tianlai.canonical_json import (
+    CANONICALIZATION,
+    HASH_ALGORITHM,
+    canonical_json_file_sha256,
 )
 
 
@@ -87,10 +91,13 @@ def main() -> None:
 
         report.update(
             {
+                "schema_version": 2,
                 "status": "passed",
-                "manifest_sha256": hashlib.sha256(
-                    manifest_path.read_bytes()
-                ).hexdigest(),
+                "hash_algorithm": HASH_ALGORITHM,
+                "canonicalization": CANONICALIZATION,
+                "manifest_canonical_sha256": canonical_json_file_sha256(
+                    manifest_path
+                ),
                 "runtime_range_policy": {
                     "source_recorded_attack_roots_midi": roots,
                     "source_recorded_attack_root_range": [source_low, source_high],

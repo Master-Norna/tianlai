@@ -387,7 +387,7 @@ class EnsembleMixReportIntegrationTests(unittest.TestCase):
     def test_render_failure_immediately_closes_relation_scratch(self) -> None:
         plan = _Plan(self.root, _settings("analyze"))
         real_close = CollaborationReportBuilder.close
-        closed_scratch: list[Path | None] = []
+        closed_scratch_handle_counts: list[int] = []
 
         def render_part(part, _sample_rate):
             if part.executor.executor_id == "melody":
@@ -400,7 +400,7 @@ class EnsembleMixReportIntegrationTests(unittest.TestCase):
             )
 
         def tracked_close(builder):
-            closed_scratch.append(builder._scratch_directory)
+            closed_scratch_handle_counts.append(len(builder._scratch_handles))
             real_close(builder)
 
         with (
@@ -424,8 +424,7 @@ class EnsembleMixReportIntegrationTests(unittest.TestCase):
                 write_stems=False,
             )
 
-        self.assertEqual(len(closed_scratch), 1)
-        self.assertIsNotNone(closed_scratch[0])
+        self.assertEqual(closed_scratch_handle_counts, [1])
         self.assertEqual(
             list(self.root.glob(".collaboration-analysis.*")),
             [],

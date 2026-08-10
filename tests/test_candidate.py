@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import copy
 from contextlib import redirect_stdout
 import hashlib
 import io
 import json
 import os
 from pathlib import Path
+import subprocess
 import tempfile
 import unittest
 import warnings
@@ -29,6 +31,7 @@ from tianlai.ensemble import CACHE_TELEMETRY_NAME
 from tianlai.render_lock import (
     RenderLockError,
     acquire_render_lock,
+    capture_plain_directory,
     render_lock_path,
 )
 
@@ -137,6 +140,10 @@ def _populate_candidate(
     parent_candidate_id: str | None = None,
     score_title: str = "候选合同测试",
     with_cache_telemetry: bool = False,
+    authoring_roster: dict | None = None,
+    roster_instrument: str = "测试工具/参考振荡器",
+    plan_instrument: str = "测试工具/参考振荡器",
+    plan_articulation_auto: bool = True,
 ) -> Path:
     score = _score(pitch)
     score["title"] = score_title
@@ -145,10 +152,17 @@ def _populate_candidate(
         "assignments": [
             {
                 "part": "lead",
-                "instrument": "测试工具/参考振荡器",
+                "instrument": roster_instrument,
             }
         ],
     }
+    if authoring_roster is not None:
+        roster = {
+            key: copy.deepcopy(value)
+            for key, value in authoring_roster.items()
+            if key not in {"kind", "schema_version"}
+        }
+        roster["assignments"][0]["instrument"] = roster_instrument
     profile = {
         "kind": "tianlai.render_profile",
         "schema_version": 1,
@@ -165,6 +179,23 @@ def _populate_candidate(
         "refresh_stem_cache": False,
     }
     plan = _plan(pitch)
+    if authoring_roster is not None:
+        plan["roster"] = "test"
+        plan["parts"][0].update(
+            {
+                "instrument": plan_instrument,
+                "instrument_name": "candidate identity test",
+                "gain_db": 0.0,
+                "pan": 0.0,
+                "seat": {"azimuth_deg": 0.0, "distance_m": 3.0},
+                "transpose": 0,
+                "duration_scale": 1.0,
+                "dynamic_compression": 0.0,
+                "articulation_auto": plan_articulation_auto,
+                "articulation_map": {},
+                "kit_pitch": None,
+            }
+        )
     plan_sha256 = canonical_json_sha256(plan)
     directory = target.directory
     plan_path = directory / "演奏计划.json"
@@ -216,6 +247,32 @@ def _populate_candidate(
             "report_enabled": False,
         },
     }
+    authoring_project: dict | None = None
+    if authoring_roster is not None:
+        project_id = "a" * 32
+        authoring_roster_sha256 = canonical_json_sha256(authoring_roster)
+        revision = canonical_json_sha256(
+            {
+                "kind": "tianlai.authoring_revision_binding",
+                "schema_version": 1,
+                "project_id": project_id,
+                "documents": {
+                    "score": canonical_json_sha256(score),
+                    "authoring_roster": authoring_roster_sha256,
+                    "render_profile": canonical_json_sha256(profile),
+                },
+            }
+        )
+        receipt["authoring_project"] = {
+            "project_id": project_id,
+            "revision": revision,
+            "authoring_roster_canonical_sha256": authoring_roster_sha256,
+        }
+        authoring_project = {
+            "project_id": project_id,
+            "revision": revision,
+            "authoring_roster": authoring_roster,
+        }
     receipt_path = directory / "渲染回执.json"
     _write_json(receipt_path, receipt)
     if with_cache_telemetry:
@@ -254,6 +311,7 @@ def _populate_candidate(
         receipt_path=receipt_path,
         plan_sha256=plan_sha256,
         parent_candidate_id=parent_candidate_id,
+        authoring_project=authoring_project,
     )
     return directory
 
@@ -267,6 +325,411 @@ def _tree_snapshot(directory: Path) -> dict[str, bytes]:
 
 
 class CandidateTests(unittest.TestCase):
+    def test_atomic_json_uses_exclusive_temp_without_truncating_collision(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            target = root / "document.json"
+            occupied = root / ".document.json.observer.tmp"
+            sentinel = b"pre-existing observer file"
+            occupied.write_bytes(sentinel)
+            real_mkstemp = tempfile.mkstemp
+
+            with mock.patch(
+                "tianlai.candidate.tempfile.mkstemp",
+                side_effect=real_mkstemp,
+            ) as exclusive_create:
+                candidate_module._write_json_atomic(
+                    target, {"state": "complete"}
+                )
+
+            self.assertEqual(occupied.read_bytes(), sentinel)
+            self.assertEqual(
+                json.loads(target.read_text(encoding="utf-8")),
+                {"state": "complete"},
+            )
+            exclusive_create.assert_called_once()
+
+    def test_atomic_json_replace_failure_does_not_unlink_racing_file(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            target = root / "document.json"
+            parked_payload = root / "parked-written-payload.tmp"
+            sentinel = b"racing writer sentinel"
+            observed_temporary: Path | None = None
+            real_replace = os.replace
+
+            def fail_after_replacing_temporary_name(source, destination):
+                nonlocal observed_temporary
+                source_path = Path(source)
+                destination_path = Path(destination)
+                if destination_path == target:
+                    observed_temporary = source_path
+                    os.rename(source_path, parked_payload)
+                    source_path.write_bytes(sentinel)
+                    raise PermissionError("simulated replace failure")
+                return real_replace(source, destination)
+
+            with mock.patch(
+                "tianlai.candidate.os.replace",
+                side_effect=fail_after_replacing_temporary_name,
+            ):
+                with self.assertRaisesRegex(
+                    PermissionError, "simulated replace failure"
+                ):
+                    candidate_module._write_json_atomic(
+                        target, {"state": "complete"}
+                    )
+
+            self.assertIsNotNone(observed_temporary)
+            assert observed_temporary is not None
+            self.assertEqual(observed_temporary.read_bytes(), sentinel)
+            self.assertIn(b'"state": "complete"', parked_payload.read_bytes())
+            self.assertFalse(target.exists())
+
+    def test_prepare_creates_a_missing_multilevel_output_root(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            output_root = Path(temporary) / "one" / "two" / "renders"
+
+            target = prepare_candidate_target(
+                output_root,
+                "nested root",
+                output_id="candidate",
+            )
+
+            self.assertTrue(output_root.is_dir())
+            self.assertTrue(target.directory.parent.is_dir())
+
+    @unittest.skipIf(os.name == "nt", "POSIX symlink contract")
+    def test_prepare_rejects_symlink_work_directory_before_lock_or_scan(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "authorised"
+            outside = Path(temporary) / "outside"
+            root.mkdir()
+            outside.mkdir()
+            title = "linked work"
+            work = root / candidate_module.portable_slug(title)
+            os.symlink(outside, work, target_is_directory=True)
+
+            with self.assertRaises(OSError):
+                prepare_candidate_target(root, title, output_id="blocked")
+
+            self.assertEqual(list(outside.iterdir()), [])
+
+    @unittest.skipUnless(os.name == "nt", "Windows junction contract")
+    def test_prepare_rejects_junction_work_directory_before_lock_or_scan(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "authorised"
+            outside = Path(temporary) / "outside"
+            root.mkdir()
+            outside.mkdir()
+            title = "junction work"
+            work = root / candidate_module.portable_slug(title)
+            created = subprocess.run(
+                ["cmd", "/d", "/c", "mklink", "/J", str(work), str(outside)],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            if created.returncode != 0:
+                self.skipTest(f"junction creation unavailable: {created.stderr}")
+            try:
+                with self.assertRaises(OSError):
+                    prepare_candidate_target(root, title, output_id="blocked")
+                self.assertEqual(list(outside.iterdir()), [])
+            finally:
+                if os.path.lexists(work):
+                    os.rmdir(work)
+
+    def test_publication_rejects_work_directory_identity_swap(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "authorised"
+            outside = Path(temporary) / "outside"
+            root.mkdir()
+            outside.mkdir()
+            target = prepare_candidate_target(
+                root,
+                "identity swap",
+                output_id="blocked",
+            )
+            work = target.directory.parent
+            parked = root / "parked-work"
+            os.replace(work, parked)
+            linked = False
+            try:
+                if os.name == "nt":
+                    created = subprocess.run(
+                        [
+                            "cmd",
+                            "/d",
+                            "/c",
+                            "mklink",
+                            "/J",
+                            str(work),
+                            str(outside),
+                        ],
+                        check=False,
+                        capture_output=True,
+                        text=True,
+                    )
+                    if created.returncode != 0:
+                        self.skipTest(
+                            f"junction creation unavailable: {created.stderr}"
+                        )
+                else:
+                    os.symlink(outside, work, target_is_directory=True)
+                linked = True
+
+                with self.assertRaises((OSError, ValueError)):
+                    with candidate_publication(target):
+                        self.fail("publication entered an identity-swapped work dir")
+                self.assertEqual(list(outside.iterdir()), [])
+            finally:
+                if linked and os.path.lexists(work):
+                    if os.name == "nt":
+                        os.rmdir(work)
+                    else:
+                        work.unlink()
+                if parked.exists() and not work.exists():
+                    os.replace(parked, work)
+
+    def test_legacy_v1_candidate_without_authoring_binding_still_loads(self) -> None:
+        timestamps = (
+            "2026-08-09T20:34:56.123456+08:00",
+            "2026-08-09t12:34:56z",
+            "2026-08-09 12:34:56+08:00",
+            "1990-12-31T23:59:60Z",
+        )
+        for index, timestamp in enumerate(timestamps):
+            with self.subTest(timestamp=timestamp), tempfile.TemporaryDirectory() as temporary:
+                directory = _publish(
+                    Path(temporary), output_id=f"legacy-v1-{index}"
+                )
+                manifest_path = directory / CANDIDATE_MANIFEST_NAME
+                manifest = json.loads(
+                    manifest_path.read_text(encoding="utf-8")
+                )
+                manifest["version"] = 1
+                manifest["created_at_utc"] = timestamp
+                manifest.pop("authoring_project", None)
+                manifest_path.write_text(
+                    json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+                    encoding="utf-8",
+                )
+
+                _loaded, document = load_candidate(directory, verify=True)
+
+                self.assertEqual(document["version"], 1)
+                self.assertEqual(document["created_at_utc"], timestamp)
+                self.assertNotIn("authoring_project", document)
+
+    def test_legacy_v1_candidate_rejects_invalid_calendar_and_offset_fields(
+        self,
+    ) -> None:
+        invalid = (
+            "2026-02-31T12:34:56Z",
+            "2026-08-09T24:00:00Z",
+            "2026-08-09T12:60:00Z",
+            "2026-08-09T12:34:61Z",
+            "2026-08-09T12:34:56+24:00",
+            "2026-08-09T12:34:56+08:60",
+        )
+        for index, timestamp in enumerate(invalid):
+            with self.subTest(timestamp=timestamp), tempfile.TemporaryDirectory() as temporary:
+                directory = _publish(
+                    Path(temporary), output_id=f"invalid-v1-{index}"
+                )
+                manifest_path = directory / CANDIDATE_MANIFEST_NAME
+                manifest = json.loads(
+                    manifest_path.read_text(encoding="utf-8")
+                )
+                manifest["version"] = 1
+                manifest["created_at_utc"] = timestamp
+                _write_json(manifest_path, manifest)
+
+                with self.assertRaisesRegex(ValueError, "created_at_utc"):
+                    load_candidate(directory, verify=False)
+
+    def test_publish_rejects_disconnected_authoring_roster_and_plan(self) -> None:
+        authoring_roster = {
+            "kind": "tianlai.authoring_roster",
+            "schema_version": 1,
+            "name": "test",
+            "assignments": [
+                {
+                    "part": "lead",
+                    "instrument": "测试工具/参考振荡器",
+                }
+            ],
+        }
+        cases = (
+            (
+                "测试工具/另一个乐器",
+                "测试工具/另一个乐器",
+                "formal roster",
+            ),
+            (
+                "测试工具/参考振荡器",
+                "测试工具/另一个乐器",
+                "performance plan",
+            ),
+        )
+        for index, (roster_instrument, plan_instrument, message) in enumerate(
+            cases
+        ):
+            with self.subTest(message=message), tempfile.TemporaryDirectory() as temporary:
+                target = prepare_candidate_target(
+                    Path(temporary),
+                    "candidate chain",
+                    output_id=f"chain-{index}",
+                )
+                with self.assertRaisesRegex(ValueError, message):
+                    _populate_candidate(
+                        target,
+                        authoring_roster=authoring_roster,
+                        roster_instrument=roster_instrument,
+                        plan_instrument=plan_instrument,
+                    )
+
+    def test_authoring_plan_checks_explicit_articulation_auto_only(self) -> None:
+        base_roster = {
+            "kind": "tianlai.authoring_roster",
+            "schema_version": 1,
+            "name": "test",
+            "assignments": [
+                {
+                    "part": "lead",
+                    "instrument": "测试工具/参考振荡器",
+                }
+            ],
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            explicit = copy.deepcopy(base_roster)
+            explicit["assignments"][0]["articulation_auto"] = False
+            target = prepare_candidate_target(
+                Path(temporary),
+                "candidate chain",
+                output_id="explicit-articulation-auto",
+            )
+            with self.assertRaisesRegex(ValueError, "articulation_auto"):
+                _populate_candidate(
+                    target,
+                    authoring_roster=explicit,
+                    plan_articulation_auto=True,
+                )
+
+        # When omitted, the plan value comes from the resolved instrument
+        # capability.  A portable candidate has no external capability
+        # catalogue from which load_candidate could safely recompute it.
+        with tempfile.TemporaryDirectory() as temporary:
+            target = prepare_candidate_target(
+                Path(temporary),
+                "candidate chain",
+                output_id="derived-articulation-auto",
+            )
+            directory = _populate_candidate(
+                target,
+                authoring_roster=base_roster,
+                plan_articulation_auto=False,
+            )
+            load_candidate(directory, verify=True)
+
+    def test_load_rejects_fully_rehashed_authoring_chain_contradictions(
+        self,
+    ) -> None:
+        authoring_roster = {
+            "kind": "tianlai.authoring_roster",
+            "schema_version": 1,
+            "name": "test",
+            "assignments": [
+                {
+                    "part": "lead",
+                    "instrument": "测试工具/参考振荡器",
+                }
+            ],
+        }
+        for change_formal, message in (
+            (True, "formal roster"),
+            (False, "performance plan"),
+        ):
+            with self.subTest(message=message), tempfile.TemporaryDirectory() as temporary:
+                target = prepare_candidate_target(
+                    Path(temporary),
+                    "candidate chain",
+                    output_id=f"forged-{int(change_formal)}",
+                )
+                directory = _populate_candidate(
+                    target,
+                    authoring_roster=authoring_roster,
+                )
+                roster_path = directory / "roster.json"
+                plan_path = directory / "演奏计划.json"
+                receipt_path = directory / "渲染回执.json"
+                manifest_path = directory / CANDIDATE_MANIFEST_NAME
+                roster = json.loads(roster_path.read_text(encoding="utf-8"))
+                plan = json.loads(plan_path.read_text(encoding="utf-8"))
+                if change_formal:
+                    roster["assignments"][0]["instrument"] = "测试工具/另一个乐器"
+                    _write_json(roster_path, roster)
+                plan["parts"][0]["instrument"] = "测试工具/另一个乐器"
+                _write_json(plan_path, plan)
+                plan_sha256 = canonical_json_sha256(plan)
+                receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+                receipt["performance_plan"].update(
+                    {
+                        "file_sha256": sha256_file(plan_path),
+                        "sha256": plan_sha256,
+                    }
+                )
+                _write_json(receipt_path, receipt)
+                manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                if change_formal:
+                    manifest["project"]["roster"].update(
+                        {
+                            "canonical_sha256": canonical_json_sha256(roster),
+                            "file_sha256": sha256_file(roster_path),
+                        }
+                    )
+                manifest["project"]["performance_plan_sha256"] = plan_sha256
+                manifest["render_receipt"]["sha256"] = sha256_file(receipt_path)
+                _write_json(manifest_path, manifest)
+
+                with self.assertRaisesRegex(ValueError, message):
+                    load_candidate(directory, verify=True)
+
+    def test_v2_candidate_timestamp_is_canonical_and_tamper_closed(self) -> None:
+        invalid = (
+            "2026-08-09T12:34:56+00:00",
+            "2026-08-09T12:34:56.000Z\n",
+            "2026-02-31T12:34:56.000Z",
+            "2026-08-09t12:34:56.000z",
+            "2026-08-09 12:34:56.000+08:00",
+            "1990-12-31T23:59:60.000Z",
+        )
+        for index, timestamp in enumerate(invalid):
+            with self.subTest(timestamp=repr(timestamp)):
+                with tempfile.TemporaryDirectory() as temporary:
+                    directory = _publish(
+                        Path(temporary), output_id=f"timestamp-{index}"
+                    )
+                    manifest_path = directory / CANDIDATE_MANIFEST_NAME
+                    manifest = json.loads(
+                        manifest_path.read_text(encoding="utf-8")
+                    )
+                    self.assertRegex(
+                        manifest["created_at_utc"],
+                        r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T"
+                        r"[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}Z$",
+                    )
+                    manifest["created_at_utc"] = timestamp
+                    manifest_path.write_text(
+                        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+                        encoding="utf-8",
+                    )
+                    with self.assertRaisesRegex(ValueError, "canonical UTC"):
+                        load_candidate(directory, verify=False)
+
     def test_manifest_binds_every_source_and_receipt(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             directory = _publish(
@@ -552,6 +1015,147 @@ class CandidateTests(unittest.TestCase):
                 ),
             )
 
+    def test_committed_backup_cleanup_revalidates_captured_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            directory = _publish(root, output_id="cleanup-identity")
+            receipt_sha256 = sha256_file(directory / "渲染回执.json")
+            target = prepare_candidate_target(
+                root,
+                "候选合同测试",
+                output_id="cleanup-identity",
+                overwrite=True,
+                expected_receipt_sha256=receipt_sha256,
+            )
+            parked_backup = directory.parent / "parked-old-candidate"
+            real_commit = candidate_module._commit_candidate_staging
+            replacement_marker = b"must not be deleted"
+
+            def replace_backup_after_commit(
+                staging: Path,
+                final_target: CandidateTarget,
+            ):
+                committed_backup = real_commit(staging, final_target)
+                self.assertIsNotNone(committed_backup)
+                assert committed_backup is not None
+                os.replace(committed_backup.path, parked_backup)
+                committed_backup.path.mkdir()
+                (committed_backup.path / "unrelated.txt").write_bytes(
+                    replacement_marker
+                )
+                return committed_backup
+
+            with (
+                warnings.catch_warnings(record=True) as caught,
+                mock.patch(
+                    "tianlai.candidate._commit_candidate_staging",
+                    side_effect=replace_backup_after_commit,
+                ),
+            ):
+                warnings.simplefilter("always", RuntimeWarning)
+                with candidate_publication(target) as staging:
+                    _populate_candidate(staging, pitch="D4")
+
+            replacement = target.directory.with_name(
+                f".{target.directory.name}."
+                f"{target.expected_manifest_sha256}.previous"
+            )
+            preserved = list(
+                directory.parent.glob(
+                    f"{replacement.name}.cleanup-preserved-*"
+                )
+            )
+            self.assertEqual(len(preserved), 1)
+            self.assertEqual(
+                (preserved[0] / "unrelated.txt").read_bytes(),
+                replacement_marker,
+            )
+            self.assertFalse(replacement.exists())
+            self.assertTrue(parked_backup.is_dir())
+            self.assertTrue(
+                any("identity changed" in str(item.message) for item in caught)
+            )
+            load_candidate(directory, verify=True)
+            follow_up = prepare_candidate_target(
+                root,
+                "候选合同测试",
+                output_id="cleanup-identity",
+                overwrite=True,
+                expected_receipt_sha256=sha256_file(
+                    directory / "渲染回执.json"
+                ),
+            )
+            self.assertTrue(follow_up.replacing)
+
+    def test_cleanup_race_renames_replacement_without_deleting_it(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            parent = Path(temporary).resolve()
+            cleanup = parent / ".race.token.staging"
+            cleanup.mkdir()
+            (cleanup / "original.txt").write_bytes(b"original generation")
+            parent_identity = capture_plain_directory(parent)
+            cleanup_identity = capture_plain_directory(cleanup)
+            parked_original = parent / "parked-original"
+            replacement_marker = b"replacement must survive"
+            real_revalidate = candidate_module.revalidate_plain_directory
+            raced = False
+
+            def replace_after_identity_check(identity):
+                nonlocal raced
+                resolved = real_revalidate(identity)
+                if identity is cleanup_identity and not raced:
+                    raced = True
+                    os.rename(cleanup, parked_original)
+                    cleanup.mkdir()
+                    nested = cleanup / "nested"
+                    nested.mkdir()
+                    (nested / "marker.bin").write_bytes(replacement_marker)
+                return resolved
+
+            with (
+                warnings.catch_warnings(record=True) as caught,
+                mock.patch(
+                    "tianlai.candidate.revalidate_plain_directory",
+                    side_effect=replace_after_identity_check,
+                ),
+            ):
+                warnings.simplefilter("always", RuntimeWarning)
+                candidate_module._safe_cleanup_private_directory(
+                    cleanup,
+                    parent=parent,
+                    prefix=".race.",
+                    label="race cleanup",
+                    parent_identity=parent_identity,
+                    directory_identity=cleanup_identity,
+                )
+
+            preserved = list(
+                parent.glob(
+                    ".race.token.staging.cleanup-preserved-*"
+                )
+            )
+            self.assertEqual(len(preserved), 1)
+            self.assertEqual(
+                (preserved[0] / "nested" / "marker.bin").read_bytes(),
+                replacement_marker,
+            )
+            self.assertEqual(
+                (parked_original / "original.txt").read_bytes(),
+                b"original generation",
+            )
+            self.assertFalse(cleanup.exists())
+            self.assertTrue(
+                any("identity changed" in str(item.message) for item in caught)
+            )
+
+            # The active staging name is free for a later operation; preserved
+            # entries deliberately do not match the transaction suffix.
+            cleanup.mkdir()
+            self.assertEqual(
+                list(parent.glob(".race.*.staging")),
+                [cleanup],
+            )
+
     def test_publication_verifies_every_receipt_bound_artifact(self) -> None:
         artifacts = (
             "演奏计划.json",
@@ -675,7 +1279,7 @@ class CandidateTests(unittest.TestCase):
                     with candidate_publication(target):
                         self.fail("a second publisher must not enter")
 
-    def test_cleanup_warning_cannot_turn_commit_into_failure(self) -> None:
+    def test_cleanup_preservation_does_not_block_next_overwrite(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             directory = _publish(root, output_id="cleanup-warning")
@@ -687,32 +1291,17 @@ class CandidateTests(unittest.TestCase):
                 overwrite=True,
                 expected_receipt_sha256=receipt_sha256,
             )
-            real_rmtree = candidate_module.shutil.rmtree
-
-            def fail_backup_cleanup(
-                path: str | os.PathLike[str],
-                *args: object,
-                **kwargs: object,
-            ) -> None:
-                if Path(path).name.endswith(".previous"):
-                    raise PermissionError("simulated locked backup")
-                real_rmtree(path, *args, **kwargs)
-
             with warnings.catch_warnings():
                 warnings.simplefilter("error", RuntimeWarning)
-                with mock.patch(
-                    "tianlai.candidate.shutil.rmtree",
-                    side_effect=fail_backup_cleanup,
-                ):
-                    with candidate_publication(target) as staging:
-                        _populate_candidate(staging, pitch="D4")
+                with candidate_publication(target) as staging:
+                    _populate_candidate(staging, pitch="D4")
 
             score = json.loads(
                 (directory / "score.json").read_text(encoding="utf-8")
             )
             self.assertEqual(score["parts"][0]["notes"][0]["pitch"], "D4")
             self.assertEqual(
-                1,
+                0,
                 len(
                     list(
                         directory.parent.glob(
@@ -721,16 +1310,26 @@ class CandidateTests(unittest.TestCase):
                     )
                 ),
             )
-            with self.assertRaisesRegex(RuntimeError, "失败关闭"):
-                prepare_candidate_target(
-                    root,
-                    "候选合同测试",
-                    output_id="cleanup-warning",
-                    overwrite=True,
-                    expected_receipt_sha256=sha256_file(
-                        directory / "渲染回执.json"
-                    ),
-                )
+            self.assertEqual(
+                1,
+                len(
+                    list(
+                        directory.parent.glob(
+                            f".{directory.name}.*.previous.cleanup-preserved-*"
+                        )
+                    )
+                ),
+            )
+            follow_up = prepare_candidate_target(
+                root,
+                "候选合同测试",
+                output_id="cleanup-warning",
+                overwrite=True,
+                expected_receipt_sha256=sha256_file(
+                    directory / "渲染回执.json"
+                ),
+            )
+            self.assertTrue(follow_up.replacing)
 
     def test_prepare_recovers_one_self_identifying_previous_generation(
         self,
@@ -875,11 +1474,20 @@ class CandidateTests(unittest.TestCase):
             self.assertEqual(status, 0, stdout.getvalue())
             result = json.loads(stdout.getvalue())
             self.assertTrue(result["ok"])
+            self.assertTrue(result["project_review"]["continuation_allowed"])
+            self.assertEqual(result["project_review"]["blocking_count"], 0)
+            self.assertEqual(
+                result["project_review"]["binding"][
+                    "performance_plan_sha256"
+                ],
+                result["performance_plan_sha256"],
+            )
             directory = Path(result["candidate_directory"])
             self.assertTrue((directory / "合奏.wav").is_file())
             for key in (
                 "candidate_manifest",
                 "mix_wav",
+                "post_render_check",
                 "render_receipt",
             ):
                 published_path = Path(result[key])
@@ -890,6 +1498,10 @@ class CandidateTests(unittest.TestCase):
                     key,
                 )
                 self.assertNotIn(".staging", str(published_path))
+            self.assertIs(
+                result["post_render_check_summary"]["can_proceed"],
+                True,
+            )
             self.assertEqual(
                 load_candidate(directory)[1]["candidate_id"],
                 "cli-smoke-"

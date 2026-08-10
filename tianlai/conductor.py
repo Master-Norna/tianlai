@@ -256,6 +256,20 @@ class PlanPart:
 
 
 @dataclass(frozen=True, slots=True)
+class PerformanceAdvisory:
+    """Non-blocking evidence retained outside the hashed performance plan."""
+
+    code: str
+    level: str
+    basis: str
+    confidence: str
+    scope: dict[str, Any]
+    message: str
+    evidence: dict[str, Any]
+    suggestions: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
 class PerformancePlan:
     """The conductor's output: auditable, diffable, and directly renderable."""
 
@@ -269,6 +283,13 @@ class PerformancePlan:
         default_factory=CollaborationSettings
     )
     warnings: tuple[str, ...] = field(default=())
+    # Review metadata deliberately stays outside ``to_dict`` so improving a
+    # diagnosis never changes the performance-plan hash or rendered audio.
+    advisories: tuple[PerformanceAdvisory, ...] = field(
+        default=(),
+        compare=False,
+        repr=False,
+    )
 
     def to_dict(self) -> dict[str, Any]:
         data: dict[str, Any] = {
@@ -652,6 +673,7 @@ def build_plan(
     }
     by_id = {executor.executor_id: executor for executor in roster.executors}
     warnings: list[str] = []
+    advisories: list[PerformanceAdvisory] = []
     executor_note_counts = {
         executor.executor_id: 0 for executor in roster.executors
     }
@@ -906,9 +928,47 @@ def build_plan(
                 logical_start = start_seconds
                 shifted = start_seconds - compensation
                 if shifted < 0.0:
-                    warnings.append(
+                    warning = (
                         f"{capability.name} 的发音补偿把第 {note.bar} 小节的音推到了"
                         "负时间,已截断到 0;可给总谱开头留一个空小节"
+                    )
+                    warnings.append(warning)
+                    scope: dict[str, Any] = {
+                        "executor_id": executor.executor_id,
+                        "part_id": executor.part_id,
+                        "bar": note.bar,
+                        "beat": note.beat,
+                    }
+                    if note.source_event_id is not None:
+                        scope["event_id"] = note.source_event_id
+                    advisories.append(
+                        PerformanceAdvisory(
+                            code="onset.compensation_clipped_at_zero",
+                            level="warning",
+                            basis="measurement",
+                            confidence="high",
+                            scope=scope,
+                            message=warning,
+                            evidence={
+                                "instrument": capability.relative_path,
+                                "requested_delay_seconds": round(
+                                    compensation,
+                                    9,
+                                ),
+                                "logical_start_seconds": round(
+                                    logical_start,
+                                    9,
+                                ),
+                                "clipped_delay_seconds": round(
+                                    -shifted,
+                                    9,
+                                ),
+                            },
+                            suggestions=(
+                                "在总谱开头预留空拍或空小节后重新自检。",
+                                "若截断后的起音正是创作意图，可保留并试听确认。",
+                            ),
+                        )
                     )
                     shifted = 0.0
                 derivation["发音补偿"] = f"提前 {compensation * 1000.0:.0f}ms"
@@ -1047,6 +1107,33 @@ def build_plan(
             f"({automatic_count / total:.1%});这是诊断提示，请确认该轨确实需要"
             "近全程自动换奏法，创作者可在 roster 设 articulation_auto=false"
         )
+        advisories.append(
+            PerformanceAdvisory(
+                code="articulation.auto_dominant",
+                level="warning",
+                basis="measurement",
+                confidence="high",
+                scope={
+                    "executor_id": executor.executor_id,
+                    "part_id": executor.part_id,
+                    "instrument": executor.capability.relative_path,
+                },
+                message=(
+                    "时值奏法合同覆盖了该执行器的大部分音符；这可能是预期的"
+                    "演奏设计，也可能与原谱的奏法意图不一致。"
+                ),
+                evidence={
+                    "automatic_articulation_count": automatic_count,
+                    "note_count": total,
+                    "ratio": round(automatic_count / total, 6),
+                },
+                suggestions=(
+                    "保留当前设置并试听自动奏法是否符合乐句意图。",
+                    "在 roster 设置 articulation_auto=false 做一次 A/B。",
+                    "在关键音符上显式写入奏法。",
+                ),
+            )
+        )
 
     duration = last_time + score.tail_seconds
     parts: list[PlanPart] = []
@@ -1076,6 +1163,7 @@ def build_plan(
         parts=tuple(parts),
         collaboration=roster.collaboration,
         warnings=tuple(dict.fromkeys(warnings)),
+        advisories=tuple(advisories),
     )
 
 

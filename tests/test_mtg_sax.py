@@ -232,6 +232,10 @@ class MtgSoloSaxTests(unittest.TestCase):
         )
         first_route = instrument.note_routes[1]
         first_voice = instrument.engines[first_route.engine_name].voices[first_route.note_id]
+        self.assertEqual(
+            sum(instrument.noise_engines["breath"]._round_robin_counters.values()),
+            1,
+        )
         base_increment = first_voice.increment
         for _ in range(5_000):
             instrument.render_frame()
@@ -251,6 +255,10 @@ class MtgSoloSaxTests(unittest.TestCase):
         second_voice = instrument.engines["legato"].voices[second_route.note_id]
         self.assertEqual(second_voice.region.offset_frames, 20_000)
         self.assertTrue(first_voice.released)
+        self.assertEqual(
+            sum(instrument.noise_engines["breath"]._round_robin_counters.values()),
+            1,
+        )
 
         pedal_sax = self.create_sax("tenor")
         pedal_sax.handle_event(

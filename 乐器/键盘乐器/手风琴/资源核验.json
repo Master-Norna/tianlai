@@ -29,8 +29,11 @@
   "region_count": 34,
   "sample_set_sha256": "6c7086127e9c9b0cb26c21f81e43fa1e0caa75da7fe9ada6e64ae391852999d1",
   "sample_set_hash_algorithm": "sort unique asset-root-relative UTF-8 paths; concatenate lowercase '<sha256>  <path>\\n>'; SHA-256 the UTF-8 bytes",
+  "schema_version": 2,
   "status": "passed",
-  "manifest_sha256": "dab3815f9e7d457621f7c568b5bbdaa3fe150bebd9116624f0f79cd233362f38",
+  "hash_algorithm": "SHA-256",
+  "canonicalization": "tianlai-json-v1",
+  "manifest_canonical_sha256": "756145440ada6f88f94a9509c2d05ba2377de3bfa35e98ad86dc157d2229664e",
   "runtime_range_policy": {
     "source_recorded_attack_roots_midi": [
       47,

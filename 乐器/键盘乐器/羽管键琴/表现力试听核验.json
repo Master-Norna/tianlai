@@ -1,0 +1,32 @@
+{
+  "status": "machine_pass_human_pending",
+  "rendered_at": "2026-08-08",
+  "platform": "Windows Chinese-path workspace",
+  "sample_rate": 48000,
+  "channels": 2,
+  "subtype": "PCM_24",
+  "frame_count": 684000,
+  "duration_seconds": 14.25,
+  "peak_active_voices": 9,
+  "peak": 0.242997,
+  "rms": 0.025927,
+  "clipped_samples": 0,
+  "wav": "output/羽管键琴_candidate.wav",
+  "wav_persistence": "temporary",
+  "wav_sha256": "8967a05f817917b16364fc7d3b9bd9af18d5662cf01da48a631728995d27cf73",
+  "hash_algorithm": "SHA-256",
+  "canonicalization": "tianlai-json-v1",
+  "manifest_canonical_sha256": "7170c72ca3bfe773faa12f8cfcb677c79d7d6911b3f6af00e684950116d1396a",
+  "events": "examples/羽管键琴_奏法.events.json",
+  "events_canonical_sha256": "d3763b414fe7d275bac1f9543c167d6343855f669a9738bcdb9e0696ef33e64f",
+  "audition_profile": "fixed-example",
+  "audition_protocol": "instrument-fixed-example-v1",
+  "coverage": [
+    "按键 F1-C6；8′ 实音 F1-C6、4′ 实音 F2-C7",
+    "三档输入力度与长短音（单采样，仅增益响应）",
+    "奏法:full(8′+4′)、eight_foot、four_foot(+1八度)",
+    "108 个 44.1 kHz 立体声 WAV 的持续层与释键层均经版本化带限重采样输出到 48 kHz",
+    "note-off 释放与尾音"
+  ],
+  "human_review": "pending"
+}

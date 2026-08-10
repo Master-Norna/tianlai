@@ -34,6 +34,7 @@ EXPECTED_PUBLIC_MARKDOWN_PAIRS = (
     ("docs/Linux快速开始.md", "docs/Linux快速开始.en.md"),
     ("docs/macOS快速开始.md", "docs/macOS快速开始.en.md"),
     ("docs/MCP.md", "docs/MCP.en.md"),
+    ("docs/创作工作流.md", "docs/创作工作流.en.md"),
     (
         "docs/VPO音源许可与安装说明.md",
         "docs/VPO音源许可与安装说明.en.md",
@@ -44,6 +45,7 @@ EXPECTED_PUBLIC_MARKDOWN_PAIRS = (
         "docs/从乐谱到第二次渲染.md",
         "docs/从乐谱到第二次渲染.en.md",
     ),
+    ("docs/渲染后自检.md", "docs/渲染后自检.en.md"),
     ("docs/当前状态.md", "docs/当前状态.en.md"),
     ("docs/音源许可政策.md", "docs/音源许可政策.en.md"),
     (
@@ -125,8 +127,6 @@ EXPECTED_EXCLUDED_ROOT_DOCUMENTS = frozenset(
         "发布包/README.md",
     }
 )
-
-
 class SourceReleaseTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
@@ -201,6 +201,10 @@ class SourceReleaseTests(unittest.TestCase):
                 f"[Chinese]({chinese})\n\n# Public instrument documentation\n",
             )
         self._write("schemas/score.schema.json", '{"type": "object"}\n')
+        self._write(
+            "schemas/candidate-playback-map.schema.json",
+            '{"type": "object"}\n',
+        )
         self._write("examples/demo.events.json", '{"events": []}\n')
         for path in EXPECTED_PUBLIC_DOCUMENTS:
             self._write(path, "# Public documentation\n")
@@ -270,6 +274,7 @@ class SourceReleaseTests(unittest.TestCase):
                 EXPECTED_FIXTURE_INSTRUMENT_DOCUMENTS.issubset(names)
             )
             self.assertIn("schemas/score.schema.json", names)
+            self.assertIn("schemas/candidate-playback-map.schema.json", names)
             self.assertIn("examples/demo.events.json", names)
             self.assertTrue(EXPECTED_PUBLIC_DOCUMENTS.issubset(names))
             self.assertIn("安装环境.ps1", names)
@@ -498,6 +503,53 @@ class SourceReleaseTests(unittest.TestCase):
             )
         self.assertFalse((self.output_root / "broken-public-link.zip").exists())
         self.assertTrue((self.repo / target).is_file())
+
+    def test_packaged_constitution_links_use_public_source_directory(
+        self,
+    ) -> None:
+        pairs = (
+            (
+                "docs/音乐创作参考笔记/天籁音乐宪法-v0.1.md",
+                "tianlai/_resources/constitutions/天籁音乐宪法-v0.1.md",
+                "README.md",
+            ),
+            (
+                "docs/音乐创作参考笔记/天籁音乐宪法-v0.1.en.md",
+                "tianlai/_resources/constitutions/天籁音乐宪法-v0.1.en.md",
+                "README.en.md",
+            ),
+        )
+        for source, packaged, readme in pairs:
+            payload = f"# Constitution\n\n[Reference index]({readme})\n"
+            self._write(source, payload)
+            self._write(packaged, payload)
+        self._git("add", *[path for pair in pairs for path in pair[:2]])
+        self._git("commit", "--quiet", "-m", "add packaged constitutions")
+
+        output = self.output_root / "packaged-constitutions.zip"
+        release.build_source_release(self.repo, output)
+
+        with zipfile.ZipFile(output, "r") as archive:
+            for _source, packaged, _readme in pairs:
+                self.assertIn(packaged, archive.namelist())
+
+    def test_packaged_constitution_must_match_public_source(self) -> None:
+        source = "docs/音乐创作参考笔记/天籁音乐宪法-v0.1.md"
+        packaged = (
+            "tianlai/_resources/constitutions/天籁音乐宪法-v0.1.md"
+        )
+        self._write(source, "# Canonical constitution\n")
+        self._write(packaged, "# Altered runtime copy\n")
+        self._git("add", source, packaged)
+        self._git("commit", "--quiet", "-m", "add mismatched constitution")
+
+        output = self.output_root / "mismatched-constitution.zip"
+        with self.assertRaisesRegex(
+            release.ReleaseBuildError,
+            "packaged constitution resource must be an exact copy",
+        ):
+            release.build_source_release(self.repo, output)
+        self.assertFalse(output.exists())
 
     def test_dirty_staged_repository_document_deletion_hides_its_path(
         self,

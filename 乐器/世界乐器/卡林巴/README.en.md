@@ -32,9 +32,8 @@ recorded root notes.
 
 ## Tuning
 
-The metal cantilever tines of a kalimba have strong non-integer modes, so the
-string-oriented “highest aggregate integer-harmonic score” algorithm cannot be
-reused. Calibration now uses a tine-specific direct local-modal check:
+The metal cantilever tines of a kalimba have strong non-integer modes.
+Calibration uses a tine-specific direct local-modal check:
 
 - It normally reads the strongest sustained local mode within ±180 cents of the labeled root note.
 - If low-octave resonance dominates the sustain, but a clear mode at the labeled pitch exists during the 50–170 ms attack, that attack mode validates the tine label and the low-octave component is explicitly recorded as genuine resonance.
@@ -50,15 +49,11 @@ correspond to the two disputed tines. Objective results are in
 RMS `0.015418`, 0 clipped samples, WAV SHA-256 `ffa39406…`. Recompute with
 [`核验试听.py`](核验试听.py).
 
-## Known limitations
+## Sound and performance characteristics
 
-There is one recorded velocity layer, so velocity controls volume only. Four
-pitches have two physical tines available for round robin; the rest have no RR.
-Not every semitone has an independent recording, though adjacent keys are
-resampled by at most 1 semitone. The attack of the highest B tine is close to
-the target B5, but after about 100 ms the octave resonance from the same
-instrument's lower B tine becomes dominant. This is real acoustic behavior in
-the recording and is unsuitable when a pure, stable electronic B5 is required.
-The currently bound version has passed single-instrument listening review and
-is marked `formal`; ensemble use and complete capability coverage remain
-untested.
+This timbre uses one recorded velocity layer, with velocity continuously
+controlling performance level. Four pitches each have two physical tines in an
+RR2 group; the other pitches use one tine. Eleven recorded roots cover B3–C6,
+with adjacent-key extension limited to 1 semitone. The highest B tine preserves
+the natural lower-B octave resonance of the same instrument. The currently
+bound version has passed single-timbre listening review and is marked `formal`.

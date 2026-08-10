@@ -1,0 +1,31 @@
+{
+  "status": "machine_pass_human_pending",
+  "rendered_at": "2026-08-07",
+  "platform": "Windows Chinese-path workspace",
+  "sample_rate": 48000,
+  "channels": 2,
+  "subtype": "PCM_24",
+  "frame_count": 204000,
+  "duration_seconds": 4.25,
+  "peak_active_voices": 18,
+  "peak": 0.406933,
+  "rms": 0.032024,
+  "clipped_samples": 0,
+  "wav": "output/钢琴_candidate.wav",
+  "wav_persistence": "temporary",
+  "wav_sha256": "7f2adc0e49f0a528bff304d3eddc9a9c04664b6b967caa6668f39f12ab082924",
+  "hash_algorithm": "SHA-256",
+  "canonicalization": "tianlai-json-v1",
+  "manifest_canonical_sha256": "ff9ca4f1dfbaca8bfbae7bf33481810c7e0fb536d5c3894d118f98f0a55fdb2e",
+  "events": "examples/钢琴_C大调.events.json",
+  "events_canonical_sha256": "173250acc05b23d29faaa451ca2a8e58099cf468032ebcef1f8b99bfcd08c496",
+  "audition_profile": "fixed-example",
+  "audition_protocol": "instrument-fixed-example-v1",
+  "coverage": [
+    "C 大调四声部和弦",
+    "四档输入力度与跨音区采样映射",
+    "延音踏板与踏板噪",
+    "释音与三层弦共鸣(S/L 之一与 V3 并行)"
+  ],
+  "human_review": "pending"
+}

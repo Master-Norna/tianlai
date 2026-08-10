@@ -735,10 +735,15 @@ def _capability_candidates(
         if trusted_only and trusted is not None and instrument not in trusted:
             continue
         if percussion:
-            if capability.pitched:
+            if capability.routing_class != "percussion":
                 continue
-            fit = "not_applicable"
-            rank = 0
+            fit = "explicit_kit_mapping_required"
+            if instrument.startswith("现代鼓组/"):
+                rank = 0
+            elif not capability.pitched:
+                rank = 1
+            else:
+                rank = 2
         else:
             if not capability.pitched:
                 continue
@@ -770,6 +775,7 @@ def _capability_candidates(
                     "instrument": instrument,
                     "name": capability.name,
                     "pitched": capability.pitched,
+                    "routing_class": capability.routing_class,
                     "range_fit": fit,
                     "note_min": capability.note_min,
                     "note_max": capability.note_max,
@@ -778,6 +784,21 @@ def _capability_candidates(
             )
         )
     rows.sort(key=lambda row: (row[0], row[1].casefold(), row[1]))
+    if percussion:
+        # Keep a bounded hint page representative: modern kit pieces,
+        # orchestral unpitched percussion, and pitched percussion should all be
+        # visible before truncation.  This is discovery order only; it never
+        # assigns an instrument automatically.
+        buckets = {
+            rank: [row for row in rows if row[0] == rank]
+            for rank in sorted({row[0] for row in rows})
+        }
+        diversified: list[tuple[int, str, dict[str, Any]]] = []
+        while any(buckets.values()):
+            for rank in sorted(buckets):
+                if buckets[rank]:
+                    diversified.append(buckets[rank].pop(0))
+        rows = diversified
     return [row[2] for row in rows]
 
 

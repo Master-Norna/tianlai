@@ -245,17 +245,14 @@ class CollaborationAnalysisCache:
             suffix=".tmp",
         )
         temporary = Path(temporary_name)
-        try:
-            with os.fdopen(descriptor, "wb") as target:
-                target.write(payload)
-                target.flush()
-                os.fsync(target.fileno())
-            os.replace(temporary, path)
-        finally:
-            try:
-                temporary.unlink(missing_ok=True)
-            except OSError:
-                pass
+        with os.fdopen(descriptor, "wb") as target:
+            target.write(payload)
+            target.flush()
+            os.fsync(target.fileno())
+        # The temporary name disappears on success.  Preserve it on failure;
+        # an unlink-by-name cleanup could target a racing replacement rather
+        # than the file descriptor created above.
+        os.replace(temporary, path)
 
     def store(
         self,

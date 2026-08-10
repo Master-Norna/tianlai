@@ -65,7 +65,7 @@ def _roster() -> dict:
             {
                 "part": "Tone",
                 "executor_id": "tone",
-                "instrument": "测试工具/参考振荡器",
+                "instrument": "电子乐器/合成器主音",
             }
         ],
     }
@@ -194,7 +194,14 @@ class CliRenderPreflightParityTests(unittest.TestCase):
             self.assertEqual(report["status"], "passed")
             self.assertFalse(report["render_parameters"]["space_enabled"])
             self.assertFalse(report["render_parameters"]["write_stems"])
+            review = json.loads(
+                (output / "创作自检.json").read_text(encoding="utf-8")
+            )
+            self.assertTrue(review["continuation_allowed"])
+            self.assertEqual(review["blocking_count"], 0)
+            self.assertIn("performance_plan_sha256", review["binding"])
             self.assertIn("资源预检:", passed_stdout.getvalue())
+            self.assertIn("创作自检:", passed_stdout.getvalue())
 
 
 @unittest.skipUnless(_HAS_MCP, "未安装 mcp,可选组件跳过")

@@ -57,7 +57,7 @@ def roster_availability_problems(
             )
         elif trusted_only and trusted is not None and instrument not in trusted:
             problems.append(
-                f"{instrument}(不在可信白名单;传 trusted_only=false 可放开)"
+                f"{instrument}(不在当前调用方提供的允许乐器集合)"
             )
     return tuple(problems)
 

@@ -2,7 +2,7 @@
 
 # Tianlai MCP interface
 
-Tianlai `0.6.0rc1` exposes editable, reproducible music projects to AI agents
+Tianlai `0.7.0rc1` exposes editable, reproducible music projects to AI agents
 through stdio MCP. An agent does not receive an opaque “one sentence to audio”
 button. It receives fine-grained tools for reading contracts, choosing
 instruments, importing a score, confirming instrumentation, running preflight,
@@ -111,14 +111,22 @@ Rendered-candidate location and comparison have a narrower boundary: they may
 read only the current runtime's `output/mcp/` candidate tree and cannot use a
 candidate parameter to inspect an arbitrary input root.
 
-## The current 15 tools
+Persistent authoring and workflow tools use an even narrower boundary. Clients
+pass a lowercase ASCII `project_key`, which maps below the fixed
+`output/mcp/authoring-projects/` namespace. They accept no project, candidate,
+or output paths and return no local paths.
 
-The server registers exactly these 15 tools:
+## The current 44 tools
+
+The server registers exactly these 44 tools; the original 27 names and
+parameters remain compatible:
 
 | Tool | Writes audio/project files | Purpose |
 | --- | --- | --- |
 | `score_and_roster_format` | No | Returns current score/roster contracts, rules, and a minimal example. |
-| `list_instruments` | No | Returns palettes, articulations, ranges, pitch modes, quality, and license status. |
+| `list_instruments` | No | Searches the formal palette by scope and returns routing classes, articulations, ranges, and pitch modes. |
+| `diagnose_runtime` | No | Returns a bounded, path-redacted diagnosis of the runtime, platform, layout, resource summary, and optional capabilities. |
+| `plan_resource_restore` | No | Plans licenses, size, and local state by instrument, resource family, or group without downloading or installing. |
 | `import_midi` | No | Compatibility entry point: reads local MIDI and returns a score and non-executable draft. |
 | `import_musicxml` | No | Compatibility entry point: reads MusicXML/XML/MXL and returns a score and report. |
 | `import_score_project` | No | Recommended entry point: unified import returning a hash-bound three-document project bundle. |
@@ -128,15 +136,49 @@ The server registers exactly these 15 tools:
 | `patch_score` | No | Atomically applies event patches bound to a hash and old values and returns a new score. |
 | `compare_score_versions` | No | Compares two scores by stable event identity. |
 | `validate_project` | No | Compiles and validates score, roster, and performance settings without instantiating instruments. |
+| `check_project_readiness` | No | Checks the project contract and resource references for instruments actually used by the roster without decoding or probing audio. |
 | `locate` | No | Recompiles the current project and maps a time window to planned events. |
 | `locate_rendered_candidate` | No | Locates an actually heard timestamp from a saved candidate's receipt and plan. |
 | `compare_rendered_candidates` | No | Compares the score, roster, configuration, plan, and mix identity bound to two candidates. |
 | `render` | **Yes** | Renders a new candidate directory, ensemble, optional stems, receipt, and attribution sidecars. |
+| `create_authoring_project` | **Yes** | Creates an instrument-neutral persistent project in the dedicated namespace. |
+| `open_authoring_project` | No | Opens current or historical immutable project metadata. |
+| `get_authoring_snapshot` | No | Returns one three-document snapshot and bounded readiness without paths. |
+| `save_authoring_project` | **Yes** | CAS-saves complete documents as a new immutable revision. |
+| `check_authoring_readiness` | No | Checks hard contracts while leaving advisory review nonblocking. |
+| `render_authoring_revision` | **Yes** | Renders exactly the named immutable revision; the raw result is unmanaged. |
+| `inspect_authoring_candidate` | No | Verifies candidate/project bindings and separately reports authorization, recording, and acceptance. |
+| `locate_authoring_candidate` | No | Maps rendered seconds to events using project and candidate IDs only. |
+| `compare_authoring_candidates` | No | Compares two verified candidates inside one project. |
+| `creative_workflow_guide` | No | Returns modes, honesty boundary, charter template, phases, evidence, decisions, and constitution metadata. |
+| `get_music_constitution_clauses` | No | Verifies the full local constitution hash and returns at most 12 explicit Chinese or English clauses. |
+| `create_creative_workflow` | **Yes** | Creates an off/audit/iterate workflow with stdio final authority frozen to agent. |
+| `open_creative_workflow` | No | Opens a verified current or historical workflow revision without implicit full-history traversal. |
+| `verify_creative_workflow_history` | No | Explicitly verifies the bounded immutable parent chain back to genesis. |
+| `activate_creative_workflow` | **Yes** | Freezes a work charter and optional small official/custom clause set. |
+| `record_workflow_review` | **Yes** | Records an agent phase review; MCP cannot claim human or trusted-validator identity. |
+| `record_workflow_evidence` | **Yes** | Records nonblocking promise conflicts or aesthetic risks without automatic edits. |
+| `record_verified_workflow_hard_failure` | **Yes** | Reruns trusted readiness and records only an exactly reproduced blocking issue. |
+| `register_workflow_exception` | **Yes** | Registers an evidenced exception with cost/recovery; hard failures are never exceptable. |
+| `render_workflow_candidate` | **Yes** | Performs reserve → managed render → candidate verification → workflow record with no caller auth/path. |
+| `attach_workflow_candidate_for_audit` | **Yes** | Attaches an existing candidate by ID for audit; it remains unmanaged. |
+| `decide_workflow_iteration` | **Yes** | Accepts/revises/recommends/preserves/stops under frozen agent authority. |
+| `record_workflow_authoring_revision` | **Yes** | Binds a separately CAS-saved authoring revision as the next iteration. |
+| `rollback_creative_workflow` | **Yes** | Selects an earlier immutable anchor without overwriting or deleting. |
+| `cancel_workflow_render` | **Yes** | Cancels the sole current reservation without deleting candidates. |
+| `stop_creative_workflow` | **Yes** | Stops under frozen agent authority without fabricating creator approval. |
 
 “No” means the tool writes neither audio nor project files; import and candidate
-inspection still read authorized local files. `patch_score` returns a new
-in-memory object, and the client decides where to save it. Only `render` creates
-formal candidate artifacts.
+inspection still read authorized local files. `diagnose_runtime` and
+`check_project_readiness` are strictly passive: they do not load native
+libraries, start `tar`, `bsdtar`, or any external program, or create temporary
+files. Writability of the actual MCP target `output/mcp` is only a no-write
+estimate based on the target or parent directory's metadata and permissions, not an actual write
+verification. `plan_resource_restore` performs no networking, downloading,
+extraction, or installation. `patch_score` returns a new in-memory object, and
+the client decides where to save it. `render`, `render_authoring_revision`, and
+`render_workflow_candidate` write audio. Authoring and workflow writes remain
+inside the dedicated project root and publish immutable CAS revisions.
 
 ## Recommended agent loop
 
@@ -154,6 +196,8 @@ import_score_project
     ↓
 confirm_roster
     ↓
+validate_project → check_project_readiness
+    ↓
 render
     ↓
 locate_rendered_candidate
@@ -165,12 +209,58 @@ render(parent_candidate_id=...)
 compare_rendered_candidates → creator listens to the A/B
 ```
 
+The persistent v0.7 authoring loop is path-free:
+
+```text
+create_authoring_project → get_authoring_snapshot
+  → edit complete documents → save_authoring_project(expected_revision=...)
+  → check_authoring_readiness → render_authoring_revision
+  → inspect/locate/compare_authoring_candidates
+```
+
+The optional governance loop sits above it:
+
+```text
+creative_workflow_guide → optional get_music_constitution_clauses
+  → create_creative_workflow → activate_creative_workflow
+  → review intent/symbolic_structure/orchestration_performance
+  → evidence → render_workflow_candidate → review render_report
+  → optional exception → decide_workflow_iteration
+  → if revise: CAS-save authoring documents
+       → record_workflow_authoring_revision → next iteration
+```
+
+`render_workflow_candidate` derives its authorization from the sole current
+immutable reservation, rechecks it before expensive work, binds it into both
+receipt and manifest, and then records the verified candidate. It accepts no
+caller authorization or path. Candidate inspection distinguishes
+`workflow_authorized`, `workflow_recorded`, and `workflow_accepted`; a
+syntactically valid self-assertion cannot make a candidate managed.
+
+Generic evidence cannot create hard failures and generic review/evidence
+provenance is fixed to `agent`. Only the dedicated trusted-readiness tool can
+record an exact blocking issue. Promise conflicts and aesthetic risks do not
+automatically gate or edit. The stdio boundary has no trusted human identity
+channel, so its workflows freeze `final_authority=agent` and expose no authority
+switch. See [Creative Workflow](创作工作流.en.md) for the full state and recovery
+contract.
+
+Byte-exact, fixed-hash Chinese and English constitution sources ship as wheel
+package data and are tested against the copies in the music-creation notes. Clause
+lookup therefore does not depend on a repository `docs/` directory being present at
+runtime.
+
 The two paths are not the same permission or file wrapper. CLI import writes
 three files and offers a loss policy; MCP import returns an in-memory bundle.
 CLI candidates default to `output/候选/`; MCP candidates go to `output/mcp/`.
-MCP `render` defaults to `trusted_only=true`, while the CLI primarily confirms
-the palette during `roster-promote`. Do not apply one entry point's path or
-permission defaults to the other.
+MCP orchestration, preflight, location, and render tools default to
+`instrument_scope="formal"`, while the CLI primarily confirms the palette
+during `roster-promote`. Each entry point retains its own path, permission, and
+roster contracts.
+
+A new session can begin with `diagnose_runtime(check_level="quick")`. It is a
+quick runtime diagnosis, not an audio probe. The complete project-resource
+check is described after `validate_project` below.
 
 ### 1. Read current contracts and palette
 
@@ -178,31 +268,102 @@ At the start of every session, call:
 
 ```text
 score_and_roster_format()
-list_instruments(trusted_only=true, pitched_only=false)
+list_instruments()
 ```
 
-Do not rely on an old prompt's memory of fields or instruments.
-`trusted_only=true` is the default curated scope. `false` admits only
-non-quarantined formal single-timbre entries; it does not bypass license
-quarantine or expose local-compatibility SoundFonts.
+With no arguments, `list_instruments` uses `instrument_scope="formal"`,
+`detail_level="summary"`, and `limit=32`, returning the first page of the
+current 103 formally callable sound entries. `catalog_count=103`, `has_more`,
+and `next_offset` describe the complete catalog and following page. Pass
+`instrument_scope="curated"` explicitly for the 25-entry creator-curated
+palette. Each formal item also carries a `curated` marker for membership in
+that subset. Existing clients may continue to use the `trusted_only`
+compatibility parameter: `true` maps to `curated`, and `false` maps to `formal`.
+New calls should use `instrument_scope` directly.
 
-The only versioned source of truth for the trusted palette is
-[`可信乐器.json`](../可信乐器.json). Documentation and agent prompts should not
-hard-code its count; read the current set with `list_instruments` in every
-session.
+Top-level `curation_state` reports whether curated markers were loaded. A
+normal release tree returns `available`, with `curated_count=25`. The formal
+catalog remains independently searchable; when an environment returns
+`curation_state="unavailable"`, an item's `curated` value is `null` to represent
+the currently unloaded marker.
 
-Before writing notes, prefer
-`articulation_range_contracts[articulation].midi_ranges`. The top-level range
-is only an instrument envelope and may contain articulation gaps. `strict_hq`
-is a fail-closed evidence gate; it does not automatically improve a sound source
-or resampling quality.
+[`可信乐器.json`](../可信乐器.json) is the versioned source for the curated
+subset. Clients and agent prompts should read `curation_state`, `curated_count`,
+and each item's `curated` value instead of hard-coding the count; 25 describes
+the current release tree.
+
+The formal scope currently has three `routing_class` groups:
+
+| `routing_class` | Current count | Orchestration use |
+| --- | ---: | --- |
+| `instrument` | 68 | Conventional melodic, harmonic, bass, and texture parts. |
+| `percussion` | 27 | Modern drums and orchestral percussion, including pitched percussion such as timpani and glockenspiel. |
+| `effect` | 8 | Environmental, Foley, and designed effect events. |
+
+Successful results also include top-level `routing_class_semantics`, providing
+machine-readable definitions for choosing an ordinary assignment, a per-key
+`kit`, or an ambience/effect part.
+
+The full palette can be filtered and paged on the server:
+
+| Parameter | Purpose |
+| --- | --- |
+| `query` | Case-insensitive text search across instrument paths, display names, implementation types, and articulation names. |
+| `category` | Filters by the first path component, for example `管弦乐`. |
+| `routing_class` | Selects `instrument`, `percussion`, or `effect`. |
+| `articulation` | Returns entries that support the requested articulation. |
+| `pitch_mode` | Selects `pitched`, `ignore`, `fixed`, or `unspecified`. |
+| `detail_level` | `summary` is the compact default for discovery and paging; `full` returns complete range, articulation, and capability contracts. |
+| `offset` / `limit` | Zero-based paging; `limit` is 1–256 and defaults to 32. |
+
+For example, search for an orchestral melodic instrument with a sustain
+articulation:
+
+```text
+list_instruments(
+  instrument_scope="formal",
+  category="管弦乐",
+  routing_class="instrument",
+  articulation="sustain",
+  pitch_mode="pitched",
+  query="长笛",
+  detail_level="summary",
+  offset=0,
+  limit=16
+)
+```
+
+In the result, `catalog_count` is the size of the selected scope,
+`matched_count` is the number of filtered matches, and `count` is the current
+page size. When `has_more=true`, continue from `next_offset`. After choosing an
+entry, lock onto its path with `query` and request the full contract:
+
+```text
+list_instruments(
+  instrument_scope="formal",
+  query="管弦乐/木管组/长笛",
+  detail_level="full",
+  offset=0,
+  limit=1
+)
+```
+
+In the full entry, write notes from
+`articulation_range_contracts[articulation].midi_ranges`. This field has already
+resolved articulation inheritance; the top-level `range` remains the overall
+instrument-range view.
+
+`pitch_mode="pitched"` selects or transposes by score pitch. `ignore` selects a
+sample or variant through a legal native key; an assignment or kit-entry
+`transpose` can align a different score key with it. `fixed` routes a score note
+directly to the entry's declared `fixed_midi_note`.
 
 ### 2. Unified import
 
 ```text
 import_score_project(
   source_path="乐谱/曲目/某曲/MusicXML/某曲.mxl",
-  trusted_only=true,
+  instrument_scope="formal",
   candidate_limit=8
 )
 ```
@@ -215,18 +376,18 @@ The successful `bundle` contains:
 - SHA-256 values binding source file and score;
 - a bounded number of non-executable routing suggestions for each part.
 
-Suggestions, track names, Program Change, CC7, CC11, and track order never
-become formal routing automatically. Legacy `import_midi` and
-`import_musicxml` remain for compatibility. New projects should use unified
-import so MIDI and MusicXML share one audit boundary.
+Suggestions, track names, Program Change, CC7, CC11, and track order are
+preserved as import information in the report and draft. `confirm_roster`
+writes the formal routing. Legacy `import_midi` and `import_musicxml` remain for
+compatibility; new projects should use unified import so MIDI and MusicXML share
+one project-import contract.
 
-MCP unified import returns an in-memory bundle only. It does not choose the
-CLI's `loss-policy` or write files for the client. The client should inspect
-warnings and the report, then either reject the result or persist the complete
-three-document bundle. Keep and read the import report with the score and draft.
-Semantics omitted from the score—such as repeats, grace notes, pedal, pitch
-bend, lyrics, layout, or vendor controls—cannot reappear magically during a
-later render.
+MCP unified import returns an in-memory bundle for client-selected persistence;
+the CLI entry point separately provides `loss-policy`. After reviewing warnings
+and the report, the client can persist the complete three-document bundle. Keep
+the import report with the score and draft: it records how source semantics such
+as repeats, grace notes, pedal, pitch bend, lyrics, layout, and vendor controls
+are represented by the current score contract.
 
 ### 3. Confirm the roster explicitly
 
@@ -236,16 +397,44 @@ confirm_roster(
   roster_draft=...,
   assignments=[
     {"part": "Piano", "instrument": "键盘乐器/钢琴"},
-    {"part": "Violin", "instrument": "管弦乐/弦乐组/小提琴"}
+    {
+      "part": "Violin",
+      "instrument": "管弦乐/弦乐组/小提琴",
+      "articulation_map": {"arco": "sustain"}
+    }
   ],
-  trusted_only=true
+  instrument_scope="formal"
 )
 ```
 
 Submit an `instrument` for an ordinary part and a per-key `kit` for percussion.
 The tool first revalidates the draft's bound score hash, then requires every
-score part exactly once and checks instrument existence, quarantine, and the
-trusted policy. It never fills a missing assignment from routing hints.
+score part exactly once and checks instrument existence, license status, and
+the selected scope. An `articulation_map` key is a score articulation marking,
+and its value is an articulation declared by the target instrument in
+`list_instruments`. The example maps the score's `arco` marking to the violin's
+`sustain` articulation.
+
+A percussion part can expand into several executors within one assignment. The
+following mapping is aligned with the current formal capability contracts for
+kick, rimshot snare, and closed hi-hat:
+
+```json
+{
+  "part": "Drums",
+  "kit": {
+    "C2": "现代鼓组/底鼓",
+    "D2": "现代鼓组/边击军鼓",
+    "A1": {"instrument": "现代鼓组/闭合踩镲", "transpose": 9}
+  }
+}
+```
+
+Notes at `C2`, `D2`, and `A1` in the score select the corresponding kit pieces.
+The kick and snare use `fixed` routing to their respective `fixed_midi_note`
+values; the closed hi-hat aligns `A1 + 9` with its legal native selection key
+`F#2`. Each kit value can be either an instrument path or an
+`{instrument, transpose}` object.
 
 The creator should also state roles, foreground/background, static gain,
 automation, seats, groups, and relative balance. Words such as “solo” or “left
@@ -265,7 +454,7 @@ validate_project(
     "name": "preview-v1",
     "write_stems": true
   },
-  trusted_only=true
+  instrument_scope="formal"
 )
 ```
 
@@ -276,6 +465,139 @@ resources were not checked. When `render_profile` is omitted, validation and
 rendering resolve the same versioned default. But preflighting an omitted
 profile does not prove that a different custom profile will pass later.
 
+#### Graded project review
+
+`validate_project`, `check_project_readiness`, and `render` all return
+`project_review`. It keeps two results independent: whether the request satisfies
+hard execution contracts, and whether a renderable creative choice deserves a
+focused listening review.
+
+- Hard contracts for structure, time coordinates, licensing, instrument scope,
+  explicit routing, actual playability, and resource budgets continue to appear
+  in `issues` and determine `ok`, `status`, and renderability.
+- Range profiles, onset compensation, automatic-articulation coverage,
+  collaboration coverage, and same-source unison candidates enter the read-only
+  `project_review`. They carry evidence and review options without changing the
+  hard gate.
+- `compatibility` remains the default range mode. It preserves extended
+  registers, edge timbres, and experimental writing inside the declared hard
+  playable range while reporting useful evidence. `strict_hq` remains an
+  explicit creator-selected gate for strict high-quality profiles.
+
+A typical response has this shape:
+
+```json
+{
+  "project_review": {
+    "$schema": "https://tianlai.local/schemas/project-review.schema.json",
+    "kind": "tianlai.project_review",
+    "schema_version": 1,
+    "status": "review_recommended",
+    "review_recommended": true,
+    "continuation_allowed": true,
+    "blocking_count": 0,
+    "review_count": 2,
+    "advisory_count": 1,
+    "binding": {
+      "score_sha256": "...",
+      "roster_sha256": "...",
+      "performance_plan_sha256": "..."
+    },
+    "items": [
+      {
+        "id": "selfcheck-0123456789abcdef0123",
+        "level": "warning",
+        "decision": "review",
+        "blocking": false,
+        "code": "range.outside_current_hq_candidate",
+        "scope": {"executor_id": "violin", "part_id": "Violin"},
+        "evidence": {"affected_note_count": 3},
+        "suggestions": ["Keep the current writing and audition the timbre first."],
+        "automatic_change": false
+      }
+    ]
+  }
+}
+```
+
+Each item ID is derived from its stable code, scope, and evidence. `binding`
+ties the report to the current score, roster, and performance-plan hashes.
+`level=warning` prioritizes a listening review, while `level=info` supplies
+coverage or context; both have `blocking=false` and need no `force` or `ignore`
+parameter. Clients can use `scope` to locate a part, executor, event, or
+instrument and present `evidence` with several `suggestions` to the creator.
+Every item fixes `automatic_change=false`, so the review itself leaves the
+score, roster, performance plan, and audio unchanged.
+The complete machine contract is `schemas/project-review.schema.json`, allowing
+a future UI to validate and present the report without guessing field meaning.
+
+All three entry points use the same semantics. Preflight exposes the review
+before rendering, readiness adds physical-reference state beside it, and a
+successful render returns the review bound to the actual candidate inputs. The
+hard-contract channel remains `issues`, so clients can adopt `project_review`
+incrementally. CLI `project-render` JSON uses the same
+`project_review` key. `ensemble`, including `--plan-only`, also writes
+`创作自检.json` in the output directory so a non-MCP workflow can review the
+same graded result.
+
+#### Runtime and project-resource self-check
+
+Use this bounded sequence to add actual resource readiness:
+
+```text
+diagnose_runtime(check_level="quick")
+validate_project(score=..., roster=..., render_profile=...)
+check_project_readiness(
+  score=...,
+  roster=...,
+  render_profile=...,
+  instrument_scope="formal",
+  verify_references=true
+)
+```
+
+`diagnose_runtime` with `quick` checks explicit manifest references;
+`references` additionally expands sample references in dedicated SFZ files and
+is therefore slower. Both levels are strictly passive: they do not load native
+libraries, start `tar`, `bsdtar`, or any external program, create temporary
+files, access the network, download or install anything, decode audio, or
+perform a playback probe. The actual MCP target `output/mcp` has a `writable_estimate` that is only a
+passive estimate based on filesystem metadata and permissions;
+`probe_performed=false` means that no actual write probe ran.
+
+`check_project_readiness` repeats the same project preflight and checks the
+instruments actually referenced by the current roster.
+`ready_for_render_attempt=true` summarizes that contract preflight, resource
+references, platform assessment, and output-location evaluation are ready.
+`render` then performs instrument construction, audio processing, and candidate
+writing.
+
+On macOS x86_64, MCP diagnosis reports passively available architecture
+information. When native Intel versus Rosetta translation status needs local
+confirmation, the result directs the operator to run `tianlai-doctor`.
+
+When resources are missing, pass `restore_plan_handoff.instrument_ids`
+unchanged to:
+
+```text
+plan_resource_restore(
+  instrument_ids=readiness.restore_plan_handoff.instrument_ids
+)
+```
+
+The restore plan contains deduplicated resource families, local state,
+estimated download/install sizes, and license obligations. It performs no
+network access, download, extraction, installation, or persistent write. The
+user still reviews licenses and size and explicitly performs restoration
+locally, then runs `check_project_readiness` again.
+
+These three diagnosis/planning tools return only safe relative instrument or
+resource-family identities, statuses, counts, and stable issue codes. Their
+outputs redact usernames, local absolute paths, environment values, download
+URLs, and native-loader error details. If operator-level paths are needed, the
+user runs `tianlai-doctor` locally rather than placing that report directly in
+the agent context.
+
 To prevent an agent from losing hall, stem, or cache parameters while copying,
 `validate_project` returns values that can be passed directly to `render`:
 
@@ -283,12 +605,13 @@ To prevent an agent from losing hall, stem, or cache parameters while copying,
 {
   "render_handoff": {
     "render_profile": {"kind": "tianlai.render_profile", "...": "..."},
-    "expected_render_profile_sha256": "64 lowercase hexadecimal characters"
+    "expected_render_profile_sha256": "64 lowercase hexadecimal characters",
+    "instrument_scope": "formal"
   }
 }
 ```
 
-Pass both fields to formal rendering. If the profile changes in between,
+Pass all three fields to formal rendering. If the profile changes in between,
 `render` returns `render_profile.preflight_mismatch` before creating a candidate
 directory. This hash prevents accidental local workflow substitution; it does
 not replace a candidate manifest or release signature.
@@ -313,14 +636,14 @@ render(
   expected_render_profile_sha256=(
     validation.render_handoff.expected_render_profile_sha256
   ),
-  trusted_only=true
+  instrument_scope=validation.render_handoff.instrument_scope
 )
 ```
 
 With no explicit override, the versioned default render profile is used. A
 successful response includes `candidate_id`, `candidate_directory`, `mix_wav`,
 plan, receipt, attribution sidecars, optional stems, range diagnostics, mix
-report, and cache telemetry.
+report, `project_review`, and cache telemetry.
 
 ### 5. Locate the actual candidate
 
@@ -432,12 +755,21 @@ Each directory writes `候选.json` last, binding:
 - `roster.json`;
 - `render-profile.json`;
 - the performance-plan hash;
+- `渲染后自检.json`, indirectly bound by a v3 receipt;
 - `渲染回执.json` and its hash.
 
 Once used for location, comparison, or listening, a candidate is an immutable
 snapshot. Do not edit these files in place or copy new audio into an old
 candidate and call it the same generation. Normal iteration creates a new
 `candidate_id` and sets `parent_candidate_id`.
+
+A successful `render` result also returns the post-render self-check path, full
+report, and bounded `summary`. Hard contracts have already been verified before
+candidate publication. A `warning` is risk evidence to review with stems and
+actual listening, not authority for an agent to change gain, filter audio,
+repair phase, or trim a tail automatically. See
+[Post-render self-check](渲染后自检.en.md) for the measurements and decision
+boundary.
 
 `render(overwrite=false)` rejects a same-named directory by default. Controlled
 replacement requires an explicit `output_id`, `overwrite=true`, and the
@@ -483,12 +815,13 @@ A roster or render profile supports:
 | `analyze` | Yes | No | No | No |
 | `suggest` | Yes | Yes | No | No |
 
-`suggest` generates bounded relative-gain drafts only for relationships
+`suggest` generates bounded relative-gain drafts for relationships
 explicitly declared by the roster. They are always `executable=false`,
 `audio_modified=false`, and `creator_review_required`. An agent first locates
-the candidate fragment; the creator then decides whether to change gain,
-register, dynamics, duration, instrumentation, or nothing at all. No warning
-does not mean a work passed complete ensemble validation.
+the candidate fragment; the creator then decides whether to adjust gain,
+register, dynamics, duration, or instrumentation. The report retains analysis
+windows, relationships, and creator-review state so machine metrics can be
+matched to actual listening.
 
 The current strict report contract is `mix_report.version=2`, with
 `temporal_balance.version=2`. A client must stop automatic interpretation and
@@ -518,35 +851,37 @@ invalidates relationship metrics only.
   internal caches.
 
 A corrupt cache falls back safely to ordinary rendering. Caching mainly
-accelerates the second mix and cannot eliminate instrument execution on the
-first cold render. Every successful render also writes `缓存遥测.json`, whose
+accelerates the second mix; the first cold render executes the complete
+instrument chain. Every successful render also writes `缓存遥测.json`, whose
 `total/accounted/unaccounted` values close over hits, misses, and bypasses. The
 candidate manifest binds that file by SHA-256; altering telemetry alone makes
 candidate loading fail. `use_stem_cache=false` disables both iterative cache
 layers. To prove across machines that an entire candidate was not replaced,
 also retain its candidate-manifest hash or use a signed release record.
 
-## Interface and quality boundaries
+## Usage and publication guidance
 
-- MCP provides offline rendering only, not a real-time software instrument.
-- MIDI/MusicXML import does not promise to preserve every source-format
-  semantic; read the report.
-- `validate_project` does not prove that external samples are installed.
-- `validate_project.render_preflight` proves only that the current render
-  profile passes static resource budgets. Formal `render` repeats the same gate
-  before taking ownership of candidate output.
-- Every formal route and project modification requires explicit input; no name
-  or statistic confers authority.
-- Release/hall contributions from candidate location are candidate evidence,
-  not sample-by-sample causal analysis.
-- Machine diagnostics cannot judge melody, harmony, orchestration, or
-  aesthetics.
-- A first render of a long work may take minutes and substantial peak memory;
-  caches optimize later remixes only.
-- `quality_tier=formal` does not mean every range, dynamic, articulation, and
-  instrument combination has been accepted.
-- Human listening and checks of input rights, sound-source licenses,
-  attribution, and output rights remain required before final publication.
+- MCP renders reproducible offline candidates, stems, receipts, and diagnostic
+  reports.
+- MIDI/MusicXML imports include a report so the creator can confirm the musical
+  semantics represented in the score.
+- Run `validate_project`, `check_project_readiness`, and `render` in sequence so
+  contracts, resources, and the formal candidate share one scope and render
+  profile.
+- At each step, read the hash-bound `project_review`: resolve hard contract gates
+  first, then use stable IDs, scopes, and evidence to audition non-blocking
+  review items.
+- Instrument routing, articulation mapping, and project edits use explicit
+  inputs, making them reviewable and repeatable.
+- Candidate location maps actually heard time back to planned events for local
+  editing and A/B iterations.
+- Diagnostic metrics provide objective context for melody, harmony,
+  orchestration, and mix decisions; the creator makes the final listening
+  judgment.
+- After the first long-form render, the stem cache can accelerate subsequent
+  remixes.
+- Before publication, combine human listening with checks of input rights,
+  sound-source licenses, attribution, and output rights.
 
 The equivalent CLI loop is documented in
 [From score to second render](从乐谱到第二次渲染.en.md). See

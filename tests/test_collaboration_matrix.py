@@ -933,15 +933,33 @@ class CollaborationMatrixTests(unittest.TestCase):
             self.assertTrue(target.read_bytes().endswith(b"\n"))
 
             previous = target.read_bytes()
+            displaced_writer_entry = root / "writer-entry-before-race.json"
+            racing_sentinel = b"entry installed by a racing writer"
+            observed_temporary: list[Path] = []
+
+            def fail_after_path_replacement(source, destination) -> None:
+                source_path = Path(source)
+                self.assertEqual(Path(destination), target)
+                source_path.rename(displaced_writer_entry)
+                source_path.write_bytes(racing_sentinel)
+                observed_temporary.append(source_path)
+                raise OSError("simulated replace failure")
+
             with mock.patch(
                 "tianlai.collaboration_matrix.os.replace",
-                side_effect=OSError("simulated replace failure"),
+                side_effect=fail_after_path_replacement,
             ):
                 with self.assertRaises(OSError):
                     write_collaboration_matrix_atomic(target, matrix)
             self.assertEqual(target.read_bytes(), previous)
-            self.assertFalse(
-                list(target.parent.glob(f".{target.name}.*.tmp"))
+            self.assertEqual(len(observed_temporary), 1)
+            self.assertEqual(
+                load_collaboration_matrix(displaced_writer_entry),
+                matrix,
+            )
+            self.assertEqual(
+                observed_temporary[0].read_bytes(),
+                racing_sentinel,
             )
 
     def test_invalid_atomic_write_does_not_create_parent_directory(self) -> None:

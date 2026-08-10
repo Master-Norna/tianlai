@@ -10,7 +10,7 @@ import unittest
 from unittest import mock
 import zipfile
 
-from tianlai.capability import InstrumentCapability
+from tianlai.capability import InstrumentCapability, load_capabilities
 from tianlai.project_import import (
     DRAFT_FORMAT,
     IMPORT_FORMAT,
@@ -24,6 +24,9 @@ from tianlai.project_import import (
     write_import_bundle,
 )
 from tianlai.roster import parse_roster_document
+
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def _chunk(identifier: bytes, payload: bytes) -> bytes:
@@ -359,7 +362,10 @@ class ProjectImportTests(unittest.TestCase):
                 capabilities,
                 trusted_only=True,
             )
-        with self.assertRaisesRegex(ValueError, "不在可信白名单"):
+        with self.assertRaisesRegex(
+            ValueError,
+            "不在当前调用方提供的允许乐器集合",
+        ):
             promote_roster(
                 bundle["roster_draft"],
                 bundle["score"],
@@ -426,6 +432,83 @@ class ProjectImportTests(unittest.TestCase):
                 capabilities,
                 limit=17,
             )
+
+    def test_percussion_hints_use_catalog_routing_not_pitched_guessing(self) -> None:
+        bundle = import_midi_project(self._write_midi(percussion=True))
+        capabilities = {
+            "环境与拟音/海浪": _capability(
+                "环境与拟音/海浪",
+                pitched=False,
+            ),
+            "现代鼓组/底鼓": _capability(
+                "现代鼓组/底鼓",
+                pitched=False,
+            ),
+            "管弦乐/打击乐组/定音鼓": _capability(
+                "管弦乐/打击乐组/定音鼓",
+                pitched=True,
+                note_min=38,
+                note_max=59,
+            ),
+        }
+
+        hints = build_routing_hints(
+            bundle["roster_draft"],
+            bundle["score"],
+            capabilities,
+            limit=8,
+        )
+        candidates = hints["parts"][0]["candidates"]
+
+        self.assertEqual(
+            [item["instrument"] for item in candidates],
+            ["现代鼓组/底鼓", "管弦乐/打击乐组/定音鼓"],
+        )
+        self.assertTrue(all(item["routing_class"] == "percussion" for item in candidates))
+        self.assertTrue(candidates[1]["pitched"])
+        self.assertNotIn(
+            "环境与拟音/海浪",
+            {item["instrument"] for item in candidates},
+        )
+
+    def test_real_percussion_hints_represent_all_three_routing_families(
+        self,
+    ) -> None:
+        bundle = import_midi_project(self._write_midi(percussion=True))
+        capabilities = load_capabilities(ROOT / "乐器")
+
+        for limit in (8, 16):
+            with self.subTest(limit=limit):
+                hints = build_routing_hints(
+                    bundle["roster_draft"],
+                    bundle["score"],
+                    capabilities,
+                    limit=limit,
+                )
+                candidates = hints["parts"][0]["candidates"]
+                self.assertTrue(
+                    any(
+                        item["instrument"].startswith("现代鼓组/")
+                        for item in candidates
+                    )
+                )
+                self.assertTrue(
+                    any(
+                        item["instrument"].startswith("管弦乐/打击乐组/")
+                        and not item["pitched"]
+                        for item in candidates
+                    )
+                )
+                self.assertTrue(
+                    any(
+                        item["instrument"].startswith("管弦乐/打击乐组/")
+                        and item["pitched"]
+                        for item in candidates
+                    )
+                )
+                self.assertTrue(
+                    all(item["routing_class"] == "percussion" for item in candidates)
+                )
 
     def test_write_bundle_is_atomic_and_refuses_overwrite_by_default(self) -> None:
         bundle = import_midi_project(self._write_midi())

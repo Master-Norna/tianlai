@@ -3,14 +3,15 @@
   "method": "harmonic-constrained FFT of each loaded pitched root sample against the root frequency the engine actually plays it at; diagnostic only, playback follows the audited upstream map",
   "reference_a4_hz": 440.0,
   "summary": {
-    "sample_count": 618,
-    "measured_count": 614,
+    "sample_count": 549,
+    "measured_count": 549,
     "skipped_count": 0,
-    "unreliable_count": 4,
-    "median_detune_cents": 0.760374,
-    "maximum_absolute_detune_cents": 177.973359,
-    "outlier_count": 71,
-    "statistics_note": "median/maximum cover only reliably measured pitched samples; railed and unanalysable samples are listed separately. Outliers beyond 50 cents are flagged for manual review rather than averaged away — a single sample that far off is usually a source problem, not natural stretch tuning"
+    "unreliable_count": 0,
+    "median_detune_cents": 1.548367,
+    "maximum_absolute_detune_cents": 166.047221,
+    "outlier_count": 6,
+    "statistics_note": "median/maximum cover only reliably measured pitched samples; railed and unanalysable samples are listed separately. Outliers beyond 50 cents are flagged for manual review rather than averaged away — a single sample that far off is usually a source problem, not natural stretch tuning",
+    "excluded_count": 92
   },
   "outliers_over_50_cents": [
     {
@@ -26,285 +27,20 @@
       "detune_cents": -165.345
     },
     {
-      "sample": "Samples/pedalU2.flac",
-      "detune_cents": -113.357
+      "sample": "Samples/harmV3A1.flac",
+      "detune_cents": -156.646
     },
     {
-      "sample": "Samples/rel10.flac",
-      "detune_cents": -133.284
+      "sample": "Samples/harmV3A4.flac",
+      "detune_cents": -166.047
     },
     {
-      "sample": "Samples/rel11.flac",
-      "detune_cents": -162.508
-    },
-    {
-      "sample": "Samples/rel12.flac",
-      "detune_cents": 112.231
-    },
-    {
-      "sample": "Samples/rel14.flac",
-      "detune_cents": 140.481
-    },
-    {
-      "sample": "Samples/rel15.flac",
-      "detune_cents": 110.386
-    },
-    {
-      "sample": "Samples/rel16.flac",
-      "detune_cents": -61.842
-    },
-    {
-      "sample": "Samples/rel17.flac",
-      "detune_cents": -143.752
-    },
-    {
-      "sample": "Samples/rel18.flac",
-      "detune_cents": -164.92
-    },
-    {
-      "sample": "Samples/rel19.flac",
-      "detune_cents": 86.892
-    },
-    {
-      "sample": "Samples/rel2.flac",
-      "detune_cents": 52.812
-    },
-    {
-      "sample": "Samples/rel20.flac",
-      "detune_cents": -54.067
-    },
-    {
-      "sample": "Samples/rel21.flac",
-      "detune_cents": -97.557
-    },
-    {
-      "sample": "Samples/rel22.flac",
-      "detune_cents": -141.19
-    },
-    {
-      "sample": "Samples/rel24.flac",
-      "detune_cents": -97.509
-    },
-    {
-      "sample": "Samples/rel25.flac",
-      "detune_cents": 135.563
-    },
-    {
-      "sample": "Samples/rel26.flac",
-      "detune_cents": 88.732
-    },
-    {
-      "sample": "Samples/rel27.flac",
-      "detune_cents": -64.453
-    },
-    {
-      "sample": "Samples/rel29.flac",
-      "detune_cents": -51.993
-    },
-    {
-      "sample": "Samples/rel3.flac",
-      "detune_cents": -171.654
-    },
-    {
-      "sample": "Samples/rel30.flac",
-      "detune_cents": -177.118
-    },
-    {
-      "sample": "Samples/rel31.flac",
-      "detune_cents": -78.226
-    },
-    {
-      "sample": "Samples/rel32.flac",
-      "detune_cents": -105.429
-    },
-    {
-      "sample": "Samples/rel34.flac",
-      "detune_cents": -87.499
-    },
-    {
-      "sample": "Samples/rel36.flac",
-      "detune_cents": -153.541
-    },
-    {
-      "sample": "Samples/rel37.flac",
-      "detune_cents": -176.631
-    },
-    {
-      "sample": "Samples/rel38.flac",
-      "detune_cents": -122.957
-    },
-    {
-      "sample": "Samples/rel4.flac",
-      "detune_cents": -107.665
-    },
-    {
-      "sample": "Samples/rel40.flac",
-      "detune_cents": -103.037
-    },
-    {
-      "sample": "Samples/rel41.flac",
-      "detune_cents": -99.55
-    },
-    {
-      "sample": "Samples/rel42.flac",
-      "detune_cents": -177.973
-    },
-    {
-      "sample": "Samples/rel44.flac",
-      "detune_cents": 63.714
-    },
-    {
-      "sample": "Samples/rel46.flac",
-      "detune_cents": -100.05
-    },
-    {
-      "sample": "Samples/rel47.flac",
-      "detune_cents": -100.486
-    },
-    {
-      "sample": "Samples/rel48.flac",
-      "detune_cents": -123.949
-    },
-    {
-      "sample": "Samples/rel49.flac",
-      "detune_cents": -59.042
-    },
-    {
-      "sample": "Samples/rel5.flac",
-      "detune_cents": 174.79
-    },
-    {
-      "sample": "Samples/rel50.flac",
-      "detune_cents": -55.555
-    },
-    {
-      "sample": "Samples/rel52.flac",
-      "detune_cents": -129.761
-    },
-    {
-      "sample": "Samples/rel53.flac",
-      "detune_cents": -99.4
-    },
-    {
-      "sample": "Samples/rel54.flac",
-      "detune_cents": -143.125
-    },
-    {
-      "sample": "Samples/rel55.flac",
-      "detune_cents": -177.915
-    },
-    {
-      "sample": "Samples/rel56.flac",
-      "detune_cents": -143.855
-    },
-    {
-      "sample": "Samples/rel57.flac",
-      "detune_cents": -165.149
-    },
-    {
-      "sample": "Samples/rel58.flac",
-      "detune_cents": -132.455
-    },
-    {
-      "sample": "Samples/rel59.flac",
-      "detune_cents": -173.428
-    },
-    {
-      "sample": "Samples/rel60.flac",
-      "detune_cents": 166.6
-    },
-    {
-      "sample": "Samples/rel62.flac",
-      "detune_cents": -130.985
-    },
-    {
-      "sample": "Samples/rel64.flac",
-      "detune_cents": -169.999
-    },
-    {
-      "sample": "Samples/rel65.flac",
-      "detune_cents": -106.853
-    },
-    {
-      "sample": "Samples/rel66.flac",
-      "detune_cents": 107.687
-    },
-    {
-      "sample": "Samples/rel67.flac",
-      "detune_cents": -171.594
-    },
-    {
-      "sample": "Samples/rel69.flac",
-      "detune_cents": -51.289
-    },
-    {
-      "sample": "Samples/rel7.flac",
-      "detune_cents": 163.83
-    },
-    {
-      "sample": "Samples/rel71.flac",
-      "detune_cents": 91.955
-    },
-    {
-      "sample": "Samples/rel73.flac",
-      "detune_cents": 168.985
-    },
-    {
-      "sample": "Samples/rel74.flac",
-      "detune_cents": -158.945
-    },
-    {
-      "sample": "Samples/rel76.flac",
-      "detune_cents": -177.626
-    },
-    {
-      "sample": "Samples/rel78.flac",
-      "detune_cents": -124.836
-    },
-    {
-      "sample": "Samples/rel81.flac",
-      "detune_cents": -58.028
-    },
-    {
-      "sample": "Samples/rel82.flac",
-      "detune_cents": -155.198
-    },
-    {
-      "sample": "Samples/rel83.flac",
-      "detune_cents": -132.12
-    },
-    {
-      "sample": "Samples/rel84.flac",
-      "detune_cents": -86.043
-    },
-    {
-      "sample": "Samples/rel85.flac",
-      "detune_cents": -176.415
-    },
-    {
-      "sample": "Samples/rel86.flac",
-      "detune_cents": 62.412
-    },
-    {
-      "sample": "Samples/rel87.flac",
-      "detune_cents": -126.523
-    },
-    {
-      "sample": "Samples/rel88.flac",
-      "detune_cents": -128.348
-    },
-    {
-      "sample": "Samples/rel9.flac",
-      "detune_cents": -99.686
+      "sample": "Samples/harmV3D#1.flac",
+      "detune_cents": 163.417
     }
   ],
   "skipped_samples": [],
-  "unreliable_samples": [
-    "Samples/rel23.flac",
-    "Samples/rel35.flac",
-    "Samples/rel39.flac",
-    "Samples/rel6.flac"
-  ],
+  "unreliable_samples": [],
   "samples": {
     "Samples/A0v1.flac": {
       "source_root_hz": 27.5,
@@ -3462,562 +3198,244 @@
       "detune_cents": 7.577963,
       "harmonic_count": 5
     },
-    "Samples/pedalD1.flac": {
-      "source_root_hz": 440.0,
-      "measured_hz": 441.604991,
-      "detune_cents": 6.303545,
-      "harmonic_count": 9
-    },
-    "Samples/pedalD2.flac": {
-      "source_root_hz": 440.0,
-      "measured_hz": 441.646062,
-      "detune_cents": 6.464547,
-      "harmonic_count": 9
-    },
-    "Samples/pedalU1.flac": {
-      "source_root_hz": 440.0,
-      "measured_hz": 433.217686,
-      "detune_cents": -26.893659,
-      "harmonic_count": 9
-    },
-    "Samples/pedalU2.flac": {
-      "source_root_hz": 440.0,
-      "measured_hz": 412.112912,
-      "detune_cents": -113.356629,
-      "harmonic_count": 9
-    },
-    "Samples/rel1.flac": {
+    "Samples/harmV3A0.flac": {
       "source_root_hz": 27.5,
-      "measured_hz": 27.063236,
-      "detune_cents": -27.716697,
+      "measured_hz": 26.994968,
+      "detune_cents": -32.089323,
       "harmonic_count": 10
     },
-    "Samples/rel10.flac": {
-      "source_root_hz": 46.249303,
-      "measured_hz": 42.82228,
-      "detune_cents": -133.284,
-      "harmonic_count": 10
-    },
-    "Samples/rel11.flac": {
-      "source_root_hz": 48.999429,
-      "measured_hz": 44.609218,
-      "detune_cents": -162.507718,
-      "harmonic_count": 10
-    },
-    "Samples/rel12.flac": {
-      "source_root_hz": 51.913087,
-      "measured_hz": 55.389949,
-      "detune_cents": 112.231115,
-      "harmonic_count": 10
-    },
-    "Samples/rel13.flac": {
+    "Samples/harmV3A1.flac": {
       "source_root_hz": 55.0,
-      "measured_hz": 55.227014,
-      "detune_cents": 7.131025,
+      "measured_hz": 50.241992,
+      "detune_cents": -156.645554,
       "harmonic_count": 10
     },
-    "Samples/rel14.flac": {
-      "source_root_hz": 58.27047,
-      "measured_hz": 63.195978,
-      "detune_cents": 140.481356,
-      "harmonic_count": 10
-    },
-    "Samples/rel15.flac": {
-      "source_root_hz": 61.735413,
-      "measured_hz": 65.799974,
-      "detune_cents": 110.386467,
-      "harmonic_count": 10
-    },
-    "Samples/rel16.flac": {
-      "source_root_hz": 65.406391,
-      "measured_hz": 63.111226,
-      "detune_cents": -61.841964,
-      "harmonic_count": 10
-    },
-    "Samples/rel17.flac": {
-      "source_root_hz": 69.295658,
-      "measured_hz": 63.774126,
-      "detune_cents": -143.752489,
-      "harmonic_count": 10
-    },
-    "Samples/rel18.flac": {
-      "source_root_hz": 73.416192,
-      "measured_hz": 66.745229,
-      "detune_cents": -164.920283,
-      "harmonic_count": 10
-    },
-    "Samples/rel19.flac": {
-      "source_root_hz": 77.781746,
-      "measured_hz": 81.785307,
-      "detune_cents": 86.892066,
-      "harmonic_count": 10
-    },
-    "Samples/rel2.flac": {
-      "source_root_hz": 29.135235,
-      "measured_hz": 30.037712,
-      "detune_cents": 52.811971,
-      "harmonic_count": 10
-    },
-    "Samples/rel20.flac": {
-      "source_root_hz": 82.406889,
-      "measured_hz": 79.873045,
-      "detune_cents": -54.067482,
-      "harmonic_count": 10
-    },
-    "Samples/rel21.flac": {
-      "source_root_hz": 87.307058,
-      "measured_hz": 82.523244,
-      "detune_cents": -97.557292,
-      "harmonic_count": 10
-    },
-    "Samples/rel22.flac": {
-      "source_root_hz": 92.498606,
-      "measured_hz": 85.254362,
-      "detune_cents": -141.189563,
-      "harmonic_count": 10
-    },
-    "Samples/rel23.flac": {
-      "source_root_hz": 97.998859,
-      "measured_hz": 88.321517,
-      "detune_cents": -180.0,
-      "unreliable": true,
-      "unreliable_reason": "measurement railed to the search boundary; no stable partial near the mapped root"
-    },
-    "Samples/rel24.flac": {
-      "source_root_hz": 103.826174,
-      "measured_hz": 98.139988,
-      "detune_cents": -97.508636,
-      "harmonic_count": 10
-    },
-    "Samples/rel25.flac": {
+    "Samples/harmV3A2.flac": {
       "source_root_hz": 110.0,
-      "measured_hz": 118.959694,
-      "detune_cents": 135.563188,
+      "measured_hz": 110.098425,
+      "detune_cents": 1.548367,
       "harmonic_count": 10
     },
-    "Samples/rel26.flac": {
-      "source_root_hz": 116.54094,
-      "measured_hz": 122.66979,
-      "detune_cents": 88.731764,
-      "harmonic_count": 10
-    },
-    "Samples/rel27.flac": {
-      "source_root_hz": 123.470825,
-      "measured_hz": 118.95861,
-      "detune_cents": -64.45259,
-      "harmonic_count": 10
-    },
-    "Samples/rel28.flac": {
-      "source_root_hz": 130.812783,
-      "measured_hz": 127.872809,
-      "detune_cents": -39.3528,
-      "harmonic_count": 10
-    },
-    "Samples/rel29.flac": {
-      "source_root_hz": 138.591315,
-      "measured_hz": 134.490951,
-      "detune_cents": -51.993296,
-      "harmonic_count": 10
-    },
-    "Samples/rel3.flac": {
-      "source_root_hz": 30.867706,
-      "measured_hz": 27.953967,
-      "detune_cents": -171.654305,
-      "harmonic_count": 10
-    },
-    "Samples/rel30.flac": {
-      "source_root_hz": 146.832384,
-      "measured_hz": 132.553259,
-      "detune_cents": -177.117662,
-      "harmonic_count": 10
-    },
-    "Samples/rel31.flac": {
-      "source_root_hz": 155.563492,
-      "measured_hz": 148.690784,
-      "detune_cents": -78.225957,
-      "harmonic_count": 10
-    },
-    "Samples/rel32.flac": {
-      "source_root_hz": 164.813778,
-      "measured_hz": 155.076429,
-      "detune_cents": -105.428929,
-      "harmonic_count": 10
-    },
-    "Samples/rel33.flac": {
-      "source_root_hz": 174.614116,
-      "measured_hz": 173.382881,
-      "detune_cents": -12.250473,
-      "harmonic_count": 10
-    },
-    "Samples/rel34.flac": {
-      "source_root_hz": 184.997211,
-      "measured_hz": 175.879498,
-      "detune_cents": -87.499446,
-      "harmonic_count": 10
-    },
-    "Samples/rel35.flac": {
-      "source_root_hz": 195.997718,
-      "measured_hz": 176.643034,
-      "detune_cents": -180.0,
-      "unreliable": true,
-      "unreliable_reason": "measurement railed to the search boundary; no stable partial near the mapped root"
-    },
-    "Samples/rel36.flac": {
-      "source_root_hz": 207.652349,
-      "measured_hz": 190.028924,
-      "detune_cents": -153.541398,
-      "harmonic_count": 10
-    },
-    "Samples/rel37.flac": {
+    "Samples/harmV3A3.flac": {
       "source_root_hz": 220.0,
-      "measured_hz": 198.66131,
-      "detune_cents": -176.631115,
+      "measured_hz": 221.770128,
+      "detune_cents": 13.873836,
       "harmonic_count": 10
     },
-    "Samples/rel38.flac": {
-      "source_root_hz": 233.081881,
-      "measured_hz": 217.101914,
-      "detune_cents": -122.957296,
-      "harmonic_count": 10
-    },
-    "Samples/rel39.flac": {
-      "source_root_hz": 246.941651,
-      "measured_hz": 222.556277,
-      "detune_cents": -180.0,
-      "unreliable": true,
-      "unreliable_reason": "measurement railed to the search boundary; no stable partial near the mapped root"
-    },
-    "Samples/rel4.flac": {
-      "source_root_hz": 32.703196,
-      "measured_hz": 30.731341,
-      "detune_cents": -107.665096,
-      "harmonic_count": 10
-    },
-    "Samples/rel40.flac": {
-      "source_root_hz": 261.625565,
-      "measured_hz": 246.508867,
-      "detune_cents": -103.036776,
-      "harmonic_count": 10
-    },
-    "Samples/rel41.flac": {
-      "source_root_hz": 277.182631,
-      "measured_hz": 261.693626,
-      "detune_cents": -99.549683,
-      "harmonic_count": 10
-    },
-    "Samples/rel42.flac": {
-      "source_root_hz": 293.664768,
-      "measured_hz": 264.975516,
-      "detune_cents": -177.973359,
-      "harmonic_count": 10
-    },
-    "Samples/rel43.flac": {
-      "source_root_hz": 311.126984,
-      "measured_hz": 306.31955,
-      "detune_cents": -26.959296,
-      "harmonic_count": 10
-    },
-    "Samples/rel44.flac": {
-      "source_root_hz": 329.627557,
-      "measured_hz": 341.984734,
-      "detune_cents": 63.71408,
-      "harmonic_count": 10
-    },
-    "Samples/rel45.flac": {
-      "source_root_hz": 349.228231,
-      "measured_hz": 342.009405,
-      "detune_cents": -36.161028,
-      "harmonic_count": 10
-    },
-    "Samples/rel46.flac": {
-      "source_root_hz": 369.994423,
-      "measured_hz": 349.218175,
-      "detune_cents": -100.049852,
-      "harmonic_count": 10
-    },
-    "Samples/rel47.flac": {
-      "source_root_hz": 391.995436,
-      "measured_hz": 369.890502,
-      "detune_cents": -100.486324,
-      "harmonic_count": 10
-    },
-    "Samples/rel48.flac": {
-      "source_root_hz": 415.304698,
-      "measured_hz": 386.610047,
-      "detune_cents": -123.949271,
-      "harmonic_count": 9
-    },
-    "Samples/rel49.flac": {
+    "Samples/harmV3A4.flac": {
       "source_root_hz": 440.0,
-      "measured_hz": 425.247216,
-      "detune_cents": -59.042081,
+      "measured_hz": 399.75909,
+      "detune_cents": -166.047221,
       "harmonic_count": 9
     },
-    "Samples/rel5.flac": {
-      "source_root_hz": 34.647829,
-      "measured_hz": 38.328661,
-      "detune_cents": 174.790387,
-      "harmonic_count": 10
-    },
-    "Samples/rel50.flac": {
-      "source_root_hz": 466.163762,
-      "measured_hz": 451.442107,
-      "detune_cents": -55.555045,
-      "harmonic_count": 8
-    },
-    "Samples/rel51.flac": {
-      "source_root_hz": 493.883301,
-      "measured_hz": 491.821149,
-      "detune_cents": -7.243701,
-      "harmonic_count": 8
-    },
-    "Samples/rel52.flac": {
-      "source_root_hz": 523.251131,
-      "measured_hz": 485.465563,
-      "detune_cents": -129.761478,
-      "harmonic_count": 7
-    },
-    "Samples/rel53.flac": {
-      "source_root_hz": 554.365262,
-      "measured_hz": 523.432643,
-      "detune_cents": -99.399549,
-      "harmonic_count": 7
-    },
-    "Samples/rel54.flac": {
-      "source_root_hz": 587.329536,
-      "measured_hz": 540.726628,
-      "detune_cents": -143.124945,
-      "harmonic_count": 6
-    },
-    "Samples/rel55.flac": {
-      "source_root_hz": 622.253967,
-      "measured_hz": 561.48255,
-      "detune_cents": -177.914805,
-      "harmonic_count": 6
-    },
-    "Samples/rel56.flac": {
-      "source_root_hz": 659.255114,
-      "measured_hz": 606.689197,
-      "detune_cents": -143.855083,
-      "harmonic_count": 6
-    },
-    "Samples/rel57.flac": {
-      "source_root_hz": 698.456463,
-      "measured_hz": 634.90724,
-      "detune_cents": -165.149234,
-      "harmonic_count": 5
-    },
-    "Samples/rel58.flac": {
-      "source_root_hz": 739.988845,
-      "measured_hz": 685.484589,
-      "detune_cents": -132.455151,
-      "harmonic_count": 5
-    },
-    "Samples/rel59.flac": {
-      "source_root_hz": 783.990872,
-      "measured_hz": 709.259521,
-      "detune_cents": -173.427893,
-      "harmonic_count": 5
-    },
-    "Samples/rel6.flac": {
-      "source_root_hz": 36.708096,
-      "measured_hz": 40.730183,
-      "detune_cents": 180.0,
-      "unreliable": true,
-      "unreliable_reason": "measurement railed to the search boundary; no stable partial near the mapped root"
-    },
-    "Samples/rel60.flac": {
-      "source_root_hz": 830.609395,
-      "measured_hz": 914.513136,
-      "detune_cents": 166.600444,
-      "harmonic_count": 4
-    },
-    "Samples/rel61.flac": {
+    "Samples/harmV3A5.flac": {
       "source_root_hz": 880.0,
-      "measured_hz": 898.13463,
-      "detune_cents": 35.313837,
+      "measured_hz": 884.410512,
+      "detune_cents": 8.65518,
       "harmonic_count": 4
     },
-    "Samples/rel62.flac": {
-      "source_root_hz": 932.327523,
-      "measured_hz": 864.390216,
-      "detune_cents": -130.984937,
-      "harmonic_count": 4
+    "Samples/harmV3C1.flac": {
+      "source_root_hz": 32.703196,
+      "measured_hz": 32.805699,
+      "detune_cents": 5.417813,
+      "harmonic_count": 10
     },
-    "Samples/rel63.flac": {
-      "source_root_hz": 987.766603,
-      "measured_hz": 970.504762,
-      "detune_cents": -30.521878,
-      "harmonic_count": 4
+    "Samples/harmV3C2.flac": {
+      "source_root_hz": 65.406391,
+      "measured_hz": 65.573718,
+      "detune_cents": 4.423307,
+      "harmonic_count": 10
     },
-    "Samples/rel64.flac": {
+    "Samples/harmV3C3.flac": {
+      "source_root_hz": 130.812783,
+      "measured_hz": 130.604097,
+      "detune_cents": -2.764045,
+      "harmonic_count": 10
+    },
+    "Samples/harmV3C4.flac": {
+      "source_root_hz": 261.625565,
+      "measured_hz": 262.191844,
+      "detune_cents": 3.743143,
+      "harmonic_count": 10
+    },
+    "Samples/harmV3C5.flac": {
+      "source_root_hz": 523.251131,
+      "measured_hz": 525.110733,
+      "detune_cents": 6.141791,
+      "harmonic_count": 7
+    },
+    "Samples/harmV3C6.flac": {
       "source_root_hz": 1046.502261,
-      "measured_hz": 948.625129,
-      "detune_cents": -169.998526,
+      "measured_hz": 1065.615382,
+      "detune_cents": 31.33366,
       "harmonic_count": 3
     },
-    "Samples/rel65.flac": {
-      "source_root_hz": 1108.730524,
-      "measured_hz": 1042.368003,
-      "detune_cents": -106.85287,
-      "harmonic_count": 3
-    },
-    "Samples/rel66.flac": {
-      "source_root_hz": 1174.659072,
-      "measured_hz": 1250.046126,
-      "detune_cents": 107.687081,
-      "harmonic_count": 3
-    },
-    "Samples/rel67.flac": {
-      "source_root_hz": 1244.507935,
-      "measured_hz": 1127.072825,
-      "detune_cents": -171.59363,
-      "harmonic_count": 3
-    },
-    "Samples/rel68.flac": {
-      "source_root_hz": 1318.510228,
-      "measured_hz": 1290.696161,
-      "detune_cents": -36.91121,
-      "harmonic_count": 3
-    },
-    "Samples/rel69.flac": {
-      "source_root_hz": 1396.912926,
-      "measured_hz": 1356.135143,
-      "detune_cents": -51.289369,
-      "harmonic_count": 2
-    },
-    "Samples/rel7.flac": {
+    "Samples/harmV3D#1.flac": {
       "source_root_hz": 38.890873,
-      "measured_hz": 42.75095,
-      "detune_cents": 163.829815,
+      "measured_hz": 42.740768,
+      "detune_cents": 163.417455,
       "harmonic_count": 10
     },
-    "Samples/rel70.flac": {
-      "source_root_hz": 1479.977691,
-      "measured_hz": 1489.871298,
-      "detune_cents": 11.534736,
-      "harmonic_count": 2
-    },
-    "Samples/rel71.flac": {
-      "source_root_hz": 1567.981744,
-      "measured_hz": 1653.517122,
-      "detune_cents": 91.955067,
-      "harmonic_count": 2
-    },
-    "Samples/rel72.flac": {
-      "source_root_hz": 1661.21879,
-      "measured_hz": 1690.626843,
-      "detune_cents": 30.379399,
-      "harmonic_count": 2
-    },
-    "Samples/rel73.flac": {
-      "source_root_hz": 1760.0,
-      "measured_hz": 1940.45618,
-      "detune_cents": 168.984511,
-      "harmonic_count": 2
-    },
-    "Samples/rel74.flac": {
-      "source_root_hz": 1864.655046,
-      "measured_hz": 1701.083963,
-      "detune_cents": -158.945292,
-      "harmonic_count": 2
-    },
-    "Samples/rel75.flac": {
-      "source_root_hz": 1975.533205,
-      "measured_hz": 1921.042015,
-      "detune_cents": -48.423628,
-      "harmonic_count": 2
-    },
-    "Samples/rel76.flac": {
-      "source_root_hz": 2093.004522,
-      "measured_hz": 1888.910096,
-      "detune_cents": -177.625669,
-      "harmonic_count": 1
-    },
-    "Samples/rel77.flac": {
-      "source_root_hz": 2217.461048,
-      "measured_hz": 2179.793843,
-      "detune_cents": -29.660479,
-      "harmonic_count": 1
-    },
-    "Samples/rel78.flac": {
-      "source_root_hz": 2349.318143,
-      "measured_hz": 2185.876737,
-      "detune_cents": -124.836056,
-      "harmonic_count": 1
-    },
-    "Samples/rel79.flac": {
-      "source_root_hz": 2489.01587,
-      "measured_hz": 2498.176363,
-      "detune_cents": 6.359881,
-      "harmonic_count": 1
-    },
-    "Samples/rel8.flac": {
-      "source_root_hz": 41.203445,
-      "measured_hz": 40.145722,
-      "detune_cents": -45.022432,
+    "Samples/harmV3D#2.flac": {
+      "source_root_hz": 77.781746,
+      "measured_hz": 77.759689,
+      "detune_cents": -0.491006,
       "harmonic_count": 10
     },
-    "Samples/rel80.flac": {
-      "source_root_hz": 2637.020455,
-      "measured_hz": 2700.233855,
-      "detune_cents": 41.010715,
-      "harmonic_count": 1
-    },
-    "Samples/rel81.flac": {
-      "source_root_hz": 2793.825851,
-      "measured_hz": 2701.734366,
-      "detune_cents": -58.027511,
-      "harmonic_count": 1
-    },
-    "Samples/rel82.flac": {
-      "source_root_hz": 2959.955382,
-      "measured_hz": 2706.153502,
-      "detune_cents": -155.198103,
-      "harmonic_count": 1
-    },
-    "Samples/rel83.flac": {
-      "source_root_hz": 3135.963488,
-      "measured_hz": 2905.544818,
-      "detune_cents": -132.120065,
-      "harmonic_count": 1
-    },
-    "Samples/rel84.flac": {
-      "source_root_hz": 3322.437581,
-      "measured_hz": 3161.347042,
-      "detune_cents": -86.043213,
-      "harmonic_count": 1
-    },
-    "Samples/rel85.flac": {
-      "source_root_hz": 3520.0,
-      "measured_hz": 3178.977116,
-      "detune_cents": -176.415357,
-      "harmonic_count": 1
-    },
-    "Samples/rel86.flac": {
-      "source_root_hz": 3729.310092,
-      "measured_hz": 3866.205757,
-      "detune_cents": 62.411588,
-      "harmonic_count": 1
-    },
-    "Samples/rel87.flac": {
-      "source_root_hz": 3951.06641,
-      "measured_hz": 3672.612223,
-      "detune_cents": -126.522624,
-      "harmonic_count": 1
-    },
-    "Samples/rel88.flac": {
-      "source_root_hz": 4186.009045,
-      "measured_hz": 3886.896651,
-      "detune_cents": -128.348017,
-      "harmonic_count": 1
-    },
-    "Samples/rel9.flac": {
-      "source_root_hz": 43.653529,
-      "measured_hz": 41.210917,
-      "detune_cents": -99.686065,
+    "Samples/harmV3D#3.flac": {
+      "source_root_hz": 155.563492,
+      "measured_hz": 155.933271,
+      "detune_cents": 4.110308,
       "harmonic_count": 10
+    },
+    "Samples/harmV3D#4.flac": {
+      "source_root_hz": 311.126984,
+      "measured_hz": 312.030398,
+      "detune_cents": 5.019674,
+      "harmonic_count": 10
+    },
+    "Samples/harmV3D#5.flac": {
+      "source_root_hz": 622.253967,
+      "measured_hz": 624.443114,
+      "detune_cents": 6.079951,
+      "harmonic_count": 6
+    },
+    "Samples/harmV3D#6.flac": {
+      "source_root_hz": 1244.507935,
+      "measured_hz": 1248.811889,
+      "detune_cents": 5.976898,
+      "harmonic_count": 3
+    },
+    "Samples/harmV3F#1.flac": {
+      "source_root_hz": 46.249303,
+      "measured_hz": 46.17854,
+      "detune_cents": -2.650866,
+      "harmonic_count": 10
+    },
+    "Samples/harmV3F#2.flac": {
+      "source_root_hz": 92.498606,
+      "measured_hz": 92.626957,
+      "detune_cents": 2.400597,
+      "harmonic_count": 10
+    },
+    "Samples/harmV3F#3.flac": {
+      "source_root_hz": 184.997211,
+      "measured_hz": 185.354383,
+      "detune_cents": 3.339243,
+      "harmonic_count": 10
+    },
+    "Samples/harmV3F#4.flac": {
+      "source_root_hz": 369.994423,
+      "measured_hz": 370.731211,
+      "detune_cents": 3.444064,
+      "harmonic_count": 10
+    },
+    "Samples/harmV3F#5.flac": {
+      "source_root_hz": 739.988845,
+      "measured_hz": 742.950626,
+      "detune_cents": 6.915376,
+      "harmonic_count": 5
     }
   },
-  "generated_at": "2026-07-22"
+  "generated_at": "2026-08-07",
+  "pitch_calibration_include_globs": [
+    "Samples/*v[0-9]*.flac",
+    "Samples/harmS*.flac",
+    "Samples/harmL*.flac",
+    "Samples/harmV3*.flac"
+  ],
+  "excluded_samples": [
+    "Samples/pedalD1.flac",
+    "Samples/pedalD2.flac",
+    "Samples/pedalU1.flac",
+    "Samples/pedalU2.flac",
+    "Samples/rel1.flac",
+    "Samples/rel10.flac",
+    "Samples/rel11.flac",
+    "Samples/rel12.flac",
+    "Samples/rel13.flac",
+    "Samples/rel14.flac",
+    "Samples/rel15.flac",
+    "Samples/rel16.flac",
+    "Samples/rel17.flac",
+    "Samples/rel18.flac",
+    "Samples/rel19.flac",
+    "Samples/rel2.flac",
+    "Samples/rel20.flac",
+    "Samples/rel21.flac",
+    "Samples/rel22.flac",
+    "Samples/rel23.flac",
+    "Samples/rel24.flac",
+    "Samples/rel25.flac",
+    "Samples/rel26.flac",
+    "Samples/rel27.flac",
+    "Samples/rel28.flac",
+    "Samples/rel29.flac",
+    "Samples/rel3.flac",
+    "Samples/rel30.flac",
+    "Samples/rel31.flac",
+    "Samples/rel32.flac",
+    "Samples/rel33.flac",
+    "Samples/rel34.flac",
+    "Samples/rel35.flac",
+    "Samples/rel36.flac",
+    "Samples/rel37.flac",
+    "Samples/rel38.flac",
+    "Samples/rel39.flac",
+    "Samples/rel4.flac",
+    "Samples/rel40.flac",
+    "Samples/rel41.flac",
+    "Samples/rel42.flac",
+    "Samples/rel43.flac",
+    "Samples/rel44.flac",
+    "Samples/rel45.flac",
+    "Samples/rel46.flac",
+    "Samples/rel47.flac",
+    "Samples/rel48.flac",
+    "Samples/rel49.flac",
+    "Samples/rel5.flac",
+    "Samples/rel50.flac",
+    "Samples/rel51.flac",
+    "Samples/rel52.flac",
+    "Samples/rel53.flac",
+    "Samples/rel54.flac",
+    "Samples/rel55.flac",
+    "Samples/rel56.flac",
+    "Samples/rel57.flac",
+    "Samples/rel58.flac",
+    "Samples/rel59.flac",
+    "Samples/rel6.flac",
+    "Samples/rel60.flac",
+    "Samples/rel61.flac",
+    "Samples/rel62.flac",
+    "Samples/rel63.flac",
+    "Samples/rel64.flac",
+    "Samples/rel65.flac",
+    "Samples/rel66.flac",
+    "Samples/rel67.flac",
+    "Samples/rel68.flac",
+    "Samples/rel69.flac",
+    "Samples/rel7.flac",
+    "Samples/rel70.flac",
+    "Samples/rel71.flac",
+    "Samples/rel72.flac",
+    "Samples/rel73.flac",
+    "Samples/rel74.flac",
+    "Samples/rel75.flac",
+    "Samples/rel76.flac",
+    "Samples/rel77.flac",
+    "Samples/rel78.flac",
+    "Samples/rel79.flac",
+    "Samples/rel8.flac",
+    "Samples/rel80.flac",
+    "Samples/rel81.flac",
+    "Samples/rel82.flac",
+    "Samples/rel83.flac",
+    "Samples/rel84.flac",
+    "Samples/rel85.flac",
+    "Samples/rel86.flac",
+    "Samples/rel87.flac",
+    "Samples/rel88.flac",
+    "Samples/rel9.flac"
+  ]
 }

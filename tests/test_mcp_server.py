@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 import importlib.util
+import json
 from pathlib import Path
 from types import SimpleNamespace
 import tempfile
@@ -139,6 +140,24 @@ class RosterProblemsTest(unittest.TestCase):
         self.assertEqual(len(problems), 1)
         self.assertIn("仅限显式本机兼容/测试", problems[0])
 
+    def test_non_formal_reference_oscillator_never_enters_public_scope(self):
+        roster = {
+            "assignments": [
+                {
+                    "executor_id": "reference",
+                    "instrument": "测试工具/参考振荡器",
+                }
+            ]
+        }
+
+        problems = self.m._roster_instrument_problems(
+            roster,
+            instrument_scope="formal",
+        )
+
+        self.assertEqual(len(problems), 1)
+        self.assertIn("不是 MCP 公开 formal", problems[0])
+
     def test_unique_short_name_uses_the_same_resolution_as_core(self):
         roster = {
             "assignments": [
@@ -178,6 +197,37 @@ class RosterProblemsTest(unittest.TestCase):
             [],
         )
 
+    def test_published_mapped_articulation_and_kit_examples_validate(self):
+        examples = self.m.score_and_roster_format()
+
+        direct = self.m.validate_project(
+            examples["example_score"],
+            examples["example_roster"],
+            hall=False,
+            write_stems=False,
+            collaboration_mode="manual",
+            use_stem_cache=False,
+        )
+        kit = self.m.validate_project(
+            examples["example_kit_score"],
+            examples["example_kit_roster"],
+            hall=False,
+            write_stems=False,
+            collaboration_mode="manual",
+            use_stem_cache=False,
+        )
+
+        self.assertTrue(direct["ok"], direct.get("issues"))
+        self.assertTrue(kit["ok"], kit.get("issues"))
+        for result in (direct, kit):
+            self.assertTrue(result["self_check"]["can_proceed"])
+            self.assertEqual(result["self_check"]["blocking_count"], 0)
+            self.assertTrue(result["project_review"]["continuation_allowed"])
+            self.assertEqual(result["project_review"]["blocking_count"], 0)
+            self.assertTrue(
+                all(issue["severity"] == "error" for issue in result["issues"])
+            )
+
 
 @unittest.skipUnless(_HAS_MCP, "未安装 mcp,可选组件跳过")
 class InstrumentPaletteTest(unittest.TestCase):
@@ -195,7 +245,7 @@ class InstrumentPaletteTest(unittest.TestCase):
         self.assertEqual(result["count"], 0)
         self.assertEqual(
             result["issues"][0]["code"],
-            "trust_policy.configuration_error",
+            "instrument.scope_invalid",
         )
 
     def test_missing_allowlist_does_not_block_explicit_untrusted_palette(
@@ -207,10 +257,22 @@ class InstrumentPaletteTest(unittest.TestCase):
                 result = self.m.list_instruments(trusted_only=False)
 
         self.assertTrue(result["ok"])
-        self.assertEqual(result["count"], 103)
+        self.assertEqual(result["catalog_count"], 103)
+        self.assertEqual(result["matched_count"], 103)
+        self.assertEqual(result["count"], 32)
+        self.assertTrue(result["has_more"])
+        self.assertEqual(result["curation_state"], "unavailable")
+        self.assertIsNone(result["curated_count"])
+        self.assertTrue(
+            all(item["curated"] is None for item in result["instruments"])
+        )
 
     def test_articulation_range_overrides_are_machine_readable(self):
-        palette = self.m.list_instruments(trusted_only=False)
+        palette = self.m.list_instruments(
+            trusted_only=False,
+            detail_level="full",
+            limit=128,
+        )
         by_path = {
             item["instrument"]: item for item in palette["instruments"]
         }
@@ -321,7 +383,7 @@ class InstrumentPaletteTest(unittest.TestCase):
         self.assertIn("fixed", palette["pitch_mode_semantics"])
 
     def test_default_palette_restores_strings_clarinet_and_variant_hint(self):
-        palette = self.m.list_instruments()
+        palette = self.m.list_instruments(limit=128)
         by_path = {
             item["instrument"]: item for item in palette["instruments"]
         }
@@ -333,13 +395,178 @@ class InstrumentPaletteTest(unittest.TestCase):
             "管弦乐/木管组/单簧管",
         }
 
-        self.assertEqual(palette["count"], 25)
+        self.assertEqual(palette["instrument_scope"], "formal")
+        self.assertEqual(palette["count"], 103)
+        self.assertEqual(
+            sum(item["curated"] is True for item in palette["instruments"]),
+            25,
+        )
         self.assertTrue(restored.issubset(by_path))
         hint = by_path["管弦乐/弦乐组/小提琴"]["variant_hint"]
         self.assertIn("SOLO", hint)
         self.assertIn("SEC", hint)
         self.assertIn("sample_variant", hint)
         self.assertIsNone(by_path["键盘乐器/钢琴"]["variant_hint"])
+
+    def test_default_discovery_page_is_bounded_for_mcp_context(self):
+        palette = self.m.list_instruments()
+
+        self.assertEqual(palette["detail_level"], "summary")
+        self.assertEqual(palette["curation_state"], "available")
+        self.assertEqual(palette["curated_count"], 25)
+        self.assertEqual(palette["catalog_count"], 103)
+        self.assertEqual(palette["matched_count"], 103)
+        self.assertEqual(palette["count"], 32)
+        self.assertEqual(palette["next_offset"], 32)
+        self.assertTrue(palette["has_more"])
+        self.assertLess(
+            len(json.dumps(palette, ensure_ascii=False).encode("utf-8")),
+            24 * 1024,
+        )
+
+    def test_public_scope_rejections_never_suggest_legacy_false_bypass(self):
+        published = self.m.score_and_roster_format()
+        score = published["example_score"]
+        roster = json.loads(json.dumps(published["example_roster"]))
+        roster["assignments"][0]["instrument"] = "测试工具/参考振荡器"
+
+        results = (
+            self.m.validate_project(score, roster),
+            self.m.check_project_readiness(score, roster),
+            self.m.locate(score, roster, at_seconds=0.0),
+            self.m.render(score, roster),
+        )
+        for result in results:
+            messages = [
+                str(issue.get("message", ""))
+                for issue in result.get("issues", [])
+            ]
+            messages.extend(str(item) for item in result.get("offenders", []))
+            self.assertTrue(messages, result)
+            self.assertNotIn("trusted_only=false", " ".join(messages))
+
+    def test_explicit_curated_scope_retains_the_25_item_palette(self):
+        palette = self.m.list_instruments(instrument_scope="curated")
+
+        self.assertTrue(palette["ok"])
+        self.assertEqual(palette["instrument_scope"], "curated")
+        self.assertEqual(palette["count"], 25)
+        self.assertTrue(
+            all(item["curated"] is True for item in palette["instruments"])
+        )
+
+    def test_legacy_scope_aliases_remain_exact(self):
+        self.assertEqual(
+            self.m.list_instruments(trusted_only=False)["instrument_scope"],
+            "formal",
+        )
+        self.assertEqual(
+            self.m.list_instruments(trusted_only=True)["instrument_scope"],
+            "curated",
+        )
+        conflict = self.m.list_instruments(
+            trusted_only=True,
+            instrument_scope="formal",
+        )
+        self.assertFalse(conflict["ok"])
+        self.assertEqual(
+            conflict["issues"][0]["code"],
+            "instrument.scope_invalid",
+        )
+
+    def test_scope_conflicts_share_one_public_error_code_across_tools(self):
+        arguments = {
+            "trusted_only": True,
+            "instrument_scope": "formal",
+        }
+        results = {
+            "list": self.m.list_instruments(**arguments),
+            "import": self.m.import_score_project("unused.mid", **arguments),
+            "confirm": self.m.confirm_roster({}, {}, [], **arguments),
+            "validate": self.m.validate_project({}, {}, **arguments),
+            "readiness": self.m.check_project_readiness({}, {}, **arguments),
+            "locate": self.m.locate({}, {}, at_seconds=0.0, **arguments),
+            "render": self.m.render({}, {}, **arguments),
+        }
+
+        for tool, result in results.items():
+            with self.subTest(tool=tool):
+                code = result.get("code")
+                if code is None:
+                    code = result["issues"][0]["code"]
+                self.assertEqual(code, "instrument.scope_invalid")
+
+    def test_full_catalog_supports_bounded_summary_discovery(self):
+        first = self.m.list_instruments(
+            detail_level="summary",
+            limit=10,
+        )
+        second = self.m.list_instruments(
+            detail_level="summary",
+            offset=10,
+            limit=10,
+        )
+
+        self.assertEqual(first["catalog_count"], 103)
+        self.assertEqual(first["matched_count"], 103)
+        self.assertEqual(first["count"], 10)
+        self.assertEqual(first["next_offset"], 10)
+        self.assertTrue(first["has_more"])
+        self.assertTrue(
+            {
+                item["instrument"] for item in first["instruments"]
+            }.isdisjoint(
+                item["instrument"] for item in second["instruments"]
+            )
+        )
+        self.assertTrue(
+            all(
+                "range_profiles" not in item
+                for item in first["instruments"]
+            )
+        )
+
+    def test_catalog_filters_categories_routing_and_exact_detail(self):
+        effects = self.m.list_instruments(
+            category="环境与拟音",
+            routing_class="effect",
+            detail_level="summary",
+        )
+        percussion = self.m.list_instruments(
+            routing_class="percussion",
+            detail_level="summary",
+        )
+        clavichord = self.m.list_instruments(
+            query="键盘乐器/击弦古钢琴",
+            detail_level="full",
+        )
+
+        self.assertEqual(effects["matched_count"], 8)
+        self.assertTrue(
+            all(
+                item["routing_class"] == "effect"
+                for item in effects["instruments"]
+            )
+        )
+        self.assertEqual(percussion["matched_count"], 27)
+        self.assertEqual(
+            sum(item["pitched"] for item in percussion["instruments"]),
+            9,
+        )
+        self.assertEqual(clavichord["count"], 1)
+        self.assertIn(
+            "articulation_range_contracts",
+            clavichord["instruments"][0],
+        )
+
+    def test_catalog_rejects_invalid_pagination(self):
+        result = self.m.list_instruments(limit=0)
+
+        self.assertFalse(result["ok"])
+        self.assertEqual(
+            result["issues"][0]["code"],
+            "instrument_catalog.query_invalid",
+        )
 
     def test_default_palette_accepts_piano_and_violin_roster(self):
         roster = {
@@ -361,7 +588,7 @@ class InstrumentPaletteTest(unittest.TestCase):
             [],
         )
 
-    def test_collaboration_status_is_non_blocking_and_warned(self):
+    def test_collaboration_status_is_contextual_without_generic_warning(self):
         palette = self.m.list_instruments(trusted_only=False)
         self.assertGreater(palette["count"], 0)
         self.assertTrue(
@@ -375,14 +602,24 @@ class InstrumentPaletteTest(unittest.TestCase):
         cello = self.m._caps()["管弦乐/弦乐组/大提琴"]
         roster = SimpleNamespace(
             executors=(
-                SimpleNamespace(capability=sitar),
-                SimpleNamespace(capability=cello),
+                SimpleNamespace(
+                    capability=sitar,
+                    role=SimpleNamespace(prominence="foreground"),
+                ),
+                SimpleNamespace(
+                    capability=cello,
+                    role=SimpleNamespace(prominence="background"),
+                ),
             )
         )
         warnings = self.m._collaboration_warnings(roster)
         self.assertTrue(any("西塔琴" in item for item in warnings))
         self.assertTrue(any("大提琴" in item for item in warnings))
-        self.assertTrue(any("单音色" in item for item in warnings))
+        self.assertFalse(any("单音色" in item for item in warnings))
+        single = SimpleNamespace(
+            executors=(SimpleNamespace(capability=sitar, role=None),)
+        )
+        self.assertEqual(self.m._collaboration_warnings(single), [])
 
     def test_soundfont_local_compatibility_is_never_listed(self):
         piano = self.m._caps()["键盘乐器/击弦古钢琴"]
@@ -416,6 +653,7 @@ class InstrumentPaletteTest(unittest.TestCase):
             self.m._caps_cache = {visible.relative_path: visible}
             item = self.m.list_instruments(
                 trusted_only=False,
+                detail_level="full",
             )["instruments"][0]
         finally:
             self.m._caps_cache = previous
@@ -577,6 +815,15 @@ class RenderAttributionReturnTest(unittest.TestCase):
         fake_plan = SimpleNamespace(to_dict=lambda: {"title": "test"})
         fake_result = SimpleNamespace(
             receipt_path="render/渲染回执.json",
+            post_render_check_path="render/渲染后自检.json",
+            post_render_check={
+                "format": "tianlai.post_render_check",
+                "summary": {"status": "clear", "blocking_count": 0},
+            },
+            post_render_check_summary={
+                "status": "clear",
+                "blocking_count": 0,
+            },
             license_sidecar_path="render/许可与署名.json",
             attribution_path="render/许可与署名.txt",
             duration_seconds=1.25,
@@ -598,6 +845,11 @@ class RenderAttributionReturnTest(unittest.TestCase):
                 self.m,
                 "_roster_instrument_problems",
                 return_value=[],
+            ),
+            patch.object(
+                self.m,
+                "_resolve_mcp_instrument_scope",
+                return_value=("formal", {"测试/乐器"}),
             ),
             patch.object(self.m, "_caps", return_value={}),
             patch.object(
@@ -643,6 +895,15 @@ class RenderAttributionReturnTest(unittest.TestCase):
                 title="sidecar",
                 hall=False,
             )
+            render_plan.side_effect = RuntimeError(
+                "渲染后自检未通过: render.expected_activity_silent"
+            )
+            failed = self.m.render(
+                {"title": "test"},
+                {"assignments": []},
+                title="sidecar-failure",
+                hall=False,
+            )
 
         self.assertEqual(
             result["license_sidecar"],
@@ -651,6 +912,18 @@ class RenderAttributionReturnTest(unittest.TestCase):
         self.assertEqual(
             result["attribution_notice"],
             "render/许可与署名.txt",
+        )
+        self.assertEqual(
+            result["post_render_check_path"],
+            fake_result.post_render_check_path,
+        )
+        self.assertEqual(
+            result["post_render_check"],
+            fake_result.post_render_check,
+        )
+        self.assertEqual(
+            result["post_render_check_summary"],
+            fake_result.post_render_check_summary,
         )
         self.assertEqual(result["stem_cache"], fake_result.stem_cache)
         self.assertIsNotNone(temporary_root)
@@ -668,6 +941,18 @@ class RenderAttributionReturnTest(unittest.TestCase):
         )
         self.assertTrue(
             result["resolved_render_options"]["use_stem_cache"]
+        )
+        self.assertEqual(failed["kind"], "tianlai.render_result")
+        self.assertEqual(failed["schema_version"], 2)
+        self.assertIs(failed["ok"], False)
+        self.assertIn("render.expected_activity_silent", failed["error"])
+        self.assertTrue(result["project_review"]["continuation_allowed"])
+        self.assertEqual(result["project_review"]["blocking_count"], 0)
+        self.assertEqual(
+            result["project_review"]["binding"][
+                "performance_plan_sha256"
+            ],
+            self.m.canonical_json_sha256(fake_plan.to_dict()),
         )
 
 

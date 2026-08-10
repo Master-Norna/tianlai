@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 import math
 from pathlib import Path
 from typing import Any
 import zlib
+
+import numpy as np
 
 from .audio import audio_file_info, read_audio_float, wav_loop_points
 from .events import PerformanceEvent, event_pitch_hz
@@ -16,11 +19,64 @@ from .runtime_variants import (
 from .tuning import EqualTemperament
 
 
+_BANDLIMITED_PHASE_COUNT = 1024
+_BANDLIMITED_FIRST_OFFSET = -7
+_BANDLIMITED_TAP_COUNT = 16
+_BANDLIMITED_CUTOFF_STEPS = 128
+
+
+def _bandlimited_cutoff_index(increment: float) -> int:
+    """Return a conservative, cacheable Nyquist cutoff for one voice.
+
+    ``increment`` is measured in source frames per output frame.  Values above
+    one downsample the source, so their low-pass cutoff must contract before
+    samples are skipped.  Rounding down never admits more bandwidth than the
+    exact ratio would allow.
+    """
+
+    if increment > _BANDLIMITED_CUTOFF_STEPS:
+        raise ValueError(
+            "bandlimited sample playback increment exceeds the supported "
+            f"maximum of {_BANDLIMITED_CUTOFF_STEPS}: {increment:.9g}"
+        )
+    cutoff = min(1.0, 1.0 / increment)
+    return max(
+        1,
+        min(
+            _BANDLIMITED_CUTOFF_STEPS,
+            math.floor(cutoff * _BANDLIMITED_CUTOFF_STEPS),
+        ),
+    )
+
+
+@lru_cache(maxsize=32)
+def _bandlimited_kernel_table(cutoff_index: int) -> np.ndarray:
+    """Build a deterministic 16-tap, 1024-phase Lanczos-sinc table."""
+
+    cutoff = cutoff_index / _BANDLIMITED_CUTOFF_STEPS
+    offsets = np.arange(
+        _BANDLIMITED_FIRST_OFFSET,
+        _BANDLIMITED_FIRST_OFFSET + _BANDLIMITED_TAP_COUNT,
+        dtype=np.float64,
+    )
+    phases = (
+        np.arange(_BANDLIMITED_PHASE_COUNT, dtype=np.float64)
+        / _BANDLIMITED_PHASE_COUNT
+    )
+    distances = offsets[np.newaxis, :] - phases[:, np.newaxis]
+    radius = _BANDLIMITED_TAP_COUNT / 2.0
+    weights = cutoff * np.sinc(cutoff * distances) * np.sinc(distances / radius)
+    weights /= np.sum(weights, axis=1, keepdims=True)
+    weights.setflags(write=False)
+    return weights
+
+
 @dataclass(slots=True)
 class _SampleData:
     path: Path
     sample_rate: int
     frame_count: int
+    channels: int
     frames: Any | None = None
 
     def load(self) -> Any:
@@ -81,6 +137,9 @@ class _SampleVoice:
     released: bool = False
     pending_release: bool = False
     release_step: float = 0.0
+    looped: bool = False
+    resampler_table: Any | None = None
+    resampler_cutoff_index: int | None = None
 
 
 class SampleInstrument(Instrument):
@@ -95,6 +154,7 @@ class SampleInstrument(Instrument):
         velocity_exponent: float,
         gain: float,
         attack_seconds: float,
+        resampling_quality: str = "linear",
         runtime_component: str | None = None,
     ) -> None:
         super().__init__(sample_rate)
@@ -105,6 +165,12 @@ class SampleInstrument(Instrument):
         self.velocity_exponent = velocity_exponent
         self.gain = gain
         self.attack_seconds = attack_seconds
+        if resampling_quality not in {"linear", "bandlimited"}:
+            raise ValueError(
+                "sample instrument resampling_quality must be 'linear' or "
+                "'bandlimited'"
+            )
+        self.resampling_quality = resampling_quality
         self.sustain_pedal = 0.0
         self.voices: dict[int, _SampleVoice] = {}
         self._round_robin_counters: dict[tuple[int, int], int] = {}
@@ -139,8 +205,13 @@ class SampleInstrument(Instrument):
             if not path.is_file():
                 raise ValueError(f"sample file does not exist: {path}")
             if path not in cache:
-                source_rate, frame_count, _ = audio_file_info(path)
-                cache[path] = _SampleData(path, source_rate, frame_count)
+                source_rate, frame_count, channels = audio_file_info(path)
+                cache[path] = _SampleData(
+                    path,
+                    source_rate,
+                    frame_count,
+                    channels,
+                )
             if "root_pitch_hz" in raw:
                 root_pitch_hz = float(raw["root_pitch_hz"])
             elif "root_midi" in raw:
@@ -280,6 +351,7 @@ class SampleInstrument(Instrument):
             velocity_exponent=float(data.get("velocity_exponent", 1.0)),
             gain=float(data.get("gain", 1.0)),
             attack_seconds=float(data.get("attack_seconds", 0.0)),
+            resampling_quality=str(data.get("resampling_quality", "linear")),
             runtime_component=(
                 str(data["runtime_component"])
                 if "runtime_component" in data
@@ -383,6 +455,7 @@ class SampleInstrument(Instrument):
                     "portable_key": self._portable_sample_identity(region),
                     "sample_rate": region.sample.sample_rate,
                     "frame_count": region.sample.frame_count,
+                    "channels": region.sample.channels,
                 },
             )
             choice_payload = {
@@ -458,6 +531,12 @@ class SampleInstrument(Instrument):
                 "velocity_exponent": self.velocity_exponent,
                 "gain": self.gain,
                 "attack_seconds": self.attack_seconds,
+                "resampling_quality": self.resampling_quality,
+                "resampling_algorithm": (
+                    "lanczos-sinc-16tap-1024phase-v1"
+                    if self.resampling_quality == "bandlimited"
+                    else "linear-v1"
+                ),
             },
         )
         self._runtime_variant_choice_records = records
@@ -821,16 +900,33 @@ class SampleInstrument(Instrument):
                 initial_envelope = 1.0
             else:
                 initial_envelope = region.sustain_level
-            self.voices[note_id] = _SampleVoice(
-                region=region,
-                position=float(region.offset_frames),
-                increment=(
+            increment = (
+                (
                     region.native_playback_ratio
                     if ignore_input_pitch
                     else pitch_hz / region.root_pitch_hz
                 )
                 * (2.0 ** (pitch_jitter / 1200.0))
-                * (region.sample.sample_rate / self.sample_rate),
+                * (region.sample.sample_rate / self.sample_rate)
+            )
+            if not math.isfinite(increment) or increment <= 0.0:
+                raise ValueError("sample playback increment must be finite and positive")
+            resampler_table = None
+            resampler_cutoff_index = None
+            if self.resampling_quality == "bandlimited" and not math.isclose(
+                increment,
+                1.0,
+                rel_tol=0.0,
+                abs_tol=1e-12,
+            ):
+                resampler_cutoff_index = _bandlimited_cutoff_index(increment)
+                resampler_table = _bandlimited_kernel_table(
+                    resampler_cutoff_index
+                )
+            self.voices[note_id] = _SampleVoice(
+                region=region,
+                position=float(region.offset_frames),
+                increment=increment,
                 amplitude=self.gain
                 * region.gain
                 * (10.0 ** (amplitude_jitter / 20.0))
@@ -852,6 +948,8 @@ class SampleInstrument(Instrument):
                     else self.release_samples
                 ),
                 envelope=initial_envelope,
+                resampler_table=resampler_table,
+                resampler_cutoff_index=resampler_cutoff_index,
             )
         elif event.type == "note_off":
             voice = self.voices.get(int(event.payload["note_id"]))
@@ -869,6 +967,119 @@ class SampleInstrument(Instrument):
                 for voice in self.voices.values():
                     if voice.pending_release:
                         self._begin_release(voice)
+
+    @staticmethod
+    def _mapped_filter_index(
+        voice: _SampleVoice,
+        sample_index: int,
+        *,
+        playback_end: int,
+        loop_active: bool,
+        loop_start: int | None,
+        loop_end: int | None,
+    ) -> int:
+        if loop_start is not None and loop_end is not None:
+            if (loop_active and sample_index >= loop_end) or (
+                voice.looped and sample_index < loop_start
+            ):
+                return loop_start + (
+                    (sample_index - loop_start) % (loop_end - loop_start)
+                )
+        return min(
+            playback_end - 1,
+            max(voice.region.offset_frames, sample_index),
+        )
+
+    @classmethod
+    def _bandlimited_frame(
+        cls,
+        voice: _SampleVoice,
+        frames: Any,
+        *,
+        playback_end: int,
+        loop_active: bool,
+        loop_start: int | None,
+        loop_end: int | None,
+    ) -> tuple[float, float]:
+        table = voice.resampler_table
+        assert table is not None
+        index = math.floor(voice.position)
+        fraction = voice.position - index
+        phase_index = min(
+            _BANDLIMITED_PHASE_COUNT - 1,
+            int(fraction * _BANDLIMITED_PHASE_COUNT),
+        )
+        weights = table[phase_index]
+        first_index = index + _BANDLIMITED_FIRST_OFFSET
+        stop_index = first_index + _BANDLIMITED_TAP_COUNT
+        # Once a voice has crossed the loop boundary, taps immediately to the
+        # left of ``loop_start`` belong to the loop tail that was actually
+        # heard.  Keep that history when a sustain loop is released; otherwise
+        # the first release frame would suddenly read pre-loop attack data.
+        lower_contiguous = (
+            loop_start
+            if voice.looped and loop_start is not None
+            else voice.region.offset_frames
+        )
+        upper_contiguous = (
+            loop_end
+            if loop_active and loop_end is not None
+            else playback_end
+        )
+        if (
+            isinstance(frames, np.ndarray)
+            and first_index >= lower_contiguous
+            and stop_index <= upper_contiguous
+        ):
+            block = frames[first_index:stop_index]
+            return (
+                float(np.dot(block[:, 0], weights)),
+                float(np.dot(block[:, 1], weights)),
+            )
+
+        source_left = 0.0
+        source_right = 0.0
+        for tap, weight in enumerate(weights):
+            mapped = cls._mapped_filter_index(
+                voice,
+                first_index + tap,
+                playback_end=playback_end,
+                loop_active=loop_active,
+                loop_start=loop_start,
+                loop_end=loop_end,
+            )
+            frame = frames[mapped]
+            source_left += float(frame[0]) * float(weight)
+            source_right += float(frame[1]) * float(weight)
+        return source_left, source_right
+
+    def _refresh_resampler_table(self, voice: _SampleVoice) -> None:
+        """Track pitch modulation without using a stale anti-alias cutoff."""
+
+        if not math.isfinite(voice.increment) or voice.increment <= 0.0:
+            raise ValueError("sample playback increment must be finite and positive")
+        native_rate_at_integer_position = math.isclose(
+            voice.increment,
+            1.0,
+            rel_tol=0.0,
+            abs_tol=1e-12,
+        ) and math.isclose(
+            voice.position,
+            round(voice.position),
+            rel_tol=0.0,
+            abs_tol=1e-12,
+        )
+        if (
+            self.resampling_quality != "bandlimited"
+            or native_rate_at_integer_position
+        ):
+            voice.resampler_cutoff_index = None
+            voice.resampler_table = None
+            return
+        cutoff_index = _bandlimited_cutoff_index(voice.increment)
+        if cutoff_index != voice.resampler_cutoff_index:
+            voice.resampler_cutoff_index = cutoff_index
+            voice.resampler_table = _bandlimited_kernel_table(cutoff_index)
 
     def render_frame(self) -> StereoFrame:
         left = 0.0
@@ -888,8 +1099,6 @@ class SampleInstrument(Instrument):
             if index >= playback_end:
                 finished.append(note_id)
                 continue
-            fraction = voice.position - index
-            first = frames[index]
             loop_start = voice.region.loop_start
             loop_end = voice.region.loop_end
             loop_active = (
@@ -901,20 +1110,35 @@ class SampleInstrument(Instrument):
                     or voice.region.loop_mode == "loop_continuous"
                 )
             )
-            if (
-                loop_active
-                and index + 1 >= loop_end
-            ):
-                second = frames[loop_start]
-            elif index + 1 >= playback_end:
-                # ``sample_end`` is an exclusive upper boundary internally.
-                # Holding the final included frame for interpolation preserves
-                # SFZ's inclusive ``end`` sample instead of dropping it.
-                second = first
+            self._refresh_resampler_table(voice)
+            if voice.resampler_table is not None:
+                source_left, source_right = self._bandlimited_frame(
+                    voice,
+                    frames,
+                    playback_end=playback_end,
+                    loop_active=loop_active,
+                    loop_start=loop_start,
+                    loop_end=loop_end,
+                )
             else:
-                second = frames[index + 1]
-            source_left = first[0] + (second[0] - first[0]) * fraction
-            source_right = first[1] + (second[1] - first[1]) * fraction
+                fraction = voice.position - index
+                first = frames[index]
+                if loop_active and index + 1 >= loop_end:
+                    assert loop_start is not None
+                    second = frames[loop_start]
+                elif index + 1 >= playback_end:
+                    # ``sample_end`` is an exclusive upper boundary internally.
+                    # Holding the final included frame for interpolation preserves
+                    # SFZ's inclusive ``end`` sample instead of dropping it.
+                    second = first
+                else:
+                    second = frames[index + 1]
+                source_left = float(first[0]) + (
+                    float(second[0]) - float(first[0])
+                ) * fraction
+                source_right = float(first[1]) + (
+                    float(second[1]) - float(first[1])
+                ) * fraction
             if voice.region.stereo_width != 1.0:
                 middle = (source_left + source_right) * 0.5
                 side = (
@@ -967,12 +1191,31 @@ class SampleInstrument(Instrument):
                 finished.append(note_id)
                 continue
 
-            angle = (voice.region.pan + 1.0) * math.pi / 4.0
-            left += source_left * voice.amplitude * voice.envelope * math.cos(angle) * math.sqrt(2.0)
-            right += source_right * voice.amplitude * voice.envelope * math.sin(angle) * math.sqrt(2.0)
+            amplitude = voice.amplitude * voice.envelope
+            if voice.region.sample.channels == 1:
+                angle = (voice.region.pan + 1.0) * math.pi / 4.0
+                left += (
+                    source_left
+                    * amplitude
+                    * math.cos(angle)
+                    * math.sqrt(2.0)
+                )
+                right += (
+                    source_left
+                    * amplitude
+                    * math.sin(angle)
+                    * math.sqrt(2.0)
+                )
+            elif voice.region.pan >= 0.0:
+                left += source_left * amplitude * (1.0 - voice.region.pan)
+                right += source_right * amplitude
+            else:
+                left += source_left * amplitude
+                right += source_right * amplitude * (1.0 + voice.region.pan)
             voice.position += voice.increment
             if loop_active and voice.position >= loop_end:
                 voice.position = loop_start + ((voice.position - loop_start) % (loop_end - loop_start))
+                voice.looped = True
 
         for note_id in finished:
             del self.voices[note_id]

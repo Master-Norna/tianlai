@@ -41,6 +41,7 @@ _PUBLIC_MARKDOWN_PAIRS: Final[tuple[tuple[str, str], ...]] = (
     ("docs/Linux快速开始.md", "docs/Linux快速开始.en.md"),
     ("docs/macOS快速开始.md", "docs/macOS快速开始.en.md"),
     ("docs/MCP.md", "docs/MCP.en.md"),
+    ("docs/创作工作流.md", "docs/创作工作流.en.md"),
     (
         "docs/VPO音源许可与安装说明.md",
         "docs/VPO音源许可与安装说明.en.md",
@@ -51,6 +52,7 @@ _PUBLIC_MARKDOWN_PAIRS: Final[tuple[tuple[str, str], ...]] = (
         "docs/从乐谱到第二次渲染.md",
         "docs/从乐谱到第二次渲染.en.md",
     ),
+    ("docs/渲染后自检.md", "docs/渲染后自检.en.md"),
     ("docs/当前状态.md", "docs/当前状态.en.md"),
     ("docs/音源许可政策.md", "docs/音源许可政策.en.md"),
     (
@@ -78,6 +80,16 @@ _PUBLIC_DOCUMENT_PATHS: Final = frozenset(
 _PUBLIC_DOCUMENT_KEYS: Final = frozenset(
     path.casefold() for path in _PUBLIC_DOCUMENT_PATHS
 )
+_PACKAGED_MARKDOWN_SOURCE_PATHS: Final[Mapping[str, str]] = {
+    (
+        "tianlai/_resources/constitutions/"
+        "天籁音乐宪法-v0.1.md"
+    ): "docs/音乐创作参考笔记/天籁音乐宪法-v0.1.md",
+    (
+        "tianlai/_resources/constitutions/"
+        "天籁音乐宪法-v0.1.en.md"
+    ): "docs/音乐创作参考笔记/天籁音乐宪法-v0.1.en.md",
+}
 _REPOSITORY_ONLY_ROOT_DOCUMENT_PATHS: Final = frozenset(
     {
         # Keep the historical ledger in Git without publishing its links to
@@ -903,9 +915,21 @@ def _validate_markdown_links(
     payloads: Sequence[SourcePayload],
 ) -> None:
     included = {payload.path for payload in payloads}
+    payload_by_path = {payload.path: payload for payload in payloads}
     for payload in payloads:
         if not payload.path.casefold().endswith(".md"):
             continue
+        link_source = _PACKAGED_MARKDOWN_SOURCE_PATHS.get(
+            payload.path, payload.path
+        )
+        if link_source != payload.path:
+            canonical = payload_by_path.get(link_source)
+            if canonical is None or canonical.content != payload.content:
+                raise ReleaseBuildError(
+                    "packaged constitution resource must be an exact copy "
+                    f"of its public source: {payload.path!r} -> "
+                    f"{link_source!r}"
+                )
         try:
             text = payload.content.decode("utf-8-sig")
         except UnicodeDecodeError as exc:
@@ -915,7 +939,11 @@ def _validate_markdown_links(
         visible_text = _markdown_without_fenced_code(text)
         for match in _MARKDOWN_LINK.finditer(visible_text):
             raw_target = match.group("target")
-            target = _resolve_markdown_target(payload.path, raw_target)
+            # Package resources are byte-for-byte copies of public source
+            # documents.  Their relative links deliberately retain the
+            # source document's directory as their base; the runtime copy is
+            # a fixed law text, not a second navigable documentation tree.
+            target = _resolve_markdown_target(link_source, raw_target)
             if target is not None and target not in included:
                 raise ReleaseBuildError(
                     "local Markdown link target is not included in the "

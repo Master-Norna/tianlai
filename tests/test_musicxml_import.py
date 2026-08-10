@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import tempfile
 from pathlib import Path
@@ -410,7 +411,8 @@ class MusicXMLImportTest(unittest.TestCase):
         self.assertEqual(result["parts"][0]["range"], "C4~C4")
         self.assertEqual(result["report"]["source_format"], "musicxml")
         names = {
-            tool.name for tool in mcp_server.mcp._tool_manager.list_tools()
+            tool.name
+            for tool in asyncio.run(mcp_server.mcp.list_tools())
         }
         self.assertIn("import_musicxml", names)
 

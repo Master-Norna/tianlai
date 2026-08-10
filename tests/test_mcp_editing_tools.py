@@ -273,6 +273,7 @@ class LocateToolTests(unittest.TestCase):
             self.assertFalse(output.exists())
 
         self.assertTrue(result["ok"])
+        self.assertEqual(result["instrument_scope"], "formal")
         event = self._event(result, "piano-0001")
         self.assertTrue(event["source"]["stable_identity"])
         self.assertEqual(event["logical"]["bar"], 1)

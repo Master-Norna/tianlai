@@ -1,0 +1,222 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tianlai.local/schemas/authoring-project-snapshot.schema.json",
+  "title": "Tianlai Authoring Project Snapshot v1",
+  "description": "Path-free immutable authoring-project snapshot returned by the Tianlai authoring core.",
+  "type": "object",
+  "required": ["kind", "schema_version", "project", "documents", "readiness"],
+  "properties": {
+    "kind": { "const": "tianlai.authoring_project_snapshot" },
+    "schema_version": { "const": 1 },
+    "project": { "$ref": "#/$defs/project" },
+    "documents": { "$ref": "#/$defs/documents" },
+    "readiness": { "$ref": "#/$defs/readiness" }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "project": {
+      "type": "object",
+      "required": [
+        "project_id",
+        "title",
+        "created_at_utc",
+        "updated_at_utc",
+        "revision",
+        "document_revisions"
+      ],
+      "properties": {
+        "project_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{32}$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "created_at_utc": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])T(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]\\.[0-9]{3}Z$"
+        },
+        "updated_at_utc": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])T(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]\\.[0-9]{3}Z$"
+        },
+        "revision": { "$ref": "#/$defs/sha256" },
+        "document_revisions": {
+          "type": "object",
+          "required": ["score", "authoring_roster", "render_profile"],
+          "properties": {
+            "score": { "$ref": "#/$defs/sha256" },
+            "authoring_roster": { "$ref": "#/$defs/sha256" },
+            "render_profile": { "$ref": "#/$defs/sha256" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "documents": {
+      "type": "object",
+      "required": ["score", "authoring_roster", "render_profile"],
+      "properties": {
+        "score": {
+          "allOf": [
+            { "$ref": "https://tianlai.local/schemas/score.schema.json" },
+            {
+              "properties": {
+                "title": { "type": "string", "maxLength": 1024 }
+              }
+            }
+          ]
+        },
+        "authoring_roster": {
+          "$ref": "https://tianlai.local/schemas/authoring-roster.schema.json"
+        },
+        "render_profile": {
+          "$ref": "https://tianlai.local/schemas/render-profile.schema.json"
+        }
+      },
+      "additionalProperties": false
+    },
+    "locationSegment": {
+      "oneOf": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[^\\u0000]*$"
+        }
+      ]
+    },
+    "issue": {
+      "type": "object",
+      "required": [
+        "code",
+        "message_key",
+        "source",
+        "severity",
+        "decision",
+        "location"
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-z0-9_]+(?:[._][a-z0-9_]+)*$"
+        },
+        "message_key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^[A-Za-z0-9_]+(?:[._][A-Za-z0-9_]+)*$"
+        },
+        "source": {
+          "enum": [
+            "project",
+            "score",
+            "authoring_roster",
+            "render_profile",
+            "resources",
+            "project_review",
+            "output"
+          ]
+        },
+        "severity": { "enum": ["info", "warning", "error"] },
+        "decision": { "enum": ["inform", "review", "block"] },
+        "location": {
+          "type": "object",
+          "required": ["segments"],
+          "properties": {
+            "segments": {
+              "type": "array",
+              "maxItems": 32,
+              "items": { "$ref": "#/$defs/locationSegment" }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "decision": { "const": "block" } } },
+          "then": { "properties": { "severity": { "const": "error" } } }
+        },
+        {
+          "if": { "properties": { "decision": { "const": "review" } } },
+          "then": { "properties": { "severity": { "const": "warning" } } }
+        },
+        {
+          "if": { "properties": { "decision": { "const": "inform" } } },
+          "then": { "properties": { "severity": { "const": "info" } } }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "summary": {
+      "type": "object",
+      "required": [
+        "part_count",
+        "note_count",
+        "assigned_part_count",
+        "duration_seconds",
+        "sample_rate"
+      ],
+      "properties": {
+        "part_count": { "type": "integer", "minimum": 1, "maximum": 256 },
+        "note_count": { "type": "integer", "minimum": 0, "maximum": 50000 },
+        "assigned_part_count": { "type": "integer", "minimum": 0, "maximum": 256 },
+        "duration_seconds": { "type": "number", "minimum": 0 },
+        "sample_rate": { "type": "integer", "minimum": 8000, "maximum": 384000 }
+      },
+      "additionalProperties": false
+    },
+    "readiness": {
+      "type": "object",
+      "required": [
+        "status",
+        "render_allowed",
+        "summary",
+        "issues",
+        "issues_truncated"
+      ],
+      "properties": {
+        "status": { "enum": ["ready", "review", "blocked"] },
+        "render_allowed": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/summary" },
+        "issues": {
+          "type": "array",
+          "maxItems": 128,
+          "items": { "$ref": "#/$defs/issue" }
+        },
+        "issues_truncated": { "type": "boolean" }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "status": { "enum": ["ready", "review"] },
+            "render_allowed": { "const": true }
+          }
+        },
+        {
+          "properties": {
+            "status": { "const": "blocked" },
+            "render_allowed": { "const": false }
+          }
+        }
+      ],
+      "additionalProperties": false
+    }
+  }
+}

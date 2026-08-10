@@ -17,33 +17,102 @@ from dataclasses import dataclass
 import hashlib
 import json
 import math
+import os
+import re
 from collections import Counter
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any, Literal
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server import MCPServer
+from mcp.types import ToolAnnotations
+from pydantic import (
+    Field,
+    StrictBool,
+    StrictFloat,
+    StrictInt,
+    StrictStr,
+    StringConstraints,
+)
+
+from . import __version__
 
 from .candidate import (
     CANDIDATE_MANIFEST_NAME,
     canonical_json_sha256,
     compare_candidates,
+    load_candidate,
     locate_candidate,
     prepare_candidate_target,
     publish_candidate_metadata,
 )
+from .authoring_core import (
+    build_authoring_snapshot,
+    validate_project_readiness as validate_authoring_project_readiness,
+)
+from .authoring_project import (
+    AuthoringProjectError,
+    AuthoringProjectState,
+    RENDERS_DIRECTORY_NAME as AUTHORING_RENDERS_DIRECTORY_NAME,
+    create_authoring_project as create_authoring_project_state,
+    open_authoring_project as open_authoring_project_state,
+    save_authoring_project as save_authoring_project_state,
+)
+from .authoring_render import (
+    AuthoringRenderError,
+    render_project_candidate as render_authoring_project_candidate,
+)
 from .capability import load_capabilities
 from .conductor import ExpressionSettings, build_plan
+from .creative_workflow import (
+    CreativeWorkflowError,
+    CreativeWorkflowSnapshot,
+    activate_creative_workflow as activate_creative_workflow_state,
+    attach_existing_candidate_for_audit as attach_existing_candidate_for_audit_state,
+    cancel_workflow_render as cancel_workflow_render_state,
+    create_creative_workflow as create_creative_workflow_state,
+    decide_workflow_iteration as decide_workflow_iteration_state,
+    inspect_workflow_candidate_status,
+    open_creative_workflow as open_creative_workflow_state,
+    record_workflow_authoring_revision as record_workflow_authoring_revision_state,
+    record_workflow_candidate as record_workflow_candidate_state,
+    record_workflow_evidence as record_workflow_evidence_state,
+    record_verified_workflow_hard_failure as record_verified_workflow_hard_failure_state,
+    record_workflow_review as record_workflow_review_state,
+    register_workflow_exception as register_workflow_exception_state,
+    request_workflow_render as request_workflow_render_state,
+    rollback_workflow as rollback_workflow_state,
+    terminate_creative_workflow as terminate_creative_workflow_state,
+    unresolved_workflow_hard_failures,
+    verify_creative_workflow_history as verify_creative_workflow_history_state,
+    workflow_render_authorization,
+)
 from .ensemble import render_plan
+from .mcp_diagnostics import (
+    build_safe_resource_restore_plan,
+    collect_instrument_resource_readiness,
+    collect_runtime_diagnosis,
+)
+from .mcp_tool_contract import bind_strict_mcp_tool
 from .path_policy import (
     InputPathPolicyError,
     discover_mcp_input_policy,
 )
+from .plain_file import read_plain_file_bytes, revalidate_plain_file
+from .portable_filename import is_windows_reserved_filename
 from .preflight import roster_availability_problems
+from .project_review import build_project_review_safely
 from .project_import import (
     import_project as import_project_bundle,
     promote_roster as promote_imported_roster,
 )
-from .render_lock import RenderLockError
+from .render_lock import (
+    PlainDirectoryIdentity,
+    RenderLockError,
+    capture_plain_directory,
+    ensure_authorized_child_directory,
+    ensure_plain_directory_tree,
+    revalidate_plain_directory,
+)
 from .render_profile import (
     RenderProfile,
     parse_render_profile,
@@ -73,12 +142,19 @@ from .score_time import (
     seconds_window_around,
     validate_score_time_coordinates,
 )
+from .self_check import (
+    build_issue,
+    build_review_report,
+    paginate_issues,
+    summarize_issues,
+)
 from .space import SpaceConfig
 from .trust import (
     TrustPolicyError,
     load_trusted_instruments,
     load_variant_hints,
 )
+from .workflow_binding import validate_workflow_authorization
 
 _RUNTIME_LAYOUT = discover_runtime_layout()
 ROOT = _RUNTIME_LAYOUT.home
@@ -86,9 +162,1058 @@ CATALOG = _RUNTIME_LAYOUT.catalog
 ALLOWLIST_FILE = _RUNTIME_LAYOUT.allowlist
 OUTPUT_DIR = _RUNTIME_LAYOUT.output / "mcp"
 
-mcp = FastMCP("tianlai")
+mcp = MCPServer(
+    name="tianlai",
+    title="Tianlai",
+    description="Local-first deterministic music rendering and iteration runtime",
+    instructions=(
+        "Read the current score/roster contracts and instrument catalogue before "
+        "writing music. Validate before rendering, preserve candidate immutability, "
+        "and leave musical judgement and publication decisions to the creator."
+    ),
+    version=__version__,
+)
+mcp_tool = bind_strict_mcp_tool(mcp)
+
+_READ_ONLY_TOOL = ToolAnnotations(
+    readOnlyHint=True,
+    destructiveHint=False,
+    idempotentHint=True,
+    openWorldHint=False,
+)
+_RENDER_TOOL = ToolAnnotations(
+    readOnlyHint=False,
+    destructiveHint=True,
+    idempotentHint=False,
+    openWorldHint=False,
+)
+_AUTHORING_WRITE_TOOL = ToolAnnotations(
+    readOnlyHint=False,
+    destructiveHint=False,
+    idempotentHint=False,
+    openWorldHint=False,
+)
 
 _caps_cache: dict[str, Any] | None = None
+
+_ResourceSelector = Annotated[
+    StrictStr,
+    StringConstraints(min_length=1, max_length=256),
+]
+_ResourceSelectorList = Annotated[
+    list[_ResourceSelector],
+    Field(max_length=128),
+]
+_InstrumentQuery = Annotated[
+    StrictStr,
+    StringConstraints(min_length=1, max_length=128),
+]
+_AuthoringSelector = Annotated[
+    StrictStr,
+    StringConstraints(min_length=1, max_length=128),
+]
+_AuthoringTitle = Annotated[
+    StrictStr,
+    StringConstraints(min_length=1, max_length=1024),
+]
+_WorkflowText = Annotated[
+    StrictStr,
+    StringConstraints(min_length=1, max_length=4096),
+]
+_WorkflowShortText = Annotated[
+    StrictStr,
+    StringConstraints(min_length=1, max_length=1024),
+]
+_WorkflowReferenceList = Annotated[
+    list[_AuthoringSelector],
+    Field(max_length=128),
+]
+_ConstitutionClauseIdList = Annotated[
+    list[_AuthoringSelector],
+    Field(min_length=1, max_length=12),
+]
+
+_AUTHORING_PROJECTS_DIRECTORY_NAME = "authoring-projects"
+_AUTHORING_RESULT_KIND = "tianlai.authoring_mcp_result"
+_AUTHORING_RESULT_VERSION = 1
+_AUTHORING_PROJECT_KEY_PATTERN = re.compile(
+    r"^[a-z0-9](?:[a-z0-9._-]{0,62}[a-z0-9])?$"
+)
+_AUTHORING_REVISION_PATTERN = re.compile(r"^[0-9a-f]{64}$")
+_AUTHORING_EVIDENCE_MAX_BYTES = 32 * 1024 * 1024
+_WORKFLOW_RESULT_KIND = "tianlai.creative_workflow_mcp_result"
+_WORKFLOW_RESULT_VERSION = 1
+_WORKFLOW_ID_PATTERN = re.compile(r"^[0-9a-f]{32}$")
+_OFFICIAL_CONSTITUTION = {
+    "document_id": "tianlai-music-constitution",
+    "version": "0.1",
+    "language": "zh-CN",
+    "content_sha256": "3c26f99806b2044b3fd45cbdc8ef12ffadf871d75dc119799881b0d992b75985",
+}
+_OFFICIAL_CONSTITUTIONS = {
+    "zh-CN": _OFFICIAL_CONSTITUTION,
+    "en": {
+        "document_id": "tianlai-music-constitution",
+        "version": "0.1",
+        "language": "en",
+        "content_sha256": "ca0cc236d93bca684a918f14814695835cf9aa437640294a4f02f898393903a9",
+    },
+}
+_OFFICIAL_CONSTITUTION_FILENAMES = {
+    "zh-CN": "天籁音乐宪法-v0.1.md",
+    "en": "天籁音乐宪法-v0.1.en.md",
+}
+_CONSTITUTION_CLAUSE_LINE = re.compile(
+    r"^\* \*\*(?P<clause_id>C[0-8](?:\.[A-Z])?(?:\.[0-9]{1,3}){1,2})"
+    r"｜(?P<title>[^*]+)\*\*[：:]\s*(?P<text>.+?)\s*$"
+)
+
+
+class _McpAuthoringBoundaryError(RuntimeError):
+    """One path-free semantic failure at the MCP authoring boundary."""
+
+    def __init__(
+        self,
+        code: str,
+        *,
+        stage: str = "input",
+        retryable: bool = False,
+    ) -> None:
+        self.code = code
+        self.stage = stage
+        self.retryable = retryable
+        super().__init__(code)
+
+
+class _McpWorkflowBoundaryError(RuntimeError):
+    """One stable, path-free failure at the creative-workflow MCP boundary."""
+
+    def __init__(
+        self,
+        code: str,
+        *,
+        stage: str = "input",
+        retryable: bool = False,
+    ) -> None:
+        self.code = code
+        self.stage = stage
+        self.retryable = retryable
+        super().__init__(code)
+
+
+def _authoring_success(
+    operation: str,
+    project_key: str,
+    **payload: Any,
+) -> dict[str, Any]:
+    return {
+        "kind": _AUTHORING_RESULT_KIND,
+        "schema_version": _AUTHORING_RESULT_VERSION,
+        "ok": True,
+        "operation": operation,
+        "project_key": project_key,
+        **payload,
+    }
+
+
+def _authoring_failure(
+    operation: str,
+    error: BaseException,
+    *,
+    project_key: str | None = None,
+) -> dict[str, Any]:
+    safe_project_key = (
+        project_key
+        if isinstance(project_key, str)
+        and _AUTHORING_PROJECT_KEY_PATTERN.fullmatch(project_key) is not None
+        and not is_windows_reserved_filename(project_key)
+        else None
+    )
+    source = "authoring"
+    location: list[str | int] = []
+    if isinstance(error, _McpAuthoringBoundaryError):
+        code = error.code
+        stage = error.stage
+        retryable = error.retryable
+        message_key = "authoringMcp." + code.replace(".", "_")
+    elif isinstance(error, AuthoringProjectError):
+        code = f"authoring_project.{error.code}"
+        stage = "project"
+        retryable = error.code == "revision_conflict"
+        message_key = error.message_key
+        source = error.source
+        location = list(error.location_segments)
+    elif isinstance(error, AuthoringRenderError):
+        code = f"authoring_render.{error.code}"
+        stage = error.stage
+        retryable = error.retryable
+        message_key = error.message_key
+        source = "render"
+    else:
+        code = "authoring.internal_error"
+        stage = "internal"
+        retryable = False
+        message_key = "authoringMcp.authoring_internal_error"
+    result: dict[str, Any] = {
+        "kind": _AUTHORING_RESULT_KIND,
+        "schema_version": _AUTHORING_RESULT_VERSION,
+        "ok": False,
+        "operation": operation,
+        "error": {
+            "code": code,
+            "message_key": message_key,
+            "source": source,
+            "stage": stage,
+            "retryable": retryable,
+            "location": {"segments": location},
+        },
+    }
+    if safe_project_key is not None:
+        result["project_key"] = safe_project_key
+    return result
+
+
+def _workflow_next_action(
+    snapshot: CreativeWorkflowSnapshot,
+    *,
+    project_key: str,
+) -> dict[str, Any] | None:
+    """Translate durable core actions into the path-free high-level MCP loop."""
+
+    document = snapshot.to_dict()
+    state = document["state"]
+    allowed = document["allowed_actions"]
+    mapped = {
+        "activate": "activate_creative_workflow",
+        "record_review": "record_workflow_review",
+        "record_evidence": "record_workflow_evidence",
+        "register_exception": "register_workflow_exception",
+        "request_render": "render_workflow_candidate",
+        "record_candidate": "render_workflow_candidate",
+        "cancel_render": "cancel_workflow_render",
+        "attach_existing_candidate_for_audit": (
+            "attach_workflow_candidate_for_audit"
+        ),
+        "decide": "decide_workflow_iteration",
+        "record_authoring_revision": "record_workflow_authoring_revision",
+        "rollback": "rollback_creative_workflow",
+        "terminate": "stop_creative_workflow",
+    }
+    mode = state["mode"]
+    alternatives = list(
+        dict.fromkeys(
+            mapped[item]
+            for item in allowed
+            if item in mapped
+            and not (
+                item == "attach_existing_candidate_for_audit"
+                and mode != "audit"
+            )
+        )
+    )
+    status = state["status"]
+    operation: str | None = None
+    reason = "workflow_terminal"
+    suggested_arguments: dict[str, Any] = {}
+    prerequisites: list[dict[str, Any]] = []
+    continuation: dict[str, Any] | None = None
+    if status == "charter_pending":
+        operation = "activate_creative_workflow"
+        reason = "work_charter_required"
+    elif status == "candidate_pending":
+        operation = "render_workflow_candidate"
+        reason = "reserved_render_must_be_executed_or_cancelled"
+    elif status == "revision_pending":
+        iteration = state["iterations"][-1]
+        authoring_revision = iteration["anchor"]["authoring_revision"]
+        operation = "get_authoring_snapshot"
+        reason = "read_edit_save_then_bind_a_new_authoring_revision"
+        suggested_arguments = {
+            "project_key": project_key,
+            "revision": authoring_revision,
+        }
+        prerequisites = [
+            {
+                "step": "read",
+                "operation": "get_authoring_snapshot",
+                "arguments": dict(suggested_arguments),
+            },
+            {
+                "step": "edit",
+                "action": "edit_complete_authoring_documents",
+                "input_from": "get_authoring_snapshot.snapshot.documents",
+                "constraint": "preserve_unmodified_documents_and_make_only_the_evidenced_change",
+            },
+            {
+                "step": "save",
+                "operation": "save_authoring_project",
+                "arguments": {"project_key": project_key},
+                "argument_sources": {
+                    "expected_revision": (
+                        "get_authoring_snapshot.snapshot.project.revision"
+                    ),
+                    "documents": "edited_complete_authoring_documents",
+                },
+            },
+            {
+                "step": "bind",
+                "operation": "record_workflow_authoring_revision",
+                "arguments": {
+                    "project_key": project_key,
+                    "workflow_id": snapshot.workflow_id,
+                    "expected_revision": snapshot.revision,
+                },
+                "argument_sources": {
+                    "authoring_revision": "save_authoring_project.project.revision"
+                },
+            },
+        ]
+        continuation = {
+            "workflow_id": snapshot.workflow_id,
+            "expected_revision": snapshot.revision,
+        }
+    elif status == "reviewing":
+        iteration = state["iterations"][-1]
+        candidate = iteration["anchor"]["candidate"]
+        phases = {item["phase"] for item in iteration["reviews"]}
+        historical_hard_failure = any(
+            item["category"] == "hard_failure" for item in iteration["evidence"]
+        )
+        unresolved_hard_failures: list[dict[str, Any]] = []
+        if historical_hard_failure:
+            root = _authoring_project_root(
+                project_key,
+                create_namespace=False,
+                require_existing=True,
+            )
+            try:
+                unresolved_hard_failures = unresolved_workflow_hard_failures(
+                    root,
+                    snapshot,
+                )
+            except CreativeWorkflowError as exc:
+                if exc.code == "workflow_revision_conflict":
+                    return {
+                        "operation": "open_creative_workflow",
+                        "reason": "workflow_advanced_while_computing_next_action",
+                        "suggested_arguments": {
+                            "project_key": project_key,
+                            "workflow_id": snapshot.workflow_id,
+                        },
+                        "alternatives": [],
+                    }
+                if exc.code == "trusted_validation_failed":
+                    return {
+                        "operation": "check_authoring_readiness",
+                        "reason": "trusted_hard_failure_revalidation_unavailable",
+                        "suggested_arguments": {
+                            "project_key": project_key,
+                            "revision": iteration["anchor"]["authoring_revision"],
+                        },
+                        "continuation": {
+                            "operation": "open_creative_workflow",
+                            "workflow_id": snapshot.workflow_id,
+                        },
+                        "alternatives": ["stop_creative_workflow"],
+                    }
+                raise
+        if unresolved_hard_failures:
+            operation = "decide_workflow_iteration"
+            reason = "unresolved_hard_failure_requires_revision_preservation_or_stop"
+            suggested_arguments = {
+                "evidence_ids": [
+                    item["evidence_id"] for item in unresolved_hard_failures
+                ]
+            }
+        elif candidate is None and "intent" not in phases:
+            operation = "record_workflow_review"
+            reason = "intent_review_required_before_acceptance"
+            suggested_arguments = {
+                "phase": "intent",
+                "perception_basis": "report_only",
+            }
+        elif candidate is None and "symbolic_structure" not in phases:
+            operation = "record_workflow_review"
+            reason = "symbolic_structure_review_required_before_render"
+            suggested_arguments = {
+                "phase": "symbolic_structure",
+                "perception_basis": "report_only",
+            }
+        elif candidate is None and "orchestration_performance" not in phases:
+            operation = "record_workflow_review"
+            reason = "orchestration_review_required_before_render"
+            suggested_arguments = {
+                "phase": "orchestration_performance",
+                "perception_basis": "report_only",
+            }
+        elif candidate is None:
+            operation = "render_workflow_candidate"
+            reason = "pre_render_reviews_complete"
+        elif "intent" not in phases:
+            operation = "record_workflow_review"
+            reason = "intent_review_required_before_acceptance"
+            suggested_arguments = {
+                "phase": "intent",
+                "perception_basis": "report_only",
+            }
+        elif "symbolic_structure" not in phases:
+            operation = "record_workflow_review"
+            reason = "symbolic_structure_review_required_before_acceptance"
+            suggested_arguments = {
+                "phase": "symbolic_structure",
+                "perception_basis": "report_only",
+            }
+        elif "orchestration_performance" not in phases:
+            operation = "record_workflow_review"
+            reason = "orchestration_review_required_before_acceptance"
+            suggested_arguments = {
+                "phase": "orchestration_performance",
+                "perception_basis": "report_only",
+            }
+        elif "render_report" not in phases:
+            operation = "record_workflow_review"
+            reason = "render_report_review_required_before_acceptance"
+            suggested_arguments = {
+                "phase": "render_report",
+                "perception_basis": "report_only",
+            }
+        else:
+            operation = "decide_workflow_iteration"
+            reason = "evidence_and_candidate_ready_for_contextual_decision"
+    if operation is None:
+        return None
+    result = {
+        "operation": operation,
+        "reason": reason,
+        "expected_revision": snapshot.revision,
+        "suggested_arguments": suggested_arguments,
+        "alternatives": alternatives,
+    }
+    if prerequisites:
+        result["prerequisites"] = prerequisites
+    if continuation is not None:
+        result["continuation"] = continuation
+    return result
+
+
+def _workflow_success(
+    operation: str,
+    project_key: str,
+    snapshot: CreativeWorkflowSnapshot,
+    *,
+    include_next_action: bool = True,
+    **payload: Any,
+) -> dict[str, Any]:
+    return {
+        "kind": _WORKFLOW_RESULT_KIND,
+        "schema_version": _WORKFLOW_RESULT_VERSION,
+        "ok": True,
+        "operation": operation,
+        "project_key": project_key,
+        "workflow": snapshot.to_dict(),
+        "next_action": (
+            _workflow_next_action(snapshot, project_key=project_key)
+            if include_next_action
+            else None
+        ),
+        **payload,
+    }
+
+
+def _workflow_failure(
+    operation: str,
+    error: BaseException,
+    *,
+    project_key: str | None = None,
+    workflow_id: str | None = None,
+) -> dict[str, Any]:
+    safe_project_key = (
+        project_key
+        if isinstance(project_key, str)
+        and _AUTHORING_PROJECT_KEY_PATTERN.fullmatch(project_key) is not None
+        and not is_windows_reserved_filename(project_key)
+        else None
+    )
+    safe_workflow_id = (
+        workflow_id
+        if isinstance(workflow_id, str)
+        and _WORKFLOW_ID_PATTERN.fullmatch(workflow_id) is not None
+        else None
+    )
+    source = "workflow"
+    location: list[str | int] = []
+    if isinstance(error, _McpWorkflowBoundaryError):
+        code = error.code
+        stage = error.stage
+        retryable = error.retryable
+        message_key = "creativeWorkflowMcp." + code.replace(".", "_")
+    elif isinstance(error, CreativeWorkflowError):
+        code = f"creative_workflow.{error.code}"
+        stage = "workflow"
+        retryable = error.code in {"workflow_busy", "workflow_revision_conflict"}
+        message_key = error.message_key
+        source = error.source
+        location = list(error.location_segments)
+    elif isinstance(error, AuthoringProjectError):
+        code = f"authoring_project.{error.code}"
+        stage = "project"
+        retryable = error.code == "revision_conflict"
+        message_key = error.message_key
+        source = error.source
+        location = list(error.location_segments)
+    elif isinstance(error, AuthoringRenderError):
+        code = f"authoring_render.{error.code}"
+        stage = error.stage
+        retryable = error.retryable
+        message_key = error.message_key
+        source = "render"
+    elif isinstance(error, _McpAuthoringBoundaryError):
+        code = error.code
+        stage = error.stage
+        retryable = error.retryable
+        message_key = "authoringMcp." + code.replace(".", "_")
+        source = "authoring"
+    else:
+        code = "creative_workflow.internal_error"
+        stage = "internal"
+        retryable = False
+        message_key = "creativeWorkflowMcp.internal_error"
+    result: dict[str, Any] = {
+        "kind": _WORKFLOW_RESULT_KIND,
+        "schema_version": _WORKFLOW_RESULT_VERSION,
+        "ok": False,
+        "operation": operation,
+        "error": {
+            "code": code,
+            "message_key": message_key,
+            "source": source,
+            "stage": stage,
+            "retryable": retryable,
+            "location": {"segments": location},
+        },
+        "next_action": {
+            "operation": "open_creative_workflow",
+            "reason": "refresh_verified_workflow_state_after_failure",
+        },
+    }
+    if safe_project_key is not None:
+        result["project_key"] = safe_project_key
+    if safe_workflow_id is not None:
+        result["workflow_id"] = safe_workflow_id
+    return result
+
+
+def _validated_workflow_id(value: str) -> str:
+    if not isinstance(value, str) or _WORKFLOW_ID_PATTERN.fullmatch(value) is None:
+        raise _McpWorkflowBoundaryError("creative_workflow.invalid_workflow_id")
+    return value
+
+
+def _validated_workflow_revision(
+    value: str | None,
+    *,
+    required: bool,
+) -> str | None:
+    if value is None and not required:
+        return None
+    if (
+        not isinstance(value, str)
+        or _AUTHORING_REVISION_PATTERN.fullmatch(value) is None
+    ):
+        raise _McpWorkflowBoundaryError(
+            "creative_workflow.invalid_workflow_revision"
+        )
+    return value
+
+
+def _agent_workflow_authority(snapshot: CreativeWorkflowSnapshot) -> str:
+    authority = snapshot.detached_state().get("final_authority")
+    if authority != "agent":
+        raise _McpWorkflowBoundaryError(
+            "creative_workflow.agent_authority_required",
+            stage="authority",
+        )
+    return "agent"
+
+
+def _open_expected_workflow(
+    root: Path,
+    *,
+    workflow_id: str,
+    expected_revision: str,
+) -> CreativeWorkflowSnapshot:
+    snapshot = open_creative_workflow_state(root, workflow_id=workflow_id)
+    if snapshot.revision != expected_revision:
+        raise CreativeWorkflowError("workflow_revision_conflict")
+    return snapshot
+
+
+def _official_constitution_registry(language: str) -> dict[str, dict[str, str]]:
+    metadata = _OFFICIAL_CONSTITUTIONS.get(language)
+    filename = _OFFICIAL_CONSTITUTION_FILENAMES.get(language)
+    if metadata is None or filename is None:
+        raise _McpWorkflowBoundaryError(
+            "creative_workflow.constitution_language_unsupported"
+        )
+    document = (
+        Path(__file__).resolve().parent
+        / "_resources"
+        / "constitutions"
+        / filename
+    )
+    if not os.path.lexists(document):
+        raise _McpWorkflowBoundaryError(
+            "creative_workflow.constitution_unavailable",
+            stage="constitution",
+        )
+    try:
+        identity, payload = read_plain_file_bytes(
+            document,
+            maximum_bytes=1024 * 1024,
+        )
+    except (OSError, RuntimeError) as exc:
+        raise _McpWorkflowBoundaryError(
+            "creative_workflow.constitution_unsafe",
+            stage="constitution",
+        ) from exc
+    if (
+        not 1 <= identity.size <= 1024 * 1024
+        or hashlib.sha256(payload).hexdigest() != metadata["content_sha256"]
+    ):
+        raise _McpWorkflowBoundaryError(
+            "creative_workflow.constitution_integrity_mismatch",
+            stage="constitution",
+        )
+    try:
+        text = payload.decode("utf-8")
+    except UnicodeError as exc:
+        raise _McpWorkflowBoundaryError(
+            "creative_workflow.constitution_invalid_encoding",
+            stage="constitution",
+        ) from exc
+    registry: dict[str, dict[str, str]] = {}
+    for line in text.splitlines():
+        match = _CONSTITUTION_CLAUSE_LINE.fullmatch(line)
+        if match is None:
+            continue
+        clause_id = match.group("clause_id")
+        if clause_id in registry:
+            raise _McpWorkflowBoundaryError(
+                "creative_workflow.constitution_duplicate_clause",
+                stage="constitution",
+            )
+        registry[clause_id] = {
+            "clause_id": clause_id,
+            "title": match.group("title").strip(),
+            "text": match.group("text").strip(),
+        }
+    try:
+        revalidate_plain_file(identity)
+    except OSError as exc:
+        raise _McpWorkflowBoundaryError(
+            "creative_workflow.constitution_unsafe",
+            stage="constitution",
+        ) from exc
+    if len(registry) < 100:
+        raise _McpWorkflowBoundaryError(
+            "creative_workflow.constitution_registry_incomplete",
+            stage="constitution",
+        )
+    return registry
+
+
+def _validate_mcp_constitution_activation(
+    constitution: dict | None,
+    active_clauses: list[dict] | None,
+) -> str | None:
+    if constitution is None:
+        return None
+    if not isinstance(constitution, dict):
+        return "custom"
+    document_id = constitution.get("document_id")
+    if document_id != _OFFICIAL_CONSTITUTION["document_id"]:
+        return "custom"
+    language = constitution.get("language")
+    expected = _OFFICIAL_CONSTITUTIONS.get(language)
+    if expected is None or constitution != expected:
+        raise _McpWorkflowBoundaryError(
+            "creative_workflow.official_constitution_binding_mismatch",
+            stage="constitution",
+        )
+    registry = _official_constitution_registry(language)
+    for clause in [] if active_clauses is None else active_clauses:
+        clause_id = clause.get("clause_id") if isinstance(clause, dict) else None
+        if clause_id not in registry:
+            raise _McpWorkflowBoundaryError(
+                "creative_workflow.constitution_clause_unknown",
+                stage="constitution",
+            )
+    return "official"
+
+
+def _workflow_failure_with_current(
+    operation: str,
+    error: BaseException,
+    *,
+    project_key: str,
+    workflow_id: str,
+    root: Path | None,
+) -> dict[str, Any]:
+    result = _workflow_failure(
+        operation,
+        error,
+        project_key=project_key,
+        workflow_id=workflow_id,
+    )
+    if root is None or _WORKFLOW_ID_PATTERN.fullmatch(workflow_id) is None:
+        return result
+    try:
+        snapshot = open_creative_workflow_state(root, workflow_id=workflow_id)
+    except Exception:
+        return result
+    result["workflow"] = snapshot.to_dict()
+    result["next_action"] = _workflow_next_action(
+        snapshot,
+        project_key=project_key,
+    )
+    return result
+
+
+def _validated_authoring_project_key(value: str) -> str:
+    if (
+        not isinstance(value, str)
+        or _AUTHORING_PROJECT_KEY_PATTERN.fullmatch(value) is None
+        or is_windows_reserved_filename(value)
+    ):
+        raise _McpAuthoringBoundaryError("authoring_path.invalid_project_key")
+    return value
+
+
+def _validated_authoring_revision(
+    value: str | None,
+    *,
+    required: bool,
+) -> str | None:
+    if value is None and not required:
+        return None
+    if (
+        not isinstance(value, str)
+        or _AUTHORING_REVISION_PATTERN.fullmatch(value) is None
+    ):
+        raise _McpAuthoringBoundaryError(
+            "authoring_project.invalid_revision"
+        )
+    return value
+
+
+def _validated_candidate_segment(value: str, *, field: str) -> str:
+    if (
+        not isinstance(value, str)
+        or not value
+        or len(value) > 128
+        or value in {".", ".."}
+        or Path(value).name != value
+        or any(character in value for character in '<>:"/\\|?*')
+        or any(ord(character) < 32 or ord(character) == 127 for character in value)
+        or value[-1] in {" ", "."}
+    ):
+        raise _McpAuthoringBoundaryError(
+            f"authoring_candidate.invalid_{field}"
+        )
+    return value
+
+
+def _authoring_namespace(*, create: bool) -> Path:
+    namespace = OUTPUT_DIR / _AUTHORING_PROJECTS_DIRECTORY_NAME
+    try:
+        if create:
+            output_identity = ensure_plain_directory_tree(OUTPUT_DIR)
+            namespace_identity = ensure_authorized_child_directory(
+                output_identity,
+                _AUTHORING_PROJECTS_DIRECTORY_NAME,
+            )
+        else:
+            if not os.path.lexists(namespace):
+                raise _McpAuthoringBoundaryError(
+                    "authoring_project.not_found",
+                    stage="project",
+                )
+            namespace_identity = capture_plain_directory(namespace)
+        return revalidate_plain_directory(namespace_identity)
+    except _McpAuthoringBoundaryError:
+        raise
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
+        raise _McpAuthoringBoundaryError(
+            "authoring_path.namespace_unsafe",
+            stage="project",
+        ) from exc
+
+
+def _authoring_project_root(
+    project_key: str,
+    *,
+    create_namespace: bool,
+    require_existing: bool,
+) -> Path:
+    key = _validated_authoring_project_key(project_key)
+    namespace = _authoring_namespace(create=create_namespace)
+    root = namespace / key
+    if not require_existing:
+        return root
+    if not os.path.lexists(root):
+        raise _McpAuthoringBoundaryError(
+            "authoring_project.not_found",
+            stage="project",
+        )
+    try:
+        identity = capture_plain_directory(root)
+        resolved = revalidate_plain_directory(identity)
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
+        raise _McpAuthoringBoundaryError(
+            "authoring_path.project_root_unsafe",
+            stage="project",
+        ) from exc
+    if resolved.parent != namespace or resolved.name != key:
+        raise _McpAuthoringBoundaryError(
+            "authoring_path.project_root_unsafe",
+            stage="project",
+        )
+    return resolved
+
+
+def _authoring_project_descriptor(
+    state: AuthoringProjectState,
+) -> dict[str, Any]:
+    return {
+        "project_id": state.project_id,
+        "title": state.title,
+        "created_at_utc": state.created_at_utc,
+        "updated_at_utc": state.updated_at_utc,
+        "revision": state.revision,
+        "document_revisions": dict(state.document_revisions),
+    }
+
+
+def _authoring_candidate_directory(
+    project_key: str,
+    *,
+    work_id: str,
+    candidate_id: str,
+) -> tuple[PlainDirectoryIdentity, AuthoringProjectState, Path]:
+    checked_work_id = _validated_candidate_segment(work_id, field="work_id")
+    checked_candidate_id = _validated_candidate_segment(
+        candidate_id,
+        field="candidate_id",
+    )
+    root = _authoring_project_root(
+        project_key,
+        create_namespace=False,
+        require_existing=True,
+    )
+    state = open_authoring_project_state(root)
+    try:
+        renders_identity = capture_plain_directory(
+            root / AUTHORING_RENDERS_DIRECTORY_NAME
+        )
+        work_identity = capture_plain_directory(
+            revalidate_plain_directory(renders_identity) / checked_work_id
+        )
+        candidate_identity = capture_plain_directory(
+            revalidate_plain_directory(work_identity) / checked_candidate_id
+        )
+        directory = revalidate_plain_directory(candidate_identity)
+        if (
+            directory.parent != revalidate_plain_directory(work_identity)
+            or directory.name != checked_candidate_id
+            or revalidate_plain_directory(work_identity).parent
+            != revalidate_plain_directory(renders_identity)
+        ):
+            raise OSError("candidate directory identity mismatch")
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
+        raise _McpAuthoringBoundaryError(
+            "authoring_candidate.not_found_or_unsafe",
+            stage="candidate",
+        ) from exc
+    return candidate_identity, state, root
+
+
+def _load_authoring_candidate(
+    project_key: str,
+    *,
+    work_id: str,
+    candidate_id: str,
+) -> tuple[
+    Path,
+    dict[str, Any],
+    AuthoringProjectState,
+    PlainDirectoryIdentity,
+]:
+    candidate_identity, current_state, root = _authoring_candidate_directory(
+        project_key,
+        work_id=work_id,
+        candidate_id=candidate_id,
+    )
+    directory = revalidate_plain_directory(candidate_identity)
+    try:
+        verified_directory, manifest = load_candidate(
+            directory,
+            verify=True,
+            expected_work_id=work_id,
+            expected_candidate_id=candidate_id,
+        )
+    except (OSError, TypeError, ValueError, KeyError, json.JSONDecodeError) as exc:
+        raise _McpAuthoringBoundaryError(
+            "authoring_candidate.verification_failed",
+            stage="candidate",
+        ) from exc
+    try:
+        if (
+            verified_directory != directory
+            or revalidate_plain_directory(candidate_identity) != directory
+        ):
+            raise OSError("candidate directory identity mismatch")
+    except OSError as exc:
+        raise _McpAuthoringBoundaryError(
+            "authoring_candidate.verification_failed",
+            stage="candidate",
+        ) from exc
+    binding = manifest.get("authoring_project")
+    if (
+        not isinstance(binding, dict)
+        or binding.get("project_id") != current_state.project_id
+    ):
+        raise _McpAuthoringBoundaryError(
+            "authoring_candidate.project_binding_mismatch",
+            stage="candidate",
+        )
+    revision = binding.get("revision")
+    if (
+        not isinstance(revision, str)
+        or _AUTHORING_REVISION_PATTERN.fullmatch(revision) is None
+    ):
+        raise _McpAuthoringBoundaryError(
+            "authoring_candidate.project_binding_mismatch",
+            stage="candidate",
+        )
+    try:
+        revision_state = open_authoring_project_state(root, revision=revision)
+    except AuthoringProjectError as exc:
+        raise _McpAuthoringBoundaryError(
+            "authoring_candidate.revision_unavailable",
+            stage="candidate",
+        ) from exc
+    return verified_directory, manifest, revision_state, candidate_identity
+
+
+def _read_bound_candidate_json(
+    directory: Path,
+    directory_identity: PlainDirectoryIdentity,
+    binding: object,
+    *,
+    label: str,
+) -> dict[str, Any]:
+    if not isinstance(binding, dict):
+        raise _McpAuthoringBoundaryError(
+            "authoring_candidate.evidence_binding_invalid",
+            stage="candidate",
+        )
+    relative = binding.get("path")
+    expected_sha256 = binding.get("sha256")
+    if (
+        not isinstance(relative, str)
+        or not relative
+        or not isinstance(expected_sha256, str)
+        or _AUTHORING_REVISION_PATTERN.fullmatch(expected_sha256) is None
+    ):
+        raise _McpAuthoringBoundaryError(
+            "authoring_candidate.evidence_binding_invalid",
+            stage="candidate",
+        )
+    raw = Path(relative)
+    if (
+        raw.is_absolute()
+        or len(raw.parts) != 1
+        or raw.name in {"", ".", ".."}
+    ):
+        raise _McpAuthoringBoundaryError(
+            "authoring_candidate.evidence_path_unsafe",
+            stage="candidate",
+        )
+    lexical = directory / raw
+    try:
+        if revalidate_plain_directory(directory_identity) != directory:
+            raise OSError("candidate directory identity mismatch")
+        identity, payload = read_plain_file_bytes(
+            lexical,
+            maximum_bytes=_AUTHORING_EVIDENCE_MAX_BYTES,
+        )
+        if identity.size < 1:
+            raise OSError("candidate evidence is empty")
+        if hashlib.sha256(payload).hexdigest() != expected_sha256:
+            raise ValueError("evidence hash mismatch")
+        document = json.loads(payload.decode("utf-8"))
+        revalidate_plain_file(identity)
+        if revalidate_plain_directory(directory_identity) != directory:
+            raise OSError("candidate directory identity mismatch")
+    except (OSError, UnicodeError, ValueError, json.JSONDecodeError) as exc:
+        raise _McpAuthoringBoundaryError(
+            "authoring_candidate.evidence_verification_failed",
+            stage="candidate",
+        ) from exc
+    if not isinstance(document, dict):
+        raise _McpAuthoringBoundaryError(
+            "authoring_candidate.evidence_verification_failed",
+            stage="candidate",
+        )
+    return document
+
+
+def _verified_candidate_workflow_status(
+    project_root: Path,
+    candidate_directory: Path,
+    manifest: dict[str, Any],
+) -> dict[str, Any]:
+    """Separate a candidate's claim, historical authority and durable outcome."""
+
+    claim = manifest.get("authoring_workflow")
+    if claim is None:
+        return {
+            "workflow_claim_present": False,
+            "workflow_authorized": False,
+            "workflow_recorded": False,
+            "workflow_accepted": False,
+            "workflow_managed": False,
+            "authoring_workflow": None,
+            "workflow_status": None,
+        }
+    try:
+        normalized = validate_workflow_authorization(claim, allow_none=False)
+        assert normalized is not None
+        status = inspect_workflow_candidate_status(
+            project_root,
+            candidate_path=candidate_directory,
+        )
+    except (CreativeWorkflowError, TypeError, ValueError):
+        # A shape-valid self-assertion is not authority. Keep the candidate
+        # inspectable as evidence, but never label the claim as managed.
+        return {
+            "workflow_claim_present": True,
+            "workflow_authorized": False,
+            "workflow_recorded": False,
+            "workflow_accepted": False,
+            "workflow_managed": False,
+            "authoring_workflow": None,
+            "workflow_status": None,
+        }
+    return {
+        "workflow_claim_present": True,
+        "workflow_authorized": status["workflow_authorized"],
+        "workflow_recorded": status["workflow_recorded"],
+        "workflow_accepted": status["workflow_accepted"],
+        "workflow_managed": status["workflow_authorized"],
+        "authoring_workflow": normalized,
+        "workflow_status": status,
+    }
 
 
 @dataclass(frozen=True, slots=True)
@@ -102,11 +1227,13 @@ class _ProjectCompilation:
     checks: dict[str, dict[str, Any]]
     issues: tuple[dict[str, Any], ...]
     project: dict[str, str | None]
+    project_review: dict[str, Any]
 
     @property
     def ok(self) -> bool:
         return self.plan is not None and not any(
-            issue.get("severity") == "error" for issue in self.issues
+            issue.get("blocking", issue.get("severity") == "error") is True
+            for issue in self.issues
         )
 
 
@@ -126,6 +1253,60 @@ def _trusted_set() -> set[str]:
         raise TrustPolicyError(
             f"{exc};trusted_only=true 已按 fail-closed 拒绝"
         ) from exc
+
+
+def _formal_set() -> set[str]:
+    """Return every public formal entry without conflating it with curation."""
+
+    return {
+        path
+        for path, capability in _caps().items()
+        if capability.quality_tier == "formal"
+        and capability.license_status in {"approved", "grandfathered"}
+        and capability.implementation_type != "soundfont"
+    }
+
+
+def _resolve_mcp_instrument_scope(
+    instrument_scope: str | None,
+    trusted_only: bool | None,
+) -> tuple[str, set[str]]:
+    """Resolve the new explicit scope and the legacy boolean alias.
+
+    ``formal`` is the MCP default and means every public ``formal`` sound
+    entry.  ``curated`` is the smaller creator-maintained palette.  The old
+    ``trusted_only`` argument remains accepted so existing clients do not
+    silently change meaning: true maps to curated, false maps to formal.
+    """
+
+    if trusted_only is not None and not isinstance(trusted_only, bool):
+        raise TypeError("trusted_only 必须是布尔值或 null")
+    legacy_scope = (
+        None
+        if trusted_only is None
+        else "curated" if trusted_only else "formal"
+    )
+    if instrument_scope is not None:
+        if not isinstance(instrument_scope, str):
+            raise TypeError("instrument_scope 必须是字符串或 null")
+        instrument_scope = instrument_scope.strip()
+        if instrument_scope not in {"formal", "curated"}:
+            raise ValueError(
+                "instrument_scope 必须是 'formal' 或 'curated'"
+            )
+    if (
+        legacy_scope is not None
+        and instrument_scope is not None
+        and legacy_scope != instrument_scope
+    ):
+        raise ValueError(
+            "instrument_scope 与兼容参数 trusted_only 表达了冲突的范围"
+        )
+    resolved = instrument_scope or legacy_scope or "formal"
+    allowed = _trusted_set() if resolved == "curated" else _formal_set()
+    if not allowed:
+        raise TrustPolicyError(f"MCP {resolved} 乐器范围为空;已拒绝继续")
+    return resolved, allowed
 
 
 def _variant_hints() -> dict[str, str]:
@@ -283,12 +1464,16 @@ def _assignment_instruments(assignment: dict) -> list[str]:
     return paths
 
 
-def _roster_instrument_problems(roster: dict, trusted_only: bool) -> list[str]:
-    """校验路径、许可隔离与可信状态；返回问题清单（空=通过）。
+def _roster_instrument_problems(
+    roster: dict,
+    trusted_only: bool | None = None,
+    instrument_scope: str | None = None,
+) -> list[str]:
+    """校验路径及 MCP 乐器范围；返回问题清单（空=通过）。
 
-    ``trusted_only=false`` 只放开“尚未进入人工可信白名单”的候选，不会放开
-    ``quarantined`` 或仅限本机兼容测试的 ``type=soundfont``。后两者都不能靠
-    质量开关绕过。
+    默认 ``formal`` 范围允许全部公开正式声音入口；``curated`` 只允许作者
+    策展子集。兼容参数 ``trusted_only`` 仍按 true=curated、false=formal 解析。
+    两种范围都不会放开非 formal 测试工具、``quarantined`` 或本机 SoundFont。
     """
     # 保留这个原始 JSON 兼容入口供 MCP 与既有测试使用，但真正的策略只对
     # parse_roster_document 已解析出的 capability 执行。这样完整路径和唯一
@@ -323,14 +1508,29 @@ def _roster_instrument_problems(roster: dict, trusted_only: bool) -> list[str]:
         # MCP 工具返回可修正的结构化错误，不让无效编制把服务调用本身打断。
         return [str(exc)]
     try:
-        trusted = _trusted_set() if trusted_only else None
-    except TrustPolicyError as exc:
-        return [f"可信策略配置错误: {exc}"]
+        _scope, allowed = _resolve_mcp_instrument_scope(
+            instrument_scope,
+            trusted_only,
+        )
+    except (TrustPolicyError, TypeError, ValueError) as exc:
+        return [f"乐器范围配置错误: {exc}"]
+    non_formal = sorted(
+        {
+            executor.capability.relative_path
+            for executor in parsed.executors
+            if executor.capability.quality_tier != "formal"
+        }
+    )
+    if non_formal:
+        return [
+            f"{path}(不是 MCP 公开 formal 正式声音入口)"
+            for path in non_formal
+        ]
     return list(
         roster_availability_problems(
             parsed,
-            trusted_only=trusted_only,
-            trusted_instruments=trusted,
+            trusted_only=True,
+            trusted_instruments=allowed,
         )
     )
 
@@ -339,32 +1539,26 @@ def _collaboration_warnings(roster: Any) -> list[str]:
     """Return non-blocking mix/context warnings for an already parsed roster."""
 
     executors = tuple(roster.executors)
-    untested = sorted(
-        {
-            executor.capability.relative_path
-            for executor in executors
-            if executor.capability.collaboration_review_status != "passed"
-        }
-    )
     warnings: list[str] = []
-    if untested:
+    if len(executors) <= 1:
+        return warnings
+    if any(
+        executor.capability.relative_path == "世界乐器/西塔琴"
+        for executor in executors
+    ):
         warnings.append(
-            "该编制含尚未通过协奏/实际曲目验收的乐器；"
-            "quality_tier=formal 只代表单音色独立测试通过。"
+            "西塔琴在既有组合试听中电平偏轻；请按当前作品角色试听分轨与总线，"
+            "再决定是否使用 gain_db 或自动化。"
         )
-    paths = {
-        executor.capability.relative_path for executor in executors
-    }
-    if "世界乐器/西塔琴" in paths:
+    if any(
+        executor.capability.relative_path == "管弦乐/弦乐组/大提琴"
+        and getattr(executor, "role", None) is not None
+        and getattr(executor.role, "prominence", None) == "background"
+        for executor in executors
+    ):
         warnings.append(
-            "西塔琴已知单独听音色正常但电平偏小；"
-            "请在当前编配中用 gain_db/自动化实听决定，不要据此全局改音色。"
-        )
-    if "管弦乐/弦乐组/大提琴" in paths:
-        warnings.append(
-            "大提琴作背景时曾出现过响、长尾和低中频遮蔽；"
-            "请声明 role 与 balance_relations 后使用 analyze/suggest 诊断；"
-            "当前引擎仍不会暗中自动配平或 ducking。"
+            "背景大提琴在既有试听中出现过长尾与低中频遮蔽候选；"
+            "请按当前作品试听分轨、目标前景声部与总线后决定是否调整。"
         )
     return warnings
 
@@ -394,20 +1588,13 @@ def _issue(
     message: object,
     **details: Any,
 ) -> dict[str, Any]:
-    item: dict[str, Any] = {
-        "severity": severity,
-        "code": code,
-        "stage": stage,
-        "message": str(message),
-    }
-    item.update(
-        {
-            key: value
-            for key, value in details.items()
-            if value is not None
-        }
+    return build_issue(
+        severity=severity,
+        code=code,
+        stage=stage,
+        message=message,
+        **details,
     )
-    return item
 
 
 def _resolve_mcp_render_profile(
@@ -455,6 +1642,21 @@ def _resolve_mcp_render_profile(
     )
 
 
+def _safe_project_review(
+    plan: Any | None,
+    roster: Any | None,
+    *,
+    binding: dict[str, Any],
+) -> dict[str, Any]:
+    """Run creator review without allowing a diagnostic failure to block."""
+
+    if plan is None or roster is None:
+        report = build_review_report([], binding=binding)
+        report["diagnostics"] = {"status": "not_run"}
+        return report
+    return build_project_review_safely(plan, roster, binding=binding)
+
+
 def _compile_project(
     score: dict,
     roster: dict,
@@ -462,7 +1664,7 @@ def _compile_project(
     expression: str,
     seed: int,
     range_mode: str,
-    trusted_only: bool,
+    instrument_scope: str,
     write_stems: bool = True,
     space: SpaceConfig | None = None,
     collaboration_mode: str | None = None,
@@ -497,6 +1699,22 @@ def _compile_project(
     settings = None
     plan = None
     normalized_seed: int | None = None
+    try:
+        resolved_scope, allowed_instruments = (
+            _resolve_mcp_instrument_scope(instrument_scope, None)
+        )
+    except (TrustPolicyError, TypeError, ValueError) as exc:
+        resolved_scope = instrument_scope
+        allowed_instruments = set()
+        checks["availability_policy"] = {"status": "failed"}
+        issues.append(
+            _issue(
+                severity="error",
+                code="instrument.scope_invalid",
+                stage="availability_policy",
+                message=exc,
+            )
+        )
 
     try:
         normalized_seed = int(seed)
@@ -600,10 +1818,8 @@ def _compile_project(
         try:
             availability = roster_availability_problems(
                 roster_document,
-                trusted_only=trusted_only,
-                trusted_instruments=(
-                    _trusted_set() if trusted_only else None
-                ),
+                trusted_only=True,
+                trusted_instruments=allowed_instruments,
             )
         except Exception as exc:
             availability = (str(exc),)
@@ -749,32 +1965,12 @@ def _compile_project(
                     **checks["resource_limits"],
                     **render_resource_summary,
                 }
-            for message in plan.warnings:
-                issues.append(
-                    _issue(
-                        severity="warning",
-                        code="performance.warning",
-                        stage="performance_plan",
-                        message=message,
-                    )
-                )
-
-    if roster_document is not None:
-        for message in _collaboration_warnings(roster_document):
-            issues.append(
-                _issue(
-                    severity="warning",
-                    code="collaboration.review_pending",
-                    stage="cross_document",
-                    message=message,
-                )
-            )
-
     settings_binding = {
         "expression": expression,
         "seed": normalized_seed if normalized_seed is not None else seed,
         "range_mode": range_mode,
-        "trusted_only": bool(trusted_only),
+        "trusted_only": resolved_scope == "curated",
+        "instrument_scope": resolved_scope,
     }
     project_binding = {
         "score": score,
@@ -791,6 +1987,11 @@ def _compile_project(
             else None
         ),
     }
+    project_review = _safe_project_review(
+        plan,
+        roster_document,
+        binding=project,
+    )
     stage_order = {
         name: index
         for index, name in enumerate(
@@ -822,6 +2023,7 @@ def _compile_project(
         checks=checks,
         issues=tuple(issues),
         project=project,
+        project_review=project_review,
     )
 
 
@@ -956,24 +2158,123 @@ def _issue_page(
     issues: tuple[dict[str, Any], ...],
     limit: int,
 ) -> tuple[list[dict[str, Any]], dict[str, int], bool]:
-    counts = Counter(str(item.get("severity", "unknown")) for item in issues)
+    return paginate_issues(issues, limit)
+
+
+def _effective_pitch_mode(capability: Any) -> str:
     return (
-        list(issues[:limit]),
-        dict(sorted(counts.items())),
-        len(issues) > limit,
+        capability.pitch_mode
+        if capability.pitch_mode is not None
+        else "pitched" if capability.pitched else "unspecified"
     )
 
 
-@mcp.tool()
-def list_instruments(trusted_only: bool = True, pitched_only: bool = False) -> dict:
-    """列出可用乐器调色板(配器前先调这个,照它的音域/奏法去写编制)。
+def _instrument_catalog_item(
+    capability: Any,
+    *,
+    curated: set[str] | None,
+    variant_hint: str | None,
+    detail_level: str,
+) -> dict[str, Any]:
+    lo = (
+        pitch_name(capability.note_min)
+        if capability.note_min is not None
+        else None
+    )
+    hi = (
+        pitch_name(capability.note_max)
+        if capability.note_max is not None
+        else None
+    )
+    item: dict[str, Any] = {
+        "instrument": capability.relative_path,
+        "category": capability.relative_path.split("/")[0],
+        "name": capability.name,
+        "implementation_type": capability.implementation_type,
+        "routing_class": capability.routing_class,
+        "pitched": capability.pitched,
+        "pitch_mode": _effective_pitch_mode(capability),
+        "range": f"{lo}~{hi}" if lo and hi else None,
+        "articulations": list(capability.articulations),
+        "default_articulation": capability.default_articulation,
+        "quality_tier": capability.quality_tier,
+        "collaboration_review_status": (
+            capability.collaboration_review_status
+        ),
+        "license_status": capability.license_status,
+        "curated": (
+            None
+            if curated is None
+            else capability.relative_path in curated
+        ),
+        "resource_state": "catalog_only",
+        "readiness_tool": "check_project_readiness",
+        "variant_hint": variant_hint,
+    }
+    if detail_level == "summary":
+        return item
+    capability_document = capability.to_dict()
+    item.update(
+        {
+            "pitch_mode_declared": capability.pitch_mode is not None,
+            "fixed_midi_note": capability.fixed_midi_note,
+            "fixed_note": (
+                pitch_name(capability.fixed_midi_note)
+                if capability.fixed_midi_note is not None
+                else None
+            ),
+            "ignores_pitch": capability.ignores_pitch,
+            "note_min": capability.note_min,
+            "note_max": capability.note_max,
+            "playable_ranges": [
+                [low, high] for low, high in capability.playable_ranges
+            ],
+            "duration_articulation_rules": capability_document[
+                "duration_articulation_rules"
+            ],
+            "articulation_playable_ranges": {
+                name: [[low, high] for low, high in ranges]
+                for name, ranges in capability.articulation_playable_ranges
+            },
+            "articulation_range_contracts": (
+                _articulation_range_contracts(capability)
+            ),
+            "range_contract_status": capability_document[
+                "range_contract_status"
+            ],
+            "range_base_runtime_configuration": capability_document[
+                "range_base_runtime_configuration"
+            ],
+            "range_profiles": capability_document["range_profiles"],
+        }
+    )
+    return item
 
-    trusted_only=True(默认)只端出默认策展调色板；设 False
-    可看全部未被许可证隔离的单音色入口。formal 只表示独立单音色测试通过，
-    collaboration_review_status 才表示协奏/编配/混音验收状态。
+
+@mcp_tool(title="List instruments", annotations=_READ_ONLY_TOOL)
+def list_instruments(
+    trusted_only: StrictBool | None = None,
+    pitched_only: StrictBool = False,
+    instrument_scope: Literal["formal", "curated"] | None = None,
+    category: _InstrumentQuery | None = None,
+    routing_class: Literal["instrument", "percussion", "effect"] | None = None,
+    articulation: _InstrumentQuery | None = None,
+    pitch_mode: Literal["pitched", "ignore", "fixed", "unspecified"] | None = None,
+    query: _InstrumentQuery | None = None,
+    detail_level: Literal["summary", "full"] = "summary",
+    offset: StrictInt = 0,
+    limit: StrictInt = 32,
+) -> dict[str, Any]:
+    """列出 MCP 可调用乐器(配器前先调这个,照音域/奏法写编制)。
+
+    默认 ``instrument_scope=formal`` 端出全部正式声音入口；``curated``
+    返回作者策展子集。兼容参数 trusted_only 仍可使用：true=curated，
+    false=formal。每项的 ``curated`` 字段独立标明是否属于策展子集。
     ``license_status=quarantined`` 与 ``type=soundfont`` 的本机兼容入口无论此
     参数为何值都不会列出。
-    每件给出音域(音名)、奏法、实现类型、质量层和可选的 ``variant_hint``。
+    无参数调用返回 32 件摘要和下一页游标；可按条件缩小范围，选定乐器后再用
+    ``detail_level=full`` 读取完整音域合同。每件给出音域(音名)、奏法、实现类型、
+    质量层和可选的 ``variant_hint``。
     ``playable_ranges`` 是
     显式声明的全局分段音域，``articulation_playable_ranges`` 只列显式的
     奏法覆盖；未列出的奏法继承全局分段，未声明分段时继承 note_min/note_max。
@@ -984,13 +2285,16 @@ def list_instruments(trusted_only: bool = True, pitched_only: bool = False) -> d
     候选范围；不存在时 ``range_contract_status`` 明确为 unmigrated。
     ``duration_articulation_rules`` 只列乐器明确授权的无记号短音替换合同；
     空列表表示不能凭奏法名字自动猜测。
-    ``pitch_mode=pitched`` 按谱面音高发声；``ignore`` 用谱面键位选择既有
-    样本/变体但不做十二平均律移调；``fixed`` 则任意谱面音高都触发
+    ``pitch_mode=pitched`` 按谱面音高发声；``ignore`` 用声明键区内的谱面键位
+    选择既有样本/变体但不做十二平均律移调；``fixed`` 则任意谱面音高都触发
     ``fixed_midi_note``，此时 ``ignores_pitch=true``。
     """
     try:
-        trusted = _trusted_set() if trusted_only else None
-    except TrustPolicyError as exc:
+        resolved_scope, allowed = _resolve_mcp_instrument_scope(
+            instrument_scope,
+            trusted_only,
+        )
+    except (TrustPolicyError, TypeError, ValueError) as exc:
         return {
             "kind": "tianlai.instrument_list",
             "schema_version": 1,
@@ -1000,89 +2304,127 @@ def list_instruments(trusted_only: bool = True, pitched_only: bool = False) -> d
             "issues": [
                 _issue(
                     severity="error",
-                    code="trust_policy.configuration_error",
+                    code="instrument.scope_invalid",
                     stage="availability_policy",
                     message=exc,
                 )
             ],
         }
+    try:
+        curated = _trusted_set()
+        curation_state = "available"
+    except TrustPolicyError:
+        curated = None
+        curation_state = "unavailable"
+    try:
+        page_limit = _bounded_limit(limit, "limit")
+        if isinstance(offset, bool) or not isinstance(offset, int) or offset < 0:
+            raise ValueError("offset 必须是非负整数")
+        normalized_filters = {
+            "category": None if category is None else category.strip(),
+            "articulation": (
+                None if articulation is None else articulation.strip()
+            ),
+            "query": None if query is None else query.strip(),
+        }
+        for name, value in normalized_filters.items():
+            if value == "":
+                raise ValueError(f"{name} 不能是空白字符串")
+    except (TypeError, ValueError) as exc:
+        return {
+            "kind": "tianlai.instrument_list",
+            "schema_version": 1,
+            "ok": False,
+            "instrument_scope": resolved_scope,
+            "count": 0,
+            "instruments": [],
+            "issues": [
+                _issue(
+                    severity="error",
+                    code="instrument_catalog.query_invalid",
+                    stage="catalog_query",
+                    message=exc,
+                )
+            ],
+        }
     variant_hints = _variant_hints()
-    items = []
+    matching = []
     for cap in _caps().values():
-        if cap.quality_tier is None:  # 参考振荡器等非高仿入口不端出
-            continue
-        if cap.implementation_type == "soundfont":
-            continue
-        if cap.license_status == "quarantined":
-            continue
-        if trusted_only and cap.relative_path not in trusted:
+        if cap.relative_path not in allowed:
             continue
         if pitched_only and not cap.pitched:
             continue
-        lo = pitch_name(cap.note_min) if cap.note_min is not None else None
-        hi = pitch_name(cap.note_max) if cap.note_max is not None else None
-        capability_document = cap.to_dict()
-        effective_pitch_mode = (
-            cap.pitch_mode
-            if cap.pitch_mode is not None
-            else ("pitched" if cap.pitched else "unspecified")
+        if (
+            normalized_filters["category"] is not None
+            and cap.relative_path.split("/")[0]
+            != normalized_filters["category"]
+        ):
+            continue
+        if routing_class is not None and cap.routing_class != routing_class:
+            continue
+        if (
+            normalized_filters["articulation"] is not None
+            and not cap.supports(normalized_filters["articulation"])
+        ):
+            continue
+        if pitch_mode is not None and _effective_pitch_mode(cap) != pitch_mode:
+            continue
+        if normalized_filters["query"] is not None:
+            needle = normalized_filters["query"].casefold()
+            haystacks = (
+                cap.relative_path,
+                cap.name,
+                cap.implementation_type,
+                *cap.articulations,
+            )
+            if not any(needle in value.casefold() for value in haystacks):
+                continue
+        matching.append(cap)
+    matching.sort(key=lambda cap: cap.relative_path)
+    page = matching[offset : offset + page_limit]
+    items = [
+        _instrument_catalog_item(
+            cap,
+            curated=curated,
+            variant_hint=variant_hints.get(cap.relative_path),
+            detail_level=detail_level,
         )
-        items.append({
-            "instrument": cap.relative_path,
-            "category": cap.relative_path.split("/")[0],
-            "name": cap.name,
-            "implementation_type": cap.implementation_type,
-            "pitched": cap.pitched,
-            "pitch_mode": effective_pitch_mode,
-            "pitch_mode_declared": cap.pitch_mode is not None,
-            "fixed_midi_note": cap.fixed_midi_note,
-            "fixed_note": (
-                pitch_name(cap.fixed_midi_note)
-                if cap.fixed_midi_note is not None
-                else None
-            ),
-            "ignores_pitch": cap.ignores_pitch,
-            "range": (f"{lo}~{hi}" if lo and hi else None),
-            "note_min": cap.note_min,
-            "note_max": cap.note_max,
-            "playable_ranges": [
-                [low, high] for low, high in cap.playable_ranges
-            ],
-            "articulations": list(cap.articulations),
-            "default_articulation": cap.default_articulation,
-            "duration_articulation_rules": capability_document[
-                "duration_articulation_rules"
-            ],
-            "articulation_playable_ranges": {
-                name: [[low, high] for low, high in ranges]
-                for name, ranges in cap.articulation_playable_ranges
-            },
-            "articulation_range_contracts": (
-                _articulation_range_contracts(cap)
-            ),
-            "range_contract_status": capability_document[
-                "range_contract_status"
-            ],
-            "range_base_runtime_configuration": capability_document[
-                "range_base_runtime_configuration"
-            ],
-            "range_profiles": capability_document["range_profiles"],
-            "quality_tier": cap.quality_tier,
-            "collaboration_review_status": (
-                cap.collaboration_review_status
-            ),
-            "license_status": cap.license_status,
-            "variant_hint": variant_hints.get(cap.relative_path),
-        })
-    items.sort(key=lambda x: x["instrument"])
-    note = ("仅列默认策展乐器；传 trusted_only=false 看全部未隔离单音色入口"
-            if trusted_only
-            else "formal=单音色独立测试通过；协奏状态与许可、默认策展相互独立")
+        for cap in page
+    ]
+    next_offset = (
+        offset + len(items)
+        if offset + len(items) < len(matching)
+        else None
+    )
+    note = (
+        "当前为作者策展子集；使用 instrument_scope=formal 可查看全部正式入口"
+        if resolved_scope == "curated"
+        else (
+            "当前为全部 formal 正式声音入口；formal=单音色独立测试通过；"
+            "curated 字段标明作者策展子集"
+        )
+    )
     return {
         "kind": "tianlai.instrument_list",
         "schema_version": 1,
         "ok": True,
+        "instrument_scope": resolved_scope,
+        "detail_level": detail_level,
+        "curation_state": curation_state,
+        "curated_count": None if curated is None else len(curated),
+        "catalog_count": len(allowed),
+        "matched_count": len(matching),
         "count": len(items),
+        "offset": offset,
+        "limit": page_limit,
+        "next_offset": next_offset,
+        "has_more": next_offset is not None,
+        "filters": {
+            **normalized_filters,
+            "routing_class": routing_class,
+            "pitch_mode": pitch_mode,
+            "pitched_only": pitched_only,
+        },
         "note": note,
         "agent_writing_rule": (
             "先选择 articulation，再按该乐器 articulation_range_contracts"
@@ -1102,19 +2444,146 @@ def list_instruments(trusted_only: bool = True, pitched_only: bool = False) -> d
         "pitch_mode_semantics": {
             "pitched": "按谱面音高移调或选择对应音高样本",
             "ignore": (
-                "谱面键位可选择既有打击样本/变体，但后端不按十二平均律移调"
+                "谱面键位选择既有打击样本/变体且须落在声明键区；kit 可用 "
+                "transpose 进入该键区，后端不按十二平均律移调"
             ),
             "fixed": (
                 "任意谱面音高都触发 fixed_midi_note；"
                 "ignores_pitch=true"
             ),
         },
+        "routing_class_semantics": {
+            "instrument": "普通乐器入口，可直接用于单件 assignment",
+            "percussion": "打击乐入口，可单件试听或在 kit 中按谱面符头逐键路由",
+            "effect": "环境与拟音入口，可作为 ambience 或 effect 声部使用",
+        },
         "instruments": items,
     }
 
 
-@mcp.tool()
-def score_and_roster_format() -> dict:
+@mcp_tool(title="Diagnose Tianlai runtime", annotations=_READ_ONLY_TOOL)
+def diagnose_runtime(
+    check_level: Literal["quick", "references"] = "quick",
+    max_issues: StrictInt = 32,
+) -> dict[str, Any]:
+    """检查当前 MCP 运行时、平台、目录、资源汇总与可选能力。
+
+    ``quick`` 检查清单显式引用；``references`` 还会展开专用 SFZ 的样本引用。
+    两种模式都严格被动：不加载原生库、不启动外部程序、不创建临时文件，也不
+    联网、下载、安装或返回任何本机绝对路径。目录可写性只是无写入权限估计。
+    """
+
+    try:
+        limit = _bounded_limit(max_issues, "max_issues")
+        return collect_runtime_diagnosis(
+            _RUNTIME_LAYOUT,
+            check_level=check_level,
+            max_issues=limit,
+        )
+    except ValueError:
+        return {
+            "kind": "tianlai.runtime_diagnosis_result",
+            "schema_version": 1,
+            "ok": False,
+            "status": "error",
+            "issues": [
+                _issue(
+                    severity="error",
+                    code="diagnosis.invalid_request",
+                    stage="settings",
+                    message="Runtime diagnosis settings are invalid.",
+                )
+            ],
+        }
+    except Exception:
+        return {
+            "kind": "tianlai.runtime_diagnosis_result",
+            "schema_version": 1,
+            "ok": False,
+            "status": "error",
+            "issues": [
+                _issue(
+                    severity="error",
+                    code="diagnosis.failed",
+                    stage="runtime",
+                    message=(
+                        "Runtime diagnosis failed without exposing local path "
+                        "or loader details. Run tianlai-doctor locally for the "
+                        "operator-only report."
+                    ),
+                )
+            ],
+        }
+
+
+@mcp_tool(title="Plan resource restore", annotations=_READ_ONLY_TOOL)
+def plan_resource_restore(
+    instrument_ids: _ResourceSelectorList | None = None,
+    family_ids: _ResourceSelectorList | None = None,
+    groups: _ResourceSelectorList | None = None,
+    max_items: StrictInt = 64,
+) -> dict[str, Any]:
+    """只读规划资源恢复；不联网、不下载、不解压、不安装。
+
+    可按项目乐器 ID、冻结资源族或资源组选择，三类选择取并集；全部省略时返回
+    15 个冻结资源族的完整计划。结果保留体积、缓存状态和许可证义务，但不包含
+    上游 URL、commit、本机路径或可直接执行的 shell 命令。
+    """
+
+    try:
+        limit = _bounded_limit(max_items, "max_items")
+        return build_safe_resource_restore_plan(
+            _RUNTIME_LAYOUT,
+            instrument_ids=instrument_ids,
+            family_ids=family_ids,
+            groups=groups,
+            max_items=limit,
+        )
+    except ValueError:
+        return {
+            "kind": "tianlai.resource_restore_plan_result",
+            "schema_version": 1,
+            "ok": False,
+            "status": "blocked",
+            "network": False,
+            "persistent_writes": False,
+            "downloads_started": False,
+            "restore_started": False,
+            "issues": [
+                _issue(
+                    severity="error",
+                    code="restore_plan.invalid_request",
+                    stage="settings",
+                    message="Resource restore planning settings are invalid.",
+                )
+            ],
+        }
+    except Exception:
+        return {
+            "kind": "tianlai.resource_restore_plan_result",
+            "schema_version": 1,
+            "ok": False,
+            "status": "blocked",
+            "network": False,
+            "persistent_writes": False,
+            "downloads_started": False,
+            "restore_started": False,
+            "issues": [
+                _issue(
+                    severity="error",
+                    code="restore_plan.failed",
+                    stage="manifest",
+                    message=(
+                        "The frozen restore manifest could not be planned. Run "
+                        "tianlai-doctor locally for operator-only details."
+                    ),
+                )
+            ],
+        }
+
+
+@mcp_tool(title="Get score and roster format", annotations=_READ_ONLY_TOOL)
+def score_and_roster_format() -> dict[str, Any]:
     """返回乐谱与编制的写法说明 + 一个最小可用示例。
 
     你(AI)据此直接写出 score 与 roster 两个 JSON 对象,再交给 render。
@@ -1136,7 +2605,8 @@ def score_and_roster_format() -> dict:
                  "duration_beats": 2.0, "pitch": "G4", "velocity": 0.6}]},
             {"id": "Flute", "name": "Flute", "notes": [
                 {"event_id": "flute-0001", "bar": 1, "beat": 1.0,
-                 "duration_beats": 4.0, "pitch": "C5", "velocity": 0.55}]},
+                 "duration_beats": 1.0, "pitch": "C5", "velocity": 0.55,
+                 "articulation": "short"}]},
         ],
     }
     example_roster = {
@@ -1166,12 +2636,91 @@ def score_and_roster_format() -> dict:
              "seat": {"azimuth_deg": -3, "distance_m": 2.5}},
             {"part": "Flute", "executor_id": "2_长笛", "instrument": "管弦乐/木管组/长笛",
              "gain_db": -6.0,
+             "articulation_auto": False,
+             "articulation_map": {"short": "staccato"},
              "role": {"function": "lead", "prominence": "foreground"},
              "gain_automation": [
                  {"bar": 1, "beat": 1.0, "offset_db": 0.0},
                  {"bar": 1, "beat": 3.0, "offset_db": 1.5},
              ],
              "seat": {"azimuth_deg": -18, "distance_m": 4.0}},
+        ],
+    }
+    example_kit_score = {
+        "schema_version": 1,
+        "title": "鼓组逐键路由示例",
+        "sample_rate": 48000,
+        "tail_seconds": 2.0,
+        "tempo_map": [
+            {
+                "bar": 1,
+                "beat": 1.0,
+                "bpm": 100.0,
+                "beats_per_bar": 4,
+                "beat_unit": 4,
+            }
+        ],
+        "parts": [
+            {
+                "id": "Drums",
+                "name": "Drums",
+                "notes": [
+                    {
+                        "event_id": "drums-0001",
+                        "bar": 1,
+                        "beat": 1.0,
+                        "duration_beats": 0.5,
+                        "pitch": "C2",
+                        "velocity": 0.75,
+                    },
+                    {
+                        "event_id": "drums-0002",
+                        "bar": 1,
+                        "beat": 2.0,
+                        "duration_beats": 0.5,
+                        "pitch": "D2",
+                        "velocity": 0.7,
+                    },
+                    {
+                        "event_id": "drums-0003",
+                        "bar": 1,
+                        "beat": 3.0,
+                        "duration_beats": 0.5,
+                        "pitch": "F#2",
+                        "velocity": 0.6,
+                    },
+                    {
+                        "event_id": "drums-0004",
+                        "bar": 1,
+                        "beat": 4.0,
+                        "duration_beats": 0.5,
+                        "pitch": "D3",
+                        "velocity": 0.65,
+                    },
+                ],
+            }
+        ],
+    }
+    example_kit_roster = {
+        "name": "鼓组逐键路由示例",
+        "assignments": [
+            {
+                "part": "Drums",
+                "kit": {
+                    "C2": "现代鼓组/底鼓",
+                    "D2": "现代鼓组/边击军鼓",
+                    "F#2": "现代鼓组/闭合踩镲",
+                    "D3": {
+                        "instrument": "现代鼓组/高音通鼓",
+                        "transpose": 10,
+                    },
+                },
+                "gain_db": -6.0,
+                "role": {
+                    "function": "rhythm",
+                    "prominence": "midground",
+                },
+            }
         ],
     }
     return {
@@ -1188,6 +2737,12 @@ def score_and_roster_format() -> dict:
         "roster_fields": {
             "assignments[].part": "对应 score 里的 part id",
             "assignments[].instrument": "来自 list_instruments 的 instrument 相对路径",
+            "assignments[].kit": "打击声部的谱面符头 → 乐器路由；值可直接写乐器路径，"
+                                 "也可写 {instrument,transpose}",
+            "assignments[].transpose": "整个 assignment 的整数半音移调；普通乐器直接"
+                                       "使用，kit 条目未单独设置时继承它",
+            "assignments[].kit.*.transpose": "kit 先按原谱面符头选中路由，再把条目内"
+                                             "整数半音加到后端演奏键位；它覆盖顶层值",
             "gain_db": "该声部电平(负值);seat.distance_m 越大在厅堂里越靠里",
             "gain_automation": "可选声部推子包络:[{bar,beat,offset_db},...];"
                                "首点必须 bar1 beat1,相邻点按真实时间在 dB 域线性插值。"
@@ -1205,6 +2760,10 @@ def score_and_roster_format() -> dict:
                                    "这是力度映射，不是音频压缩器",
             "duration_scale": "可选 0.1..2，缩放该声部音符发声时长，"
                               "可用于控制密集段落的尾音堆积",
+            "articulation_auto": "可选布尔值；false 表示只使用谱面明确写入或"
+                                 "articulation_map 映射后的奏法",
+            "articulation_map": "可选的谱面记号 → 乐器奏法精确映射，例如 "
+                                "{short:staccato}；音域检查使用映射后的奏法",
             "overrides": "可选受控乐器参数。release_seconds 缩短主释音；"
                          "大提琴密集旋律可用 release_tail_gain=0..1 缩放或"
                          "关闭独立离弦尾采样；sample_variant 只选已审定变体",
@@ -1216,19 +2775,24 @@ def score_and_roster_format() -> dict:
             "beat/duration_beats 用拍号的拍单位(6/8:一拍=八分音符)",
             "小节内 beat 使用半开区间；4/4 只能写 1<=beat<5，下一小节写 bar+1 beat1",
             "移动、改音高、改力度或改时值时保留原 event_id；新音符分配新的唯一 ID",
-            "一件乐器一个 assignment;同一乐器别开多个实例(会相位互撞)",
+            "普通声部一件乐器一个 assignment；鼓组用一个 kit assignment 按"
+            "符头展开执行器；同一乐器不要重复开实例",
             "先 list_instruments 确认音域,别写出乐器够不到的音",
+            "fixed 会把任意谱面音高送到 fixed_midi_note；ignore 以键位选择原生"
+            "样本/变体，必要时在 kit 条目中用 transpose 进入声明键区",
             "不要从乐器名猜主次；在 roster.role 和 balance_relations 中显式声明",
             "不要从 Piano L/R、乐器名或轨道顺序猜组合端点；只有 roster 明确写入"
             " collaboration.part_groups 才可按组分析",
         ],
         "example_score": example_score,
         "example_roster": example_roster,
+        "example_kit_score": example_kit_score,
+        "example_kit_roster": example_kit_roster,
     }
 
 
-@mcp.tool()
-def import_midi(midi_path: str) -> dict:
+@mcp_tool(title="Import MIDI", annotations=_READ_ONLY_TOOL)
+def import_midi(midi_path: str) -> dict[str, Any]:
     """把标准 MIDI 解析成 score 与待创作者确认的 roster 草稿。
 
     草稿保留 Program Change、CC7、CC10、CC11；不会自动选择天籁乐器或把
@@ -1264,8 +2828,8 @@ def import_midi(midi_path: str) -> dict:
     }
 
 
-@mcp.tool()
-def import_musicxml(musicxml_path: str) -> dict:
+@mcp_tool(title="Import MusicXML", annotations=_READ_ONLY_TOOL)
+def import_musicxml(musicxml_path: str) -> dict[str, Any]:
     """把 MusicXML 总谱解析成天籁乐谱，支持 .musicxml/.xml 与压缩 .mxl。
 
     保留谱面声部、和弦、多声部时序、拍号、速度、力度、常见奏法、连音线和
@@ -1307,12 +2871,13 @@ def import_musicxml(musicxml_path: str) -> dict:
     }
 
 
-@mcp.tool()
+@mcp_tool(title="Import score project", annotations=_READ_ONLY_TOOL)
 def import_score_project(
     source_path: str,
-    trusted_only: bool = True,
-    candidate_limit: int = 8,
-) -> dict:
+    trusted_only: StrictBool | None = None,
+    candidate_limit: StrictInt = 8,
+    instrument_scope: Literal["formal", "curated"] | None = None,
+) -> dict[str, Any]:
     """统一导入 MIDI/MusicXML/MXL，返回有 Hash 绑定的三文档工程包。
 
     返回 score、可持久化的 import_report 与明确 ``executable=false`` 的
@@ -1321,15 +2886,42 @@ def import_score_project(
     """
 
     try:
+        resolved_scope, allowed = _resolve_mcp_instrument_scope(
+            instrument_scope,
+            trusted_only,
+        )
+    except (TrustPolicyError, TypeError, ValueError) as exc:
+        return {
+            "kind": "tianlai.project_import_result",
+            "schema_version": 1,
+            "ok": False,
+            "audio_rendered": False,
+            "issues": [
+                _issue(
+                    severity="error",
+                    code="instrument.scope_invalid",
+                    stage="availability_policy",
+                    message=exc,
+                )
+            ],
+        }
+    try:
         path = _resolve_mcp_input(source_path)
-        trusted = _trusted_set() if trusted_only else None
         bundle = import_project_bundle(
             path,
             capabilities=_caps(),
-            trusted_only=trusted_only,
-            trusted_instruments=trusted,
+            trusted_only=True,
+            trusted_instruments=allowed,
             candidate_limit=candidate_limit,
         )
+        routing_hints = bundle.get("roster_draft", {}).get("routing_hints")
+        if isinstance(routing_hints, dict):
+            # The lower-level importer uses ``trusted_only=True`` to enforce
+            # the exact supplied allow-set.  Translate that implementation
+            # detail back to the public MCP scope vocabulary before returning
+            # the bundle so legacy true still means curated to clients.
+            routing_hints["instrument_scope"] = resolved_scope
+            routing_hints["trusted_only"] = resolved_scope == "curated"
     except InputPathPolicyError as exc:
         return {
             "kind": "tianlai.project_import_result",
@@ -1358,19 +2950,21 @@ def import_score_project(
         "schema_version": 1,
         "ok": True,
         "audio_rendered": False,
+        "instrument_scope": resolved_scope,
         "bundle": bundle,
     }
 
 
-@mcp.tool()
+@mcp_tool(title="Confirm instrument roster", annotations=_READ_ONLY_TOOL)
 def confirm_roster(
     score: dict,
     roster_draft: dict,
     assignments: list[dict],
-    trusted_only: bool = True,
+    trusted_only: StrictBool | None = None,
     name: str | None = None,
     collaboration: dict | None = None,
-) -> dict:
+    instrument_scope: Literal["formal", "curated"] | None = None,
+) -> dict[str, Any]:
     """把导入草稿提升为正式 roster；每个声部必须由创作者显式选择。
 
     普通声部提交 instrument，打击声部提交逐键 kit。工具会重验
@@ -1379,14 +2973,33 @@ def confirm_roster(
     """
 
     try:
-        trusted = _trusted_set() if trusted_only else None
+        resolved_scope, allowed = _resolve_mcp_instrument_scope(
+            instrument_scope,
+            trusted_only,
+        )
+    except (TrustPolicyError, TypeError, ValueError) as exc:
+        return {
+            "kind": "tianlai.roster_confirmation_result",
+            "schema_version": 1,
+            "ok": False,
+            "audio_rendered": False,
+            "issues": [
+                _issue(
+                    severity="error",
+                    code="instrument.scope_invalid",
+                    stage="availability_policy",
+                    message=exc,
+                )
+            ],
+        }
+    try:
         roster = promote_imported_roster(
             roster_draft,
             score,
             assignments,
             _caps(),
-            trusted_only=trusted_only,
-            trusted_instruments=trusted,
+            trusted_only=True,
+            trusted_instruments=allowed,
             name=name,
             collaboration=collaboration,
         )
@@ -1410,13 +3023,14 @@ def confirm_roster(
         "schema_version": 1,
         "ok": True,
         "audio_rendered": False,
+        "instrument_scope": resolved_scope,
         "roster": roster,
         "assignment_count": len(roster["assignments"]),
     }
 
 
-@mcp.tool()
-def upgrade_score(score: dict) -> dict:
+@mcp_tool(title="Upgrade score", annotations=_READ_ONLY_TOOL)
+def upgrade_score(score: dict) -> dict[str, Any]:
     """把 legacy score 升级为带稳定 event_id 的 score v1；不写文件、不渲染音频。
 
     已经是合法 v1 的输入会原样深拷贝返回。legacy 输入按原始数组遍历顺序分配
@@ -1470,8 +3084,8 @@ def upgrade_score(score: dict) -> dict:
     }
 
 
-@mcp.tool()
-def get_score_slice(score: dict, query: dict) -> dict:
+@mcp_tool(title="Read score slice", annotations=_READ_ONLY_TOOL)
+def get_score_slice(score: dict, query: dict) -> dict[str, Any]:
     """按声部、event_id 或小节读取有界乐谱片段，不产生文件或音频。
 
     ``query`` 必须使用 ``kind=tianlai.score_slice_query``、
@@ -1486,8 +3100,8 @@ def get_score_slice(score: dict, query: dict) -> dict:
         return exc.to_dict()
 
 
-@mcp.tool()
-def patch_score(score: dict, patch: dict) -> dict:
+@mcp_tool(title="Patch score", annotations=_READ_ONLY_TOOL)
+def patch_score(score: dict, patch: dict) -> dict[str, Any]:
     """用稳定 event_id 原子修改 score-v1，返回新乐谱、Hash 与结构化差异。
 
     Patch 必须绑定 ``base_score_sha256``，支持 ``update_note``、
@@ -1502,12 +3116,12 @@ def patch_score(score: dict, patch: dict) -> dict:
         return exc.to_dict()
 
 
-@mcp.tool()
+@mcp_tool(title="Compare score versions", annotations=_READ_ONLY_TOOL)
 def compare_score_versions(
     before: dict,
     after: dict,
-    max_changes: int = 256,
-) -> dict:
+    max_changes: StrictInt = 256,
+) -> dict[str, Any]:
     """按稳定 event_id 比较两份 score-v1；返回完整计数和有界差异样例。"""
 
     try:
@@ -1520,25 +3134,79 @@ def compare_score_versions(
         return exc.to_dict()
 
 
-@mcp.tool()
+def _validation_result_from_compilation(
+    compilation: _ProjectCompilation,
+    *,
+    profile: RenderProfile,
+    instrument_scope: str,
+    issue_limit: int,
+    kind: str = "tianlai.validate_project_result",
+) -> dict[str, Any]:
+    """Project one in-memory compilation into the shared validation contract."""
+
+    issues, counts, truncated = _issue_page(
+        compilation.issues,
+        issue_limit,
+    )
+    resolved_profile = profile.to_dict()
+    profile_sha256 = canonical_json_sha256(resolved_profile)
+    return {
+        "kind": kind,
+        "schema_version": 1,
+        "ok": compilation.ok,
+        "audio_rendered": False,
+        "project": compilation.project,
+        "settings": {
+            "expression": profile.expression,
+            "seed": profile.seed,
+            "range_mode": profile.range_mode,
+            "instrument_scope": instrument_scope,
+            "trusted_only": instrument_scope == "curated",
+            "render_profile": resolved_profile,
+            "render_profile_canonical_sha256": profile_sha256,
+        },
+        "render_handoff": {
+            "render_profile": resolved_profile,
+            "expected_render_profile_sha256": profile_sha256,
+            "instrument_scope": instrument_scope,
+        },
+        "checks": compilation.checks,
+        "render_preflight": _render_preflight_summary(compilation),
+        "summary": _validation_summary(compilation),
+        "instrument_policy": _instrument_policy_summary(compilation),
+        "range_diagnostics": (
+            _range_diagnostic_summary(compilation.plan)
+            if compilation.plan is not None
+            else None
+        ),
+        "self_check": summarize_issues(compilation.issues),
+        "project_review": compilation.project_review,
+        "issues": issues,
+        "issue_counts": counts,
+        "issues_truncated": truncated,
+    }
+
+
+@mcp_tool(title="Validate project", annotations=_READ_ONLY_TOOL)
 def validate_project(
     score: dict,
     roster: dict,
     expression: str | None = None,
-    seed: int | None = None,
+    seed: StrictInt | None = None,
     range_mode: str | None = None,
-    trusted_only: bool = True,
-    max_issues: int = 64,
+    trusted_only: StrictBool | None = None,
+    max_issues: StrictInt = 64,
     render_profile: dict | None = None,
-    normalize_peak_db: float | None = None,
-    hall: bool | None = None,
-    master_gain_db: float | None = None,
+    normalize_peak_db: StrictFloat | None = None,
+    hall: StrictBool | None = None,
+    master_gain_db: StrictFloat | None = None,
     space_config: dict | None = None,
     collaboration_mode: str | None = None,
-    write_stems: bool | None = None,
-    use_stem_cache: bool | None = None,
-    refresh_stem_cache: bool | None = None,
-) -> dict:
+    write_stems: StrictBool | None = None,
+    use_stem_cache: StrictBool | None = None,
+    refresh_stem_cache: StrictBool | None = None,
+    instrument_scope: Literal["formal", "curated"] | None = None,
+) -> dict[str, Any]:
     """只编译并检查 score+roster，不实例化乐器、不产生音频或 output 文件。
 
     该入口检查文档结构、严格小节/拍坐标、许可与可信策略、跨文档声部路由以及
@@ -1561,6 +3229,26 @@ def validate_project(
                     severity="error",
                     code="query.invalid_limit",
                     stage="settings",
+                    message=exc,
+                )
+            ],
+        }
+    try:
+        resolved_scope, _allowed = _resolve_mcp_instrument_scope(
+            instrument_scope,
+            trusted_only,
+        )
+    except (TrustPolicyError, TypeError, ValueError) as exc:
+        return {
+            "kind": "tianlai.validate_project_result",
+            "schema_version": 1,
+            "ok": False,
+            "audio_rendered": False,
+            "issues": [
+                _issue(
+                    severity="error",
+                    code="instrument.scope_invalid",
+                    stage="availability_policy",
                     message=exc,
                 )
             ],
@@ -1601,49 +3289,317 @@ def validate_project(
         expression=profile.expression,
         seed=profile.seed,
         range_mode=profile.range_mode,
-        trusted_only=trusted_only,
+        instrument_scope=resolved_scope,
         write_stems=profile.write_stems,
         space=profile.space,
         collaboration_mode=profile.collaboration_mode,
         stem_cache_enabled=profile.use_stem_cache,
     )
-    issues, counts, truncated = _issue_page(
-        compilation.issues,
+    return _validation_result_from_compilation(
+        compilation,
+        profile=profile,
+        instrument_scope=resolved_scope,
+        issue_limit=limit,
+    )
+
+
+@mcp_tool(title="Check project render readiness", annotations=_READ_ONLY_TOOL)
+def check_project_readiness(
+    score: dict,
+    roster: dict,
+    expression: str | None = None,
+    seed: StrictInt | None = None,
+    range_mode: str | None = None,
+    trusted_only: StrictBool | None = None,
+    max_issues: StrictInt = 64,
+    verify_references: StrictBool = True,
+    render_profile: dict | None = None,
+    normalize_peak_db: StrictFloat | None = None,
+    hall: StrictBool | None = None,
+    master_gain_db: StrictFloat | None = None,
+    space_config: dict | None = None,
+    collaboration_mode: str | None = None,
+    write_stems: StrictBool | None = None,
+    use_stem_cache: StrictBool | None = None,
+    refresh_stem_cache: StrictBool | None = None,
+    instrument_scope: Literal["formal", "curated"] | None = None,
+) -> dict[str, Any]:
+    """检查项目合同及其实际引用乐器的资源引用，不渲染或解码音频。
+
+    与 ``validate_project`` 的 ``catalog_only`` 检查不同，本工具只针对当前 roster
+    实际使用的乐器检查 manifest/SFZ 引用。结果叫 ``ready_for_render_attempt``，
+    因为它仍不会实例化乐器或声称音频后端已成功运行。无关乐器缺资源不会阻断
+    当前项目；缺失资源会提供可直接交给 ``plan_resource_restore`` 的 handoff。
+    平台与输出目录只做被动兼容/权限估计；实际写入和音频仍由 render 验证。
+    """
+
+    try:
+        limit = _bounded_limit(max_issues, "max_issues")
+    except (TypeError, ValueError):
+        return {
+            "kind": "tianlai.project_readiness_result",
+            "schema_version": 1,
+            "ok": False,
+            "status": "blocked",
+            "validation_ok": False,
+            "resource_references_ready": False,
+            "render_environment_ready": False,
+            "ready_for_render_attempt": False,
+            "audio_probe_performed": False,
+            "audio_rendered": False,
+            "issues": [
+                _issue(
+                    severity="error",
+                    code="readiness.invalid_limit",
+                    stage="settings",
+                    message="Project readiness max_issues is invalid.",
+                )
+            ],
+        }
+    try:
+        resolved_scope, _allowed = _resolve_mcp_instrument_scope(
+            instrument_scope,
+            trusted_only,
+        )
+    except (TrustPolicyError, TypeError, ValueError) as exc:
+        return {
+            "kind": "tianlai.project_readiness_result",
+            "schema_version": 1,
+            "ok": False,
+            "status": "blocked",
+            "validation_ok": False,
+            "resource_references_ready": False,
+            "render_environment_ready": False,
+            "ready_for_render_attempt": False,
+            "audio_probe_performed": False,
+            "audio_rendered": False,
+            "issues": [
+                _issue(
+                    severity="error",
+                    code="instrument.scope_invalid",
+                    stage="availability_policy",
+                    message=exc,
+                )
+            ],
+        }
+    try:
+        profile = _resolve_mcp_render_profile(
+            render_profile=render_profile,
+            seed=seed,
+            expression=expression,
+            range_mode=range_mode,
+            normalize_peak_db=normalize_peak_db,
+            hall=hall,
+            master_gain_db=master_gain_db,
+            space_config=space_config,
+            collaboration_mode=collaboration_mode,
+            write_stems=write_stems,
+            use_stem_cache=use_stem_cache,
+            refresh_stem_cache=refresh_stem_cache,
+        )
+    except (TypeError, ValueError):
+        return {
+            "kind": "tianlai.project_readiness_result",
+            "schema_version": 1,
+            "ok": False,
+            "status": "blocked",
+            "validation_ok": False,
+            "resource_references_ready": False,
+            "render_environment_ready": False,
+            "ready_for_render_attempt": False,
+            "audio_probe_performed": False,
+            "audio_rendered": False,
+            "issues": [
+                _issue(
+                    severity="error",
+                    code="readiness.invalid_settings",
+                    stage="settings",
+                    message="Project readiness render settings are invalid.",
+                )
+            ],
+        }
+
+    compilation = _compile_project(
+        score,
+        roster,
+        expression=profile.expression,
+        seed=profile.seed,
+        range_mode=profile.range_mode,
+        instrument_scope=resolved_scope,
+        write_stems=profile.write_stems,
+        space=profile.space,
+        collaboration_mode=profile.collaboration_mode,
+        stem_cache_enabled=profile.use_stem_cache,
+    )
+    result = _validation_result_from_compilation(
+        compilation,
+        profile=profile,
+        instrument_scope=resolved_scope,
+        issue_limit=limit,
+        kind="tianlai.project_readiness_result",
+    )
+
+    if compilation.roster is None:
+        resources = {
+            "kind": "tianlai.instrument_resource_readiness_result",
+            "schema_version": 1,
+            "ok": False,
+            "status": "blocked",
+            "resource_references_ready": False,
+            "render_environment_ready": False,
+            "verify_references": verify_references,
+            "summary": {
+                "required_count": 0,
+                "ready_count": 0,
+                "missing_count": 0,
+                "invalid_count": 0,
+                "unlisted_count": 0,
+            },
+            "instruments": [],
+            "restore_plan_handoff": {"instrument_ids": []},
+            "issues": [],
+            "issue_counts": {},
+            "issues_truncated": False,
+            "blocked_by": ["roster_document"],
+        }
+    else:
+        instrument_ids = sorted(
+            {
+                str(executor.capability.relative_path)
+                for executor in compilation.roster.executors
+            }
+        )
+        try:
+            resources = collect_instrument_resource_readiness(
+                _RUNTIME_LAYOUT,
+                instrument_ids,
+                verify_references=verify_references,
+                max_issues=limit,
+            )
+        except Exception:
+            resources = {
+                "kind": "tianlai.instrument_resource_readiness_result",
+                "schema_version": 1,
+                "ok": False,
+                "status": "invalid",
+                "resource_references_ready": False,
+                "render_environment_ready": False,
+                "verify_references": verify_references,
+                "summary": {
+                    "required_count": len(instrument_ids),
+                    "ready_count": 0,
+                    "missing_count": 0,
+                    "invalid_count": len(instrument_ids),
+                    "unlisted_count": 0,
+                },
+                "instruments": [],
+                "restore_plan_handoff": {"instrument_ids": []},
+                "issues": [
+                    _issue(
+                        severity="error",
+                        code="resource.diagnosis_failed",
+                        stage="resources",
+                        message=(
+                            "Project resource diagnosis failed without exposing "
+                            "local filesystem details."
+                        ),
+                    )
+                ],
+                "issue_counts": {"error": 1},
+                "issues_truncated": False,
+            }
+
+    resource_issues = list(resources.get("issues", []))
+    combined_issues = [*compilation.issues, *resource_issues]
+    issues, _, issues_truncated = _issue_page(
+        tuple(combined_issues),
         limit,
     )
-    resolved_profile = profile.to_dict()
-    profile_sha256 = canonical_json_sha256(resolved_profile)
-    return {
-        "kind": "tianlai.validate_project_result",
-        "schema_version": 1,
-        "ok": compilation.ok,
-        "audio_rendered": False,
-        "project": compilation.project,
-        "settings": {
-            "expression": profile.expression,
-            "seed": profile.seed,
-            "range_mode": profile.range_mode,
-            "trusted_only": trusted_only,
-            "render_profile": resolved_profile,
-            "render_profile_canonical_sha256": profile_sha256,
-        },
-        "render_handoff": {
-            "render_profile": resolved_profile,
-            "expected_render_profile_sha256": profile_sha256,
-        },
-        "checks": compilation.checks,
-        "render_preflight": _render_preflight_summary(compilation),
-        "summary": _validation_summary(compilation),
-        "instrument_policy": _instrument_policy_summary(compilation),
-        "range_diagnostics": (
-            _range_diagnostic_summary(compilation.plan)
-            if compilation.plan is not None
-            else None
-        ),
-        "issues": issues,
-        "issue_counts": counts,
-        "issues_truncated": truncated,
+    complete_issue_counts = Counter(
+        str(issue.get("severity", "unknown")) for issue in compilation.issues
+    )
+    raw_resource_counts = resources.get("issue_counts")
+    if isinstance(raw_resource_counts, dict):
+        for severity, count in raw_resource_counts.items():
+            if isinstance(count, int) and not isinstance(count, bool) and count >= 0:
+                complete_issue_counts[str(severity)] += count
+    else:
+        complete_issue_counts.update(
+            str(issue.get("severity", "unknown")) for issue in resource_issues
+        )
+    issue_counts = dict(sorted(complete_issue_counts.items()))
+    combined_self_check = summarize_issues(combined_issues)
+    complete_blocking_count = issue_counts.get("error", 0)
+    combined_self_check["severity_counts"] = issue_counts
+    combined_self_check["blocking_count"] = complete_blocking_count
+    combined_self_check["can_proceed"] = complete_blocking_count == 0
+    if complete_blocking_count:
+        combined_self_check["status"] = "blocked"
+    resource_ready = resources.get("resource_references_ready") is True
+    environment_ready = resources.get("render_environment_ready") is True
+    ready = compilation.ok and resource_ready and environment_ready
+    resource_levels = sorted(
+        {
+            str(item.get("check_level"))
+            for item in resources.get("instruments", [])
+            if isinstance(item, dict) and item.get("check_level")
+        }
+    )
+    checks = dict(result["checks"])
+    checks["resources"] = {
+        "status": "passed" if resource_ready else "failed",
+        "level": "project_resource_references",
+        "check_levels": resource_levels,
+        "resource_references_ready": resource_ready,
+        "audio_probe_performed": False,
     }
+    checks["render_environment"] = {
+        "status": "passed" if environment_ready else "failed",
+        "level": "passive_platform_and_output_estimate",
+        "render_environment_ready": environment_ready,
+        "active_write_probe_performed": False,
+    }
+    resource_details = dict(resources)
+    resource_details.pop("issues", None)
+    resource_details["issues_reported_at"] = "$.issues"
+    result.update(
+        {
+            "ok": ready,
+            "status": "ready" if ready else "blocked",
+            "validation_ok": compilation.ok,
+            "resource_references_ready": resource_ready,
+            "render_environment_ready": environment_ready,
+            "ready_for_render_attempt": ready,
+            "audio_probe_performed": False,
+            "network": False,
+            "persistent_writes": False,
+            "active_probes": {
+                "native_library_probe": False,
+                "external_program_probe": False,
+                "ephemeral_writability_probe": False,
+            },
+            "passive_checks": {
+                "filesystem_metadata": compilation.roster is not None,
+                "selected_instrument_reference_scan": (
+                    compilation.roster is not None and verify_references
+                ),
+            },
+            "checks": checks,
+            "resources": resource_details,
+            "restore_plan_handoff": resources.get(
+                "restore_plan_handoff",
+                {"instrument_ids": []},
+            ),
+            "self_check": combined_self_check,
+            "issues": issues,
+            "issue_counts": issue_counts,
+            "issues_truncated": (
+                issues_truncated
+                or resources.get("issues_truncated") is True
+            ),
+        }
+    )
+    return result
 
 
 def _finite_nonnegative(value: object, field_name: str) -> float:
@@ -1861,20 +3817,21 @@ def _located_events(
     return rows, executor_counts
 
 
-@mcp.tool()
+@mcp_tool(title="Locate score events", annotations=_READ_ONLY_TOOL)
 def locate(
     score: dict,
     roster: dict,
-    at_seconds: float,
-    before_seconds: float = 2.0,
-    after_seconds: float = 2.0,
+    at_seconds: StrictFloat,
+    before_seconds: StrictFloat = 2.0,
+    after_seconds: StrictFloat = 2.0,
     part_ids: list[str] | None = None,
     expression: str = "ensemble",
-    seed: int = 0,
+    seed: StrictInt = 0,
     range_mode: str = "compatibility",
-    trusted_only: bool = True,
-    max_events: int = 64,
-) -> dict:
+    trusted_only: StrictBool | None = None,
+    max_events: StrictInt = 64,
+    instrument_scope: Literal["formal", "curated"] | None = None,
+) -> dict[str, Any]:
     """按最终演奏计划的秒数窗口定位音符；只读，不渲染音频。
 
     返回的 ``scheduled`` 是 note_on 到 note_off 的门控区间；采样自身 release、
@@ -1902,13 +3859,33 @@ def locate(
                 )
             ],
         }
+    try:
+        resolved_scope, _allowed = _resolve_mcp_instrument_scope(
+            instrument_scope,
+            trusted_only,
+        )
+    except (TrustPolicyError, TypeError, ValueError) as exc:
+        return {
+            "kind": "tianlai.locate_result",
+            "schema_version": 1,
+            "ok": False,
+            "audio_rendered": False,
+            "issues": [
+                _issue(
+                    severity="error",
+                    code="instrument.scope_invalid",
+                    stage="availability_policy",
+                    message=exc,
+                )
+            ],
+        }
     compilation = _compile_project(
         score,
         roster,
         expression=expression,
         seed=seed,
         range_mode=range_mode,
-        trusted_only=trusted_only,
+        instrument_scope=resolved_scope,
     )
     if not compilation.ok:
         issues, counts, truncated = _issue_page(
@@ -1920,6 +3897,7 @@ def locate(
             "schema_version": 1,
             "ok": False,
             "audio_rendered": False,
+            "instrument_scope": resolved_scope,
             "project": compilation.project,
             "checks": compilation.checks,
             "issues": issues,
@@ -1947,6 +3925,7 @@ def locate(
                 "schema_version": 1,
                 "ok": False,
                 "audio_rendered": False,
+                "instrument_scope": resolved_scope,
                 "project": compilation.project,
                 "issues": [
                     _issue(
@@ -1977,6 +3956,7 @@ def locate(
             "schema_version": 1,
             "ok": False,
             "audio_rendered": False,
+            "instrument_scope": resolved_scope,
             "project": compilation.project,
             "issues": [
                 _issue(
@@ -2049,6 +4029,7 @@ def locate(
         "schema_version": 1,
         "ok": True,
         "audio_rendered": False,
+        "instrument_scope": resolved_scope,
         "project": compilation.project,
         "time_semantics": {
             "logical": (
@@ -2099,14 +4080,14 @@ def _candidate_output_path(value: str) -> Path:
     return candidate
 
 
-@mcp.tool()
+@mcp_tool(title="Locate rendered candidate", annotations=_READ_ONLY_TOOL)
 def locate_rendered_candidate(
     candidate_directory: str,
-    at_seconds: float,
-    tail_lookback_seconds: float = 5.0,
-    upcoming_seconds: float = 2.0,
-    max_events: int = 128,
-) -> dict:
+    at_seconds: StrictFloat,
+    tail_lookback_seconds: StrictFloat = 5.0,
+    upcoming_seconds: StrictFloat = 2.0,
+    max_events: StrictInt = 128,
+) -> dict[str, Any]:
     """从已保存候选的回执和演奏计划定位实际听到的秒数。
 
     与 ``locate`` 重新编译当前 score/roster 不同，本工具校验候选中的
@@ -2138,12 +4119,12 @@ def locate_rendered_candidate(
         }
 
 
-@mcp.tool()
+@mcp_tool(title="Compare rendered candidates", annotations=_READ_ONLY_TOOL)
 def compare_rendered_candidates(
     before_candidate_directory: str,
     after_candidate_directory: str,
-    max_changes: int = 256,
-) -> dict:
+    max_changes: StrictInt = 256,
+) -> dict[str, Any]:
     """比较两个不可变候选的乐谱、编制、配置、演奏计划和混音身份。"""
 
     try:
@@ -2168,37 +4149,1803 @@ def compare_rendered_candidates(
         }
 
 
-@mcp.tool()
+@mcp_tool(title="Get creative workflow guide", annotations=_READ_ONLY_TOOL)
+def creative_workflow_guide() -> dict[str, Any]:
+    """Return the bounded v0.7 workflow contract without loading the full constitution."""
+
+    return {
+        "kind": _WORKFLOW_RESULT_KIND,
+        "schema_version": _WORKFLOW_RESULT_VERSION,
+        "ok": True,
+        "operation": "creative_workflow_guide",
+        "guide": {
+            "modes": {
+                "off": "Record an explicit opt-out; no charter or iteration is run.",
+                "audit": (
+                    "Review one immutable authoring revision or existing candidate; "
+                    "may recommend revision but does not mutate the score."
+                ),
+                "iterate": (
+                    "Reserve, render, review and bind explicit new authoring revisions "
+                    "within bounded iteration and rollback budgets."
+                ),
+            },
+            "boundary": {
+                "hard_failures_may_block": True,
+                "promise_conflicts_block_automatically": False,
+                "aesthetic_risks_block_automatically": False,
+                "single_aesthetic_objective": False,
+                "automatic_score_or_audio_changes": False,
+                "acceptance_claim": "contextual_decision_not_objective_quality",
+                "unknown_or_intentional_roughness_requires_preservation_or_exception": True,
+            },
+            "authority": {
+                "mcp_final_authority": "agent",
+                "trusted_human_approval_available": False,
+                "note": (
+                    "This stdio boundary never records creator/listener authority. "
+                    "A trusted host or direct core API is required for a human-final workflow."
+                ),
+            },
+            "work_charter": {
+                "required_fields": [
+                    "title",
+                    "one_sentence_promise",
+                    "target_listener_and_scene",
+                    "primary_sovereignty",
+                    "identity_kernel",
+                    "ending_contract",
+                ],
+                "template": {
+                    "title": "one work-specific charter title",
+                    "one_sentence_promise": "what this work promises in this context",
+                    "target_listener_and_scene": "listener, scene, medium and listening context",
+                    "primary_sovereignty": ["M"],
+                    "secondary_sovereignties": [],
+                    "style_recipe": "probabilistic recipe, not a genre checklist",
+                    "identity_kernel": {
+                        "invariants": ["one traceable identity invariant"],
+                        "transformable_parts": ["one dimension allowed to change"],
+                    },
+                    "ending_contract": "how the ending answers, rewrites or refuses the promise",
+                },
+                "optional_fields": [
+                    "secondary_sovereignties",
+                    "style_recipe",
+                    "affect_vector",
+                    "motion_vector",
+                    "dramatic_question",
+                    "energy_curve",
+                    "tension_curve",
+                    "memory_landmarks",
+                    "scarce_resources",
+                    "climax_privileges",
+                    "prohibited_shortcuts",
+                    "uncertainties",
+                    "final_review_dimensions",
+                ],
+                "sovereignty_codes": [
+                    "M",
+                    "G",
+                    "H",
+                    "P",
+                    "T",
+                    "O",
+                    "N",
+                    "L",
+                    "R",
+                    "C",
+                    "X",
+                    "I",
+                ],
+            },
+            "review_phases": [
+                "intent",
+                "symbolic_structure",
+                "orchestration_performance",
+                "render_report",
+                "audio_audition",
+            ],
+            "render_prerequisites": [
+                "symbolic_structure review",
+                "orchestration_performance review",
+                "no recorded hard_failure",
+            ],
+            "evidence_categories": {
+                "hard_failure": (
+                    "Only an engine_contract reported by engine or validator; the "
+                    "historical record is never exceptable, while render and acceptance "
+                    "are blocked only when the trusted boundary reproduces it again."
+                ),
+                "promise_conflict": (
+                    "A declared_promise or active_clause conflict; nonblocking until "
+                    "the frozen final authority decides."
+                ),
+                "aesthetic_risk": (
+                    "A diagnostic, measurement or audition hypothesis; nonblocking and "
+                    "never an automatic edit."
+                ),
+            },
+            "decisions": {
+                "iterate": ["accept", "revise", "preserve", "stop"],
+                "audit": ["accept", "recommend_revision", "preserve", "stop"],
+                "accept_requires": [
+                    "workflow-authorized and recorded candidate",
+                    "complete render review artifacts",
+                    "intent, symbolic_structure, orchestration_performance and render_report reviews",
+                    "no hard_failure",
+                    "a review proving the agent's declared perception basis",
+                ],
+            },
+            "constitution": {
+                **_OFFICIAL_CONSTITUTION,
+                "optional": True,
+                "full_document_injected": False,
+                "activation_rule": (
+                    "Bind the exact document hash and activate only a small, work-relevant "
+                    "clause set; do not inject or activate all 901 lines each iteration."
+                ),
+                "starter_clause_ids": [
+                    "C0.02",
+                    "C0.03",
+                    "C0.16",
+                    "C0.21",
+                    "C0.25",
+                ],
+                "active_clause_shape": {
+                    "clause_id": "C0.02",
+                    "role": "review_lens",
+                    "rationale": "why this clause matters for this work",
+                    "interpretation": "bounded, work-specific interpretation",
+                },
+            },
+        },
+        "next_action": {
+            "operation": "create_creative_workflow",
+            "reason": "after_an_authoring_project_and_charter_inputs_exist",
+        },
+    }
+
+
+@mcp_tool(title="Get music constitution clauses", annotations=_READ_ONLY_TOOL)
+def get_music_constitution_clauses(
+    clause_ids: _ConstitutionClauseIdList,
+    language: Literal["zh-CN", "en"] = "zh-CN",
+) -> dict[str, Any]:
+    """Return at most twelve exact registered clauses after verifying the full document."""
+
+    operation = "get_music_constitution_clauses"
+    try:
+        if len(set(clause_ids)) != len(clause_ids):
+            raise _McpWorkflowBoundaryError(
+                "creative_workflow.constitution_duplicate_clause_id"
+            )
+        registry = _official_constitution_registry(language)
+        unknown = [clause_id for clause_id in clause_ids if clause_id not in registry]
+        if unknown:
+            raise _McpWorkflowBoundaryError(
+                "creative_workflow.constitution_clause_unknown",
+                stage="constitution",
+            )
+        return {
+            "kind": _WORKFLOW_RESULT_KIND,
+            "schema_version": _WORKFLOW_RESULT_VERSION,
+            "ok": True,
+            "operation": operation,
+            "constitution": dict(_OFFICIAL_CONSTITUTIONS[language]),
+            "clauses": [registry[clause_id] for clause_id in clause_ids],
+            "bounded": True,
+            "full_document_injected": False,
+            "next_action": {
+                "operation": "activate_creative_workflow",
+                "reason": "interpret_only_the_selected_work_relevant_clauses",
+            },
+        }
+    except _McpWorkflowBoundaryError as exc:
+        return _workflow_failure(operation, exc)
+    except Exception as exc:
+        return _workflow_failure(operation, exc)
+
+
+@mcp_tool(title="Create creative workflow", annotations=_AUTHORING_WRITE_TOOL)
+def create_creative_workflow(
+    project_key: _AuthoringSelector,
+    mode: Literal["off", "audit", "iterate"],
+    base_authoring_revision: _AuthoringSelector | None = None,
+    budget: dict | None = None,
+) -> dict[str, Any]:
+    """Create an optional workflow whose final authority is truthfully fixed to agent."""
+
+    operation = "create_creative_workflow"
+    try:
+        checked_base = _validated_authoring_revision(
+            base_authoring_revision,
+            required=False,
+        )
+        root = _authoring_project_root(
+            project_key,
+            create_namespace=False,
+            require_existing=True,
+        )
+        snapshot = create_creative_workflow_state(
+            root,
+            mode=mode,
+            final_authority="agent",
+            base_authoring_revision=checked_base,
+            budget=budget,
+        )
+        history = verify_creative_workflow_history_state(
+            root,
+            workflow_id=snapshot.workflow_id,
+        )
+        return _workflow_success(
+            operation,
+            project_key,
+            snapshot,
+            history=history,
+            authority={
+                "final_authority": "agent",
+                "trusted_human_approval": False,
+            },
+        )
+    except (
+        AuthoringProjectError,
+        CreativeWorkflowError,
+        _McpAuthoringBoundaryError,
+        _McpWorkflowBoundaryError,
+    ) as exc:
+        return _workflow_failure(operation, exc, project_key=project_key)
+    except Exception as exc:
+        return _workflow_failure(operation, exc, project_key=project_key)
+
+
+@mcp_tool(title="Open creative workflow", annotations=_READ_ONLY_TOOL)
+def open_creative_workflow(
+    project_key: _AuthoringSelector,
+    workflow_id: _AuthoringSelector,
+    revision: _AuthoringSelector | None = None,
+) -> dict[str, Any]:
+    """Verify and open one current or historical workflow revision without paths."""
+
+    operation = "open_creative_workflow"
+    try:
+        checked_id = _validated_workflow_id(workflow_id)
+        checked_revision = _validated_workflow_revision(revision, required=False)
+        root = _authoring_project_root(
+            project_key,
+            create_namespace=False,
+            require_existing=True,
+        )
+        snapshot = open_creative_workflow_state(
+            root,
+            workflow_id=checked_id,
+            revision=checked_revision,
+        )
+        current = (
+            snapshot
+            if checked_revision is None
+            else open_creative_workflow_state(root, workflow_id=checked_id)
+        )
+        historical_read_only = snapshot.revision != current.revision
+        result = _workflow_success(
+            operation,
+            project_key,
+            snapshot,
+            include_next_action=not historical_read_only,
+        )
+        result["historical_read_only"] = historical_read_only
+        if historical_read_only:
+            result["next_action"] = {
+                "operation": "open_creative_workflow",
+                "reason": "historical_revision_is_read_only_refresh_current",
+                "suggested_arguments": {
+                    "project_key": project_key,
+                    "workflow_id": checked_id,
+                },
+                "alternatives": [],
+            }
+        return result
+    except (
+        AuthoringProjectError,
+        CreativeWorkflowError,
+        _McpAuthoringBoundaryError,
+        _McpWorkflowBoundaryError,
+    ) as exc:
+        return _workflow_failure(
+            operation,
+            exc,
+            project_key=project_key,
+            workflow_id=workflow_id,
+        )
+    except Exception as exc:
+        return _workflow_failure(
+            operation,
+            exc,
+            project_key=project_key,
+            workflow_id=workflow_id,
+        )
+
+
+@mcp_tool(title="Verify creative workflow history", annotations=_READ_ONLY_TOOL)
+def verify_creative_workflow_history(
+    project_key: _AuthoringSelector,
+    workflow_id: _AuthoringSelector,
+    maximum_revisions: StrictInt = 4096,
+) -> dict[str, Any]:
+    """Explicitly audit the bounded immutable parent chain from current to genesis."""
+
+    operation = "verify_creative_workflow_history"
+    try:
+        checked_id = _validated_workflow_id(workflow_id)
+        root = _authoring_project_root(
+            project_key,
+            create_namespace=False,
+            require_existing=True,
+        )
+        history = verify_creative_workflow_history_state(
+            root,
+            workflow_id=checked_id,
+            maximum_revisions=maximum_revisions,
+        )
+        snapshot = open_creative_workflow_state(root, workflow_id=checked_id)
+        return _workflow_success(
+            operation,
+            project_key,
+            snapshot,
+            history=history,
+        )
+    except (
+        AuthoringProjectError,
+        CreativeWorkflowError,
+        _McpAuthoringBoundaryError,
+        _McpWorkflowBoundaryError,
+    ) as exc:
+        return _workflow_failure(
+            operation,
+            exc,
+            project_key=project_key,
+            workflow_id=workflow_id,
+        )
+    except Exception as exc:
+        return _workflow_failure(
+            operation,
+            exc,
+            project_key=project_key,
+            workflow_id=workflow_id,
+        )
+
+
+@mcp_tool(title="Activate creative workflow", annotations=_AUTHORING_WRITE_TOOL)
+def activate_creative_workflow(
+    project_key: _AuthoringSelector,
+    workflow_id: _AuthoringSelector,
+    expected_revision: _AuthoringSelector,
+    work_charter: dict,
+    constitution: dict | None = None,
+    active_clauses: list[dict] | None = None,
+) -> dict[str, Any]:
+    """Freeze the work charter and optional small constitution clause set."""
+
+    operation = "activate_creative_workflow"
+    try:
+        checked_id = _validated_workflow_id(workflow_id)
+        checked_revision = _validated_workflow_revision(
+            expected_revision,
+            required=True,
+        )
+        assert checked_revision is not None
+        root = _authoring_project_root(
+            project_key,
+            create_namespace=False,
+            require_existing=True,
+        )
+        constitution_source = _validate_mcp_constitution_activation(
+            constitution,
+            active_clauses,
+        )
+        snapshot = activate_creative_workflow_state(
+            root,
+            workflow_id=checked_id,
+            expected_revision=checked_revision,
+            work_charter=work_charter,
+            constitution=constitution,
+            active_clauses=[] if active_clauses is None else active_clauses,
+        )
+        return _workflow_success(
+            operation,
+            project_key,
+            snapshot,
+            constitution_source=constitution_source,
+        )
+    except (
+        AuthoringProjectError,
+        CreativeWorkflowError,
+        _McpAuthoringBoundaryError,
+        _McpWorkflowBoundaryError,
+    ) as exc:
+        return _workflow_failure(
+            operation,
+            exc,
+            project_key=project_key,
+            workflow_id=workflow_id,
+        )
+    except Exception as exc:
+        return _workflow_failure(
+            operation,
+            exc,
+            project_key=project_key,
+            workflow_id=workflow_id,
+        )
+
+
+@mcp_tool(title="Record workflow review", annotations=_AUTHORING_WRITE_TOOL)
+def record_workflow_review(
+    project_key: _AuthoringSelector,
+    workflow_id: _AuthoringSelector,
+    expected_revision: _AuthoringSelector,
+    phase: Literal[
+        "intent",
+        "symbolic_structure",
+        "orchestration_performance",
+        "render_report",
+        "audio_audition",
+    ],
+    perception_basis: Literal["report_only", "audio_audition"],
+    summary: _WorkflowText,
+) -> dict[str, Any]:
+    """Record one agent phase review without claiming human or trusted-validator identity."""
+
+    operation = "record_workflow_review"
+    try:
+        checked_id = _validated_workflow_id(workflow_id)
+        checked_revision = _validated_workflow_revision(
+            expected_revision,
+            required=True,
+        )
+        assert checked_revision is not None
+        root = _authoring_project_root(
+            project_key,
+            create_namespace=False,
+            require_existing=True,
+        )
+        snapshot = record_workflow_review_state(
+            root,
+            workflow_id=checked_id,
+            expected_revision=checked_revision,
+            phase=phase,
+            reviewer="agent",
+            perception_basis=perception_basis,
+            summary=summary,
+        )
+        return _workflow_success(operation, project_key, snapshot)
+    except (
+        AuthoringProjectError,
+        CreativeWorkflowError,
+        _McpAuthoringBoundaryError,
+        _McpWorkflowBoundaryError,
+    ) as exc:
+        return _workflow_failure(
+            operation,
+            exc,
+            project_key=project_key,
+            workflow_id=workflow_id,
+        )
+    except Exception as exc:
+        return _workflow_failure(
+            operation,
+            exc,
+            project_key=project_key,
+            workflow_id=workflow_id,
+        )
+
+
+@mcp_tool(title="Record workflow evidence", annotations=_AUTHORING_WRITE_TOOL)
+def record_workflow_evidence(
+    project_key: _AuthoringSelector,
+    workflow_id: _AuthoringSelector,
+    expected_revision: _AuthoringSelector,
+    category: Literal["promise_conflict", "aesthetic_risk"],
+    code: _AuthoringSelector,
+    basis_kind: Literal[
+        "declared_promise",
+        "active_clause",
+        "diagnostic_hypothesis",
+        "render_measurement",
+        "audio_audition",
+    ],
+    basis_reference: _WorkflowShortText,
+    perception_basis: Literal["report_only", "audio_audition"],
+    summary: _WorkflowText,
+    observation: _WorkflowText,
+    interpretation: _WorkflowText,
+    confidence: Literal["low", "medium", "high"],
+    scope: dict | None = None,
+    artifact_sha256: _AuthoringSelector | None = None,
+    artifact_role: Literal[
+        "render_receipt",
+        "post_render_check",
+        "mix_report",
+    ]
+    | None = None,
+) -> dict[str, Any]:
+    """Record bounded negative or advisory evidence without changing score/audio."""
+
+    operation = "record_workflow_evidence"
+    try:
+        checked_id = _validated_workflow_id(workflow_id)
+        checked_revision = _validated_workflow_revision(
+            expected_revision,
+            required=True,
+        )
+        checked_artifact = _validated_workflow_revision(
+            artifact_sha256,
+            required=False,
+        )
+        assert checked_revision is not None
+        root = _authoring_project_root(
+            project_key,
+            create_namespace=False,
+            require_existing=True,
+        )
+        snapshot = record_workflow_evidence_state(
+            root,
+            workflow_id=checked_id,
+            expected_revision=checked_revision,
+            category=category,
+            code=code,
+            basis_kind=basis_kind,
+            basis_reference=basis_reference,
+            reporter="agent",
+            perception_basis=perception_basis,
+            summary=summary,
+            observation=observation,
+            interpretation=interpretation,
+            confidence=confidence,
+            scope=scope,
+            artifact_sha256=checked_artifact,
+            artifact_role=artifact_role,
+        )
+        return _workflow_success(operation, project_key, snapshot)
+    except (
+        AuthoringProjectError,
+        CreativeWorkflowError,
+        _McpAuthoringBoundaryError,
+        _McpWorkflowBoundaryError,
+    ) as exc:
+        return _workflow_failure(
+            operation,
+            exc,
+            project_key=project_key,
+            workflow_id=workflow_id,
+        )
+    except Exception as exc:
+        return _workflow_failure(
+            operation,
+            exc,
+            project_key=project_key,
+            workflow_id=workflow_id,
+        )
+
+
+@mcp_tool(title="Record verified workflow hard failure", annotations=_AUTHORING_WRITE_TOOL)
+def record_verified_workflow_hard_failure(
+    project_key: _AuthoringSelector,
+    workflow_id: _AuthoringSelector,
+    expected_revision: _AuthoringSelector,
+    issue_code: _AuthoringSelector,
+) -> dict[str, Any]:
+    """Re-run trusted readiness and record only an exact blocking issue code."""
+
+    operation = "record_verified_workflow_hard_failure"
+    try:
+        checked_id = _validated_workflow_id(workflow_id)
+        checked_revision = _validated_workflow_revision(
+            expected_revision,
+            required=True,
+        )
+        assert checked_revision is not None
+        root = _authoring_project_root(
+            project_key,
+            create_namespace=False,
+            require_existing=True,
+        )
+        snapshot = record_verified_workflow_hard_failure_state(
+            root,
+            workflow_id=checked_id,
+            expected_revision=checked_revision,
+            issue_code=issue_code,
+        )
+        return _workflow_success(operation, project_key, snapshot)
+    except (
+        AuthoringProjectError,
+        CreativeWorkflowError,
+        _McpAuthoringBoundaryError,
+        _McpWorkflowBoundaryError,
+    ) as exc:
+        return _workflow_failure(
+            operation,
+            exc,
+            project_key=project_key,
+            workflow_id=workflow_id,
+        )
+    except Exception as exc:
+        return _workflow_failure(
+            operation,
+            exc,
+            project_key=project_key,
+            workflow_id=workflow_id,
+        )
+
+
+@mcp_tool(title="Register workflow exception", annotations=_AUTHORING_WRITE_TOOL)
+def register_workflow_exception(
+    project_key: _AuthoringSelector,
+    workflow_id: _AuthoringSelector,
+    expected_revision: _AuthoringSelector,
+    target_type: Literal["active_clause", "work_charter"],
+    target_ref: _WorkflowShortText,
+    purpose: _WorkflowText,
+    scope: _WorkflowText,
+    higher_value: _WorkflowText,
+    cost: _WorkflowText,
+    recovery: _WorkflowText,
+    evidence_ids: _WorkflowReferenceList,
+    reusable: StrictBool = False,
+) -> dict[str, Any]:
+    """Register a bounded exception; hard failures are never eligible."""
+
+    operation = "register_workflow_exception"
+    try:
+        checked_id = _validated_workflow_id(workflow_id)
+        checked_revision = _validated_workflow_revision(
+            expected_revision,
+            required=True,
+        )
+        assert checked_revision is not None
+        root = _authoring_project_root(
+            project_key,
+            create_namespace=False,
+            require_existing=True,
+        )
+        snapshot = register_workflow_exception_state(
+            root,
+            workflow_id=checked_id,
+            expected_revision=checked_revision,
+            target_type=target_type,
+            target_ref=target_ref,
+            purpose=purpose,
+            scope=scope,
+            higher_value=higher_value,
+            cost=cost,
+            recovery=recovery,
+            evidence_ids=evidence_ids,
+            reusable=reusable,
+        )
+        return _workflow_success(operation, project_key, snapshot)
+    except (
+        AuthoringProjectError,
+        CreativeWorkflowError,
+        _McpAuthoringBoundaryError,
+        _McpWorkflowBoundaryError,
+    ) as exc:
+        return _workflow_failure(
+            operation,
+            exc,
+            project_key=project_key,
+            workflow_id=workflow_id,
+        )
+    except Exception as exc:
+        return _workflow_failure(
+            operation,
+            exc,
+            project_key=project_key,
+            workflow_id=workflow_id,
+        )
+
+
+@mcp_tool(title="Create authoring project", annotations=_AUTHORING_WRITE_TOOL)
+def create_authoring_project(
+    project_key: _AuthoringSelector,
+    title: _AuthoringTitle,
+) -> dict[str, Any]:
+    """Create one project below the dedicated MCP authoring namespace."""
+
+    operation = "create_authoring_project"
+    try:
+        root = _authoring_project_root(
+            project_key,
+            create_namespace=True,
+            require_existing=False,
+        )
+        state = create_authoring_project_state(root, title=title)
+        return _authoring_success(
+            operation,
+            project_key,
+            project=_authoring_project_descriptor(state),
+        )
+    except (AuthoringProjectError, _McpAuthoringBoundaryError) as exc:
+        return _authoring_failure(
+            operation,
+            exc,
+            project_key=project_key,
+        )
+    except Exception as exc:
+        return _authoring_failure(operation, exc, project_key=project_key)
+
+
+@mcp_tool(title="Open authoring project", annotations=_READ_ONLY_TOOL)
+def open_authoring_project(
+    project_key: _AuthoringSelector,
+    revision: _AuthoringSelector | None = None,
+) -> dict[str, Any]:
+    """Open current or historical project metadata without returning documents."""
+
+    operation = "open_authoring_project"
+    try:
+        checked_revision = _validated_authoring_revision(
+            revision,
+            required=False,
+        )
+        root = _authoring_project_root(
+            project_key,
+            create_namespace=False,
+            require_existing=True,
+        )
+        state = open_authoring_project_state(root, revision=checked_revision)
+        return _authoring_success(
+            operation,
+            project_key,
+            project=_authoring_project_descriptor(state),
+        )
+    except (AuthoringProjectError, _McpAuthoringBoundaryError) as exc:
+        return _authoring_failure(
+            operation,
+            exc,
+            project_key=project_key,
+        )
+    except Exception as exc:
+        return _authoring_failure(operation, exc, project_key=project_key)
+
+
+@mcp_tool(title="Get authoring snapshot", annotations=_READ_ONLY_TOOL)
+def get_authoring_snapshot(
+    project_key: _AuthoringSelector,
+    revision: _AuthoringSelector | None = None,
+) -> dict[str, Any]:
+    """Return one immutable three-document snapshot plus bounded readiness."""
+
+    operation = "get_authoring_snapshot"
+    try:
+        checked_revision = _validated_authoring_revision(
+            revision,
+            required=False,
+        )
+        root = _authoring_project_root(
+            project_key,
+            create_namespace=False,
+            require_existing=True,
+        )
+        state = open_authoring_project_state(root, revision=checked_revision)
+        snapshot = build_authoring_snapshot(state, project_root=root)
+        return _authoring_success(
+            operation,
+            project_key,
+            snapshot=snapshot,
+        )
+    except (AuthoringProjectError, _McpAuthoringBoundaryError) as exc:
+        return _authoring_failure(
+            operation,
+            exc,
+            project_key=project_key,
+        )
+    except Exception as exc:
+        return _authoring_failure(operation, exc, project_key=project_key)
+
+
+@mcp_tool(title="Save authoring project", annotations=_AUTHORING_WRITE_TOOL)
+def save_authoring_project(
+    project_key: _AuthoringSelector,
+    expected_revision: _AuthoringSelector,
+    documents: dict,
+) -> dict[str, Any]:
+    """CAS-save a complete document set as a new immutable revision."""
+
+    operation = "save_authoring_project"
+    try:
+        checked_revision = _validated_authoring_revision(
+            expected_revision,
+            required=True,
+        )
+        assert checked_revision is not None
+        root = _authoring_project_root(
+            project_key,
+            create_namespace=False,
+            require_existing=True,
+        )
+        state = save_authoring_project_state(
+            root,
+            expected_revision=checked_revision,
+            documents=documents,
+        )
+        return _authoring_success(
+            operation,
+            project_key,
+            project=_authoring_project_descriptor(state),
+        )
+    except (AuthoringProjectError, _McpAuthoringBoundaryError) as exc:
+        return _authoring_failure(
+            operation,
+            exc,
+            project_key=project_key,
+        )
+    except Exception as exc:
+        return _authoring_failure(operation, exc, project_key=project_key)
+
+
+@mcp_tool(title="Check authoring readiness", annotations=_READ_ONLY_TOOL)
+def check_authoring_readiness(
+    project_key: _AuthoringSelector,
+    revision: _AuthoringSelector | None = None,
+) -> dict[str, Any]:
+    """Check hard render contracts and retain advisory evidence as review only."""
+
+    operation = "check_authoring_readiness"
+    try:
+        checked_revision = _validated_authoring_revision(
+            revision,
+            required=False,
+        )
+        root = _authoring_project_root(
+            project_key,
+            create_namespace=False,
+            require_existing=True,
+        )
+        state = open_authoring_project_state(root, revision=checked_revision)
+        readiness = validate_authoring_project_readiness(
+            state,
+            project_root=root,
+        )
+        return _authoring_success(
+            operation,
+            project_key,
+            project=_authoring_project_descriptor(state),
+            readiness=readiness,
+        )
+    except (AuthoringProjectError, _McpAuthoringBoundaryError) as exc:
+        return _authoring_failure(
+            operation,
+            exc,
+            project_key=project_key,
+        )
+    except Exception as exc:
+        return _authoring_failure(operation, exc, project_key=project_key)
+
+
+@mcp_tool(title="Render authoring revision", annotations=_AUTHORING_WRITE_TOOL)
+def render_authoring_revision(
+    project_key: _AuthoringSelector,
+    expected_revision: _AuthoringSelector,
+) -> dict[str, Any]:
+    """Render exactly one immutable revision; never follow the current pointer."""
+
+    operation = "render_authoring_revision"
+    try:
+        checked_revision = _validated_authoring_revision(
+            expected_revision,
+            required=True,
+        )
+        assert checked_revision is not None
+        root = _authoring_project_root(
+            project_key,
+            create_namespace=False,
+            require_existing=True,
+        )
+        selected_state = open_authoring_project_state(
+            root,
+            revision=checked_revision,
+        )
+        rendered = render_authoring_project_candidate(
+            root,
+            expected_revision=checked_revision,
+        )
+        candidate = rendered.get("candidate")
+        if (
+            rendered.get("status") != "completed"
+            or rendered.get("project_id") != selected_state.project_id
+            or rendered.get("revision") != selected_state.revision
+            or rendered.get("workflow_managed") is not False
+            or rendered.get("reused_existing") is not False
+            or not isinstance(candidate, dict)
+            or not isinstance(candidate.get("work_id"), str)
+            or not isinstance(candidate.get("candidate_id"), str)
+        ):
+            raise _McpAuthoringBoundaryError(
+                "authoring_render.result_identity_mismatch",
+                stage="render",
+            )
+        try:
+            _validated_candidate_segment(
+                candidate["work_id"],
+                field="work_id",
+            )
+            _validated_candidate_segment(
+                candidate["candidate_id"],
+                field="candidate_id",
+            )
+        except _McpAuthoringBoundaryError as exc:
+            raise _McpAuthoringBoundaryError(
+                "authoring_render.result_identity_mismatch",
+                stage="render",
+            ) from exc
+        return _authoring_success(
+            operation,
+            project_key,
+            render=rendered,
+        )
+    except (
+        AuthoringProjectError,
+        AuthoringRenderError,
+        _McpAuthoringBoundaryError,
+    ) as exc:
+        return _authoring_failure(
+            operation,
+            exc,
+            project_key=project_key,
+        )
+    except Exception as exc:
+        return _authoring_failure(operation, exc, project_key=project_key)
+
+
+@mcp_tool(title="Inspect authoring candidate", annotations=_READ_ONLY_TOOL)
+def inspect_authoring_candidate(
+    project_key: _AuthoringSelector,
+    work_id: _AuthoringSelector,
+    candidate_id: _AuthoringSelector,
+) -> dict[str, Any]:
+    """Verify an authoring candidate and return path-free render evidence."""
+
+    operation = "inspect_authoring_candidate"
+    try:
+        directory, manifest, state, candidate_identity = _load_authoring_candidate(
+            project_key,
+            work_id=work_id,
+            candidate_id=candidate_id,
+        )
+        receipt = _read_bound_candidate_json(
+            directory,
+            candidate_identity,
+            manifest.get("render_receipt"),
+            label="render_receipt",
+        )
+        post_render_check = _read_bound_candidate_json(
+            directory,
+            candidate_identity,
+            receipt.get("post_render_check"),
+            label="post_render_check",
+        )
+        mix_report = None
+        if receipt.get("mix_report") is not None:
+            mix_report = _read_bound_candidate_json(
+                directory,
+                candidate_identity,
+                receipt.get("mix_report"),
+                label="mix_report",
+            )
+        project_binding = manifest["project"]
+        authoring_binding = manifest["authoring_project"]
+        workflow_status = _verified_candidate_workflow_status(
+            _authoring_project_root(
+                project_key,
+                create_namespace=False,
+                require_existing=True,
+            ),
+            directory,
+            manifest,
+        )
+        mix_binding = receipt.get("mix")
+        if not isinstance(mix_binding, dict):
+            raise _McpAuthoringBoundaryError(
+                "authoring_candidate.evidence_binding_invalid",
+                stage="candidate",
+            )
+        return _authoring_success(
+            operation,
+            project_key,
+            project=_authoring_project_descriptor(state),
+            candidate={
+                "candidate_id": manifest["candidate_id"],
+                "work_id": manifest["work_id"],
+                "title": manifest["title"],
+                "created_at_utc": manifest["created_at_utc"],
+                "parent_candidate_id": manifest.get("parent_candidate_id"),
+                **workflow_status,
+                "authoring_project": {
+                    "project_id": authoring_binding["project_id"],
+                    "revision": authoring_binding["revision"],
+                    "authoring_roster_canonical_sha256": authoring_binding[
+                        "authoring_roster"
+                    ]["canonical_sha256"],
+                },
+                "bindings": {
+                    "score_sha256": project_binding["score"][
+                        "canonical_sha256"
+                    ],
+                    "roster_sha256": project_binding["roster"][
+                        "canonical_sha256"
+                    ],
+                    "render_profile_sha256": project_binding[
+                        "render_profile"
+                    ]["canonical_sha256"],
+                    "performance_plan_sha256": project_binding[
+                        "performance_plan_sha256"
+                    ],
+                    "render_receipt_sha256": manifest["render_receipt"][
+                        "sha256"
+                    ],
+                    "mix_sha256": mix_binding.get("sha256"),
+                },
+            },
+            render_evidence={
+                "audio_format": receipt.get("audio_format"),
+                "master_gain_db": receipt.get("master_gain_db"),
+                "normalize": receipt.get("normalize"),
+                "collaboration": receipt.get("collaboration"),
+                "space": receipt.get("space"),
+                "mix": {
+                    "sha256": mix_binding.get("sha256"),
+                    "peak": mix_binding.get("peak"),
+                    "frame_count": mix_binding.get("frame_count"),
+                },
+                "post_render_check": post_render_check,
+                "mix_report": mix_report,
+            },
+        )
+    except (
+        AuthoringProjectError,
+        _McpAuthoringBoundaryError,
+    ) as exc:
+        return _authoring_failure(
+            operation,
+            exc,
+            project_key=project_key,
+        )
+    except Exception as exc:
+        return _authoring_failure(operation, exc, project_key=project_key)
+
+
+@mcp_tool(title="Locate authoring candidate", annotations=_READ_ONLY_TOOL)
+def locate_authoring_candidate(
+    project_key: _AuthoringSelector,
+    work_id: _AuthoringSelector,
+    candidate_id: _AuthoringSelector,
+    at_seconds: StrictFloat,
+    tail_lookback_seconds: StrictFloat = 5.0,
+    upcoming_seconds: StrictFloat = 2.0,
+    max_events: StrictInt = 128,
+) -> dict[str, Any]:
+    """Locate rendered events using only project and immutable candidate IDs."""
+
+    operation = "locate_authoring_candidate"
+    try:
+        directory, manifest, _state, candidate_identity = (
+            _load_authoring_candidate(
+                project_key,
+                work_id=work_id,
+                candidate_id=candidate_id,
+            )
+        )
+        try:
+            located = locate_candidate(
+                directory,
+                at_seconds=at_seconds,
+                tail_lookback_seconds=tail_lookback_seconds,
+                upcoming_seconds=upcoming_seconds,
+                max_events=max_events,
+            )
+        except (
+            OSError,
+            TypeError,
+            ValueError,
+            KeyError,
+            json.JSONDecodeError,
+        ) as exc:
+            raise _McpAuthoringBoundaryError(
+                "authoring_candidate.locate_failed",
+                stage="candidate",
+            ) from exc
+        try:
+            if revalidate_plain_directory(candidate_identity) != directory:
+                raise OSError("candidate directory identity mismatch")
+        except OSError as exc:
+            raise _McpAuthoringBoundaryError(
+                "authoring_candidate.locate_failed",
+                stage="candidate",
+            ) from exc
+        located.pop("candidate_directory", None)
+        if located.get("candidate_id") != manifest.get("candidate_id"):
+            raise _McpAuthoringBoundaryError(
+                "authoring_candidate.identity_mismatch",
+                stage="candidate",
+            )
+        return _authoring_success(
+            operation,
+            project_key,
+            work_id=work_id,
+            candidate_id=candidate_id,
+            location=located,
+        )
+    except (
+        AuthoringProjectError,
+        _McpAuthoringBoundaryError,
+    ) as exc:
+        return _authoring_failure(
+            operation,
+            exc,
+            project_key=project_key,
+        )
+    except Exception as exc:
+        return _authoring_failure(operation, exc, project_key=project_key)
+
+
+@mcp_tool(title="Compare authoring candidates", annotations=_READ_ONLY_TOOL)
+def compare_authoring_candidates(
+    project_key: _AuthoringSelector,
+    before_work_id: _AuthoringSelector,
+    before_candidate_id: _AuthoringSelector,
+    after_work_id: _AuthoringSelector,
+    after_candidate_id: _AuthoringSelector,
+    max_changes: StrictInt = 256,
+) -> dict[str, Any]:
+    """Compare two verified candidates within one authoring project."""
+
+    operation = "compare_authoring_candidates"
+    try:
+        (
+            before_directory,
+            _before,
+            before_state,
+            before_identity,
+        ) = _load_authoring_candidate(
+            project_key,
+            work_id=before_work_id,
+            candidate_id=before_candidate_id,
+        )
+        (
+            after_directory,
+            _after,
+            after_state,
+            after_identity,
+        ) = _load_authoring_candidate(
+            project_key,
+            work_id=after_work_id,
+            candidate_id=after_candidate_id,
+        )
+        if before_state.project_id != after_state.project_id:
+            raise _McpAuthoringBoundaryError(
+                "authoring_candidate.project_binding_mismatch",
+                stage="candidate",
+            )
+        try:
+            comparison = compare_candidates(
+                before_directory,
+                after_directory,
+                max_changes=max_changes,
+            )
+        except (
+            OSError,
+            TypeError,
+            ValueError,
+            KeyError,
+            json.JSONDecodeError,
+        ) as exc:
+            raise _McpAuthoringBoundaryError(
+                "authoring_candidate.compare_failed",
+                stage="candidate",
+            ) from exc
+        try:
+            if (
+                revalidate_plain_directory(before_identity) != before_directory
+                or revalidate_plain_directory(after_identity) != after_directory
+            ):
+                raise OSError("candidate directory identity mismatch")
+        except OSError as exc:
+            raise _McpAuthoringBoundaryError(
+                "authoring_candidate.compare_failed",
+                stage="candidate",
+            ) from exc
+        return _authoring_success(
+            operation,
+            project_key,
+            before={
+                "work_id": before_work_id,
+                "candidate_id": before_candidate_id,
+            },
+            after={
+                "work_id": after_work_id,
+                "candidate_id": after_candidate_id,
+            },
+            comparison=comparison,
+        )
+    except (
+        AuthoringProjectError,
+        _McpAuthoringBoundaryError,
+    ) as exc:
+        return _authoring_failure(
+            operation,
+            exc,
+            project_key=project_key,
+        )
+    except Exception as exc:
+        return _authoring_failure(operation, exc, project_key=project_key)
+
+
+@mcp_tool(title="Render workflow candidate", annotations=_RENDER_TOOL)
+def render_workflow_candidate(
+    project_key: _AuthoringSelector,
+    workflow_id: _AuthoringSelector,
+    expected_revision: _AuthoringSelector,
+) -> dict[str, Any]:
+    """Reserve, render and record one managed candidate without accepting auth or paths."""
+
+    operation = "render_workflow_candidate"
+    root: Path | None = None
+    try:
+        checked_id = _validated_workflow_id(workflow_id)
+        checked_revision = _validated_workflow_revision(
+            expected_revision,
+            required=True,
+        )
+        assert checked_revision is not None
+        root = _authoring_project_root(
+            project_key,
+            create_namespace=False,
+            require_existing=True,
+        )
+        current = _open_expected_workflow(
+            root,
+            workflow_id=checked_id,
+            expected_revision=checked_revision,
+        )
+        status = current.detached_state()["status"]
+        if status == "reviewing":
+            reservation = request_workflow_render_state(
+                root,
+                workflow_id=checked_id,
+                expected_revision=checked_revision,
+            )
+        elif status == "candidate_pending":
+            # A failed or disconnected prior call may have already published the
+            # immutable reservation. Reuse that exact current operation.
+            reservation = current
+        else:
+            raise CreativeWorkflowError("illegal_workflow_transition")
+        authorization = workflow_render_authorization(reservation)
+        rendered = render_authoring_project_candidate(
+            root,
+            expected_revision=authorization["authoring_revision"],
+            workflow_authorization=authorization,
+        )
+        candidate = rendered.get("candidate")
+        if (
+            rendered.get("status") != "completed"
+            or rendered.get("project_id") != authorization["project_id"]
+            or rendered.get("revision") != authorization["authoring_revision"]
+            or rendered.get("workflow_managed") is not True
+            or not isinstance(rendered.get("reused_existing"), bool)
+            or not isinstance(candidate, dict)
+            or candidate.get("work_id") != authorization["candidate_work_id"]
+            or candidate.get("candidate_id") != authorization["candidate_id"]
+        ):
+            raise _McpWorkflowBoundaryError(
+                "creative_workflow.render_result_identity_mismatch",
+                stage="render",
+            )
+        candidate_identity, candidate_project, candidate_root = (
+            _authoring_candidate_directory(
+                project_key,
+                work_id=candidate["work_id"],
+                candidate_id=candidate["candidate_id"],
+            )
+        )
+        if (
+            candidate_root != root
+            or candidate_project.project_id != authorization["project_id"]
+        ):
+            raise _McpWorkflowBoundaryError(
+                "creative_workflow.render_result_identity_mismatch",
+                stage="candidate",
+            )
+        recorded = record_workflow_candidate_state(
+            root,
+            workflow_id=checked_id,
+            expected_revision=reservation.revision,
+            candidate_path=revalidate_plain_directory(candidate_identity),
+        )
+        return _workflow_success(
+            operation,
+            project_key,
+            recorded,
+            render=rendered,
+            reservation_revision=reservation.revision,
+        )
+    except (
+        AuthoringProjectError,
+        AuthoringRenderError,
+        CreativeWorkflowError,
+        _McpAuthoringBoundaryError,
+        _McpWorkflowBoundaryError,
+    ) as exc:
+        return _workflow_failure_with_current(
+            operation,
+            exc,
+            project_key=project_key,
+            workflow_id=workflow_id,
+            root=root,
+        )
+    except Exception as exc:
+        return _workflow_failure_with_current(
+            operation,
+            exc,
+            project_key=project_key,
+            workflow_id=workflow_id,
+            root=root,
+        )
+
+
+@mcp_tool(title="Attach workflow candidate for audit", annotations=_AUTHORING_WRITE_TOOL)
+def attach_workflow_candidate_for_audit(
+    project_key: _AuthoringSelector,
+    workflow_id: _AuthoringSelector,
+    expected_revision: _AuthoringSelector,
+    work_id: _AuthoringSelector,
+    candidate_id: _AuthoringSelector,
+) -> dict[str, Any]:
+    """Attach an existing verified candidate by ID; it remains unmanaged and unacceptible."""
+
+    operation = "attach_workflow_candidate_for_audit"
+    try:
+        checked_id = _validated_workflow_id(workflow_id)
+        checked_revision = _validated_workflow_revision(
+            expected_revision,
+            required=True,
+        )
+        assert checked_revision is not None
+        root = _authoring_project_root(
+            project_key,
+            create_namespace=False,
+            require_existing=True,
+        )
+        current = _open_expected_workflow(
+            root,
+            workflow_id=checked_id,
+            expected_revision=checked_revision,
+        )
+        if current.detached_state()["mode"] != "audit":
+            raise _McpWorkflowBoundaryError(
+                "creative_workflow.audit_mode_required",
+                stage="workflow",
+            )
+        candidate_identity, candidate_project, candidate_root = (
+            _authoring_candidate_directory(
+                project_key,
+                work_id=work_id,
+                candidate_id=candidate_id,
+            )
+        )
+        if candidate_root != root or candidate_project.project_id != current.project_id:
+            raise _McpWorkflowBoundaryError(
+                "creative_workflow.candidate_project_mismatch",
+                stage="candidate",
+            )
+        snapshot = attach_existing_candidate_for_audit_state(
+            root,
+            workflow_id=checked_id,
+            expected_revision=checked_revision,
+            candidate_path=revalidate_plain_directory(candidate_identity),
+        )
+        return _workflow_success(
+            operation,
+            project_key,
+            snapshot,
+            candidate={"work_id": work_id, "candidate_id": candidate_id},
+        )
+    except (
+        AuthoringProjectError,
+        CreativeWorkflowError,
+        _McpAuthoringBoundaryError,
+        _McpWorkflowBoundaryError,
+    ) as exc:
+        return _workflow_failure(
+            operation,
+            exc,
+            project_key=project_key,
+            workflow_id=workflow_id,
+        )
+    except Exception as exc:
+        return _workflow_failure(
+            operation,
+            exc,
+            project_key=project_key,
+            workflow_id=workflow_id,
+        )
+
+
+@mcp_tool(title="Decide workflow iteration", annotations=_AUTHORING_WRITE_TOOL)
+def decide_workflow_iteration(
+    project_key: _AuthoringSelector,
+    workflow_id: _AuthoringSelector,
+    expected_revision: _AuthoringSelector,
+    disposition: Literal["accept", "revise", "recommend_revision", "preserve", "stop"],
+    summary: _WorkflowText,
+    rationale: _WorkflowText,
+    perception_basis: Literal["report_only", "audio_audition"],
+    protected_values: _WorkflowReferenceList | None = None,
+    sacrificed_values: _WorkflowReferenceList | None = None,
+    evidence_ids: _WorkflowReferenceList | None = None,
+    exception_ids: _WorkflowReferenceList | None = None,
+    expected_audible_change: _WorkflowText | None = None,
+) -> dict[str, Any]:
+    """Make an agent-authority contextual decision; never claim objective quality."""
+
+    operation = "decide_workflow_iteration"
+    try:
+        checked_id = _validated_workflow_id(workflow_id)
+        checked_revision = _validated_workflow_revision(
+            expected_revision,
+            required=True,
+        )
+        assert checked_revision is not None
+        root = _authoring_project_root(
+            project_key,
+            create_namespace=False,
+            require_existing=True,
+        )
+        current = _open_expected_workflow(
+            root,
+            workflow_id=checked_id,
+            expected_revision=checked_revision,
+        )
+        authority = _agent_workflow_authority(current)
+        candidate_path: Path | None = None
+        if disposition == "accept":
+            state = current.detached_state()
+            iterations = state.get("iterations")
+            candidate = (
+                iterations[-1].get("anchor", {}).get("candidate")
+                if isinstance(iterations, list) and iterations
+                else None
+            )
+            if not isinstance(candidate, dict):
+                raise CreativeWorkflowError("verified_candidate_required_for_acceptance")
+            identity, candidate_project, candidate_root = _authoring_candidate_directory(
+                project_key,
+                work_id=candidate.get("work_id"),
+                candidate_id=candidate.get("candidate_id"),
+            )
+            if candidate_root != root or candidate_project.project_id != current.project_id:
+                raise _McpWorkflowBoundaryError(
+                    "creative_workflow.candidate_project_mismatch",
+                    stage="candidate",
+                )
+            candidate_path = revalidate_plain_directory(identity)
+        snapshot = decide_workflow_iteration_state(
+            root,
+            workflow_id=checked_id,
+            expected_revision=checked_revision,
+            disposition=disposition,
+            summary=summary,
+            rationale=rationale,
+            final_authority=authority,
+            perception_basis=perception_basis,
+            protected_values=[] if protected_values is None else protected_values,
+            sacrificed_values=[] if sacrificed_values is None else sacrificed_values,
+            evidence_ids=[] if evidence_ids is None else evidence_ids,
+            exception_ids=[] if exception_ids is None else exception_ids,
+            expected_audible_change=expected_audible_change,
+            candidate_path=candidate_path,
+        )
+        return _workflow_success(
+            operation,
+            project_key,
+            snapshot,
+            decision_authority=authority,
+        )
+    except (
+        AuthoringProjectError,
+        CreativeWorkflowError,
+        _McpAuthoringBoundaryError,
+        _McpWorkflowBoundaryError,
+    ) as exc:
+        return _workflow_failure(
+            operation,
+            exc,
+            project_key=project_key,
+            workflow_id=workflow_id,
+        )
+    except Exception as exc:
+        return _workflow_failure(
+            operation,
+            exc,
+            project_key=project_key,
+            workflow_id=workflow_id,
+        )
+
+
+@mcp_tool(title="Record workflow authoring revision", annotations=_AUTHORING_WRITE_TOOL)
+def record_workflow_authoring_revision(
+    project_key: _AuthoringSelector,
+    workflow_id: _AuthoringSelector,
+    expected_revision: _AuthoringSelector,
+    authoring_revision: _AuthoringSelector,
+) -> dict[str, Any]:
+    """Bind a separately CAS-saved immutable authoring revision as the next iteration."""
+
+    operation = "record_workflow_authoring_revision"
+    try:
+        checked_id = _validated_workflow_id(workflow_id)
+        checked_revision = _validated_workflow_revision(
+            expected_revision,
+            required=True,
+        )
+        checked_authoring = _validated_authoring_revision(
+            authoring_revision,
+            required=True,
+        )
+        assert checked_revision is not None and checked_authoring is not None
+        root = _authoring_project_root(
+            project_key,
+            create_namespace=False,
+            require_existing=True,
+        )
+        snapshot = record_workflow_authoring_revision_state(
+            root,
+            workflow_id=checked_id,
+            expected_revision=checked_revision,
+            authoring_revision=checked_authoring,
+        )
+        return _workflow_success(operation, project_key, snapshot)
+    except (
+        AuthoringProjectError,
+        CreativeWorkflowError,
+        _McpAuthoringBoundaryError,
+        _McpWorkflowBoundaryError,
+    ) as exc:
+        return _workflow_failure(
+            operation,
+            exc,
+            project_key=project_key,
+            workflow_id=workflow_id,
+        )
+    except Exception as exc:
+        return _workflow_failure(
+            operation,
+            exc,
+            project_key=project_key,
+            workflow_id=workflow_id,
+        )
+
+
+@mcp_tool(title="Rollback creative workflow", annotations=_AUTHORING_WRITE_TOOL)
+def rollback_creative_workflow(
+    project_key: _AuthoringSelector,
+    workflow_id: _AuthoringSelector,
+    expected_revision: _AuthoringSelector,
+    target_iteration_number: StrictInt,
+    summary: _WorkflowText,
+    rationale: _WorkflowText,
+    perception_basis: Literal["report_only", "audio_audition"],
+) -> dict[str, Any]:
+    """Select an earlier immutable anchor without overwriting revisions or candidates."""
+
+    operation = "rollback_creative_workflow"
+    try:
+        checked_id = _validated_workflow_id(workflow_id)
+        checked_revision = _validated_workflow_revision(
+            expected_revision,
+            required=True,
+        )
+        assert checked_revision is not None
+        root = _authoring_project_root(
+            project_key,
+            create_namespace=False,
+            require_existing=True,
+        )
+        current = _open_expected_workflow(
+            root,
+            workflow_id=checked_id,
+            expected_revision=checked_revision,
+        )
+        authority = _agent_workflow_authority(current)
+        snapshot = rollback_workflow_state(
+            root,
+            workflow_id=checked_id,
+            expected_revision=checked_revision,
+            target_iteration_number=target_iteration_number,
+            summary=summary,
+            rationale=rationale,
+            final_authority=authority,
+            perception_basis=perception_basis,
+        )
+        return _workflow_success(
+            operation,
+            project_key,
+            snapshot,
+            decision_authority=authority,
+        )
+    except (
+        AuthoringProjectError,
+        CreativeWorkflowError,
+        _McpAuthoringBoundaryError,
+        _McpWorkflowBoundaryError,
+    ) as exc:
+        return _workflow_failure(
+            operation,
+            exc,
+            project_key=project_key,
+            workflow_id=workflow_id,
+        )
+    except Exception as exc:
+        return _workflow_failure(
+            operation,
+            exc,
+            project_key=project_key,
+            workflow_id=workflow_id,
+        )
+
+
+@mcp_tool(title="Cancel workflow render", annotations=_AUTHORING_WRITE_TOOL)
+def cancel_workflow_render(
+    project_key: _AuthoringSelector,
+    workflow_id: _AuthoringSelector,
+    expected_revision: _AuthoringSelector,
+) -> dict[str, Any]:
+    """Cancel the sole current reservation without deleting any published candidate."""
+
+    operation = "cancel_workflow_render"
+    try:
+        checked_id = _validated_workflow_id(workflow_id)
+        checked_revision = _validated_workflow_revision(
+            expected_revision,
+            required=True,
+        )
+        assert checked_revision is not None
+        root = _authoring_project_root(
+            project_key,
+            create_namespace=False,
+            require_existing=True,
+        )
+        snapshot = cancel_workflow_render_state(
+            root,
+            workflow_id=checked_id,
+            expected_revision=checked_revision,
+        )
+        return _workflow_success(operation, project_key, snapshot)
+    except (
+        AuthoringProjectError,
+        CreativeWorkflowError,
+        _McpAuthoringBoundaryError,
+        _McpWorkflowBoundaryError,
+    ) as exc:
+        return _workflow_failure(
+            operation,
+            exc,
+            project_key=project_key,
+            workflow_id=workflow_id,
+        )
+    except Exception as exc:
+        return _workflow_failure(
+            operation,
+            exc,
+            project_key=project_key,
+            workflow_id=workflow_id,
+        )
+
+
+@mcp_tool(title="Stop creative workflow", annotations=_AUTHORING_WRITE_TOOL)
+def stop_creative_workflow(
+    project_key: _AuthoringSelector,
+    workflow_id: _AuthoringSelector,
+    expected_revision: _AuthoringSelector,
+    reason: Literal[
+        "budget_exhausted",
+        "no_material_improvement",
+        "human_review_required",
+        "external_blocker",
+        "cancelled",
+    ],
+    summary: _WorkflowText,
+    perception_basis: Literal["report_only", "audio_audition"] = "report_only",
+) -> dict[str, Any]:
+    """Stop under the frozen agent authority; never impersonate creator approval."""
+
+    operation = "stop_creative_workflow"
+    try:
+        checked_id = _validated_workflow_id(workflow_id)
+        checked_revision = _validated_workflow_revision(
+            expected_revision,
+            required=True,
+        )
+        assert checked_revision is not None
+        root = _authoring_project_root(
+            project_key,
+            create_namespace=False,
+            require_existing=True,
+        )
+        current = _open_expected_workflow(
+            root,
+            workflow_id=checked_id,
+            expected_revision=checked_revision,
+        )
+        authority = _agent_workflow_authority(current)
+        snapshot = terminate_creative_workflow_state(
+            root,
+            workflow_id=checked_id,
+            expected_revision=checked_revision,
+            reason=reason,
+            summary=summary,
+            final_authority=authority,
+            perception_basis=perception_basis,
+        )
+        return _workflow_success(
+            operation,
+            project_key,
+            snapshot,
+            decision_authority=authority,
+        )
+    except (
+        AuthoringProjectError,
+        CreativeWorkflowError,
+        _McpAuthoringBoundaryError,
+        _McpWorkflowBoundaryError,
+    ) as exc:
+        return _workflow_failure(
+            operation,
+            exc,
+            project_key=project_key,
+            workflow_id=workflow_id,
+        )
+    except Exception as exc:
+        return _workflow_failure(
+            operation,
+            exc,
+            project_key=project_key,
+            workflow_id=workflow_id,
+        )
+
+
+@mcp_tool(title="Render candidate", annotations=_RENDER_TOOL)
 def render(
     score: dict,
     roster: dict,
     title: str = "untitled",
-    seed: int | None = None,
+    seed: StrictInt | None = None,
     expression: str | None = None,
     range_mode: str | None = None,
-    normalize_peak_db: float | None = None,
-    hall: bool | None = None,
-    master_gain_db: float | None = None,
+    normalize_peak_db: StrictFloat | None = None,
+    hall: StrictBool | None = None,
+    master_gain_db: StrictFloat | None = None,
     space_config: dict | None = None,
     collaboration_mode: str | None = None,
-    write_stems: bool | None = None,
-    use_stem_cache: bool | None = None,
-    refresh_stem_cache: bool | None = None,
-    trusted_only: bool = True,
+    write_stems: StrictBool | None = None,
+    use_stem_cache: StrictBool | None = None,
+    refresh_stem_cache: StrictBool | None = None,
+    trusted_only: StrictBool | None = None,
     render_profile: dict | None = None,
     output_id: str | None = None,
     parent_candidate_id: str | None = None,
-    overwrite: bool = False,
+    overwrite: StrictBool = False,
     expected_receipt_sha256: str | None = None,
     expected_render_profile_sha256: str | None = None,
-) -> dict:
+    instrument_scope: Literal["formal", "curated"] | None = None,
+) -> dict[str, Any]:
     """把 score+roster 渲成 24bit 立体声 WAV(合奏 + 可选分轨),返回路径与客观仪表。
 
     仪表包含每声部峰值/复音、总线峰值、归一增益、时长和削波状态。显式选择
     collaboration_mode=analyze/suggest 时还会返回门控 active RMS、频带/立体声
     指标，以及 roster 明确声明的 balance_relations；suggest 只给有界建议，
     不会改动音频。它是机器排查，不代替人耳。厅堂默认开。
-    trusted_only=True 时会拒绝白名单外的乐器并说明,方便只用验过的音色。
+    默认 formal 范围允许全部正式声音入口；instrument_scope=curated 可只用
+    作者策展子集。兼容参数 trusted_only 仍映射到这两个范围。
     许可证据为 quarantined 的入口始终拒绝，不能用该质量开关绕过。
     range_mode="compatibility" 保持旧可演奏范围并返回逐音风险摘要；
     "strict_hq" 对未获严格高质量证据或超出核心范围的音符直接拒绝。
@@ -2207,6 +5954,19 @@ def render(
     validate_project 返回的 render_handoff 可原样传入；预期 profile Hash
     不一致时会在创建候选前拒绝，避免把不同配置的预检当成正式渲染依据。
     """
+    try:
+        resolved_scope, _allowed = _resolve_mcp_instrument_scope(
+            instrument_scope,
+            trusted_only,
+        )
+    except (TrustPolicyError, TypeError, ValueError) as exc:
+        return {
+            "kind": "tianlai.render_result",
+            "schema_version": 2,
+            "ok": False,
+            "code": "instrument.scope_invalid",
+            "error": str(exc),
+        }
     try:
         profile = _resolve_mcp_render_profile(
             render_profile=render_profile,
@@ -2271,7 +6031,10 @@ def render(
     refresh_stem_cache = profile.refresh_stem_cache
 
     # 前置校验:普通声部与鼓组 kit 涉及的乐器是否都存在、可信(见 _assignment_instruments)
-    bad = _roster_instrument_problems(roster, trusted_only)
+    bad = _roster_instrument_problems(
+        roster,
+        instrument_scope=resolved_scope,
+    )
     if bad:
         return {"error": "编制里有不可用乐器", "offenders": bad}
     caps = _caps()
@@ -2312,6 +6075,30 @@ def render(
     if not isinstance(overwrite, bool):
         return {"error": "overwrite 必须是布尔值"}
     plan_sha256 = canonical_json_sha256(plan.to_dict())
+    review_settings = {
+        "expression": expression,
+        "seed": int(seed),
+        "range_mode": range_mode,
+        "trusted_only": resolved_scope == "curated",
+        "instrument_scope": resolved_scope,
+    }
+    project_binding: dict[str, Any] = {
+        "score_sha256": _canonical_json_sha256(score),
+        "roster_sha256": _canonical_json_sha256(roster),
+        "plan_input_sha256": _canonical_json_sha256(
+            {
+                "score": score,
+                "roster": roster,
+                "settings": review_settings,
+            }
+        ),
+        "performance_plan_sha256": plan_sha256,
+    }
+    project_review = _safe_project_review(
+        plan,
+        roster_doc,
+        binding=project_binding,
+    )
     try:
         candidate_target = prepare_candidate_target(
             OUTPUT_DIR,
@@ -2353,8 +6140,13 @@ def render(
                 else None
             ),
         )
-    except (OSError, ValueError, RenderLockError) as exc:
-        return {"error": str(exc)}
+    except (OSError, RuntimeError, ValueError, RenderLockError) as exc:
+        return {
+            "kind": "tianlai.render_result",
+            "schema_version": 2,
+            "ok": False,
+            "error": str(exc),
+        }
 
     mix_report = getattr(result, "mix_report", None)
     effective_collaboration_mode = getattr(
@@ -2400,12 +6192,29 @@ def render(
                 "candidate_id": candidate_id,
                 "candidate_directory": str(directory),
                 "render_receipt": result.receipt_path,
+                "post_render_check_path": getattr(
+                    result,
+                    "post_render_check_path",
+                    None,
+                ),
+                "post_render_check": getattr(
+                    result,
+                    "post_render_check",
+                    None,
+                ),
+                "post_render_check_summary": getattr(
+                    result,
+                    "post_render_check_summary",
+                    None,
+                ),
             }
 
     meter = {
         "kind": "tianlai.render_result",
         "schema_version": 2,
         "ok": True,
+        "instrument_scope": resolved_scope,
+        "trusted_only": resolved_scope == "curated",
         "candidate_id": candidate_id,
         "parent_candidate_id": parent_candidate_id,
         "candidate_directory": str(directory),
@@ -2417,6 +6226,21 @@ def render(
         "mix_wav": str(directory / "合奏.wav"),
         "performance_plan": getattr(result, "plan_path", None),
         "render_receipt": result.receipt_path,
+        "post_render_check_path": getattr(
+            result,
+            "post_render_check_path",
+            None,
+        ),
+        "post_render_check": getattr(
+            result,
+            "post_render_check",
+            None,
+        ),
+        "post_render_check_summary": getattr(
+            result,
+            "post_render_check_summary",
+            None,
+        ),
         "mix_report_path": getattr(result, "mix_report_path", None),
         "mix_report": mix_report,
         "license_sidecar": result.license_sidecar_path,
@@ -2447,6 +6271,7 @@ def render(
         },
         "collaboration_warnings": _collaboration_warnings(roster_doc),
         "range_diagnostics": _range_diagnostic_summary(plan),
+        "project_review": project_review,
         "stem_cache": getattr(result, "stem_cache", None),
         "analysis_cache": getattr(result, "analysis_cache", None),
         "cache_telemetry": getattr(

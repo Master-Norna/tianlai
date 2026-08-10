@@ -20,6 +20,7 @@ import hashlib
 import json
 import math
 from pathlib import Path
+import threading
 from typing import Any
 
 
@@ -63,6 +64,7 @@ RANGE_VALIDATION_MODES = frozenset(("compatibility", "strict_hq"))
 COLLABORATION_REVIEW_STATUSES = frozenset(
     ("untested", "in_progress", "passed", "failed")
 )
+_LOCAL_ARTICULATION_MODULE_LOCK = threading.RLock()
 RANGE_PROFILE_QUALITY_STATUSES = frozenset(
     ("pending", "contract_candidate", "rejected")
 )
@@ -606,6 +608,23 @@ class InstrumentCapability:
 
         return self.pitch_mode == "fixed"
 
+    @property
+    def routing_class(self) -> str:
+        """Return the explicit catalogue-level routing family.
+
+        This uses the repository's stable top-level taxonomy rather than
+        guessing from an instrument name or from ``pitched``.  In particular,
+        tuned percussion still belongs in percussion-kit discovery, while
+        environmental effects never crowd out drum candidates.
+        """
+
+        parts = self.relative_path.split("/")
+        if parts[0] == "环境与拟音":
+            return "effect"
+        if parts[0] == "现代鼓组" or parts[:2] == ["管弦乐", "打击乐组"]:
+            return "percussion"
+        return "instrument"
+
     def ranges_for(
         self, articulation: str | None = None
     ) -> tuple[tuple[float, float], ...]:
@@ -627,7 +646,14 @@ class InstrumentCapability:
         return ()
 
     def covers(self, midi: float, articulation: str | None = None) -> bool:
-        if not self.pitched or self.ignores_pitch:
+        if self.ignores_pitch:
+            return True
+        # ``ignore`` means "select an existing sample by key, but do not
+        # transpose that sample".  It is therefore non-pitched in musical
+        # semantics while still requiring the incoming key to stay inside the
+        # backend's declared selector range.  Other unpitched entries without
+        # that explicit contract retain their legacy all-key behaviour.
+        if not self.pitched and self.pitch_mode != "ignore":
             return True
         if self.note_min is not None and midi < self.note_min:
             return False
@@ -868,6 +894,7 @@ class InstrumentCapability:
             "name": self.name,
             "relative_path": self.relative_path,
             "implementation_type": self.implementation_type,
+            "routing_class": self.routing_class,
             "pitched": self.pitched,
             "note_min": self.note_min,
             "note_max": self.note_max,
@@ -1400,15 +1427,27 @@ def _load_local_articulations(
 
     suffix = hashlib.sha256(str(path).encode("utf-8")).hexdigest()[:16]
     name = f"tianlai_capability_probe_{suffix}"
-    module = sys.modules.get(name)
-    if module is None:
-        spec = importlib.util.spec_from_file_location(name, path)
-        if spec is None or spec.loader is None:
-            return None
-        module = importlib.util.module_from_spec(spec)
-        sys.modules[name] = module
-        spec.loader.exec_module(module)
-    names = getattr(module, "_PUBLIC_ARTICULATIONS", None)
+    # ``sys.modules`` exposes a module before its loader has finished.  Two
+    # concurrent readiness/render calls could therefore let one caller see a
+    # half-initialised instrument backend and silently fall back to the
+    # manifest's default articulation.  Duration rules would then appear to
+    # target an undeclared articulation.  Serialise this small, one-time local
+    # probe and remove failed imports so later calls never trust partial state.
+    with _LOCAL_ARTICULATION_MODULE_LOCK:
+        module = sys.modules.get(name)
+        if module is None:
+            spec = importlib.util.spec_from_file_location(name, path)
+            if spec is None or spec.loader is None:
+                return None
+            module = importlib.util.module_from_spec(spec)
+            sys.modules[name] = module
+            try:
+                spec.loader.exec_module(module)
+            except BaseException:
+                if sys.modules.get(name) is module:
+                    del sys.modules[name]
+                raise
+        names = getattr(module, "_PUBLIC_ARTICULATIONS", None)
     if not names:
         return None
     return tuple(sorted(str(item) for item in names))

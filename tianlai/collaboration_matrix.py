@@ -1049,26 +1049,25 @@ def write_collaboration_matrix_atomic(
         suffix=".tmp",
     )
     temporary = Path(temporary_name)
-    try:
-        with os.fdopen(
-            descriptor,
-            "w",
-            encoding="utf-8",
-            newline="\n",
-        ) as output:
-            output.write(payload)
-            output.flush()
-            os.fsync(output.fileno())
-        os.replace(temporary, target)
-        if os.name != "nt":
-            flags = getattr(os, "O_DIRECTORY", 0) | os.O_RDONLY
-            directory_fd = os.open(target.parent, flags)
-            try:
-                os.fsync(directory_fd)
-            finally:
-                os.close(directory_fd)
-    finally:
-        temporary.unlink(missing_ok=True)
+    with os.fdopen(
+        descriptor,
+        "w",
+        encoding="utf-8",
+        newline="\n",
+    ) as output:
+        output.write(payload)
+        output.flush()
+        os.fsync(output.fileno())
+    # Success consumes the temporary name.  Preserve it on failure instead of
+    # unlinking a pathname that a concurrent actor may already have replaced.
+    os.replace(temporary, target)
+    if os.name != "nt":
+        flags = getattr(os, "O_DIRECTORY", 0) | os.O_RDONLY
+        directory_fd = os.open(target.parent, flags)
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
 
 
 __all__ = [

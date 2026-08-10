@@ -1,0 +1,163 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tianlai.local/schemas/authoring-roster.schema.json",
+  "title": "Tianlai Authoring Roster",
+  "description": "可保存的创作态编制。它为总谱中的每个声部保留且仅保留一项；instrument:null 表示尚未配器，只允许保存与继续编辑，不能转换为正式渲染编制。",
+  "type": "object",
+  "required": ["kind", "schema_version", "assignments"],
+  "properties": {
+    "kind": { "const": "tianlai.authoring_roster" },
+    "schema_version": { "const": 1 },
+    "name": { "type": "string", "maxLength": 4096 },
+    "assignments": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 256,
+      "items": { "$ref": "#/$defs/assignment" }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "portableId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 251,
+      "pattern": "^(?![ \\t\\r\\n])(?!.*[ .]$)[^/\\\\:*?\"<>|\\u0000-\\u001F\\u007F]+$",
+      "description": "跨平台文件安全 ID。最终 executor_id 与其 .wav 文件名均不得超过 255 UTF-8 bytes 或 255 UTF-16 code units；运行时还会拒绝 CONIN$/CONOUT$、COM/LPT 数字及上标数字等 Windows 保留设备名，并按 Unicode NFC + casefold 检查冲突。"
+    },
+    "instrumentReference": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096,
+      "pattern": "^(?![/\\\\])(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*[/]$)(?!.*[\\\\:])(?!.*[\\u0000-\\u001F\\u007F])\\S(?:.*\\S)?$"
+    },
+    "gainAutomationPoint": {
+      "type": "object",
+      "required": ["bar", "beat", "offset_db"],
+      "properties": {
+        "bar": { "type": "integer", "minimum": 1 },
+        "beat": { "type": "number", "minimum": 1 },
+        "offset_db": { "type": "number", "minimum": -24, "maximum": 24 }
+      },
+      "additionalProperties": false
+    },
+    "seat": {
+      "type": "object",
+      "properties": {
+        "azimuth_deg": { "type": "number", "minimum": -90, "maximum": 90 },
+        "distance_m": { "type": "number", "minimum": 0.1, "maximum": 60 }
+      },
+      "additionalProperties": false
+    },
+    "role": {
+      "type": "object",
+      "required": ["function", "prominence"],
+      "properties": {
+        "function": {
+          "enum": [
+            "lead",
+            "countermelody",
+            "harmony",
+            "pad",
+            "bass",
+            "rhythm",
+            "accent",
+            "texture",
+            "ambience",
+            "effect",
+            "other"
+          ]
+        },
+        "prominence": {
+          "enum": ["foreground", "midground", "background"]
+        },
+        "label": { "type": "string", "minLength": 1, "maxLength": 4096 }
+      },
+      "additionalProperties": false
+    },
+    "overrides": {
+      "type": "object",
+      "properties": {
+        "release_seconds": { "type": "number", "minimum": 0 },
+        "release_tail_gain": { "type": "number", "minimum": 0, "maximum": 1 },
+        "sample_variant": { "type": "string", "minLength": 1, "maxLength": 255 }
+      },
+      "additionalProperties": false
+    },
+    "kitEntry": {
+      "oneOf": [
+        { "$ref": "#/$defs/instrumentReference" },
+        {
+          "type": "object",
+          "required": ["instrument"],
+          "properties": {
+            "instrument": { "$ref": "#/$defs/instrumentReference" },
+            "transpose": { "type": "integer" }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "kit": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 512,
+      "propertyNames": { "type": "string", "minLength": 1, "maxLength": 255 },
+      "additionalProperties": { "$ref": "#/$defs/kitEntry" }
+    },
+    "assignment": {
+      "type": "object",
+      "required": ["part"],
+      "properties": {
+        "part": { "$ref": "#/$defs/portableId" },
+        "instrument": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/instrumentReference" }
+          ]
+        },
+        "kit": { "$ref": "#/$defs/kit" },
+        "_note": { "type": "string", "maxLength": 16384 },
+        "executor_id": { "$ref": "#/$defs/portableId" },
+        "gain_db": { "type": "number", "minimum": -60, "maximum": 12 },
+        "gain_automation": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4096,
+          "items": { "$ref": "#/$defs/gainAutomationPoint" }
+        },
+        "pan": { "type": "number", "minimum": -1, "maximum": 1 },
+        "transpose": { "type": "integer" },
+        "dynamic_compression": { "type": "number", "minimum": 0, "maximum": 1 },
+        "duration_scale": { "type": "number", "minimum": 0.1, "maximum": 2 },
+        "articulation_auto": { "type": "boolean" },
+        "seat": { "$ref": "#/$defs/seat" },
+        "role": { "$ref": "#/$defs/role" },
+        "articulation_map": {
+          "type": "object",
+          "maxProperties": 256,
+          "propertyNames": { "type": "string", "minLength": 1, "maxLength": 255 },
+          "additionalProperties": { "type": "string", "minLength": 1, "maxLength": 255 }
+        },
+        "overrides": { "$ref": "#/$defs/overrides" }
+      },
+      "oneOf": [
+        {
+          "required": ["instrument"],
+          "properties": { "instrument": { "type": "null" } },
+          "not": { "required": ["kit"] }
+        },
+        {
+          "required": ["instrument"],
+          "properties": { "instrument": { "$ref": "#/$defs/instrumentReference" } },
+          "not": { "required": ["kit"] }
+        },
+        {
+          "required": ["kit"],
+          "not": { "required": ["instrument"] }
+        }
+      ],
+      "additionalProperties": false
+    }
+  }
+}

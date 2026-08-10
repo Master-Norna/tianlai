@@ -17,7 +17,7 @@ Python 运行时与 MCP 依赖，用项目自带的程序音色生成第一份 W
 | 29 件自研程序音色 | 不依赖第三方音频资产，可直接使用 | 其余声音入口需要单独恢复资源 |
 | 74 件外部资源 | 环境诊断提供跨平台 Python 恢复入口，`plan` 可解析全部 15 个资源族 | 下载量、上游可用性、许可条件和系统解包依赖因资源而异；大型资源不在 CI 中下载 |
 
-Windows 10/11 x64 仍是 `0.6.0rc1` 的完整参考平台。Linux 已覆盖核心程序音色、
+Windows 10/11 x64 仍是 `0.7.0rc1` 的完整参考平台。Linux 已覆盖核心程序音色、
 portable 自检、CLI 与 MCP；大型第三方资源的覆盖范围与 Windows 不完全相同。
 
 WSL 用户最好把源码解压或检出到 Linux 文件系统，例如
@@ -154,16 +154,17 @@ Linux 用冒号分隔多个 `TIANLAI_INPUT_ROOTS`，Windows 用分号。这里�
 
 ```text
 score_and_roster_format()
-list_instruments(trusted_only=true, pitched_only=false)
+list_instruments()
 ```
 
 然后按以下闭环工作：
 
 ```text
 import_score_project → confirm_roster → validate_project
-    → render(**render_handoff)
+    → check_project_readiness → render(**render_handoff)
     → locate_rendered_candidate → get_score_slice → patch_score
-    → validate_project → render(parent_candidate_id=..., **render_handoff)
+    → validate_project → check_project_readiness
+    → render(parent_candidate_id=..., **render_handoff)
     → compare_rendered_candidates
 ```
 

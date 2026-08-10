@@ -10,7 +10,8 @@ SoundFont 静默回退。
 
 - 上游：Greg Sullivan E-Pianos / Yamaha CP80
 - 固定提交：`8c3e581acda3594b553948ff0222d4f84a698376`
-- 许可：CC-BY-3.0，署名与许可证据见 [`来源.md`](来源.md)
+- 许可：[CC BY 3.0](https://creativecommons.org/licenses/by/3.0/)，署名与
+  许可证据见 [`来源.md`](来源.md)
 - 逐文件 SHA-256 与统计见 [`资源核验.json`](资源核验.json)，复算脚本为 [`核验资源.py`](核验资源.py)
 
 ## 获取资源
@@ -26,6 +27,9 @@ SoundFont 静默回退。
 - `normal`：`CP80/CP80.sfz`
 
 四档真实力度层 PP / MP / F / FF；默认奏法 `normal`，`pitch_mode=pitched`。
+81 个源采样均为 44.1 kHz 单声道 FLAC；本入口显式使用版本化
+`bandlimited` 重采样输出 48 kHz，并按实际播放步进收窄抽取带宽。算法选择会进入
+运行时变体身份，上游 SFZ 与 FLAC 字节不作修改。
 
 ## 音域
 
@@ -38,9 +42,12 @@ A0（21）— C8（108）
 
 ## 试听
 
-固定事件为 `examples/电钢琴_奏法.events.json`；指标和 WAV Hash 由
-[`核验试听.py`](核验试听.py) 复算。当前说明不承诺额外的细分奏法矩阵或
-专家听审结论。
+[`试听核验.json`](试听核验.json) 是 88 键全音域升序压力扫描，可用
+`tools/生成全部试音.py --only 键盘乐器/电钢琴` 重建。
+[`表现力试听核验.json`](表现力试听核验.json) 使用
+`examples/电钢琴_奏法.events.json` 覆盖四档真实力度与长短音，由
+[`核验试听.py`](核验试听.py) 复算。两份证据分别绑定自己的 events、manifest
+与 WAV Hash，互不覆盖；人工复听结论仍单独记录。
 
 ## 已知限制
 

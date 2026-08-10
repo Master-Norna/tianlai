@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import os
 from pathlib import Path
 from types import SimpleNamespace
 import tempfile
@@ -724,8 +725,13 @@ class CollaborationReportTests(unittest.TestCase):
                 _executor("lead", "lead"),
                 _sine(0.2),
             )
+            # POSIX may create an unnamed temporary inode while Windows keeps
+            # a delete-on-close name visible until the handle is closed.
             self.assertTrue(
-                list(root.glob(".collaboration-analysis.*"))
+                all(
+                    path.is_file()
+                    for path in root.glob(".collaboration-analysis.*")
+                )
             )
 
             report = builder.build()
@@ -744,6 +750,94 @@ class CollaborationReportTests(unittest.TestCase):
             )
             with self.assertRaisesRegex(RuntimeError, "closed"):
                 builder.build()
+
+            # Closing is deliberately idempotent and cannot resolve a mutable
+            # directory pathname for recursive cleanup.
+            builder.close()
+            builder.close()
+            self.assertEqual(list(root.iterdir()), [])
+
+    def test_scratch_handles_close_when_report_build_raises(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            builder = CollaborationReportBuilder(
+                _settings(),
+                SAMPLE_RATE,
+                scratch_parent=root,
+            )
+            builder.add_stem(
+                _executor("pad", "pad"),
+                _sine(0.05),
+            )
+
+            with (
+                mock.patch.object(
+                    builder,
+                    "_build_report",
+                    side_effect=RuntimeError("injected report failure"),
+                ),
+                self.assertRaisesRegex(RuntimeError, "injected report failure"),
+            ):
+                builder.build()
+
+            self.assertEqual(builder._scratch_handles, [])
+            self.assertIsNone(builder._scratch_parent)
+            self.assertEqual(list(root.iterdir()), [])
+            builder.close()
+
+    def test_scratch_close_finishes_after_a_mapping_flush_error(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            builder = CollaborationReportBuilder(
+                _settings(),
+                SAMPLE_RATE,
+                scratch_parent=root,
+            )
+            builder.add_stem(
+                _executor("pad", "pad"),
+                _sine(0.05),
+            )
+
+            with (
+                mock.patch.object(
+                    np.memmap,
+                    "flush",
+                    side_effect=OSError("injected flush failure"),
+                ),
+                self.assertRaisesRegex(OSError, "injected flush failure"),
+            ):
+                builder.close()
+
+            self.assertEqual(builder._scratch_handles, [])
+            self.assertIsNone(builder._scratch_parent)
+            self.assertEqual(list(root.iterdir()), [])
+            builder.close()
+
+    @unittest.skipUnless(os.name == "nt", "Windows delete-on-close semantics")
+    def test_scratch_close_does_not_delete_a_racing_path_replacement(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            builder = CollaborationReportBuilder(
+                _settings(),
+                SAMPLE_RATE,
+                scratch_parent=root,
+            )
+            builder.add_stem(
+                _executor("pad", "pad"),
+                _sine(0.05),
+            )
+            self.assertEqual(len(builder._scratch_handles), 1)
+            scratch_path = Path(builder._scratch_handles[0].name)
+            displaced = root / "displaced-open-scratch.f32"
+            sentinel = b"racing path replacement"
+            scratch_path.rename(displaced)
+            scratch_path.write_bytes(sentinel)
+
+            builder.close()
+
+            self.assertFalse(displaced.exists())
+            self.assertEqual(scratch_path.read_bytes(), sentinel)
+            builder.close()
 
 
 if __name__ == "__main__":

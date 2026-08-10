@@ -7,14 +7,14 @@
     "LICENSE": "e6bc9e9c474700b708f568bac9e5a8a9bcb2b1dad53442f5ba449fcb848b8e76",
     "README.md": "be275b843d10a22e614e5f52bd414fe2cbdcbfd6165894b1dcca738e8cbf391a"
   },
-  "sample_count": 618,
-  "sample_bytes": 744464130,
+  "sample_count": 641,
+  "sample_bytes": 748397030,
   "sample_formats": {
-    ".flac:48000Hz:2ch": 618
+    ".flac:48000Hz:2ch": 641
   },
   "sample_enumeration": "constructed the instrument and walked its loaded sample regions; hashes cover exactly the files the engine reads at run time",
-  "sample_set_sha256": "4e8451c71f7e1f6345f826d926688bbfeb0f3eac88c6ae2b82a5fc83b55c7254",
+  "sample_set_sha256": "1fa0e381904391b759cb3e82ff60bc54716ad99fd30ed07fd49c2128ef6239e5",
   "sample_set_hash_algorithm": "sort unique asset-root-relative UTF-8 paths; concatenate lowercase '<sha256>  <path>\\n>'; SHA-256 the UTF-8 bytes",
-  "generated_at": "2026-07-26",
+  "generated_at": "2026-08-07",
   "upstream_commit": "3382bf9496bba2486f5ab0de55a264d1dfc38404"
 }

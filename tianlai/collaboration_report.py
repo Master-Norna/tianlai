@@ -15,7 +15,7 @@ import math
 from numbers import Real
 from pathlib import Path
 import tempfile
-from typing import Any
+from typing import Any, BinaryIO
 
 import numpy as np
 
@@ -820,8 +820,8 @@ class CollaborationReportBuilder:
         self._part_buffers: dict[str, np.ndarray] = {}
         self._endpoint_buffers: dict[str, np.ndarray] = {}
         self._endpoint_sha256: dict[str, str] = {}
-        self._scratch_context: tempfile.TemporaryDirectory[str] | None = None
-        self._scratch_directory: Path | None = None
+        self._scratch_parent: Path | None = None
+        self._scratch_handles: list[BinaryIO] = []
         self._closed = False
         if (
             expected_stem_count is not None
@@ -858,17 +858,37 @@ class CollaborationReportBuilder:
         if scratch_parent is not None:
             parent = Path(scratch_parent)
             parent.mkdir(parents=True, exist_ok=True)
-            self._scratch_context = tempfile.TemporaryDirectory(
-                dir=parent,
-                prefix=".collaboration-analysis.",
-            )
-            self._scratch_directory = Path(self._scratch_context.name)
+            self._scratch_parent = parent
 
     @property
     def cache_summary(self) -> dict[str, Any] | None:
         """Return runtime-only cache telemetry for the enclosing renderer."""
 
         return self._cache_summary
+
+    def _scratch_memmap(self, shape: tuple[int, ...]) -> np.memmap:
+        """Allocate a delete-on-close mapping without owning a path tree."""
+
+        if self._scratch_parent is None:
+            raise RuntimeError("collaboration scratch storage is disabled")
+        scratch = tempfile.TemporaryFile(
+            mode="w+b",
+            dir=self._scratch_parent,
+            prefix=".collaboration-analysis.",
+            suffix=".f32",
+        )
+        try:
+            audio = np.memmap(
+                scratch,
+                mode="w+",
+                dtype=np.float32,
+                shape=shape,
+            )
+        except BaseException:
+            scratch.close()
+            raise
+        self._scratch_handles.append(scratch)
+        return audio
 
     def _cache_identity(
         self,
@@ -1076,21 +1096,10 @@ class CollaborationReportBuilder:
                 )
             previous += np.asarray(buffer, dtype=np.float32)
             return
-        if self._scratch_directory is None:
+        if self._scratch_parent is None:
             audio = np.array(buffer, dtype=np.float32, copy=True)
         else:
-            identity = hashlib.sha256(
-                executor.part_id.encode("utf-8")
-            ).hexdigest()[:16]
-            path = self._scratch_directory / (
-                f"{len(self._part_buffers):04d}-{identity}.f32"
-            )
-            audio = np.memmap(
-                path,
-                mode="w+",
-                dtype=np.float32,
-                shape=buffer.shape,
-            )
+            audio = self._scratch_memmap(buffer.shape)
             audio[:] = buffer
         # Relation endpoints are normally a single executor.  Retain only
         # these explicitly referenced parts; unrelated stems do not
@@ -1131,21 +1140,10 @@ class CollaborationReportBuilder:
                 f"part group {endpoint!r} references a part with no rendered "
                 f"stem: {expanded[0]!r}"
             )
-        if self._scratch_directory is None:
+        if self._scratch_parent is None:
             combined = np.array(first, dtype=np.float32, copy=True)
         else:
-            identity = hashlib.sha256(
-                f"group:{endpoint}".encode("utf-8")
-            ).hexdigest()[:16]
-            path = self._scratch_directory / (
-                f"endpoint-{len(self._endpoint_buffers):04d}-{identity}.f32"
-            )
-            combined = np.memmap(
-                path,
-                mode="w+",
-                dtype=np.float32,
-                shape=first.shape,
-            )
+            combined = self._scratch_memmap(first.shape)
             combined[:] = first
         for part_id in expanded[1:]:
             audio = self._part_buffers.get(part_id)
@@ -1701,7 +1699,7 @@ class CollaborationReportBuilder:
                 },
                 "relation_buffer_storage": (
                     "scratch_float32_memmap"
-                    if self._scratch_directory is not None
+                    if self._scratch_parent is not None
                     else "memory_float32"
                 ),
                 "workload": {
@@ -1761,7 +1759,7 @@ class CollaborationReportBuilder:
         }
 
     def close(self) -> None:
-        """Release relation buffers and delete only this builder's scratch."""
+        """Close mappings before their delete-on-close scratch handles."""
 
         if self._closed:
             return
@@ -1777,17 +1775,30 @@ class CollaborationReportBuilder:
         self._part_buffers.clear()
         self._endpoint_buffers.clear()
         self._endpoint_sha256.clear()
+        scratch_handles = tuple(self._scratch_handles)
+        self._scratch_handles.clear()
+        self._scratch_parent = None
+        cleanup_errors: list[BaseException] = []
         for audio in buffers:
             if not isinstance(audio, np.memmap):
                 continue
-            audio.flush()
+            try:
+                audio.flush()
+            except BaseException as exc:
+                cleanup_errors.append(exc)
             mapping = getattr(audio, "_mmap", None)
             if mapping is not None:
-                mapping.close()
-        if self._scratch_context is not None:
-            self._scratch_context.cleanup()
-            self._scratch_context = None
-        self._scratch_directory = None
+                try:
+                    mapping.close()
+                except BaseException as exc:
+                    cleanup_errors.append(exc)
+        for scratch in scratch_handles:
+            try:
+                scratch.close()
+            except BaseException as exc:
+                cleanup_errors.append(exc)
+        if cleanup_errors:
+            raise cleanup_errors[0]
 
     def build(self) -> dict[str, Any]:
         """Build the immutable report, then release potentially large buffers."""

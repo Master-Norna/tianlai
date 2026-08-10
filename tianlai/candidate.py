@@ -4,14 +4,13 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import hashlib
 import json
 import math
 import os
 from pathlib import Path
 import re
-import shutil
 import tempfile
 from typing import Any
 import unicodedata
@@ -20,21 +19,87 @@ import warnings
 
 from .canonical_json import canonical_json_sha256
 from .ensemble import CACHE_TELEMETRY_NAME, verify_render_generation
-from .render_lock import acquire_render_lock
+from .events import parse_performance_document
+from .portable_filename import is_windows_reserved_filename
+from .render_lock import (
+    PlainDirectoryIdentity,
+    acquire_render_lock,
+    capture_plain_directory,
+    ensure_authorized_child_directory,
+    ensure_plain_directory_tree,
+    revalidate_plain_directory,
+)
+from .score import parse_pitch, parse_score_document, pitch_name
 from .score_ops import compare_scores
+from .utc_timestamp import (
+    canonical_utc_now,
+    validate_canonical_utc_timestamp,
+)
+from .workflow_binding import validate_workflow_authorization
 
 
 CANDIDATE_FORMAT = "tianlai.candidate"
-CANDIDATE_VERSION = 1
+CANDIDATE_VERSION = 2
+_SUPPORTED_CANDIDATE_VERSIONS = frozenset({1, CANDIDATE_VERSION})
 CANDIDATE_MANIFEST_NAME = "候选.json"
-_WINDOWS_RESERVED = {
-    "CON",
-    "PRN",
-    "AUX",
-    "NUL",
-    *(f"COM{number}" for number in range(1, 10)),
-    *(f"LPT{number}" for number in range(1, 10)),
-}
+AUTHORING_ROSTER_CANDIDATE_NAME = "authoring-roster.json"
+PLAYBACK_MAP_KIND = "tianlai.candidate_playback_map"
+PLAYBACK_MAP_VERSION = 1
+PLAYBACK_MAP_SCHEMA_URI = (
+    "https://tianlai.local/schemas/candidate-playback-map.schema.json"
+)
+MAX_PLAYBACK_MAP_SCHEDULED_NOTES = 250_000
+_PLAYBACK_MAP_TRACE_TIME_TOLERANCE = 0.000000501
+_PLAYBACK_MAP_TRACE_VELOCITY_TOLERANCE = 0.000050001
+_PLAYBACK_MAP_DATETIME = re.compile(
+    r"^(?P<year>\d{4})-(?P<month>\d{2})-(?P<day>\d{2})"
+    r"[Tt ](?P<hour>\d{2}):(?P<minute>\d{2}):(?P<second>\d{2})"
+    r"(?:\.(?P<fraction>\d+))?(?P<offset>[Zz]|[+-]\d{2}:\d{2})$"
+)
+
+
+def _parse_bounded_candidate_datetime(value: object) -> datetime:
+    if (
+        not isinstance(value, str)
+        or len(value) > 64
+        or any(ord(character) < 32 or ord(character) == 127 for character in value)
+    ):
+        raise ValueError("candidate date-time is invalid")
+    match = _PLAYBACK_MAP_DATETIME.fullmatch(value)
+    if match is None:
+        raise ValueError("candidate date-time is invalid")
+    second = int(match.group("second"))
+    if second > 60:
+        raise ValueError("candidate date-time is invalid")
+    offset_text = match.group("offset")
+    if offset_text in {"Z", "z"}:
+        offset = timezone.utc
+    else:
+        offset_hour = int(offset_text[1:3])
+        offset_minute = int(offset_text[4:6])
+        if offset_hour > 23 or offset_minute > 59:
+            raise ValueError("candidate date-time is invalid")
+        direction = -1 if offset_text[0] == "-" else 1
+        offset = timezone(
+            direction
+            * timedelta(hours=offset_hour, minutes=offset_minute)
+        )
+    try:
+        # ``datetime`` deliberately rejects leap second 60.  Validate every
+        # other calendar/time field with 59 in its place, while preserving the
+        # RFC 3339 leap-second spelling in the candidate document itself.
+        parsed = datetime(
+            int(match.group("year")),
+            int(match.group("month")),
+            int(match.group("day")),
+            int(match.group("hour")),
+            int(match.group("minute")),
+            min(second, 59),
+            tzinfo=offset,
+        )
+    except ValueError as exc:
+        raise ValueError("candidate date-time is invalid") from exc
+    return parsed
 
 
 def sha256_file(path: str | Path) -> str:
@@ -45,13 +110,343 @@ def sha256_file(path: str | Path) -> str:
     return digest.hexdigest()
 
 
+def _lower_hex(value: object, length: int, *, label: str) -> str:
+    if (
+        not isinstance(value, str)
+        or len(value) != length
+        or re.fullmatch(r"[0-9a-f]+", value) is None
+    ):
+        raise ValueError(f"{label} must be {length} lowercase hexadecimal characters")
+    return value
+
+
+def _candidate_authoring_input(
+    value: object,
+) -> tuple[dict[str, str], dict[str, Any]] | None:
+    if value is None:
+        return None
+    if not isinstance(value, dict) or set(value) != {
+        "project_id",
+        "revision",
+        "authoring_roster",
+    }:
+        raise ValueError("authoring project candidate input has an invalid shape")
+    project_id = _lower_hex(value.get("project_id"), 32, label="project_id")
+    revision = _lower_hex(value.get("revision"), 64, label="revision")
+    authoring_roster = value.get("authoring_roster")
+    if not isinstance(authoring_roster, dict):
+        raise ValueError("authoring_roster must be an object")
+    canonical_sha256 = canonical_json_sha256(authoring_roster)
+    return (
+        {
+            "project_id": project_id,
+            "revision": revision,
+            "authoring_roster_canonical_sha256": canonical_sha256,
+        },
+        authoring_roster,
+    )
+
+
+def _candidate_authoring_manifest_binding(
+    value: object,
+) -> dict[str, Any] | None:
+    if value is None:
+        return None
+    if not isinstance(value, dict) or set(value) != {
+        "project_id",
+        "revision",
+        "authoring_roster",
+    }:
+        raise ValueError("candidate authoring_project binding has an invalid shape")
+    project_id = _lower_hex(value.get("project_id"), 32, label="project_id")
+    revision = _lower_hex(value.get("revision"), 64, label="revision")
+    roster = value.get("authoring_roster")
+    if not isinstance(roster, dict) or set(roster) != {
+        "path",
+        "canonical_sha256",
+        "file_sha256",
+    }:
+        raise ValueError("candidate authoring roster binding has an invalid shape")
+    if roster.get("path") != AUTHORING_ROSTER_CANDIDATE_NAME:
+        raise ValueError("candidate authoring roster path is invalid")
+    canonical_sha256 = _lower_hex(
+        roster.get("canonical_sha256"),
+        64,
+        label="authoring roster canonical hash",
+    )
+    file_sha256 = _lower_hex(
+        roster.get("file_sha256"),
+        64,
+        label="authoring roster file hash",
+    )
+    return {
+        "project_id": project_id,
+        "revision": revision,
+        "authoring_roster": {
+            "path": AUTHORING_ROSTER_CANDIDATE_NAME,
+            "canonical_sha256": canonical_sha256,
+            "file_sha256": file_sha256,
+        },
+    }
+
+
+def _authoring_revision_identity(
+    *,
+    project_id: str,
+    score_sha256: str,
+    authoring_roster_sha256: str,
+    render_profile_sha256: str,
+) -> str:
+    return canonical_json_sha256(
+        {
+            "kind": "tianlai.authoring_revision_binding",
+            "schema_version": 1,
+            "project_id": project_id,
+            "documents": {
+                "score": score_sha256,
+                "authoring_roster": authoring_roster_sha256,
+                "render_profile": render_profile_sha256,
+            },
+        }
+    )
+
+
+def _formal_roster_projection(authoring_roster: object) -> dict[str, Any]:
+    """Project the editable roster onto the exact renderer-facing document."""
+
+    if not isinstance(authoring_roster, dict):
+        raise ValueError("candidate authoring roster must be an object")
+    allowed = {"kind", "schema_version", "name", "assignments"}
+    if (
+        set(authoring_roster) - allowed
+        or authoring_roster.get("kind") != "tianlai.authoring_roster"
+        or authoring_roster.get("schema_version") != 1
+        or not isinstance(authoring_roster.get("assignments"), list)
+        or not authoring_roster["assignments"]
+    ):
+        raise ValueError("candidate authoring roster cannot produce a formal roster")
+    projected: dict[str, Any] = {
+        "assignments": authoring_roster["assignments"],
+    }
+    if "name" in authoring_roster:
+        projected["name"] = authoring_roster["name"]
+    return projected
+
+
+def _verify_authoring_formal_roster(
+    authoring_roster: object,
+    formal_roster: object,
+) -> None:
+    if not isinstance(formal_roster, dict) or canonical_json_sha256(
+        _formal_roster_projection(authoring_roster)
+    ) != canonical_json_sha256(formal_roster):
+        raise ValueError(
+            "candidate formal roster does not match its authoring roster projection"
+        )
+
+
+def _instrument_reference_matches(reference: object, resolved: object) -> bool:
+    if not isinstance(reference, str) or not isinstance(resolved, str):
+        return False
+    if reference == resolved:
+        return True
+    normalized = reference.replace("\\", "/")
+    return "/" not in normalized and resolved.replace("\\", "/").rsplit(
+        "/", 1
+    )[-1] == normalized
+
+
+def _expected_plan_routes(formal_roster: object) -> tuple[str, dict[str, dict[str, Any]]]:
+    if not isinstance(formal_roster, dict):
+        raise ValueError("candidate formal roster must be an object")
+    assignments = formal_roster.get("assignments")
+    if not isinstance(assignments, list) or not assignments:
+        raise ValueError("candidate formal roster assignments are invalid")
+    roster_name = formal_roster.get("name", "未命名编制")
+    if not isinstance(roster_name, str):
+        raise ValueError("candidate formal roster name is invalid")
+    expected: dict[str, dict[str, Any]] = {}
+    for index, assignment in enumerate(assignments):
+        if not isinstance(assignment, dict):
+            raise ValueError(
+                f"candidate formal roster assignments[{index}] is invalid"
+            )
+        part_id = assignment.get("part")
+        if not isinstance(part_id, str) or not part_id:
+            raise ValueError(
+                f"candidate formal roster assignments[{index}].part is invalid"
+            )
+        seat = assignment.get("seat", {})
+        if not isinstance(seat, dict):
+            raise ValueError(
+                f"candidate formal roster assignments[{index}].seat is invalid"
+            )
+        expected_seat = {
+            "azimuth_deg": seat.get("azimuth_deg", 0.0),
+            "distance_m": seat.get("distance_m", 3.0),
+        }
+        common = {
+            "part_id": part_id,
+            "gain_db": assignment.get("gain_db", 0.0),
+            "pan": assignment.get(
+                "pan",
+                max(
+                    -1.0,
+                    min(1.0, float(expected_seat["azimuth_deg"]) / 45.0),
+                ),
+            ),
+            "seat": expected_seat,
+            "duration_scale": assignment.get("duration_scale", 1.0),
+            "dynamic_compression": assignment.get("dynamic_compression", 0.0),
+            "articulation_map": assignment.get("articulation_map", {}),
+        }
+        if "role" in assignment:
+            role = assignment["role"]
+            if not isinstance(role, dict):
+                raise ValueError("candidate formal roster role is invalid")
+            normalized_role = dict(role)
+            if isinstance(normalized_role.get("label"), str):
+                normalized_role["label"] = normalized_role["label"].strip()
+            common["role"] = normalized_role
+        if assignment.get("gain_automation"):
+            common["gain_automation"] = assignment["gain_automation"]
+        if assignment.get("overrides"):
+            common["overrides"] = assignment["overrides"]
+        # When omitted, this value is supplied by the resolved instrument
+        # capability.  Candidate verification is intentionally portable and
+        # cannot consult a possibly changed external capability catalogue.
+        # An explicit author override, however, must survive into the plan.
+        if "articulation_auto" in assignment:
+            common["articulation_auto"] = assignment["articulation_auto"]
+
+        if "instrument" in assignment and "kit" not in assignment:
+            executor_id = assignment.get("executor_id", part_id)
+            if not isinstance(executor_id, str) or not executor_id:
+                raise ValueError("candidate formal roster executor_id is invalid")
+            route = {
+                **common,
+                "executor_id": executor_id,
+                "instrument_reference": assignment["instrument"],
+                "transpose": assignment.get("transpose", 0),
+                "kit_pitch": None,
+            }
+            if executor_id in expected:
+                raise ValueError("candidate formal roster has duplicate executor IDs")
+            expected[executor_id] = route
+            continue
+
+        kit = assignment.get("kit")
+        if "instrument" in assignment or not isinstance(kit, dict) or not kit:
+            raise ValueError("candidate formal roster assignment route is invalid")
+        for notehead, reference in sorted(kit.items()):
+            if not isinstance(notehead, str):
+                raise ValueError("candidate formal roster kit pitch is invalid")
+            canonical_pitch = pitch_name(parse_pitch(notehead))
+            executor_id = f"{part_id}.{canonical_pitch}"
+            transpose = assignment.get("transpose", 0)
+            instrument_reference: object = reference
+            if isinstance(reference, dict):
+                instrument_reference = reference.get("instrument")
+                transpose = reference.get("transpose", transpose)
+            route = {
+                **common,
+                "executor_id": executor_id,
+                "instrument_reference": instrument_reference,
+                "transpose": transpose,
+                "kit_pitch": canonical_pitch,
+            }
+            if executor_id in expected:
+                raise ValueError("candidate formal roster has duplicate executor IDs")
+            expected[executor_id] = route
+    return roster_name, expected
+
+
+def _verify_formal_roster_plan(
+    formal_roster: object,
+    performance_plan: object,
+) -> None:
+    if not isinstance(performance_plan, dict):
+        raise ValueError("candidate performance plan must be an object")
+    roster_name, expected = _expected_plan_routes(formal_roster)
+    if performance_plan.get("roster") != roster_name:
+        raise ValueError("candidate performance plan disagrees with formal roster name")
+    parts = performance_plan.get("parts")
+    if not isinstance(parts, list) or len(parts) != len(expected):
+        raise ValueError("candidate performance plan disagrees with formal roster routes")
+    actual: dict[str, dict[str, Any]] = {}
+    for part in parts:
+        if not isinstance(part, dict):
+            raise ValueError("candidate performance plan route is invalid")
+        executor_id = part.get("executor_id")
+        if not isinstance(executor_id, str) or executor_id in actual:
+            raise ValueError("candidate performance plan executor identity is invalid")
+        actual[executor_id] = part
+    if set(actual) != set(expected):
+        raise ValueError("candidate performance plan disagrees with formal roster routes")
+    for executor_id, route in expected.items():
+        part = actual[executor_id]
+        if not _instrument_reference_matches(
+            route["instrument_reference"], part.get("instrument")
+        ):
+            raise ValueError(
+                "candidate performance plan disagrees with formal roster instrument"
+            )
+        for key, value in route.items():
+            if key == "instrument_reference":
+                continue
+            if part.get(key) != value:
+                raise ValueError(
+                    "candidate performance plan disagrees with formal roster "
+                    f"route field {key}"
+                )
+        for optional in ("role", "gain_automation", "overrides"):
+            if optional not in route and optional in part:
+                raise ValueError(
+                    "candidate performance plan disagrees with formal roster "
+                    f"route field {optional}"
+                )
+
+
+def _receipt_performance_plan(
+    directory: Path,
+    receipt_document: object,
+    *,
+    expected_sha256: str,
+) -> dict[str, Any]:
+    if not isinstance(receipt_document, dict):
+        raise ValueError("render receipt must be an object")
+    binding = receipt_document.get("performance_plan")
+    if not isinstance(binding, dict):
+        raise ValueError("render receipt has no performance_plan binding")
+    plan_path = _bound_artifact_path(
+        directory,
+        binding.get("path", ""),
+        label="performance plan",
+    )
+    if sha256_file(plan_path) != binding.get("file_sha256"):
+        raise ValueError("render receipt performance plan file hash mismatch")
+    try:
+        plan_document = json.loads(plan_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ValueError("render receipt performance plan is invalid JSON") from exc
+    if not isinstance(plan_document, dict):
+        raise ValueError("render receipt performance plan must be an object")
+    canonical_sha256 = canonical_json_sha256(plan_document)
+    if (
+        canonical_sha256 != binding.get("sha256")
+        or canonical_sha256 != expected_sha256
+    ):
+        raise ValueError("render receipt performance plan hash mismatch")
+    return plan_document
+
+
 def portable_slug(text: object, *, maximum_length: int = 72) -> str:
     original = unicodedata.normalize("NFC", str(text)).strip()
     cleaned = re.sub(r'[<>:"/\\|?*\x00-\x1f]+', "_", original)
     cleaned = re.sub(r"\s+", " ", cleaned).strip(" ._")
     if not cleaned:
         cleaned = "untitled"
-    if cleaned.split(".", 1)[0].upper() in _WINDOWS_RESERVED:
+    if is_windows_reserved_filename(cleaned):
         cleaned = f"_{cleaned}"
     digest = hashlib.sha256(original.encode("utf-8")).hexdigest()[:10]
     suffix = f"-{digest}"
@@ -67,21 +462,26 @@ def new_candidate_id(plan_sha256: str | None = None) -> str:
 
 def _write_json_atomic(path: Path, value: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
-    try:
-        temporary.write_text(
-            json.dumps(
-                value,
-                ensure_ascii=False,
-                allow_nan=False,
-                indent=2,
-            )
-            + "\n",
-            encoding="utf-8",
+    payload = (
+        json.dumps(
+            value, ensure_ascii=False, allow_nan=False, indent=2
         )
-        temporary.replace(path)
-    finally:
-        temporary.unlink(missing_ok=True)
+        + "\n"
+    )
+    descriptor, temporary_name = tempfile.mkstemp(
+        dir=path.parent,
+        prefix=f".{path.name}.",
+        suffix=".tmp",
+    )
+    temporary = Path(temporary_name)
+    with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as output:
+        output.write(payload)
+        output.flush()
+        os.fsync(output.fileno())
+    # On success the temporary name ceases to exist.  On failure it is
+    # deliberately preserved: deleting a mutable pathname here could erase a
+    # file installed by another writer after the failed replace.
+    os.replace(temporary, path)
 
 
 @dataclass(frozen=True, slots=True)
@@ -92,6 +492,18 @@ class CandidateTarget:
     replacing: bool
     expected_receipt_sha256: str | None = None
     expected_manifest_sha256: str | None = None
+    work_directory_identity: PlainDirectoryIdentity | None = None
+    directory_identity: PlainDirectoryIdentity | None = None
+
+
+class CandidateAlreadyExistsError(FileExistsError):
+    """One immutable candidate ID was already committed by another writer."""
+
+
+@dataclass(frozen=True, slots=True)
+class _CommittedBackup:
+    path: Path
+    identity: PlainDirectoryIdentity
 
 
 def _path_exists(path: Path) -> bool:
@@ -109,12 +521,20 @@ def _is_plain_directory(path: Path) -> bool:
         return False
 
 
-def _previous_directories(final: Path) -> tuple[Path, ...]:
+def _previous_directories(
+    final: Path,
+    *,
+    parent_identity: PlainDirectoryIdentity | None = None,
+) -> tuple[Path, ...]:
     prefix = f".{final.name}."
     suffix = ".previous"
+    if parent_identity is not None:
+        parent = revalidate_plain_directory(parent_identity)
+        if final.parent != parent:
+            raise ValueError("candidate recovery path escaped its verified parent")
     if not final.parent.is_dir():
         return ()
-    return tuple(
+    result = tuple(
         sorted(
             (
                 child
@@ -125,6 +545,9 @@ def _previous_directories(final: Path) -> tuple[Path, ...]:
             key=lambda child: child.name,
         )
     )
+    if parent_identity is not None:
+        revalidate_plain_directory(parent_identity)
+    return result
 
 
 def _expected_backup_path(target: CandidateTarget) -> Path:
@@ -189,8 +612,12 @@ def _recover_previous_if_safe(
     candidate_id: str,
     overwrite: bool,
     expected_receipt_sha256: str | None,
+    parent_identity: PlainDirectoryIdentity | None = None,
 ) -> None:
-    previous = _previous_directories(final)
+    previous = _previous_directories(
+        final,
+        parent_identity=parent_identity,
+    )
     if not previous:
         return
     paths = ", ".join(str(path) for path in previous)
@@ -249,7 +676,11 @@ def _recover_previous_if_safe(
             f"拒绝恢复: {backup}"
         )
 
+    if parent_identity is not None:
+        revalidate_plain_directory(parent_identity)
     os.replace(backup, final)
+    if parent_identity is not None:
+        revalidate_plain_directory(parent_identity)
     try:
         _verify_candidate_generation(
             final,
@@ -293,15 +724,21 @@ def prepare_candidate_target(
         if output_id is None
         else portable_slug(output_id, maximum_length=96)
     )
-    root = Path(output_root).expanduser().resolve()
-    directory = root / work_id / candidate_id
-    with acquire_render_lock(directory):
+    root_request = Path(output_root).expanduser()
+    if not root_request.is_absolute():
+        root_request = root_request.absolute()
+    root_identity = ensure_plain_directory_tree(root_request)
+    work_identity = ensure_authorized_child_directory(root_identity, work_id)
+    directory = work_identity.path / candidate_id
+    with acquire_render_lock(directory, parent_identity=work_identity):
+        revalidate_plain_directory(work_identity)
         _recover_previous_if_safe(
             directory,
             work_id=work_id,
             candidate_id=candidate_id,
             overwrite=overwrite,
             expected_receipt_sha256=expected_receipt,
+            parent_identity=work_identity,
         )
         if not _path_exists(directory):
             return CandidateTarget(
@@ -311,9 +748,11 @@ def prepare_candidate_target(
                 False,
                 None,
                 None,
+                work_identity,
+                None,
             )
         if not overwrite:
-            raise FileExistsError(
+            raise CandidateAlreadyExistsError(
                 f"候选目录已存在，默认拒绝覆盖: {directory}"
             )
         if not _is_plain_directory(directory):
@@ -346,6 +785,8 @@ def prepare_candidate_target(
             expected_work_id=work_id,
             expected_candidate_id=candidate_id,
         )
+        directory_identity = capture_plain_directory(directory)
+        revalidate_plain_directory(work_identity)
         return CandidateTarget(
             work_id,
             candidate_id,
@@ -353,6 +794,8 @@ def prepare_candidate_target(
             True,
             expected_receipt,
             manifest_sha256,
+            work_identity,
+            directory_identity,
         )
 
 
@@ -363,6 +806,20 @@ def _verify_replacement_identity(target: CandidateTarget) -> None:
         raise ValueError(
             "覆盖现有候选缺少准备阶段记录的完整身份"
         )
+    if target.work_directory_identity is not None:
+        try:
+            revalidate_plain_directory(target.work_directory_identity)
+        except OSError as exc:
+            raise ValueError(
+                "candidate work directory \u53d1\u751f\u53d8\u5316 during render"
+            ) from exc
+    if target.directory_identity is not None:
+        try:
+            revalidate_plain_directory(target.directory_identity)
+        except OSError as exc:
+            raise ValueError(
+                "existing candidate \u53d1\u751f\u53d8\u5316 during render"
+            ) from exc
     if not _is_plain_directory(target.directory):
         raise ValueError(
             "覆盖候选目标必须是普通目录，不能是符号链接或目录联接"
@@ -429,20 +886,79 @@ def _safe_cleanup_private_directory(
     parent: Path,
     prefix: str,
     label: str,
+    parent_identity: PlainDirectoryIdentity | None = None,
+    directory_identity: PlainDirectoryIdentity | None = None,
 ) -> None:
+    """Move a private transaction entry out of the active namespace.
+
+    An identity check cannot bind a later path lookup.  Recursive deletion
+    could therefore erase a directory installed after the check, especially
+    where ``shutil.rmtree`` has no descriptor-based traversal.  Cleanup uses
+    only a same-parent rename to a recoverable name.  The preserved entry no
+    longer has a ``.staging`` or ``.previous`` suffix, so it cannot block a
+    later publication or recovery attempt.
+    """
+
     try:
-        resolved_parent = parent.resolve()
-        resolved = path.resolve()
+        if parent_identity is None:
+            parent_identity = capture_plain_directory(parent)
+        resolved_parent = revalidate_plain_directory(parent_identity)
         if (
-            resolved.parent != resolved_parent
+            path.parent != resolved_parent
             or not path.name.startswith(prefix)
-            or path.is_symlink()
+            or path != resolved_parent / path.name
         ):
             raise RuntimeError(
                 f"拒绝清理身份异常的{label}: {path}"
             )
-        if resolved.exists():
-            shutil.rmtree(resolved)
+        if directory_identity is None:
+            directory_identity = capture_plain_directory(path)
+        identity_changed = False
+        try:
+            revalidate_plain_directory(directory_identity)
+        except BaseException:
+            # The checked entry has already been replaced.  Renaming the
+            # current directory entry is recoverable; deleting it is not.
+            identity_changed = True
+        revalidate_plain_directory(parent_identity)
+        if not os.path.lexists(path):
+            return
+        preserved: Path | None = None
+        for _ in range(16):
+            candidate = resolved_parent / (
+                f"{path.name}.cleanup-preserved-{uuid.uuid4().hex}"
+            )
+            if os.path.lexists(candidate):
+                continue
+            try:
+                # os.rename does not replace an existing destination on
+                # Windows.  A random suffix also makes accidental collision
+                # negligible on platforms with different rename semantics.
+                os.rename(path, candidate)
+            except FileExistsError:
+                continue
+            preserved = candidate
+            break
+        if preserved is None:
+            raise RuntimeError(f"无法为{label}预留安全的保全名称")
+        revalidate_plain_directory(parent_identity)
+        if not identity_changed:
+            try:
+                moved_identity = capture_plain_directory(preserved)
+                if (
+                    moved_identity.device != directory_identity.device
+                    or moved_identity.inode != directory_identity.inode
+                ):
+                    identity_changed = True
+            except BaseException:
+                identity_changed = True
+        if identity_changed:
+            warnings.warn(
+                f"{label} identity changed during cleanup; the replacement "
+                f"was safely preserved at {preserved}",
+                RuntimeWarning,
+                stacklevel=3,
+            )
     except BaseException as exc:
         try:
             warnings.warn(
@@ -460,19 +976,35 @@ def _safe_cleanup_private_directory(
 def _commit_candidate_staging(
     staging: Path,
     target: CandidateTarget,
-) -> Path | None:
+) -> _CommittedBackup | None:
     """Move one fully verified staging generation into its final location."""
 
     final = target.directory
+    work_identity = target.work_directory_identity
+    if work_identity is None:
+        work_identity = capture_plain_directory(final.parent)
+    revalidate_plain_directory(work_identity)
+    staging_identity = capture_plain_directory(staging)
     if staging.parent != final.parent:
         raise ValueError("候选暂存目录必须与最终目录位于同一父目录")
     if not target.replacing:
         if _path_exists(final):
-            raise FileExistsError(
+            raise CandidateAlreadyExistsError(
                 f"候选目录在渲染期间被创建，拒绝覆盖: {final}"
             )
+        revalidate_plain_directory(work_identity)
+        revalidate_plain_directory(staging_identity)
         os.replace(staging, final)
         try:
+            revalidate_plain_directory(work_identity)
+            moved_identity = capture_plain_directory(final)
+            if (
+                moved_identity.device != staging_identity.device
+                or moved_identity.inode != staging_identity.inode
+            ):
+                raise RuntimeError(
+                    "candidate staging identity changed during commit"
+                )
             _verify_candidate_generation(
                 final,
                 expected_work_id=target.work_id,
@@ -491,14 +1023,26 @@ def _commit_candidate_staging(
             raise verification_error
         return None
 
+    revalidate_plain_directory(work_identity)
     _verify_replacement_identity(target)
     backup = _expected_backup_path(target)
     if _path_exists(backup):
         raise RuntimeError(
             f"确定身份的旧候选备份已存在，拒绝覆盖: {backup}"
         )
+    final_identity = target.directory_identity or capture_plain_directory(final)
+    revalidate_plain_directory(final_identity)
     os.replace(final, backup)
     try:
+        revalidate_plain_directory(work_identity)
+        backup_identity = capture_plain_directory(backup)
+        if (
+            backup_identity.device != final_identity.device
+            or backup_identity.inode != final_identity.inode
+        ):
+            raise RuntimeError(
+                "existing candidate identity changed during backup"
+            )
         backup_target = CandidateTarget(
             target.work_id,
             target.candidate_id,
@@ -506,9 +1050,20 @@ def _commit_candidate_staging(
             True,
             target.expected_receipt_sha256,
             target.expected_manifest_sha256,
+            work_identity,
+            backup_identity,
         )
         _verify_replacement_identity(backup_target)
+        revalidate_plain_directory(work_identity)
+        revalidate_plain_directory(staging_identity)
         os.replace(staging, final)
+        revalidate_plain_directory(work_identity)
+        moved_identity = capture_plain_directory(final)
+        if (
+            moved_identity.device != staging_identity.device
+            or moved_identity.inode != staging_identity.inode
+        ):
+            raise RuntimeError("candidate staging identity changed during commit")
         _verify_candidate_generation(
             final,
             expected_work_id=target.work_id,
@@ -522,7 +1077,7 @@ def _commit_candidate_staging(
             publish_error=publish_error,
         )
         raise publish_error
-    return backup
+    return _CommittedBackup(backup, backup_identity)
 
 
 @contextmanager
@@ -535,9 +1090,20 @@ def candidate_publication(target: CandidateTarget):
     """
 
     parent = target.directory.parent
-    parent.mkdir(parents=True, exist_ok=True)
-    with acquire_render_lock(target.directory):
-        residuals = _previous_directories(target.directory)
+    work_identity = target.work_directory_identity
+    if work_identity is None:
+        work_identity = capture_plain_directory(parent)
+    if revalidate_plain_directory(work_identity) != parent:
+        raise ValueError("candidate target escaped its verified work directory")
+    with acquire_render_lock(
+        target.directory,
+        parent_identity=work_identity,
+    ):
+        revalidate_plain_directory(work_identity)
+        residuals = _previous_directories(
+            target.directory,
+            parent_identity=work_identity,
+        )
         if residuals:
             raise RuntimeError(
                 "候选发布前发现 .previous 事务残留，已失败关闭: "
@@ -546,7 +1112,7 @@ def candidate_publication(target: CandidateTarget):
         if target.replacing:
             _verify_replacement_identity(target)
         elif _path_exists(target.directory):
-            raise FileExistsError(
+            raise CandidateAlreadyExistsError(
                 f"候选目录在准备后被创建，拒绝覆盖: {target.directory}"
             )
 
@@ -558,6 +1124,8 @@ def candidate_publication(target: CandidateTarget):
                 dir=parent,
             )
         ).resolve()
+        revalidate_plain_directory(work_identity)
+        staging_identity = capture_plain_directory(staging)
         staged_target = CandidateTarget(
             target.work_id,
             target.candidate_id,
@@ -565,11 +1133,15 @@ def candidate_publication(target: CandidateTarget):
             False,
             None,
             None,
+            work_identity,
+            staging_identity,
         )
         committed = False
-        backup: Path | None = None
+        backup: _CommittedBackup | None = None
         try:
             yield staged_target
+            revalidate_plain_directory(work_identity)
+            revalidate_plain_directory(staging_identity)
             _verify_candidate_generation(
                 staging,
                 expected_work_id=target.work_id,
@@ -583,13 +1155,17 @@ def candidate_publication(target: CandidateTarget):
                     staging,
                     parent=parent,
                     prefix=staging_prefix,
+                    parent_identity=work_identity,
+                    directory_identity=staging_identity,
                     label="未发布候选暂存目录",
                 )
         if backup is not None:
             _safe_cleanup_private_directory(
-                backup,
+                backup.path,
                 parent=parent,
                 prefix=f".{target.directory.name}.",
+                parent_identity=work_identity,
+                directory_identity=backup.identity,
                 label="已提交候选的旧版本备份",
             )
 
@@ -604,26 +1180,118 @@ def publish_candidate_metadata(
     receipt_path: str | Path,
     plan_sha256: str,
     parent_candidate_id: str | None = None,
+    authoring_project: dict[str, Any] | None = None,
+    authoring_workflow: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Write source documents and install the candidate manifest last."""
 
-    directory = target.directory.resolve()
+    if target.work_directory_identity is not None:
+        revalidate_plain_directory(target.work_directory_identity)
+    if target.directory_identity is not None:
+        directory = revalidate_plain_directory(target.directory_identity)
+    else:
+        directory = target.directory.resolve()
+    if directory != target.directory:
+        raise ValueError("candidate metadata target changed identity")
     receipt = Path(receipt_path).resolve()
     if receipt.parent != directory or not receipt.is_file():
         raise ValueError("render receipt must be inside the candidate directory")
+    authoring_input = _candidate_authoring_input(authoring_project)
+    workflow_input = validate_workflow_authorization(authoring_workflow)
+    if workflow_input is not None:
+        if authoring_input is None:
+            raise ValueError(
+                "authoring workflow binding requires an authoring project"
+            )
+        authoring_identity, _authoring_roster = authoring_input
+        if (
+            workflow_input["project_id"] != authoring_identity["project_id"]
+            or workflow_input["authoring_revision"]
+            != authoring_identity["revision"]
+            or workflow_input["candidate_work_id"] != target.work_id
+            or workflow_input["candidate_id"] != target.candidate_id
+            or workflow_input["parent_candidate_id"] != parent_candidate_id
+        ):
+            raise ValueError(
+                "authoring workflow binding disagrees with candidate identity"
+            )
+    try:
+        receipt_document = json.loads(receipt.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ValueError("render receipt must be valid UTF-8 JSON") from exc
+    if not isinstance(receipt_document, dict):
+        raise ValueError("render receipt must be an object")
+    if authoring_input is None:
+        if "authoring_project" in receipt_document:
+            raise ValueError(
+                "render receipt has an unmanifested authoring project binding"
+            )
+    else:
+        expected_receipt_binding, authoring_roster = authoring_input
+        if receipt_document.get("authoring_project") != expected_receipt_binding:
+            raise ValueError(
+                "render receipt disagrees with the authoring project identity"
+            )
+        expected_revision = _authoring_revision_identity(
+            project_id=expected_receipt_binding["project_id"],
+            score_sha256=canonical_json_sha256(score),
+            authoring_roster_sha256=expected_receipt_binding[
+                "authoring_roster_canonical_sha256"
+            ],
+            render_profile_sha256=canonical_json_sha256(render_profile),
+        )
+        if expected_revision != expected_receipt_binding["revision"]:
+            raise ValueError(
+                "authoring revision binding does not match candidate documents"
+            )
+        _verify_authoring_formal_roster(authoring_roster, roster)
+        performance_plan = _receipt_performance_plan(
+            directory,
+            receipt_document,
+            expected_sha256=plan_sha256,
+        )
+        _verify_formal_roster_plan(roster, performance_plan)
+    receipt_workflow = receipt_document.get("authoring_workflow")
+    if workflow_input is None:
+        if "authoring_workflow" in receipt_document:
+            raise ValueError(
+                "render receipt has an unmanifested authoring workflow binding"
+            )
+    elif receipt_workflow != workflow_input:
+        raise ValueError(
+            "render receipt disagrees with the authoring workflow authorization"
+        )
     score_path = directory / "score.json"
     roster_path = directory / "roster.json"
     profile_path = directory / "render-profile.json"
     _write_json_atomic(score_path, score)
     _write_json_atomic(roster_path, roster)
     _write_json_atomic(profile_path, render_profile)
+    if target.directory_identity is not None:
+        revalidate_plain_directory(target.directory_identity)
+    authoring_manifest_binding: dict[str, Any] | None = None
+    if authoring_input is not None:
+        receipt_authoring_binding, authoring_roster = authoring_input
+        authoring_roster_path = directory / AUTHORING_ROSTER_CANDIDATE_NAME
+        _write_json_atomic(authoring_roster_path, authoring_roster)
+        authoring_manifest_binding = {
+            "project_id": receipt_authoring_binding["project_id"],
+            "revision": receipt_authoring_binding["revision"],
+            "authoring_roster": {
+                "path": authoring_roster_path.name,
+                "canonical_sha256": receipt_authoring_binding[
+                    "authoring_roster_canonical_sha256"
+                ],
+                "file_sha256": sha256_file(authoring_roster_path),
+            },
+        }
     manifest = {
         "format": CANDIDATE_FORMAT,
         "version": CANDIDATE_VERSION,
         "candidate_id": target.candidate_id,
         "work_id": target.work_id,
         "title": title,
-        "created_at_utc": datetime.now(timezone.utc).isoformat(),
+        "created_at_utc": canonical_utc_now(),
         "parent_candidate_id": parent_candidate_id,
         "project": {
             "score": {
@@ -648,6 +1316,10 @@ def publish_candidate_metadata(
             "sha256": sha256_file(receipt),
         },
     }
+    if authoring_manifest_binding is not None:
+        manifest["authoring_project"] = authoring_manifest_binding
+    if workflow_input is not None:
+        manifest["authoring_workflow"] = workflow_input
     cache_telemetry = directory / CACHE_TELEMETRY_NAME
     if cache_telemetry.exists() or cache_telemetry.is_symlink():
         if cache_telemetry.is_symlink() or not cache_telemetry.is_file():
@@ -658,6 +1330,8 @@ def publish_candidate_metadata(
             "path": cache_telemetry.name,
             "sha256": sha256_file(cache_telemetry),
         }
+    if target.directory_identity is not None:
+        revalidate_plain_directory(target.directory_identity)
     _write_json_atomic(directory / CANDIDATE_MANIFEST_NAME, manifest)
     return manifest
 
@@ -704,12 +1378,70 @@ def load_candidate(
     directory = _candidate_directory(path)
     manifest_path = directory / CANDIDATE_MANIFEST_NAME
     document = json.loads(manifest_path.read_text(encoding="utf-8"))
+    version = document.get("version") if isinstance(document, dict) else None
     if (
         not isinstance(document, dict)
         or document.get("format") != CANDIDATE_FORMAT
-        or document.get("version") != CANDIDATE_VERSION
+        or isinstance(version, bool)
+        or version not in _SUPPORTED_CANDIDATE_VERSIONS
     ):
         raise ValueError("unsupported candidate manifest")
+    created_at_utc = document.get("created_at_utc")
+    if version == CANDIDATE_VERSION:
+        try:
+            validate_canonical_utc_timestamp(created_at_utc)
+        except ValueError as exc:
+            raise ValueError(
+                "candidate created_at_utc is not canonical UTC"
+            ) from exc
+    else:
+        try:
+            _parse_bounded_candidate_datetime(created_at_utc)
+        except ValueError as exc:
+            raise ValueError(
+                "legacy candidate created_at_utc is invalid"
+            ) from exc
+    if "authoring_project" in document:
+        authoring_binding = _candidate_authoring_manifest_binding(
+            document.get("authoring_project")
+        )
+        if authoring_binding is None:
+            raise ValueError("candidate authoring_project binding cannot be null")
+    else:
+        authoring_binding = None
+    if "authoring_workflow" in document:
+        try:
+            workflow_binding = validate_workflow_authorization(
+                document.get("authoring_workflow"),
+                allow_none=False,
+            )
+        except ValueError as exc:
+            raise ValueError(
+                "candidate authoring_workflow binding is invalid"
+            ) from exc
+    else:
+        workflow_binding = None
+    if workflow_binding is not None:
+        if version != CANDIDATE_VERSION:
+            raise ValueError(
+                "managed authoring workflow requires the current candidate version"
+            )
+        if authoring_binding is None:
+            raise ValueError(
+                "candidate authoring workflow lacks an authoring project binding"
+            )
+        if (
+            workflow_binding["project_id"] != authoring_binding["project_id"]
+            or workflow_binding["authoring_revision"]
+            != authoring_binding["revision"]
+            or workflow_binding["candidate_work_id"] != document.get("work_id")
+            or workflow_binding["candidate_id"] != document.get("candidate_id")
+            or workflow_binding["parent_candidate_id"]
+            != document.get("parent_candidate_id")
+        ):
+            raise ValueError(
+                "candidate authoring workflow and candidate identity disagree"
+            )
     _verify_candidate_identity(
         document,
         expected_work_id=(
@@ -724,6 +1456,8 @@ def load_candidate(
         ),
     )
     if verify:
+        verified_project_hashes: dict[str, str] = {}
+        verified_project_documents: dict[str, dict[str, Any]] = {}
         for key in ("score", "roster", "render_profile"):
             project = document.get("project")
             if not isinstance(project, dict):
@@ -739,10 +1473,14 @@ def load_candidate(
             if sha256_file(source) != binding.get("file_sha256"):
                 raise ValueError(f"candidate {key} file hash mismatch")
             value = json.loads(source.read_text(encoding="utf-8"))
+            if not isinstance(value, dict):
+                raise ValueError(f"candidate {key} must be an object")
             if canonical_json_sha256(value) != binding.get(
                 "canonical_sha256"
             ):
                 raise ValueError(f"candidate {key} canonical hash mismatch")
+            verified_project_hashes[key] = binding["canonical_sha256"]
+            verified_project_documents[key] = value
         receipt_binding = document.get("render_receipt")
         if not isinstance(receipt_binding, dict):
             raise ValueError("candidate render_receipt binding is missing")
@@ -757,6 +1495,81 @@ def load_candidate(
         )
         if sha256_file(receipt) != receipt_binding.get("sha256"):
             raise ValueError("candidate render receipt hash mismatch")
+        try:
+            receipt_document = json.loads(receipt.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            raise ValueError("candidate render receipt is invalid JSON") from exc
+        if not isinstance(receipt_document, dict):
+            raise ValueError("candidate render receipt must be an object")
+        receipt_workflow = receipt_document.get("authoring_workflow")
+        if workflow_binding is None:
+            if "authoring_workflow" in receipt_document:
+                raise ValueError(
+                    "candidate receipt has an unmanifested workflow binding"
+                )
+        elif receipt_workflow != workflow_binding:
+            raise ValueError(
+                "candidate manifest and receipt disagree on workflow authorization"
+            )
+        authoring_artifact = directory / AUTHORING_ROSTER_CANDIDATE_NAME
+        if authoring_binding is None:
+            if "authoring_project" in receipt_document:
+                raise ValueError(
+                    "candidate receipt has an unmanifested authoring binding"
+                )
+            if authoring_artifact.exists() or authoring_artifact.is_symlink():
+                raise ValueError(
+                    "candidate authoring roster exists without a manifest binding"
+                )
+        else:
+            roster_binding = authoring_binding["authoring_roster"]
+            roster_path = _bound_artifact_path(
+                directory,
+                roster_binding["path"],
+                label="authoring roster",
+            )
+            if sha256_file(roster_path) != roster_binding["file_sha256"]:
+                raise ValueError("candidate authoring roster file hash mismatch")
+            try:
+                authoring_roster_document = json.loads(
+                    roster_path.read_text(encoding="utf-8")
+                )
+            except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+                raise ValueError("candidate authoring roster is invalid JSON") from exc
+            if (
+                canonical_json_sha256(authoring_roster_document)
+                != roster_binding["canonical_sha256"]
+            ):
+                raise ValueError(
+                    "candidate authoring roster canonical hash mismatch"
+                )
+            computed_revision = _authoring_revision_identity(
+                project_id=authoring_binding["project_id"],
+                score_sha256=verified_project_hashes["score"],
+                authoring_roster_sha256=roster_binding["canonical_sha256"],
+                render_profile_sha256=verified_project_hashes[
+                    "render_profile"
+                ],
+            )
+            if computed_revision != authoring_binding["revision"]:
+                raise ValueError(
+                    "candidate authoring revision binding does not match its documents"
+                )
+            expected_receipt_authoring = {
+                "project_id": authoring_binding["project_id"],
+                "revision": authoring_binding["revision"],
+                "authoring_roster_canonical_sha256": roster_binding[
+                    "canonical_sha256"
+                ],
+            }
+            if receipt_document.get("authoring_project") != expected_receipt_authoring:
+                raise ValueError(
+                    "candidate manifest and receipt disagree on authoring identity"
+                )
+            _verify_authoring_formal_roster(
+                authoring_roster_document,
+                verified_project_documents["roster"],
+            )
         telemetry_binding = document.get("cache_telemetry")
         telemetry_path = directory / CACHE_TELEMETRY_NAME
         telemetry_exists = (
@@ -788,7 +1601,6 @@ def load_candidate(
                     "candidate cache telemetry hash mismatch"
                 )
         verify_render_generation(directory)
-        receipt_document = json.loads(receipt.read_text(encoding="utf-8"))
         performance_plan = receipt_document.get("performance_plan")
         if (
             not isinstance(performance_plan, dict)
@@ -798,7 +1610,51 @@ def load_candidate(
             raise ValueError(
                 "candidate manifest and render receipt disagree on plan Hash"
             )
+        if authoring_binding is not None:
+            plan_document = _receipt_performance_plan(
+                directory,
+                receipt_document,
+                expected_sha256=document["project"][
+                    "performance_plan_sha256"
+                ],
+            )
+            _verify_formal_roster_plan(
+                verified_project_documents["roster"],
+                plan_document,
+            )
     return directory, document
+
+
+def _playback_map_json_snapshot(
+    path: Path,
+    *,
+    label: str,
+) -> tuple[dict[str, Any], str]:
+    try:
+        payload = path.read_bytes()
+        document = json.loads(payload.decode("utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ValueError(
+            f"candidate playback map {label} is not valid UTF-8 JSON"
+        ) from exc
+    if not isinstance(document, dict):
+        raise ValueError(f"candidate playback map {label} must be an object")
+    return document, hashlib.sha256(payload).hexdigest()
+
+
+def _playback_map_file_snapshot(path: Path) -> tuple[str, int]:
+    digest = hashlib.sha256()
+    size_bytes = 0
+    try:
+        with path.open("rb") as source:
+            for block in iter(lambda: source.read(1024 * 1024), b""):
+                digest.update(block)
+                size_bytes += len(block)
+    except OSError as exc:
+        raise ValueError(
+            "candidate playback map rendered mix could not be read"
+        ) from exc
+    return digest.hexdigest(), size_bytes
 
 
 def _verified_plan(
@@ -811,7 +1667,12 @@ def _verified_plan(
         receipt_binding["path"],
         label="render receipt",
     )
-    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    receipt, receipt_sha256 = _playback_map_json_snapshot(
+        receipt_path,
+        label="render receipt",
+    )
+    if receipt_sha256 != receipt_binding.get("sha256"):
+        raise ValueError("candidate render receipt hash mismatch")
     plan_binding = receipt.get("performance_plan")
     if not isinstance(plan_binding, dict):
         raise ValueError("render receipt has no performance_plan binding")
@@ -820,9 +1681,12 @@ def _verified_plan(
         plan_binding.get("path", ""),
         label="performance plan",
     )
-    if sha256_file(plan_path) != plan_binding.get("file_sha256"):
+    plan, plan_file_sha256 = _playback_map_json_snapshot(
+        plan_path,
+        label="performance plan",
+    )
+    if plan_file_sha256 != plan_binding.get("file_sha256"):
         raise ValueError("candidate performance plan file hash mismatch")
-    plan = json.loads(plan_path.read_text(encoding="utf-8"))
     if canonical_json_sha256(plan) != plan_binding.get("sha256"):
         raise ValueError("candidate performance plan canonical hash mismatch")
     if (
@@ -831,6 +1695,762 @@ def _verified_plan(
     ):
         raise ValueError("candidate manifest and receipt disagree on plan Hash")
     return plan, receipt
+
+
+def _playback_map_finite_number(value: object, *, label: str) -> float:
+    if isinstance(value, bool):
+        raise ValueError(f"candidate playback map {label} must be a finite number")
+    try:
+        number = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            f"candidate playback map {label} must be a finite number"
+        ) from exc
+    if not math.isfinite(number):
+        raise ValueError(f"candidate playback map {label} must be a finite number")
+    return number
+
+
+def _playback_map_positive_integer(value: object, *, label: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        raise ValueError(
+            f"candidate playback map {label} must be a positive integer"
+        )
+    return value
+
+
+def _playback_map_required_string(value: object, *, label: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(
+            f"candidate playback map {label} must be a non-empty string"
+        )
+    return value
+
+
+def _playback_map_frame(
+    seconds: object,
+    *,
+    sample_rate: int,
+    label: str,
+) -> tuple[float, int]:
+    time_seconds = _playback_map_finite_number(seconds, label=label)
+    if time_seconds < 0.0:
+        raise ValueError(
+            f"candidate playback map {label} must not be negative"
+        )
+    return time_seconds, round(time_seconds * sample_rate)
+
+
+def _playback_map_trace(
+    trace: object,
+    *,
+    label: str,
+    stable_identity: bool,
+) -> dict[str, Any]:
+    if not isinstance(trace, dict):
+        raise ValueError(f"candidate playback map {label} must be an object")
+    if stable_identity:
+        bar: int | None = _playback_map_positive_integer(
+            trace.get("小节"),
+            label=f"{label}.小节",
+        )
+        beat: float | None = _playback_map_finite_number(
+            trace.get("拍"),
+            label=f"{label}.拍",
+        )
+        if beat < 1.0:
+            raise ValueError(
+                f"candidate playback map {label}.拍 must be at least 1"
+            )
+    else:
+        # Legacy scores have no event identity that can bind these notation
+        # coordinates to the scheduled note.  Keep the candidate usable, but
+        # do not present positional trace labels as verified score facts.
+        bar = None
+        beat = None
+    sounding_pitch = _playback_map_required_string(
+        trace.get("音"),
+        label=f"{label}.音",
+    )
+    articulation = trace.get("奏法")
+    if articulation is not None and not isinstance(articulation, str):
+        raise ValueError(
+            f"candidate playback map {label}.奏法 must be a string or null"
+        )
+    raw_velocity = trace.get("力度")
+    resolved_velocity = (
+        None
+        if raw_velocity is None
+        else _playback_map_finite_number(
+            raw_velocity,
+            label=f"{label}.力度",
+        )
+    )
+    if resolved_velocity is not None and not 0.0 <= resolved_velocity <= 1.0:
+        raise ValueError(
+            f"candidate playback map {label}.力度 must be within [0, 1]"
+        )
+    return {
+        "bar": bar,
+        "beat": beat,
+        "sounding_pitch": sounding_pitch,
+        "resolved_articulation": articulation,
+        "resolved_velocity": resolved_velocity,
+    }
+
+
+def _playback_map_candidate_metadata(candidate: dict[str, Any]) -> dict[str, Any]:
+    title = candidate.get("title")
+    if not isinstance(title, str):
+        raise ValueError("candidate playback map candidate.title must be a string")
+    created_at_utc = candidate.get("created_at_utc")
+    try:
+        _parse_bounded_candidate_datetime(created_at_utc)
+    except ValueError as exc:
+        raise ValueError(
+            "candidate playback map candidate.created_at_utc must be an "
+            "RFC 3339 date-time"
+        ) from exc
+    parent_candidate_id = candidate.get("parent_candidate_id")
+    if parent_candidate_id is not None and not isinstance(
+        parent_candidate_id,
+        str,
+    ):
+        raise ValueError(
+            "candidate playback map candidate.parent_candidate_id must be "
+            "a string or null"
+        )
+    return {
+        "candidate_id": candidate["candidate_id"],
+        "work_id": candidate["work_id"],
+        "title": title,
+        "created_at_utc": created_at_utc,
+        "parent_candidate_id": parent_candidate_id,
+    }
+
+
+def build_candidate_playback_map(
+    path: str | Path,
+    *,
+    expected_work_id: str | None = None,
+    expected_candidate_id: str | None = None,
+) -> dict[str, Any]:
+    """Build one verified, frame-addressable note map for candidate playback.
+
+    This is deliberately a one-shot boundary.  It verifies the immutable
+    candidate generation once, pairs exact performance ``note_on``/``note_off``
+    events, and projects only the trace fields a playback UI needs.  Callers
+    should index the returned rows locally instead of repeatedly invoking
+    :func:`locate_candidate` while the playhead advances.
+
+    ``note_off.frame`` is an exclusive gate boundary.  Acoustic sample release,
+    resonance, and shared-space tails remain deliberately outside this map.
+    The public hard limit prevents a locally supplied candidate from making
+    this materialised JSON result an unbounded memory allocation.
+    """
+
+    directory, candidate = load_candidate(
+        path,
+        verify=True,
+        expected_work_id=expected_work_id,
+        expected_candidate_id=expected_candidate_id,
+    )
+    manifest_path = directory / CANDIDATE_MANIFEST_NAME
+    manifest_snapshot, manifest_sha256 = _playback_map_json_snapshot(
+        manifest_path,
+        label="candidate manifest",
+    )
+    if manifest_snapshot != candidate:
+        raise ValueError(
+            "candidate playback map candidate manifest changed during verification"
+        )
+    candidate_metadata = _playback_map_candidate_metadata(manifest_snapshot)
+    plan, receipt = _verified_plan(directory, candidate)
+
+    audio_format = receipt.get("audio_format")
+    mix_binding = receipt.get("mix")
+    if not isinstance(audio_format, dict) or not isinstance(mix_binding, dict):
+        raise ValueError(
+            "candidate playback map render receipt lacks audio_format or mix"
+        )
+    sample_rate = _playback_map_positive_integer(
+        audio_format.get("sample_rate"),
+        label="audio_format.sample_rate",
+    )
+    if not 8_000 <= sample_rate <= 384_000:
+        raise ValueError(
+            "candidate playback map audio_format.sample_rate is unsupported"
+        )
+    frame_count = _playback_map_positive_integer(
+        mix_binding.get("frame_count"),
+        label="mix.frame_count",
+    )
+    plan_sample_rate = _playback_map_positive_integer(
+        plan.get("sample_rate"),
+        label="performance_plan.sample_rate",
+    )
+    if plan_sample_rate != sample_rate:
+        raise ValueError(
+            "candidate playback map plan and rendered mix sample rates disagree"
+        )
+    plan_duration_seconds = _playback_map_finite_number(
+        plan.get("duration_seconds"),
+        label="performance_plan.duration_seconds",
+    )
+    if plan_duration_seconds < 0.0:
+        raise ValueError(
+            "candidate playback map performance_plan.duration_seconds "
+            "must not be negative"
+        )
+    dry_frame_count = max(1, round(plan_duration_seconds * sample_rate))
+
+    space = receipt.get("space")
+    if not isinstance(space, dict) or not isinstance(space.get("enabled"), bool):
+        raise ValueError(
+            "candidate playback map render receipt has no valid space contract"
+        )
+    if space["enabled"]:
+        effective_tail_seconds = _playback_map_finite_number(
+            space.get("effective_tail_seconds"),
+            label="space.effective_tail_seconds",
+        )
+        if effective_tail_seconds < 0.0:
+            raise ValueError(
+                "candidate playback map space.effective_tail_seconds "
+                "must not be negative"
+            )
+        expected_mix_frame_count = dry_frame_count + max(
+            0,
+            math.ceil(effective_tail_seconds * sample_rate),
+        )
+    else:
+        expected_mix_frame_count = dry_frame_count
+    if frame_count != expected_mix_frame_count:
+        raise ValueError(
+            "candidate playback map rendered mix frame count disagrees with "
+            "the performance-plan duration and space tail"
+        )
+
+    project = candidate.get("project")
+    if not isinstance(project, dict):
+        raise ValueError("candidate playback map candidate project binding is missing")
+    score_binding = project.get("score")
+    if not isinstance(score_binding, dict):
+        raise ValueError("candidate playback map candidate score binding is missing")
+    score_path = _bound_artifact_path(
+        directory,
+        score_binding.get("path", ""),
+        label="score",
+    )
+    score_document, score_file_sha256 = _playback_map_json_snapshot(
+        score_path,
+        label="score",
+    )
+    if score_file_sha256 != score_binding.get("file_sha256"):
+        raise ValueError("candidate playback map score file hash mismatch")
+    if canonical_json_sha256(score_document) != score_binding.get(
+        "canonical_sha256"
+    ):
+        raise ValueError("candidate playback map score canonical hash mismatch")
+    parsed_score = parse_score_document(score_document)
+    source_notes = {
+        note.source_event_id: (part.id, note)
+        for part in parsed_score.parts
+        for note in part.notes
+        if note.source_event_id is not None
+    }
+    score_event_count = sum(len(part.notes) for part in parsed_score.parts)
+    score_part_ids = {part.id for part in parsed_score.parts}
+
+    raw_parts = plan.get("parts")
+    if not isinstance(raw_parts, list):
+        raise ValueError(
+            "candidate playback map performance_plan.parts must be an array"
+        )
+
+    scheduled_note_count = 0
+    for part_index, raw_part in enumerate(raw_parts):
+        if not isinstance(raw_part, dict):
+            raise ValueError(
+                f"candidate playback map performance_plan.parts[{part_index}] "
+                "must be an object"
+            )
+        performance = raw_part.get("performance")
+        if not isinstance(performance, dict):
+            raise ValueError(
+                f"candidate playback map performance_plan.parts[{part_index}] "
+                "lacks a performance object"
+            )
+        raw_events = performance.get("events")
+        if not isinstance(raw_events, list):
+            raise ValueError(
+                f"candidate playback map performance_plan.parts[{part_index}]."
+                "performance.events must be an array"
+            )
+        scheduled_note_count += sum(
+            1
+            for event in raw_events
+            if isinstance(event, dict) and event.get("type") == "note_on"
+        )
+        if scheduled_note_count > MAX_PLAYBACK_MAP_SCHEDULED_NOTES:
+            raise ValueError(
+                "candidate playback map scheduled note count "
+                f"{scheduled_note_count} exceeds hard limit "
+                f"{MAX_PLAYBACK_MAP_SCHEDULED_NOTES}"
+            )
+
+    rows: list[dict[str, Any]] = []
+    stable_identity_count = 0
+    seen_executor_ids: set[str] = set()
+    seen_source_event_ids: set[str] = set()
+    for part_index, raw_part in enumerate(raw_parts):
+        part_label = f"performance_plan.parts[{part_index}]"
+        executor_id = _playback_map_required_string(
+            raw_part.get("executor_id"),
+            label=f"{part_label}.executor_id",
+        )
+        if executor_id in seen_executor_ids:
+            raise ValueError(
+                f"candidate playback map duplicate executor_id {executor_id!r}"
+            )
+        seen_executor_ids.add(executor_id)
+        part_id = _playback_map_required_string(
+            raw_part.get("part_id"),
+            label=f"{part_label}.part_id",
+        )
+        if part_id not in score_part_ids:
+            raise ValueError(
+                f"candidate playback map plan references unknown score part {part_id!r}"
+            )
+        instrument = _playback_map_required_string(
+            raw_part.get("instrument"),
+            label=f"{part_label}.instrument",
+        )
+        performance = raw_part["performance"]
+        parsed_performance = parse_performance_document(performance)
+        if parsed_performance.sample_rate != sample_rate:
+            raise ValueError(
+                f"candidate playback map {part_label} sample rate disagrees "
+                "with the rendered mix"
+            )
+        if parsed_performance.total_samples != dry_frame_count:
+            raise ValueError(
+                f"candidate playback map {part_label} duration disagrees "
+                "with the performance-plan duration"
+            )
+
+        traces = raw_part.get("trace")
+        if not isinstance(traces, list):
+            raise ValueError(
+                f"candidate playback map {part_label}.trace must be an array"
+            )
+        traces_by_source: dict[str, tuple[int, dict[str, Any]]] = {}
+        for trace_index, trace in enumerate(traces):
+            if not isinstance(trace, dict):
+                raise ValueError(
+                    f"candidate playback map {part_label}.trace[{trace_index}] "
+                    "must be an object"
+                )
+            source_event_id = trace.get("source_event_id")
+            if source_event_id is None:
+                continue
+            source_event_id = _playback_map_required_string(
+                source_event_id,
+                label=f"{part_label}.trace[{trace_index}].source_event_id",
+            )
+            if source_event_id in traces_by_source:
+                raise ValueError(
+                    "candidate playback map trace contains duplicate "
+                    f"source_event_id {source_event_id!r}"
+                )
+            traces_by_source[source_event_id] = (trace_index, trace)
+
+        raw_events = performance["events"]
+        active: dict[
+            int,
+            tuple[dict[str, Any], int, str | None],
+        ] = {}
+        current_articulation: str | None = None
+        consumed_trace_indexes: set[int] = set()
+        for event_index, raw_event in enumerate(raw_events):
+            if not isinstance(raw_event, dict):
+                # parse_performance_document has already diagnosed the exact
+                # shape, but retain a fail-closed guard for type checkers.
+                raise ValueError(
+                    f"candidate playback map {part_label}.performance.events"
+                    f"[{event_index}] must be an object"
+                )
+            event_type = raw_event.get("type")
+            if event_type == "articulation":
+                current_articulation = _playback_map_required_string(
+                    raw_event.get("name"),
+                    label=(
+                        f"{part_label}.performance.events[{event_index}].name"
+                    ),
+                )
+                continue
+            if event_type not in {"note_on", "note_off"}:
+                continue
+            note_id = _playback_map_positive_integer(
+                raw_event.get("note_id"),
+                label=(
+                    f"{part_label}.performance.events[{event_index}].note_id"
+                ),
+            )
+            if event_type == "note_on":
+                if note_id in active:
+                    raise ValueError(
+                        f"candidate playback map note_id {note_id} is already active "
+                        f"for executor {executor_id!r}"
+                    )
+                active[note_id] = (
+                    raw_event,
+                    event_index,
+                    current_articulation,
+                )
+                continue
+
+            opened = active.pop(note_id, None)
+            if opened is None:
+                raise ValueError(
+                    f"candidate playback map note_off {note_id} has no active note_on "
+                    f"for executor {executor_id!r}"
+                )
+            note_on, note_on_index, scheduled_articulation = opened
+            source_event_id = note_on.get("source_event_id")
+            if source_event_id is not None:
+                source_event_id = _playback_map_required_string(
+                    source_event_id,
+                    label=(
+                        f"{part_label}.performance.events[{note_on_index}]."
+                        "source_event_id"
+                    ),
+                )
+            if raw_event.get("source_event_id") != source_event_id:
+                raise ValueError(
+                    "candidate playback map note_on/note_off source_event_id mismatch"
+                )
+
+            if parsed_score.schema_version == 1:
+                if source_event_id is None:
+                    raise ValueError(
+                        "candidate playback map score v1 scheduled note lacks "
+                        "source_event_id"
+                    )
+                source_note = source_notes.get(source_event_id)
+                if source_note is None:
+                    raise ValueError(
+                        "candidate playback map scheduled note references unknown "
+                        f"score event {source_event_id!r}"
+                    )
+                source_part_id, parsed_source_note = source_note
+                if source_part_id != part_id:
+                    raise ValueError(
+                        "candidate playback map scheduled note source part disagrees "
+                        f"for event {source_event_id!r}"
+                    )
+                if source_event_id in seen_source_event_ids:
+                    raise ValueError(
+                        "candidate playback map scheduled source_event_id is duplicated: "
+                        f"{source_event_id!r}"
+                    )
+                seen_source_event_ids.add(source_event_id)
+                trace_candidate = traces_by_source.get(source_event_id)
+                if trace_candidate is None:
+                    raise ValueError(
+                        "candidate playback map has no trace for score event "
+                        f"{source_event_id!r}"
+                    )
+                trace_index, trace = trace_candidate
+                stable_identity = True
+                stable_identity_count += 1
+            else:
+                parsed_source_note = None
+                if source_event_id is not None:
+                    raise ValueError(
+                        "candidate playback map legacy score must not expose a "
+                        "source_event_id"
+                    )
+                trace_index = note_id - 1
+                if not 0 <= trace_index < len(traces):
+                    raise ValueError(
+                        "candidate playback map legacy note_id has no positional trace"
+                    )
+                trace = traces[trace_index]
+                if trace.get("source_event_id") is not None:
+                    raise ValueError(
+                        "candidate playback map legacy trace must not expose a "
+                        "source_event_id"
+                    )
+                stable_identity = False
+            if trace_index in consumed_trace_indexes:
+                raise ValueError(
+                    f"candidate playback map trace[{trace_index}] is used more than once "
+                    f"for executor {executor_id!r}"
+                )
+            consumed_trace_indexes.add(trace_index)
+
+            start_seconds, start_frame = _playback_map_frame(
+                note_on.get("time"),
+                sample_rate=sample_rate,
+                label=f"{part_label}.performance.events[{note_on_index}].time",
+            )
+            end_seconds, end_frame = _playback_map_frame(
+                raw_event.get("time"),
+                sample_rate=sample_rate,
+                label=f"{part_label}.performance.events[{event_index}].time",
+            )
+            if (
+                end_seconds <= start_seconds
+                or end_frame <= start_frame
+                or start_frame >= frame_count
+                or end_frame > frame_count
+            ):
+                raise ValueError(
+                    "candidate playback map scheduled gate is empty or outside "
+                    "the rendered mix timeline"
+                )
+
+            trace_time = trace.get("时间")
+            if trace_time is not None:
+                resolved_trace_time = _playback_map_finite_number(
+                    trace_time,
+                    label=f"{part_label}.trace[{trace_index}].时间",
+                )
+                if not math.isclose(
+                    resolved_trace_time,
+                    start_seconds,
+                    rel_tol=0.0,
+                    abs_tol=_PLAYBACK_MAP_TRACE_TIME_TOLERANCE,
+                ):
+                    raise ValueError(
+                        "candidate playback map trace start disagrees with exact "
+                        "performance note_on"
+                    )
+            trace_duration = trace.get("时长")
+            if trace_duration is not None:
+                resolved_trace_duration = _playback_map_finite_number(
+                    trace_duration,
+                    label=f"{part_label}.trace[{trace_index}].时长",
+                )
+                if not math.isclose(
+                    resolved_trace_duration,
+                    end_seconds - start_seconds,
+                    rel_tol=0.0,
+                    abs_tol=_PLAYBACK_MAP_TRACE_TIME_TOLERANCE,
+                ):
+                    raise ValueError(
+                        "candidate playback map trace duration disagrees with exact "
+                        "performance note gate"
+                    )
+            projected_trace = _playback_map_trace(
+                trace,
+                label=f"{part_label}.trace[{trace_index}]",
+                stable_identity=stable_identity,
+            )
+
+            velocity = _playback_map_finite_number(
+                note_on.get("velocity"),
+                label=(
+                    f"{part_label}.performance.events[{note_on_index}].velocity"
+                ),
+            )
+            note_on_result: dict[str, Any] = {
+                "seconds": start_seconds,
+                "frame": start_frame,
+                "velocity": velocity,
+            }
+            if "midi_note" in note_on:
+                note_on_result["midi_note"] = _playback_map_finite_number(
+                    note_on["midi_note"],
+                    label=(
+                        f"{part_label}.performance.events[{note_on_index}]."
+                        "midi_note"
+                    ),
+                )
+            elif "pitch_hz" in note_on:
+                pitch_hz = _playback_map_finite_number(
+                    note_on["pitch_hz"],
+                    label=(
+                        f"{part_label}.performance.events[{note_on_index}]."
+                        "pitch_hz"
+                    ),
+                )
+                if pitch_hz <= 0.0:
+                    raise ValueError(
+                        "candidate playback map note_on.pitch_hz must be positive"
+                    )
+                note_on_result["pitch_hz"] = pitch_hz
+            else:  # parse_performance_document already rejects this branch.
+                raise ValueError(
+                    "candidate playback map note_on lacks sounding pitch"
+                )
+            if "midi_note" in note_on_result:
+                expected_sounding_pitch = pitch_name(
+                    note_on_result["midi_note"]
+                )
+            else:
+                expected_sounding_pitch = pitch_name(
+                    69.0
+                    + 12.0
+                    * math.log2(
+                        note_on_result["pitch_hz"]
+                        / parsed_performance.tuning.a4_hz
+                    )
+                )
+            if projected_trace["sounding_pitch"] != expected_sounding_pitch:
+                raise ValueError(
+                    "candidate playback map trace sounding pitch disagrees "
+                    "with performance note_on"
+                )
+            trace_velocity = projected_trace["resolved_velocity"]
+            if trace_velocity is not None and not math.isclose(
+                trace_velocity,
+                velocity,
+                rel_tol=0.0,
+                abs_tol=_PLAYBACK_MAP_TRACE_VELOCITY_TOLERANCE,
+            ):
+                raise ValueError(
+                    "candidate playback map trace velocity disagrees with "
+                    "performance note_on"
+                )
+            if (
+                projected_trace["resolved_articulation"]
+                != scheduled_articulation
+            ):
+                raise ValueError(
+                    "candidate playback map trace articulation disagrees with "
+                    "the performance articulation state"
+                )
+            if parsed_source_note is not None and (
+                projected_trace["bar"] != parsed_source_note.bar
+                or not math.isclose(
+                    projected_trace["beat"],
+                    parsed_source_note.beat,
+                    rel_tol=0.0,
+                    abs_tol=1.0e-9,
+                )
+            ):
+                raise ValueError(
+                    "candidate playback map trace score position disagrees "
+                    f"for event {source_event_id!r}"
+                )
+            note_off_result: dict[str, Any] = {
+                "seconds": end_seconds,
+                "frame": end_frame,
+            }
+            if "release_velocity" in raw_event:
+                note_off_result["release_velocity"] = (
+                    _playback_map_finite_number(
+                        raw_event["release_velocity"],
+                        label=(
+                            f"{part_label}.performance.events[{event_index}]."
+                            "release_velocity"
+                        ),
+                    )
+                )
+            rows.append(
+                {
+                    "executor_id": executor_id,
+                    "part_id": part_id,
+                    "instrument": instrument,
+                    "note_id": note_id,
+                    "source_event_id": source_event_id,
+                    "stable_identity": stable_identity,
+                    "note_on": note_on_result,
+                    "note_off": note_off_result,
+                    "trace": projected_trace,
+                }
+            )
+        if active:
+            raise ValueError(
+                "candidate playback map performance contains note_on events "
+                f"without note_off for executor {executor_id!r}"
+            )
+        if len(consumed_trace_indexes) != len(traces):
+            raise ValueError(
+                "candidate playback map performance and trace note counts disagree "
+                f"for executor {executor_id!r}"
+            )
+
+    rows.sort(
+        key=lambda row: (
+            row["note_on"]["frame"],
+            row["note_on"]["seconds"],
+            row["executor_id"],
+            row["note_id"],
+        )
+    )
+
+    receipt_binding = candidate.get("render_receipt")
+    plan_binding = receipt.get("performance_plan")
+    if not isinstance(receipt_binding, dict) or not isinstance(plan_binding, dict):
+        raise ValueError(
+            "candidate playback map candidate receipt or plan binding is missing"
+        )
+    mix_path = _bound_artifact_path(
+        directory,
+        mix_binding.get("path", ""),
+        label="mix",
+    )
+    mix_sha256, mix_size_bytes = _playback_map_file_snapshot(mix_path)
+    if mix_size_bytes < 1:
+        raise ValueError("candidate playback map rendered mix must not be empty")
+    if mix_sha256 != mix_binding.get("sha256"):
+        raise ValueError("candidate playback map rendered mix hash mismatch")
+
+    return {
+        "$schema": PLAYBACK_MAP_SCHEMA_URI,
+        "kind": PLAYBACK_MAP_KIND,
+        "schema_version": PLAYBACK_MAP_VERSION,
+        "candidate": candidate_metadata,
+        "bindings": {
+            "candidate_manifest": {
+                "path": CANDIDATE_MANIFEST_NAME,
+                "sha256": manifest_sha256,
+            },
+            "score": {
+                "path": str(score_binding["path"]),
+                "canonical_sha256": str(score_binding["canonical_sha256"]),
+                "file_sha256": str(score_binding["file_sha256"]),
+            },
+            "performance_plan": {
+                "path": str(plan_binding["path"]),
+                "canonical_sha256": str(plan_binding["sha256"]),
+                "file_sha256": str(plan_binding["file_sha256"]),
+            },
+            "render_receipt": {
+                "path": str(receipt_binding["path"]),
+                "sha256": str(receipt_binding["sha256"]),
+            },
+            "mix": {
+                "path": str(mix_binding["path"]),
+                "sha256": str(mix_binding["sha256"]),
+                "size_bytes": mix_size_bytes,
+            },
+        },
+        "timeline": {
+            "basis": "scheduled_note_gate",
+            "sample_rate": sample_rate,
+            "frame_count": frame_count,
+            "duration_seconds": frame_count / sample_rate,
+            "sample_rounding": "python_round_ties_to_even",
+            "note_off_frame_exclusive": True,
+            "audible_release_or_space_tail_exact": False,
+        },
+        "limits": {
+            "max_scheduled_note_count": MAX_PLAYBACK_MAP_SCHEDULED_NOTES,
+        },
+        "events": rows,
+        "summary": {
+            "score_schema_version": parsed_score.schema_version,
+            "score_event_count": score_event_count,
+            "scheduled_note_count": len(rows),
+            "stable_identity_count": stable_identity_count,
+            "legacy_unstable_identity_count": len(rows) - stable_identity_count,
+            "executor_count": len(raw_parts),
+        },
+    }
 
 
 def locate_candidate(
@@ -1026,7 +2646,13 @@ __all__ = [
     "CANDIDATE_FORMAT",
     "CANDIDATE_MANIFEST_NAME",
     "CANDIDATE_VERSION",
+    "MAX_PLAYBACK_MAP_SCHEDULED_NOTES",
+    "PLAYBACK_MAP_KIND",
+    "PLAYBACK_MAP_SCHEMA_URI",
+    "PLAYBACK_MAP_VERSION",
     "CandidateTarget",
+    "CandidateAlreadyExistsError",
+    "build_candidate_playback_map",
     "canonical_json_sha256",
     "candidate_publication",
     "compare_candidates",

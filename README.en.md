@@ -45,7 +45,7 @@ directly exercises import, explicit instrumentation, first sound, location,
 patching, second render, and comparison without downloading several gigabytes
 of sound sources first.
 
-> Current release candidate: `0.6.0rc1`
+> Current release candidate: `0.7.0rc1`
 >
 > **Distribution boundary:** the formal product is the lightweight source ZIP
 > published by the project. If PyPI sdists or wheels are published later,
@@ -57,7 +57,7 @@ of sound sources first.
 
 | Environment | Shortest entry point | Current boundary |
 | --- | --- | --- |
-| Windows 10/11 x64 | [Windows in three steps](#windows-in-three-steps) | Complete reference platform for `0.6.0rc1` |
+| Windows 10/11 x64 | [Windows in three steps](#windows-in-three-steps) | Complete reference platform for `0.7.0rc1` |
 | Linux / WSL | [Linux / WSL quick start](docs/Linux快速开始.en.md) | Bash, programmatic instruments, and MCP are available; the success path and real-sample coverage are validated in separate layers |
 | macOS Apple Silicon / Intel | [macOS quick start](docs/macOS快速开始.en.md) | Native 64-bit CPython 3.11–3.14; clean-source-ZIP portable CI is included, while real samples are accepted separately |
 
@@ -72,7 +72,7 @@ With a supported 64-bit CPython 3.11–3.14 interpreter, this creates a Linux
 and produces a first WAV without external samples. Do not share a `.venv`
 between Windows and WSL. See the
 [Linux / WSL quick start](docs/Linux快速开始.en.md) for the support boundary,
-MCP stdio configuration, and external-sample limitations.
+MCP stdio configuration, and external-sample installation and restoration.
 
 From the source root, macOS users can start with:
 
@@ -92,7 +92,7 @@ and every installation must pass complete integrity verification. See the
 ## Windows in three steps
 
 Windows 10/11 x64 with 64-bit CPython 3.11–3.14 is the reference environment
-for `0.6.0rc1`. Run the following `cmd` blocks from Command Prompt (`cmd.exe`)
+for `0.7.0rc1`. Run the following `cmd` blocks from Command Prompt (`cmd.exe`)
 in the source-release root. The multiline continuation character is `^`.
 
 1. Create the project's own virtual environment and skip the automatic smoke
@@ -142,7 +142,7 @@ before using your own score.
 
 ## Recommended creative loop
 
-For `0.6.0rc1`, use this main workflow instead of invoking older import and
+For `0.7.0rc1`, use this main workflow instead of invoking older import and
 ensemble commands separately and assembling their artifacts by hand:
 
 | Stage | CLI | Result |
@@ -168,10 +168,10 @@ The paths are placeholders and must be replaced with real files. The generated
 `roster-draft.json` is explicitly `executable=false`. Track names, Program
 Change, CC7, CC11, and routing suggestions do not gain formal performance
 authority automatically. Ordinary parts must explicitly select an
-`instrument`; percussion parts must explicitly provide a `kit`. The default
-trusted palette is a curation boundary, not a license exemption. Quarantined
-resources and local-compatibility-only SoundFonts do not enter the public path
-merely because a palette is enabled.
+`instrument`; percussion parts must explicitly provide a `kit`. The default MCP
+`formal` scope covers all 103 formal sound entries. Each result also carries a
+`curated` marker for the 25 creator-curated entries, and callers may explicitly
+select that smaller `curated` scope.
 
 Each `project-render` creates a new unique candidate directory by default and
 writes `候选.json` last, binding the score, roster, render profile, performance
@@ -208,59 +208,86 @@ a lossless inverse of the score.
 
 ## AI and MCP
 
-The MCP server currently exposes 15 tools covering contract reading, instrument
-discovery, unified import, explicit roster confirmation, score slicing,
-patching and comparison, preflight, current-plan location, rendered-candidate
-location and comparison, and formal rendering. The recommended MCP chain maps
-to the CLI conceptually, while file transport, output roots, and default trusted
-gates differ:
+The MCP server currently exposes 44 tools. Existing diagnosis, import, roster,
+score editing, preflight, location, comparison, and rendering remain compatible;
+v0.7 adds path-isolated persistent authoring projects and an optional creative
+workflow for charters, small constitution clause sets, phased review, trusted
+hard failures, exceptions, managed rendering, revision, rollback, and history
+audit. The
+recommended MCP chain maps to the CLI conceptually, while file transport, output
+roots, and default instrument scopes differ:
 
 ```text
-import_score_project → confirm_roster → validate_project
+diagnose_runtime(check_level="quick")
+        → import_score_project → confirm_roster → validate_project
+        → check_project_readiness
         → render(**render_handoff)
         → locate_rendered_candidate → get_score_slice → patch_score
-        → validate_project → render(parent_candidate_id=..., **render_handoff)
+        → validate_project → check_project_readiness
+        → render(parent_candidate_id=..., **render_handoff)
         → compare_rendered_candidates
 ```
 
-Only `render` writes audio. Other tools return in-memory objects or read existing
-candidates. File-based import follows the MCP input-root policy; attaching a
+`render`, `render_authoring_revision`, and `render_workflow_candidate` write
+audio. Other write tools publish immutable state/document revisions only inside
+the dedicated project root. File-based import follows the MCP input-root policy; attaching a
 client does not grant arbitrary access to the whole computer. See the
-[MCP interface](docs/MCP.en.md) for the complete 15-tool table, input-root
-configuration, and candidate rules. The `render_handoff` returned by preflight
+[MCP interface](docs/MCP.en.md) for the complete 44-tool table, input-root
+configuration, and candidate rules, and [Creative Workflow](docs/创作工作流.en.md)
+for the honesty boundary, state machine, and disconnect recovery. Runtime and project-readiness checks
+passively summarize contract, resource, platform, and output-location
+assessments; formal `render` performs actual instantiation, audio processing,
+and candidate writes. When passive inspection cannot establish Rosetta status
+on macOS x86_64, run `tianlai-doctor` locally for confirmation. Missing resources
+can be passed to `plan_resource_restore` for a path-redacted restoration plan.
+`validate_project`, `check_project_readiness`, and `render` also return the same
+graded `project_review`. Hard contract findings remain explicit gates in
+`issues`; renderable range, onset, articulation, and orchestration candidates
+carry stable IDs, scopes, evidence, and several review options for the creator
+to consider while listening. The report is bound to the current score, roster,
+and performance-plan hashes and never edits the score or audio automatically.
+The `render_handoff` returned by preflight
 contains both the complete profile and its canonical hash, allowing formal
 rendering to reject an accidental profile substitution before candidate
 creation. The same document defines the cache, remix, and immutable-candidate
 boundaries.
 
-## Current capabilities and boundaries
+## Current capabilities
 
 - There are 103 registered sound entries. Each bound version has completed an
   isolated single-instrument, single-timbre listening check and is marked
-  `quality_tier=formal`. This does not mean that every register, dynamic,
-  articulation, runtime variant, or expert-level assessment has been covered.
-- Formal multi-instrument validation of orchestration, dynamics, space, and
-  complete works is still not systematic, so `collaboration_review_status` is
-  maintained separately from single-timbre quality.
-- `manual`, `analyze`, and `suggest` never edit a score or change audio
-  automatically. `suggest` produces only a bounded, non-executable diagnostic
-  draft.
-- Rendering is offline, not a real-time software instrument. A first cold
-  render still executes each track; long, dense works and shared halls can
-  require substantial time and peak memory. Stem and content-addressed analysis
-  caches mainly accelerate later remixes. Cached renders retain closed
-  telemetry, and candidate renders bind its hash in the candidate manifest,
-  but a cache does not eliminate the cost of the first performance. With
-  `write_stems=true`, a warm remix still rewrites public stems and computes the
-  hall and final mix; “all cache hits” does not mean zero I/O.
-- Sample playback still has room for resampling improvements. Schemas and tests
-  cannot guarantee source quality, usable range, or sound in every combination.
-  `strict_hq` is a fail-closed evidence gate, not an audio enhancement switch.
-- Peak, RMS, spectrum, phase, range, and difference reports are diagnostic
-  instruments. They do not decide whether a melody, arrangement, or work is
-  successful. Final candidates still require human A/B listening.
+  `quality_tier=formal`. All 103 are available in the default MCP `formal`
+  scope, remain available for individual audition, and can be discovered by
+  category, routing class, articulation, pitch mode, or name.
+- Development has exercised orchestration, dynamics, space, and actual rendering
+  across many ensemble test works. New combinations can continue through the
+  `manual`, `analyze`, and `suggest` workflow with creator and community feedback.
+- `manual`, `analyze`, and `suggest` separate analysis from revision. `suggest`
+  produces a bounded, reviewable diagnostic draft that a creator can carry into
+  the next candidate.
+- Offline rendering produces per-track 24-bit WAV audio, optional stems, a
+  shared hall, and complete receipts. Stem and content-addressed analysis caches
+  accelerate later remixes, with closed telemetry and its hash retained by the
+  candidate.
+- Every formal standalone or ensemble render streams its final PCM back from
+  disk and produces a
+  Hash-bound [`渲染后自检.json`](docs/渲染后自检.en.md). Damage, format
+  mismatches, and exact silence when sound is explicitly expected are hard
+  errors; True Peak/LUFS, DC, phase, channel, and tail risks remain creator
+  review findings and never modify audio or impose one aesthetic.
+- `strict_hq` applies each instrument's declared range-evidence contract to a
+  reproducible high-quality candidate range. The default `compatibility` mode
+  preserves extended registers and experimental timbres inside the hard
+  playable contract and presents supporting evidence through `project_review`.
+- Graded self-checks reserve blocking decisions for hard contracts such as
+  structure, licensing, routing, resources, safety budgets, and actual
+  playability. Creative-context findings remain non-blocking and provide
+  stable, hash-bound review identities suitable for a future UI.
+- True Peak, LUFS, peak, RMS, spectrum, phase, range, and difference reports
+  provide objective coordinates for debugging and A/B review; the creator
+  combines them with actual listening for the final choice.
 
-See [Current status](docs/当前状态.en.md) for live details and finer limitations.
+See [Current status](docs/当前状态.en.md) for live status and technical details.
 
 ## Creative reference
 
@@ -316,9 +343,9 @@ not require large third-party sound sources. `external_assets` tests that need
 real samples and `listening` tests that need a frozen audition environment are
 separate acceptance layers. A wholly absent resource is skipped, but a present
 yet incomplete resource, a hash mismatch, or mismatched physical license
-evidence must still fail. Passing tests proves the corresponding machine
-contracts; it does not mean every timbre and work has passed human listening
-review.
+evidence must still fail. Portable tests verify machine contracts;
+`external_assets` and `listening` add real-resource and frozen-listening
+acceptance respectively.
 
 Start with the [documentation map](docs/README.en.md), and see
 [From score to second render](docs/从乐谱到第二次渲染.en.md) for the complete

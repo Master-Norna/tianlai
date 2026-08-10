@@ -58,7 +58,7 @@
               "id": {
                 "type": "string",
                 "minLength": 1,
-                "pattern": "^(?!.*[ .]$)[^/\\\\:*?\"<>|\\u0000-\\u001F]+$"
+                "pattern": "^(?!\\s)(?!.*(?:\\s|\\.)$)[^/\\\\:*?\"<>|\\u0000-\\u001F\\u007F]+$"
               },
               "parts": {
                 "type": "array",
@@ -107,8 +107,9 @@
           "part": {
             "type": "string",
             "minLength": 1,
-            "pattern": "^(?!.*[ .]$)[^/\\\\:*?\"<>|\\u0000-\\u001F]+$",
-            "description": "总谱声部 id；省略 executor_id 或展开套件时会进入分轨文件名。运行时拒绝 Windows 保留设备名，并以 Unicode NFC + casefold 后的最终 executor_id 做跨平台判重；合法中文保留原样。"
+            "maxLength": 251,
+            "pattern": "^(?!\\s)(?!.*(?:\\s|\\.)$)[^/\\\\:*?\"<>|\\u0000-\\u001F\\u007F]+$",
+            "description": "总谱声部 id；省略 executor_id 或展开套件时会进入分轨文件名。最终 executor_id 与 .wav 文件名均不得超过 255 UTF-8 bytes 或 255 UTF-16 code units；运行时拒绝 CONIN$/CONOUT$、COM/LPT 数字及上标数字等 Windows 保留设备名，并以 Unicode NFC + casefold 判重。"
           },
           "_note": {
             "type": "string",
@@ -120,8 +121,9 @@
           },
           "kit": {
             "type": "object",
-            "description": "符头音高 → 乐器。一个声部因此展开成多个执行器。值可以是乐器路径字符串,也可以是 {instrument, transpose}:打击件多按固定键位映射(踩镲 42~44、镲 63~66、通鼓 60~65…),谱面鼓音未必落在那里,transpose 把它移进该件的键位范围,否则会因超出音域而无声。忽略音高的打击件(底鼓、边击军鼓)无需 transpose。",
+            "description": "符头音高 → 乐器。一个声部因此展开成多个执行器。值可以是乐器路径字符串,也可以是 {instrument, transpose}:ignore 模式的打击件按原生键位选择已有采样/变体(踩镲 42~44、镲 63~66、通鼓 60~65…),谱面鼓音未必落在那里,transpose 把它移进该件的键位范围；fixed 模式的打击件(底鼓、边击军鼓)会直接使用 fixed_midi_note,无需 transpose。",
             "minProperties": 1,
+            "propertyNames": { "type": "string", "minLength": 1, "maxLength": 255 },
             "additionalProperties": {
               "oneOf": [
                 { "type": "string" },
@@ -140,8 +142,9 @@
           "executor_id": {
             "type": "string",
             "minLength": 1,
-            "pattern": "^(?!.*[ .]$)[^/\\\\:*?\"<>|\\u0000-\\u001F]+$",
-            "description": "分轨文件名；不写时用声部 id，套件则为 声部.音名。不得使用 Windows 保留设备名 CON/PRN/AUX/NUL/COM1..9/LPT1..9（带扩展名同样禁止）。运行时对所有普通及套件展开后的 executor_id 以 Unicode NFC + casefold 建立 portable filename key 并判重；合法中文保留原样。"
+            "maxLength": 251,
+            "pattern": "^(?!\\s)(?!.*(?:\\s|\\.)$)[^/\\\\:*?\"<>|\\u0000-\\u001F\\u007F]+$",
+            "description": "分轨文件名；不写时用声部 id，套件则为 声部.音名。最终 executor_id 与 .wav 文件名均不得超过 255 UTF-8 bytes 或 255 UTF-16 code units；不得使用 CONIN$/CONOUT$、COM/LPT 数字及上标数字等 Windows 保留设备名。运行时对普通及套件展开后的 ID 统一复验并以 Unicode NFC + casefold 判重。"
           },
           "gain_db": { "type": "number", "minimum": -60, "maximum": 12 },
           "gain_automation": {

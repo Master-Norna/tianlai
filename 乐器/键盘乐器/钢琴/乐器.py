@@ -39,6 +39,7 @@ _RESONANCE_MIN_MIDI = 21.0
 _RESONANCE_MAX_MIDI = 88.0
 _HAMMER_VOICE_BASE = 1_000_000_000
 _RESONANCE_VOICE_BASE = 1_200_000_000
+_RESONANCE_V3_VOICE_BASE = 1_300_000_000
 _PEDAL_VOICE_ID = 1_400_000_000
 
 
@@ -94,6 +95,11 @@ def _main_regions(samples: Path) -> list[dict[str, Any]]:
             region: dict[str, Any] = {
                 "sample": str(samples / f"{name}v{layer}.flac"),
                 "root_midi": midi_note,
+                # Data/region.txt 的显式键区。尤其 C8 素材按真实音高
+                # C#8 声明后，仍必须只服务上游规定的 B7/C8 两键，不能
+                # 让“最近根音”算法重新推导边界。
+                "key_min": max(21, midi_note - 1),
+                "key_max": min(108, midi_note + 1),
                 "velocity_min": velocity_min,
                 "velocity_max": velocity_max,
                 "release_seconds": 4.0 if midi_note >= 95 else (3.0 if midi_note >= 89 else 0.48),
@@ -136,6 +142,20 @@ def _resonance_regions(samples: Path) -> list[dict[str, Any]]:
                 }
             )
     return regions
+
+
+def _resonance_v3_regions(samples: Path) -> list[dict[str, Any]]:
+    """上游第三层释放共鸣；它与 soft/large 层并行而非三选一。"""
+
+    return [
+        {
+            "sample": str(samples / f"harmV3{name}.flac"),
+            "root_midi": midi_note,
+            "key_min": max(21, midi_note - 1),
+            "key_max": min(88, midi_note + 1),
+        }
+        for name, midi_note in _RESONANCE_ROOTS
+    ]
 
 
 def _pedal_regions(samples: Path) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
@@ -194,10 +214,20 @@ class PianoInstrument(Instrument):
             manifest.get("resonance_velocity_exponent", 1.84),
             "resonance_velocity_exponent",
         )
+        self.resonance_v3_velocity_exponent = _finite_positive(
+            manifest.get("resonance_v3_velocity_exponent", 1.92),
+            "resonance_v3_velocity_exponent",
+        )
+        self.resonance_v3_rt_decay_db_per_second = _finite_non_negative(
+            manifest.get("resonance_v3_rt_decay_db_per_second", 2.0),
+            "resonance_v3_rt_decay_db_per_second",
+        )
         self.main_retrigger_release_seconds = _finite_non_negative(
             manifest.get("main_retrigger_release_seconds", 0.04),
             "main_retrigger_release_seconds",
         )
+        resampling_quality = str(manifest.get("resampling_quality", "linear"))
+        main_manifest["resampling_quality"] = resampling_quality
         hammer_manifest = {
             "regions": _hammer_regions(samples),
             # 上游 hammer.txt 明确是 volume=-37。旧适配器的 0.16
@@ -209,6 +239,7 @@ class PianoInstrument(Instrument):
             ),
             "velocity_exponent": self.hammer_velocity_exponent,
             "release_seconds": 0.05,
+            "resampling_quality": resampling_quality,
         }
         resonance_manifest = {
             "regions": _resonance_regions(samples),
@@ -217,6 +248,16 @@ class PianoInstrument(Instrument):
             # 只有一个全局曲线，取两者中点作幂函数近似。
             "velocity_exponent": self.resonance_velocity_exponent,
             "release_seconds": 0.2,
+            "resampling_quality": resampling_quality,
+        }
+        resonance_v3_manifest = {
+            "regions": _resonance_v3_regions(samples),
+            "gain": float(manifest.get("string_resonance", 0.18)),
+            # str_res.txt: harmV3 是独立 group=5、amp_veltrack=96，
+            # 每次释键与 harmS/harmL 之一同时出现。
+            "velocity_exponent": self.resonance_v3_velocity_exponent,
+            "release_seconds": 0.2,
+            "resampling_quality": resampling_quality,
         }
         pedal_down, pedal_up = _pedal_regions(samples)
         pedal_gain = float(manifest.get("pedal_noise", 0.12))
@@ -225,11 +266,26 @@ class PianoInstrument(Instrument):
         self.resonance = SampleInstrument.from_manifest(
             resonance_manifest, sample_rate, base_directory=base_directory
         )
+        self.resonance_v3 = SampleInstrument.from_manifest(
+            resonance_v3_manifest, sample_rate, base_directory=base_directory
+        )
         self.pedal_down = SampleInstrument.from_manifest(
-            {"regions": pedal_down, "gain": pedal_gain}, sample_rate, base_directory=base_directory
+            {
+                "regions": pedal_down,
+                "gain": pedal_gain,
+                "resampling_quality": resampling_quality,
+            },
+            sample_rate,
+            base_directory=base_directory,
         )
         self.pedal_up = SampleInstrument.from_manifest(
-            {"regions": pedal_up, "gain": pedal_gain}, sample_rate, base_directory=base_directory
+            {
+                "regions": pedal_up,
+                "gain": pedal_gain,
+                "resampling_quality": resampling_quality,
+            },
+            sample_rate,
+            base_directory=base_directory,
         )
         self.held_notes: dict[int, _HeldNote] = {}
         self.deferred_releases: dict[int, _HeldNote] = {}
@@ -332,6 +388,21 @@ class PianoInstrument(Instrument):
             pitch_hz=held.pitch_hz,
             velocity=resonance_velocity,
         )
+        resonance_v3_velocity = self._decayed_velocity(
+            held.velocity,
+            exponent=self.resonance_v3_velocity_exponent,
+            decay_db=(
+                self.resonance_v3_rt_decay_db_per_second * held_seconds
+            ),
+        )
+        self._trigger_one_shot(
+            self.resonance_v3,
+            source,
+            tuning,
+            note_id=_RESONANCE_V3_VOICE_BASE + held.pitch_key,
+            pitch_hz=held.pitch_hz,
+            velocity=resonance_v3_velocity,
+        )
 
     def handle_event(self, event: PerformanceEvent, tuning: EqualTemperament) -> None:
         if event.type == "note_on":
@@ -367,6 +438,14 @@ class PianoInstrument(Instrument):
                     previous_note_id,
                     release_seconds=self.main_retrigger_release_seconds,
                 )
+            # 若旧一次击键已在延音踏板下等待释放，同键新击键会继续抬起
+            # 同一组制音器。旧周期不应在随后抬踏板时、趁新键仍按住而
+            # 额外触发击槌/琴弦释放声。
+            for deferred_note_id, deferred in tuple(
+                self.deferred_releases.items()
+            ):
+                if deferred.pitch_key == held.pitch_key:
+                    self.deferred_releases.pop(deferred_note_id)
             self._active_main_by_pitch[held.pitch_key] = note_id
             self.held_notes[note_id] = held
             self.main.handle_event(forwarded, tuning)
@@ -436,7 +515,14 @@ class PianoInstrument(Instrument):
                     )
 
     def render_frame(self) -> StereoFrame:
-        engines = (self.main, self.hammer, self.resonance, self.pedal_down, self.pedal_up)
+        engines = (
+            self.main,
+            self.hammer,
+            self.resonance,
+            self.resonance_v3,
+            self.pedal_down,
+            self.pedal_up,
+        )
         left = 0.0
         right = 0.0
         for engine in engines:
@@ -449,7 +535,14 @@ class PianoInstrument(Instrument):
     def active_voice_count(self) -> int:
         return sum(
             engine.active_voice_count
-            for engine in (self.main, self.hammer, self.resonance, self.pedal_down, self.pedal_up)
+            for engine in (
+                self.main,
+                self.hammer,
+                self.resonance,
+                self.resonance_v3,
+                self.pedal_down,
+                self.pedal_up,
+            )
         )
 
 

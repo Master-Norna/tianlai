@@ -1,19 +1,26 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import ExitStack
+import errno
 import json
 import os
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import threading
 import time
+from types import SimpleNamespace
 import unicodedata
 import unittest
 from unittest import mock
 
+import tianlai.render_lock as render_lock_module
 from tianlai.render_lock import (
     RenderLockError,
     acquire_render_lock,
+    capture_plain_directory,
     render_lock_path,
 )
 
@@ -52,6 +59,108 @@ class RenderLockTests(unittest.TestCase):
                 direct,
                 render_lock_path(Path(str(target).swapcase())),
             )
+
+    def test_lock_creation_safely_creates_a_missing_multilevel_parent(self) -> None:
+        target = self.root / "one" / "two" / "three" / "render"
+
+        with acquire_render_lock(target) as owned:
+            self.assertEqual(owned.output_directory, target.resolve())
+            self.assertTrue(target.parent.is_dir())
+
+    def test_macos_system_var_and_tmp_aliases_compare_as_canonical_paths(
+        self,
+    ) -> None:
+        with (
+            mock.patch(
+                "tianlai.render_lock._is_windows_runtime",
+                return_value=False,
+            ),
+            mock.patch(
+                "tianlai.render_lock._is_macos_runtime",
+                return_value=True,
+            ),
+            mock.patch(
+                "tianlai.render_lock.os.path.abspath",
+                side_effect=lambda value: value,
+            ),
+        ):
+            self.assertEqual(
+                render_lock_module._path_comparison_key(
+                    Path("/var/folders/example/output")
+                ),
+                render_lock_module._path_comparison_key(
+                    Path("/private/var/folders/example/output")
+                ),
+            )
+            self.assertEqual(
+                render_lock_module._path_comparison_key(Path("/tmp/output")),
+                render_lock_module._path_comparison_key(
+                    Path("/private/tmp/output")
+                ),
+            )
+            self.assertNotEqual(
+                render_lock_module._path_comparison_key(Path("/opt/alias/output")),
+                render_lock_module._path_comparison_key(Path("/srv/real/output")),
+            )
+
+    def test_macos_exact_var_alias_is_captured_but_arbitrary_link_is_not(
+        self,
+    ) -> None:
+        status = SimpleNamespace(st_dev=7, st_ino=11)
+
+        def capture(requested: str, resolved: str):
+            with ExitStack() as stack:
+                stack.enter_context(
+                    mock.patch(
+                        "tianlai.render_lock._is_windows_runtime",
+                        return_value=False,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch(
+                        "tianlai.render_lock._is_macos_runtime",
+                        return_value=True,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch(
+                        "tianlai.render_lock.os.path.abspath",
+                        side_effect=lambda value: value,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch(
+                        "tianlai.render_lock._plain_directory_status",
+                        return_value=status,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch(
+                        "tianlai.render_lock.os.path.samestat",
+                        return_value=True,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        Path,
+                        "is_absolute",
+                        return_value=True,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        Path,
+                        "resolve",
+                        return_value=Path(resolved),
+                    )
+                )
+                return capture_plain_directory(Path(requested))
+
+        identity = capture("/var", "/private/var")
+        self.assertEqual(identity.path.as_posix(), "/private/var")
+        with self.assertRaises(OSError) as raised:
+            capture("/opt/alias", "/srv/real")
+        self.assertEqual(raised.exception.errno, errno.ELOOP)
 
     def test_macos_case_and_unicode_aliases_share_one_lock(self) -> None:
         nfc_target = self.root / "Café Output"
@@ -117,6 +226,48 @@ class RenderLockTests(unittest.TestCase):
             self.assertEqual(raised.exception.output_directory, target.resolve())
             self.assertEqual(raised.exception.lock_path, owned.lock_path)
             self.assertIn("等待现有渲染完成后重试", str(raised.exception))
+
+    def test_two_first_callers_lock_empty_sidecar_before_metadata_write(
+        self,
+    ) -> None:
+        target = self.root / "first-use-race"
+        both_opened = threading.Barrier(2)
+        both_attempted = threading.Barrier(2)
+        observed_sizes: list[int] = []
+        observations_lock = threading.Lock()
+        real_try_lock = render_lock_module._try_lock
+
+        def synchronized_try_lock(handle) -> None:
+            with observations_lock:
+                observed_sizes.append(os.fstat(handle.fileno()).st_size)
+            both_opened.wait(timeout=10.0)
+            try:
+                real_try_lock(handle)
+            finally:
+                # The winner keeps its byte-range lock until the loser has
+                # actually made its non-blocking attempt.
+                both_attempted.wait(timeout=10.0)
+
+        def compete() -> str:
+            try:
+                with acquire_render_lock(target):
+                    return "owned"
+            except RenderLockError:
+                return "busy"
+
+        with (
+            mock.patch(
+                "tianlai.render_lock._try_lock",
+                side_effect=synchronized_try_lock,
+            ),
+            ThreadPoolExecutor(max_workers=2) as executor,
+        ):
+            results = [executor.submit(compete) for _ in range(2)]
+            outcomes = [future.result(timeout=10.0) for future in results]
+
+        self.assertEqual(observed_sizes, [0, 0])
+        self.assertEqual(sorted(outcomes), ["busy", "owned"])
+        self.assertGreaterEqual(render_lock_path(target).stat().st_size, 1)
 
     def test_different_targets_do_not_block_each_other(self) -> None:
         first = self.root / "first"

@@ -4,5 +4,5 @@ title: "Tianlai: An Editable and Reproducible Music Rendering and Iteration Runt
 type: software
 authors:
   - family-names: "Nor.na"
-version: 0.6.0rc1
+version: 0.7.0rc1
 license: Apache-2.0

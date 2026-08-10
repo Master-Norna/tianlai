@@ -7,6 +7,11 @@ import unittest
 
 import pytest
 
+from tianlai.canonical_json import (
+    CANONICALIZATION,
+    HASH_ALGORITHM,
+    canonical_json_file_sha256,
+)
 from tianlai.dedicated_candidates import dedicated_manifest_sources
 from tianlai.events import PerformanceEvent
 from tianlai.instrument import create_instrument
@@ -152,15 +157,18 @@ class AccordionRangeTests(unittest.TestCase):
 
     def test_resource_report_freezes_the_range_and_license_evidence(self) -> None:
         report = _load(DIRECTORY / "资源核验.json")
+        self.assertEqual(report["schema_version"], 2)
         self.assertEqual(report["status"], "passed")
         self.assertEqual(report["license"], "CC0-1.0")
         self.assertEqual(report["origin"], self.manifest["origin"])
         self.assertEqual(report["sample_count"], 34)
         self.assertEqual(report["sample_formats"], {".flac:44100Hz:2ch": 34})
         self.assertEqual(set(report["evidence_sha256"]), {"LICENSE.txt", "README.txt"})
+        self.assertEqual(report["hash_algorithm"], HASH_ALGORITHM)
+        self.assertEqual(report["canonicalization"], CANONICALIZATION)
         self.assertEqual(
-            report["manifest_sha256"],
-            hashlib.sha256(MANIFEST.read_bytes()).hexdigest(),
+            report["manifest_canonical_sha256"],
+            canonical_json_file_sha256(MANIFEST),
         )
         policy = report["runtime_range_policy"]
         self.assertEqual(policy["core_playable_range"], [50, 79])

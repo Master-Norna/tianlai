@@ -465,7 +465,7 @@ def _normalised_relative(
         or path.is_absolute()
         or value.startswith("/")
         or any(part in {"", ".", ".."} for part in path.parts)
-        or ":" in path.parts[0]
+        or any(":" in part for part in path.parts)
         or (not allow_slash and len(path.parts) != 1)
     ):
         raise RestoreManifestError(f"{label} must be a safe relative path: {raw!r}")

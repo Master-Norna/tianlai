@@ -38,7 +38,7 @@ MIDI / MusicXML / 可编辑 score
 “导入—明确配器—首次出声—定位—补丁—二次渲染—比较”，不需要先下载数 GB
 音源。
 
-> 当前候选版本：`0.6.0rc1`
+> 当前候选版本：`0.7.0rc1`
 >
 > **发行边界：** 正式产品是项目提供的轻量源码 ZIP。若未来发布 PyPI 的
 > sdist/wheel，`tianlai-audio` 只提供可复用的 Python 引擎，不包含完整乐器目录、
@@ -48,7 +48,7 @@ MIDI / MusicXML / 可编辑 score
 
 | 环境 | 最短入口 | 当前边界 |
 | --- | --- | --- |
-| Windows 10/11 x64 | [Windows 三步上手](#windows-三步上手) | `0.6.0rc1` 完整参考平台 |
+| Windows 10/11 x64 | [Windows 三步上手](#windows-三步上手) | `0.7.0rc1` 完整参考平台 |
 | Linux / WSL | [Linux / WSL 快速开始](docs/Linux快速开始.md) | 已提供 Bash、程序音色与 MCP 入口；成功链和真实采样按层验收 |
 | macOS Apple Silicon / Intel | [macOS 快速开始](docs/macOS快速开始.md) | 原生 64 位 CPython 3.11–3.14；已纳入干净源码 ZIP portable CI，真实采样另行验收 |
 
@@ -60,7 +60,7 @@ bash ./bootstrap_linux.sh
 
 在受支持的 64 位 CPython 3.11–3.14 上，它会创建 Linux 自己的 `.venv`，安装
 核心与 MCP 依赖，运行环境诊断，并生成不依赖外部采样的第一份 WAV。不要在
-Windows 和 WSL 之间共用 `.venv`。支持范围、MCP stdio 配置和外部采样限制见
+Windows 和 WSL 之间共用 `.venv`。支持范围、MCP stdio 配置和外部采样安装与恢复见
 [Linux / WSL 快速开始](docs/Linux快速开始.md)。
 
 macOS 用户进入源码根目录后可运行：
@@ -77,7 +77,7 @@ bash ./bootstrap_macos.sh
 
 ## Windows 三步上手
 
-Windows 10/11 x64 与 64 位 CPython 3.11–3.14 是 `0.6.0rc1` 的参考环境。
+Windows 10/11 x64 与 64 位 CPython 3.11–3.14 是 `0.7.0rc1` 的参考环境。
 以下 `cmd` 代码块都在源码包根目录的“命令提示符（cmd.exe）”执行；多行续写符
 是 `^`。
 
@@ -121,7 +121,7 @@ Windows 10/11 x64 与 64 位 CPython 3.11–3.14 是 `0.6.0rc1` 的参考环境�
 
 ## 推荐创作闭环
 
-`0.6.0rc1` 推荐使用下面这一条主链，而不是分别调用早期导入和合奏命令后手工拼接
+`0.7.0rc1` 推荐使用下面这一条主链，而不是分别调用早期导入和合奏命令后手工拼接
 产物：
 
 | 阶段 | CLI | 结果 |
@@ -146,8 +146,9 @@ Windows 10/11 x64 与 64 位 CPython 3.11–3.14 是 `0.6.0rc1` 的参考环境�
 其中路径是占位模板，需要替换为实际文件。导入得到的 `roster-draft.json` 明确为
 `executable=false`。轨道名、Program
 Change、CC7、CC11 或候选提示都不能自动取得正式演奏权限；普通声部必须显式选择
-`instrument`，打击声部必须显式提交 `kit`。默认可信调色板是策展边界，不是许可
-豁免；隔离资源和仅限本机兼容的 SoundFont 不会因打开调色板而进入公共链路。
+`instrument`，打击声部必须显式提交 `kit`。MCP 默认的 `formal` 范围覆盖全部
+103 个正式声音入口；每项的 `curated` 字段还会标明其中 25 个作者策展入口，调用方
+也可以显式选择较小的 `curated` 范围。
 
 每次 `project-render` 默认创建新的唯一候选目录，并在最后写入 `候选.json`，将
 score、roster、render profile、演奏计划和渲染回执绑定起来。候选应当作不可变
@@ -175,44 +176,64 @@ MIDI 与 MusicXML 都可能包含当前 score 无法无损表达的语义。统�
 
 ## AI 与 MCP
 
-MCP 服务当前实际公开 15 个工具，覆盖合同读取、乐器发现、统一导入、显式编制
-确认、乐谱切片/补丁/比较、预检、当前计划定位、已渲染候选定位/比较和正式渲染。
-推荐 MCP 主链与 CLI 在概念上对应，但文件载体、输出根和默认 trusted 门禁不同：
+MCP 服务当前实际公开 44 个工具：原有诊断、导入、编制、乐谱编辑、预检、定位、
+比较和渲染保持兼容，并新增路径隔离的持久 authoring project，以及可选的 v0.7
+创作工作流（宪章、少量宪法条款、分阶段复核、可信 hard failure、例外、受管渲染、
+修订、回滚与审计）。
+推荐 MCP 主链与 CLI 在概念上对应，但文件载体、输出根和默认乐器范围不同：
 
 ```text
-import_score_project → confirm_roster → validate_project
+diagnose_runtime(check_level="quick")
+        → import_score_project → confirm_roster → validate_project
+        → check_project_readiness
         → render(**render_handoff)
         → locate_rendered_candidate → get_score_slice → patch_score
-        → validate_project → render(parent_candidate_id=..., **render_handoff)
+        → validate_project → check_project_readiness
+        → render(parent_candidate_id=..., **render_handoff)
         → compare_rendered_candidates
 ```
 
-只有 `render` 写入音频；其他工具返回内存对象或读取已有候选。文件型导入受 MCP
+`render`、`render_authoring_revision` 与 `render_workflow_candidate` 会写入音频；
+其他写工具只在专用工程根内发布不可变状态或文档修订。文件型导入受 MCP
 输入根策略约束，客户端不会因为接入服务就获得整台电脑的任意读取权限。完整的
-15 工具表、输入根配置和候选规则见 [MCP 接口](docs/MCP.md)。预检返回的
+44 工具表、输入根配置和候选规则见 [MCP 接口](docs/MCP.md)；工作流的诚信边界、
+状态机和断线恢复见 [创作工作流](docs/创作工作流.md)。运行时与项目就绪
+自检以被动方式汇总合同、资源、平台与输出位置评估；正式 `render` 完成实际实例化、
+音频处理和候选写入。macOS x86_64 无法通过被动检查确认 Rosetta 状态时，可在本机
+运行 `tianlai-doctor` 进一步确认。缺失资源可交给 `plan_resource_restore` 生成
+脱敏恢复计划。
+`validate_project`、`check_project_readiness` 与 `render` 还会返回同一套分级
+`project_review`：硬合同问题继续由 `issues` 明确门禁；可渲染的音域、发音、奏法与
+编配候选则携带稳定 ID、定位范围、证据和多个复核方向，交由创作者结合试听决定。
+报告与当前 score、roster、演奏计划 Hash 绑定，不会自动改谱或改音频。
+预检返回的
 `render_handoff` 同时携带完整 profile 与其规范化 Hash，正式渲染可在创建候选前
 拒绝误换配置。缓存、重混和不可变候选的使用边界也在该文档中说明。
 
-## 当前能力与边界
+## 当前能力
 
 - 已登记 103 个声音入口，当前绑定版本完成了单乐器、单音色独立试听并标记为
-  `quality_tier=formal`；这不等于全部音区、力度、奏法、运行变体或专家级评价
-  均已验收。
-- 多乐器配器、动态、空间和真实作品仍缺少系统性的正式合奏验收，因此
-  `collaboration_review_status` 与单音色质量分开维护。
-- `manual`、`analyze`、`suggest` 都不会自动改谱或改变音频；`suggest` 只生成
-  有界、不可执行的诊断草稿。
-- 当前渲染是离线执行，不是实时软音源。首次冷渲染仍逐轨执行；长曲、多声部和
-  共享厅堂可能需要较长时间与较高峰值内存。分轨缓存与内容寻址分析缓存主要加速
-  后续重混；启用缓存的渲染会留下闭合遥测，候选渲染还会在候选清单中绑定其
-  Hash，但缓存不能消除首次演奏成本；`write_stems=true` 时，热重混仍需重写
-  公开分轨并计算厅堂与最终混音，不能把“缓存全命中”理解成零 I/O。
-- 采样重放仍有重采样质量升级空间；音源质量、覆盖音域和某种组合下的听感不能由
-  Schema 或测试自动保证。`strict_hq` 是失败关闭的证据闸门，不是音质增强开关。
-- 峰值、RMS、频谱、相位、音域和差异报告是排错仪表，不会判断旋律、编曲或作品
-  是否成立。最终候选仍需人耳 A/B。
+  `quality_tier=formal`；它们已全部进入 MCP 默认 `formal` 调用范围，仍可像以前
+  一样逐件试听，也可以按类别、路由类型、奏法、音高模式与名称查询。
+- 项目开发阶段已经使用大量合奏曲检验配器、动态、空间与实际渲染；新的组合还可
+  通过 `manual`、`analyze`、`suggest` 工作流继续吸收创作者与社区反馈。
+- `manual`、`analyze`、`suggest` 把分析与修改分层；`suggest` 生成有界、可复核的
+  诊断草稿，由创作者确认后进入下一版候选。
+- 离线渲染逐轨生成 24-bit WAV、可选分轨、共享厅堂与完整回执；分轨缓存和内容
+  寻址分析缓存可加速后续重混，闭合遥测及其 Hash 会随候选一并保存。
+- 单乐器与合奏正式入口在写盘后重新流式读取最终 PCM，生成 Hash 绑定的
+  [`渲染后自检.json`](docs/渲染后自检.md)：损坏、格式错配和明确应发声却数字
+  静音属于硬错误；True Peak/LUFS、DC、相位、声道与尾音风险供创作者复核，
+  不自动修改音频或强加统一审美。
+- `strict_hq` 按乐器声明的音域证据合同执行高质量候选门禁，适合在正式候选阶段
+  固定可复算的演奏范围；默认 `compatibility` 模式则在硬可演奏合同内保留扩展
+  音区与实验性音色，并通过 `project_review` 提供复核证据。
+- 分级自检只让结构、许可、路由、资源、安全预算与真实可演奏性等硬合同问题阻断
+  流程；创作语境提示保持非阻断，并为未来 UI 提供稳定、Hash 绑定的复核身份。
+- True Peak、LUFS、峰值、RMS、频谱、相位、音域和差异报告为排错与 A/B 提供
+  客观坐标，最终取舍由创作者结合实际听感完成。
 
-实时状态和更细的限制见 [当前状态](docs/当前状态.md)。
+实时状态和技术细节见 [当前状态](docs/当前状态.md)。
 
 ## 创作参考
 
@@ -260,8 +281,8 @@ Apache-2.0。项目也不会仅因执行渲染而取得使用者音乐输出的�
 这条命令是干净源码包必须通过的 portable 合同，不要求本机先安装大型第三方
 音源。需要真实采样的 `external_assets` 与冻结试听环境的 `listening` 是独立
 验收层；资源完全未安装时跳过，已经出现但不完整、Hash 不符或许可实物不符时仍
-必须失败。测试通过只证明相应机器合同成立，不代表所有音色与作品已经通过人工
-听审。
+必须失败。portable 验证机器合同，`external_assets` 与 `listening` 分别补充真实
+资源和冻结听审验收。
 
 文档入口见 [文档地图](docs/README.md)，完整谱面迭代约定见
 [从乐谱到第二次渲染](docs/从乐谱到第二次渲染.md)。贡献代码或提交可复算

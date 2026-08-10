@@ -28,6 +28,7 @@
   ],
   "default_articulation": "sustain",
   "gain": 0.45,
+  "resampling_quality": "bandlimited",
   "velocity_exponent": 0.68,
   "release_seconds": 0.42,
   "fast_attack_seconds": 0.008,

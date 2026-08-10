@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "status": "passed",
   "upstream": "VSCO 2 Community Edition subset distributed in Virtual Playing Orchestra",
   "origin": "https://versilian-studios.com/vsco-community/",
@@ -19,7 +19,9 @@
     "Strings/viola-SEC-staccato.sfz": "b7e112a726d7b384789bbfc341f2a3453f1e7a7510b5e12500b948dbd8a8f2b7"
   },
   "mapping_evidence_role": "numeric roots, key zones, gain, pan and B4 offset only; runtime does not parse these mixed-library SFZ files",
-  "manifest_sha256": "8cea526388e7405a94d40a782c844db207f8ea940769aa22eeee85dd25f79c1d",
+  "hash_algorithm": "SHA-256",
+  "canonicalization": "tianlai-json-v1",
+  "manifest_canonical_sha256": "a2db461d67851c738e6e04ad1b871015084a71f9e1980871690dd77fac0b6619",
   "mapping_sha256": "5615484182f6e48ebc02df4147308867e11f1cbc92294ced0d5b93f88820f29e",
   "implementation_sha256": "28d63229f7b6f17c73354fbd20d7bb0eaf932082af38389a49e2f775edbf73e6",
   "sample_count": 36,

@@ -9,19 +9,27 @@ A Yamaha C5 grand piano based on Salamander Grand Piano V3.
 - 30 sampled root notes cover A0–C8.
 - Retains the upstream SFZ's 16 nonuniform velocity layers.
 - Decodes FLAC on demand instead of loading the entire source at startup.
+- Uses all 641 upstream FLAC files at runtime: 480 main-note samples, 88
+  key-release sounds, 69 string-release resonances, and 4 pedal sounds.
 - Independent key-release mechanical sounds for all 88 keys.
-- Two layers of string-release resonance.
+- Three layers of string-release resonance: `harmS` / `harmL` are selected by
+  velocity, while `harmV3` releases in parallel with the selected layer.
 - Sustain-pedal state and two groups of pedal-up/down mechanical sounds.
 - Longer release times in the undamped high register.
 - A first approximation of soft-pedal response.
-- Sample-accurate scheduling and deterministic Round Robin.
+- Versioned band-limited resampling on every piano sample path, with a direct
+  bypass when the playback step is exactly `1:1` so the source is not changed
+  unnecessarily.
+- Sample-accurate scheduling and deterministic sample selection.
 
 ## Current limitations
 
 - Half-pedaling accepts a continuous value, but damper switching still uses a threshold approximation.
 - Sympathetic resonance uses upstream release samples rather than a global string-coupling model.
 - The soft pedal has no independent sample layer yet.
-- Resampling is currently linear, with no band-limited resampling.
+- Upstream offers an optional sample-start offset for faster touch response.
+  This entry preserves the full attack by default and does not enable that
+  optional fast-response mode in this refinement.
 - Repedaling, the sostenuto pedal, and a physical soundboard model are not yet implemented.
 
 See [来源.md](来源.en.md) for licensing and sound-source provenance.
@@ -69,9 +77,15 @@ See [`来源.md`](来源.en.md) for complete digests.
 
 This entry is `formal`. Verification materials:
 
-- [`资源核验.json`](资源核验.json): after constructing an instance, traverses all 618 samples **actually loaded** and computes per-file SHA-256; recompute with [`核验资源.py`](核验资源.py).
-- [`音准校准.json`](音准校准.json): harmonic FFT diagnostics for every root sample; recompute with [`校准音准.py`](校准音准.py).
-- [`试听核验.json`](试听核验.json): peak/RMS/clipping/WAV Hash from rendering a fixed score example; recompute with [`核验试听.py`](核验试听.py).
+- [`资源核验.json`](资源核验.json): after constructing an instance, traverses all 641 samples **actually mapped** and computes per-file SHA-256; recompute with [`核验资源.py`](核验资源.py).
+- [`音准校准.json`](音准校准.json): per-root harmonic FFT diagnostics only for the pitched main-note and three string-release-resonance layers. Key-release and pedal mechanical layers do not participate in tuning statistics or conclusions. Recompute with [`校准音准.py`](校准音准.py).
+- [`试听核验.json`](试听核验.json): peak/RMS/clipping/WAV Hash for the
+  88-key full-range stress scan; recompute with
+  `tools/生成全部试音.py --only 键盘乐器/钢琴`.
+- [`表现力试听核验.json`](表现力试听核验.json): a fixed four-part,
+  four-velocity example covering sustain pedal and all three resonance layers;
+  recompute with [`核验试听.py`](核验试听.py). The two evidence files are
+  independent and never overwrite one another.
 
 ## Sample-mapping notes
 
@@ -79,8 +93,9 @@ This entry is `formal`. Verification materials:
 
 The upstream `C8v*.flac` files measure approximately C#8.
 `_ROOT_TUNING_CENTS` in `乐器.py` declares this group of root samples as
-`+100 cents`, allowing the engine to map the C8 key according to the recording's
-real pitch. Other root samples do not receive this correction, preserving the
+`+100 cents`, allowing the engine to resample the B7 / C8 keys back to their
+correct pitches. This calibration is already active; C8 is not an unresolved
+defect. Other root samples do not receive this correction, preserving the
 piano's original stretch tuning. See [`音准校准.json`](音准校准.json) for the
 complete measurements.
 
@@ -93,4 +108,12 @@ region.
 
 ### Other
 
-- Key-release noise (`rel*.flac`) and pedal noise (`pedal*.flac`) are unpitched layers. Their tuning measurements hit search boundaries, so `音准校准.json` marks them `unreliable` and excludes them from statistics.
+- Key-release noise (`rel*.flac`) and pedal noise (`pedal*.flac`) are unpitched
+  mechanical layers. The tuning report no longer tries to infer fundamentals
+  for them and does not include them in tuning statistics or conclusions.
+- The current report includes 480 main-note samples and 69 mapped
+  string-release resonances. Main-note detuning has a `+0.766-cent` median, a
+  `41.125-cent` maximum absolute value, and no outlier beyond 50 cents. All six
+  larger outliers in the report belong to non-stationary resonance-release
+  samples; they require path-specific listening review and are not evidence
+  for automatically retuning the main piano.

@@ -121,11 +121,53 @@ class BackendArticulationContractTests(unittest.TestCase):
                     "untested",
                 )
 
+    def test_catalog_routing_classes_cover_every_formal_entry(self) -> None:
+        formal = [
+            capability
+            for capability in self.capabilities.values()
+            if capability.quality_tier == "formal"
+        ]
+        counts = {
+            routing_class: sum(
+                capability.routing_class == routing_class
+                for capability in formal
+            )
+            for routing_class in ("instrument", "percussion", "effect")
+        }
+
+        self.assertEqual(
+            counts,
+            {"instrument": 68, "percussion": 27, "effect": 8},
+        )
+        self.assertEqual(
+            sum(
+                capability.routing_class == "percussion"
+                and capability.pitched
+                for capability in formal
+            ),
+            9,
+        )
+
 
 class PlayableRangeContractTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.capabilities = load_capabilities(ROOT / "乐器")
+
+    def test_ignore_pitch_checks_selector_keys_while_fixed_accepts_any_key(
+        self,
+    ) -> None:
+        high_tom = self.capabilities["现代鼓组/高音通鼓"]
+        kick = self.capabilities["现代鼓组/底鼓"]
+
+        self.assertEqual(high_tom.pitch_mode, "ignore")
+        self.assertTrue(high_tom.covers(60.0))
+        self.assertTrue(high_tom.covers(65.0))
+        self.assertFalse(high_tom.covers(59.0))
+        self.assertFalse(high_tom.covers(66.0))
+        self.assertEqual(kick.pitch_mode, "fixed")
+        self.assertTrue(kick.covers(0.0))
+        self.assertTrue(kick.covers(127.0))
 
     def test_bagpipe_chanter_and_independent_drones_are_not_one_scale(self) -> None:
         capability = self.capabilities["世界乐器/风笛"]

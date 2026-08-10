@@ -13,6 +13,7 @@ missing.
 - 34 chromatic keys, 3 genuine velocity layers, and 3 deterministic RR mappings per note produce 306 pitched regions. By upstream design, RR2/RR3 transpose real recordings from adjacent keys; not every key was independently recorded 3 times.
 - All 100 deduplicated pitched FLAC files read their `riff/smpl` loops; 90 breath-noise and 40 key-noise recordings are also connected.
 - Playback tuning follows the upstream `key/pitch_keycenter + tune` exactly. Each of the 100 files also receives an FFT diagnostic over its loop: the median residual relative to upstream tuning is `+2.217 cents`, and the maximum absolute difference is `25.626 cents`. Natural vibrato is pronounced, so diagnostic residuals do not overwrite the author's tune table.
+- Pitched and noise engines both enable band-limited resampling: exact 1:1 integer positions use a direct-read bypass, while other increments use a 16-tap, 1024-phase sinc kernel. When the effective playback increment exceeds 1 (for example, pitch-up or an output rate below the source rate), it narrows the passband before decimation to reduce aliasing and high-frequency roughness.
 - `expression` and `breath` are smooth loudness controls. `modulation` implements deterministic vibrato according to upstream settings: up to 50 cents, about 5 Hz, with a 2-second fade-in. `noise` controls the real noise layer.
 - Supports `note_off` and `sustain_pedal`. Chinese and space-containing Windows paths load correctly, and rendering is byte-for-byte reproducible.
 
@@ -40,8 +41,8 @@ missing.
 
 - `legato` uses a 20,000-frame offset into the same upstream sustain sample, a 50 ms attack, and a short cross-release. It is reliable, reproducible pseudo-legato, not a recorded interval transition.
 - Velocity layers are selected discretely, without a continuous timbral crossfade. `breath`/`expression` currently apply no continuous filtering or spectral transformation.
-- The noise pool uses every real recording but flattens the upstream “4 sequential groups + random selection within each group” into a deterministic cycle. Lightweight triggering on note-on/note-off is Tianlai adapter behavior.
-- The currently bound version has passed single-instrument listening review and is therefore `formal`. The original material remains mono, with no multiple microphones, room positions, or separate release layer; manual A/B and blind ensemble listening still await review.
+- The noise pool uses every real recording and flattens the upstream “4 sequential groups + random selection within each group” into a deterministic cycle. Breath noise triggers only at phrase onset, overlapping `legato` notes do not replay an inhale, and key noise follows `note_off`.
+- The currently bound version has passed the single-instrument machine gate and has a rebuilt fixed audition, so it remains `formal`. The original mono assets, mapping parameters, and runtime choices remain traceable and byte-for-byte reproducible.
 
 For provenance and reproducible evidence, see [来源.md](来源.en.md),
 [资源核验.json](资源核验.json), [音准校准.json](音准校准.json), and

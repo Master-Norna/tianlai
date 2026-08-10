@@ -1,42 +1,24 @@
 {
   "status": "machine_pass_human_pending",
-  "rendered_at": "2026-07-27",
+  "rendered_at": "2026-08-07",
   "platform": "Windows Chinese-path workspace",
   "sample_rate": 48000,
   "channels": 2,
   "subtype": "PCM_24",
   "frame_count": 2612640,
   "duration_seconds": 54.43,
-  "peak_active_voices": 9,
-  "peak": 0.39714,
-  "rms": 0.054637,
+  "peak_active_voices": 12,
+  "peak": 0.396961,
+  "rms": 0.054655,
   "clipped_samples": 0,
   "wav": "output/全音域试音/键盘乐器/钢琴.wav",
   "wav_persistence": "temporary",
-  "wav_sha256": "9a713004e7e47fedc9a776f4a36e639d70da1b1af14c40480aa3cd7c2664be83",
+  "wav_sha256": "63598e94c2713a35ff273c2430b127d865ac03a9f62b4d2870b6aa8c0ac47562",
   "hash_algorithm": "SHA-256",
   "canonicalization": "tianlai-json-v1",
-  "manifest_canonical_sha256": "abe86ced53789d6ecc980e6518c67928111b453803347e14e145ad864dc6a3af",
-  "license_metadata_migration": {
-    "status": "license_metadata_only_no_audio_change",
-    "migrated_at": "2026-08-02",
-    "previous_manifest_canonical_sha256": "9b15f5ab3c7e76d8add86233b214ecc0167e47c2945bd13a23e4bb1eff1ed048",
-    "changed_fields": [
-      "creator",
-      "attribution"
-    ],
-    "audio_rerendered": false,
-    "reason": "Only creator and attribution metadata changed; runtime and render parameters are unchanged."
-  },
+  "manifest_canonical_sha256": "ff9ca4f1dfbaca8bfbae7bf33481810c7e0fb536d5c3894d118f98f0a55fdb2e",
   "events": "examples/全音域上行/键盘乐器/钢琴_全音域上行.events.json",
   "events_canonical_sha256": "731b4f3770a6d5055de324ebd9373168d7c43cf360d32e5c90a4a2a4ea67c103",
-  "identity_migration": {
-    "status": "superseded_by_canonical_json_v1",
-    "hash_algorithm": "SHA-256",
-    "hash_semantics": "source-file-bytes",
-    "manifest_sha256": "d5d1a45bf01e967bed680169abce6c6b5df4303e3fbbcdfbbc61c47585640606",
-    "events_sha256": "881601e95f3dfcb55ef48bc89859674c91dbea832d27ff95145b1d5b2b3f290a"
-  },
   "audition_profile": "ascending-scale",
   "audition_protocol": "full-range-chromatic-ascending-v1",
   "coverage": [
@@ -46,11 +28,30 @@
   "human_review": "pending",
   "previous_protocol_evidence": {
     "status": "superseded_event_bound_machine_evidence",
-    "events_sha256": "201d2c6fc5793d18562a8cd31079b57c3d4303141af09941981165a9f820db3e",
-    "wav_sha256": "a25bf9b7c67fd9dd4068929ce62839669f11644325673fdf24eaa76dc928c25d",
+    "wav_sha256": "9a713004e7e47fedc9a776f4a36e639d70da1b1af14c40480aa3cd7c2664be83",
     "fields": {
-      "wav_persistence": "temporary"
-    }
+      "license_metadata_migration": {
+        "status": "license_metadata_only_no_audio_change",
+        "migrated_at": "2026-08-02",
+        "previous_manifest_canonical_sha256": "9b15f5ab3c7e76d8add86233b214ecc0167e47c2945bd13a23e4bb1eff1ed048",
+        "changed_fields": [
+          "creator",
+          "attribution"
+        ],
+        "audio_rerendered": false,
+        "reason": "Only creator and attribution metadata changed; runtime and render parameters are unchanged."
+      },
+      "identity_migration": {
+        "status": "superseded_by_canonical_json_v1",
+        "hash_algorithm": "SHA-256",
+        "hash_semantics": "source-file-bytes",
+        "manifest_sha256": "d5d1a45bf01e967bed680169abce6c6b5df4303e3fbbcdfbbc61c47585640606",
+        "events_sha256": "881601e95f3dfcb55ef48bc89859674c91dbea832d27ff95145b1d5b2b3f290a"
+      }
+    },
+    "hash_algorithm": "SHA-256",
+    "canonicalization": "tianlai-json-v1",
+    "events_canonical_sha256": "731b4f3770a6d5055de324ebd9373168d7c43cf360d32e5c90a4a2a4ea67c103"
   },
   "specialized_machine_evidence_status": "previous_protocol_only_not_current_measurement",
   "review_evidence_status": "pending_new_review_old_hash_bound_reviews_do_not_apply"

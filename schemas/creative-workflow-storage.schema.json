@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tianlai.local/schemas/creative-workflow-storage.schema.json",
+  "title": "Tianlai creative workflow immutable storage metadata v1",
+  "oneOf": [
+    {"$ref": "#/$defs/pointer"},
+    {"$ref": "#/$defs/revision"}
+  ],
+  "$defs": {
+    "id32": {"type": "string", "pattern": "^[0-9a-f]{32}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "timestamp": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$"},
+    "pointer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "schema_version", "workflow_id", "project_id", "created_at_utc", "updated_at_utc", "current_revision", "current_sequence"],
+      "properties": {
+        "kind": {"const": "tianlai.creative_workflow"},
+        "schema_version": {"const": 1},
+        "workflow_id": {"$ref": "#/$defs/id32"},
+        "project_id": {"$ref": "#/$defs/id32"},
+        "created_at_utc": {"$ref": "#/$defs/timestamp"},
+        "updated_at_utc": {"$ref": "#/$defs/timestamp"},
+        "current_revision": {"$ref": "#/$defs/sha256"},
+        "current_sequence": {"type": "integer", "minimum": 1, "maximum": 16384}
+      }
+    },
+    "revision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "schema_version", "workflow_id", "project_id", "revision", "sequence", "parent_revision", "created_at_utc", "canonicalization", "state"],
+      "properties": {
+        "kind": {"const": "tianlai.creative_workflow_revision"},
+        "schema_version": {"const": 1},
+        "workflow_id": {"$ref": "#/$defs/id32"},
+        "project_id": {"$ref": "#/$defs/id32"},
+        "revision": {"$ref": "#/$defs/sha256"},
+        "sequence": {"type": "integer", "minimum": 1, "maximum": 16384},
+        "parent_revision": {"oneOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+        "created_at_utc": {"$ref": "#/$defs/timestamp"},
+        "canonicalization": {"type": "string", "minLength": 1},
+        "state": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["filename", "canonical_sha256", "file_sha256", "byte_length"],
+          "properties": {
+            "filename": {"const": "workflow-state.json"},
+            "canonical_sha256": {"$ref": "#/$defs/sha256"},
+            "file_sha256": {"$ref": "#/$defs/sha256"},
+            "byte_length": {"type": "integer", "minimum": 1, "maximum": 8388608}
+          }
+        }
+      }
+    }
+  }
+}

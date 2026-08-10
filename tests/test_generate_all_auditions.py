@@ -6,6 +6,7 @@ import hashlib
 import importlib.util
 import json
 from pathlib import Path
+import shutil
 from types import SimpleNamespace
 import sys
 import tempfile
@@ -185,6 +186,732 @@ class GenerateAllAuditionsTests(unittest.TestCase):
             encoding="utf-8",
         )
         return report
+
+    def _seed_existing_batch_manifest(
+        self,
+        entries: list[dict[str, object]],
+        **extra: object,
+    ) -> Path:
+        normalized_entries: list[dict[str, object]] = []
+        for entry in entries:
+            normalized = dict(entry)
+            normalized.setdefault("declared_ranges", [[60, 60]])
+            normalized.setdefault("gaps", [])
+            normalized.setdefault("key_count", 1)
+            normalized_entries.append(normalized)
+        path = self.output_root / "_试听清单.json"
+        document: dict[str, object] = {
+            "schema_version": 2,
+            "profile": self.tool.PROFILE_ASCENDING_SCALE,
+            "protocol": self.tool.PROTOCOL_ID,
+            "instrument_count": len(normalized_entries),
+            "instruments": normalized_entries,
+        }
+        document.update(extra)
+        path.write_text(
+            json.dumps(document, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        (self.output_root / "_试听顺序.txt").write_text(
+            self.tool._render_batch_order(normalized_entries),
+            encoding="utf-8",
+        )
+        return path
+
+    def test_repeated_only_cli_and_selector_resolution_are_exact(self) -> None:
+        args = self.tool._parse_args(
+            [
+                "--only",
+                "键盘乐器/测试钢琴",
+                "--only",
+                "测试长笛",
+            ]
+        )
+        self.assertEqual(
+            args.only,
+            ["键盘乐器/测试钢琴", "测试长笛"],
+        )
+
+        piano, _ = self._make_instrument("键盘乐器/测试钢琴", ["old"])
+        flute, _ = self._make_instrument("管弦乐/测试长笛", ["old"])
+        entries = [
+            SimpleNamespace(manifest_path=piano),
+            SimpleNamespace(manifest_path=flute),
+        ]
+        selected = self.tool._select_only_entries(
+            entries,
+            ("键盘乐器\\测试钢琴", "测试长笛", "测试长笛"),
+        )
+        self.assertEqual(
+            [Path(entry.manifest_path) for entry in selected],
+            [piano, flute],
+        )
+
+        duplicate, _ = self._make_instrument("教学乐器/测试钢琴", ["old"])
+        with self.assertRaisesRegex(ValueError, "名称 '测试钢琴' 不唯一"):
+            self.tool._select_only_entries(
+                [*entries, SimpleNamespace(manifest_path=duplicate)],
+                ("测试钢琴",),
+            )
+        for invalid in ("../测试钢琴", "/测试钢琴", "键盘乐器//测试钢琴"):
+            with self.subTest(invalid=invalid):
+                with self.assertRaisesRegex(ValueError, "--only"):
+                    self.tool._select_only_entries(entries, (invalid,))
+
+    def test_selective_full_range_replaces_only_selected_artifacts(self) -> None:
+        selected_manifest, _ = self._make_instrument(
+            "键盘乐器/选择键盘",
+            ["selected old"],
+            manifest_updates={
+                "type": "oscillator",
+                "note_min": 60,
+                "note_max": 61,
+            },
+        )
+        untouched_manifest, _ = self._make_instrument(
+            "管弦乐/保留长笛",
+            ["untouched old"],
+            manifest_updates={
+                "type": "oscillator",
+                "note_min": 72,
+                "note_max": 73,
+            },
+        )
+        entries = [
+            SimpleNamespace(manifest_path=selected_manifest),
+            SimpleNamespace(manifest_path=untouched_manifest),
+        ]
+        self.tool.discover_instruments = lambda _root: entries
+
+        selected_report = selected_manifest.parent / "试听核验.json"
+        untouched_report = untouched_manifest.parent / "试听核验.json"
+        old_selected_report = selected_report.read_bytes()
+        old_untouched_report = untouched_report.read_bytes()
+
+        selected_wav = self.output_root / "键盘乐器" / "选择键盘.wav"
+        untouched_wav = self.output_root / "管弦乐" / "保留长笛.wav"
+        selected_sidecar = selected_wav.with_name(
+            selected_wav.name + ".许可与署名.txt"
+        )
+        untouched_sidecar = untouched_wav.with_name(
+            untouched_wav.name + ".许可与署名.txt"
+        )
+        for path, content in (
+            (selected_wav, b"old selected wav"),
+            (selected_sidecar, b"old selected sidecar"),
+            (untouched_wav, b"untouched wav"),
+            (untouched_sidecar, b"untouched sidecar"),
+        ):
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(content)
+        output_marker = self.output_root / "未选公共文件.txt"
+        output_marker.write_bytes(b"untouched output marker")
+        batch_manifest = self.output_root / "_试听清单.json"
+        old_selected_batch_entry = {
+            "order": 1,
+            "instrument": "键盘乐器/选择键盘",
+            "declared_ranges": [[60, 61]],
+            "gaps": [],
+            "key_count": 2,
+            "wav_sha256": "old-selected-wav-hash",
+            "selected_legacy_marker": True,
+        }
+        old_untouched_batch_entry = {
+            "order": 2,
+            "instrument": "管弦乐/保留长笛",
+            "declared_ranges": [[72, 73]],
+            "gaps": [],
+            "key_count": 2,
+            "wav_sha256": "untouched-wav-hash",
+            "untouched_marker": ["must", "stay", "identical"],
+        }
+        batch_manifest.write_text(
+            json.dumps(
+                {
+                    "schema_version": 2,
+                    "profile": self.tool.PROFILE_ASCENDING_SCALE,
+                    "protocol": self.tool.PROTOCOL_ID,
+                    "instrument_count": 2,
+                    "batch_marker": {"must": "stay"},
+                    "instruments": [
+                        old_selected_batch_entry,
+                        old_untouched_batch_entry,
+                    ],
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        old_batch_manifest = batch_manifest.read_bytes()
+        listening_order = self.output_root / "_试听顺序.txt"
+        listening_order.write_text(
+            self.tool._render_batch_order(
+                [old_selected_batch_entry, old_untouched_batch_entry]
+            ),
+            encoding="utf-8",
+        )
+
+        selected_events = (
+            self.tool.FULL_RANGE_EVENTS_ROOT
+            / "键盘乐器"
+            / "选择键盘_全音域上行.events.json"
+        )
+        untouched_events = (
+            self.tool.FULL_RANGE_EVENTS_ROOT
+            / "管弦乐"
+            / "保留长笛_全音域上行.events.json"
+        )
+        selected_events.parent.mkdir(parents=True, exist_ok=True)
+        untouched_events.parent.mkdir(parents=True, exist_ok=True)
+        selected_events.write_bytes(b"old selected events")
+        untouched_events.write_bytes(b"untouched events")
+
+        rendered: list[Path] = []
+
+        def fake_generate(*args, **kwargs):
+            rendered.append(Path(args[0]))
+            report = self._fake_report(*args, **kwargs)
+            staged_wav = Path(args[2])
+            staged_wav.with_name(
+                staged_wav.name + ".许可与署名.txt"
+            ).write_bytes(b"new selected sidecar")
+            return report
+
+        self.tool.generate_dedicated_audition_verification = fake_generate
+
+        groups = self.tool.generate_all_auditions(
+            only=("键盘乐器/选择键盘",)
+        )
+
+        self.assertEqual(rendered, [selected_manifest])
+        self.assertEqual(sum(map(len, groups.values())), 1)
+        self.assertEqual(selected_wav.read_bytes(), b"one synthetic test wav")
+        self.assertEqual(selected_sidecar.read_bytes(), b"new selected sidecar")
+        self.assertNotEqual(selected_report.read_bytes(), old_selected_report)
+        self.assertNotEqual(selected_events.read_bytes(), b"old selected events")
+        self.assertEqual(untouched_wav.read_bytes(), b"untouched wav")
+        self.assertEqual(untouched_sidecar.read_bytes(), b"untouched sidecar")
+        self.assertEqual(untouched_report.read_bytes(), old_untouched_report)
+        self.assertEqual(untouched_events.read_bytes(), b"untouched events")
+        self.assertEqual(output_marker.read_bytes(), b"untouched output marker")
+        self.assertNotEqual(batch_manifest.read_bytes(), old_batch_manifest)
+        updated_batch = json.loads(batch_manifest.read_text(encoding="utf-8"))
+        self.assertEqual(updated_batch["instrument_count"], 2)
+        self.assertEqual(updated_batch["batch_marker"], {"must": "stay"})
+        self.assertEqual(
+            [entry["instrument"] for entry in updated_batch["instruments"]],
+            ["键盘乐器/选择键盘", "管弦乐/保留长笛"],
+        )
+        self.assertEqual(updated_batch["instruments"][0]["order"], 1)
+        self.assertEqual(
+            updated_batch["instruments"][0]["wav_sha256"],
+            _sha256(selected_wav),
+        )
+        self.assertEqual(
+            updated_batch["instruments"][0]["events_canonical_sha256"],
+            canonical_json_file_sha256(selected_events),
+        )
+        self.assertEqual(
+            updated_batch["instruments"][1],
+            old_untouched_batch_entry,
+        )
+        self.assertEqual(
+            listening_order.read_text(encoding="utf-8"),
+            self.tool._render_batch_order(updated_batch["instruments"]),
+        )
+        self.assertEqual(
+            list((self.root / "output").glob(".生成全音域试音-*")),
+            [],
+        )
+
+    def test_selective_first_build_without_output_tree_creates_no_batch_manifest(
+        self,
+    ) -> None:
+        manifest, _ = self._make_instrument(
+            "键盘乐器/首建键盘",
+            ["old"],
+            manifest_updates={
+                "type": "oscillator",
+                "note_min": 60,
+                "note_max": 61,
+            },
+        )
+        self.tool.discover_instruments = lambda _root: [
+            SimpleNamespace(manifest_path=manifest)
+        ]
+        rendered = 0
+
+        def fake_generate(*args, **kwargs):
+            nonlocal rendered
+            rendered += 1
+            return self._fake_report(*args, **kwargs)
+
+        self.tool.generate_dedicated_audition_verification = fake_generate
+        shutil.rmtree(self.output_root)
+
+        groups = self.tool.generate_all_auditions(only=("首建键盘",))
+        repeated_groups = self.tool.generate_all_auditions(
+            only=("首建键盘",)
+        )
+
+        self.assertEqual(sum(map(len, groups.values())), 1)
+        self.assertEqual(sum(map(len, repeated_groups.values())), 1)
+        self.assertEqual(rendered, 2)
+        self.assertTrue(
+            (self.output_root / "键盘乐器" / "首建键盘.wav").is_file()
+        )
+        self.assertTrue(
+            (
+                self.tool.FULL_RANGE_EVENTS_ROOT
+                / "键盘乐器"
+                / "首建键盘_全音域上行.events.json"
+            ).is_file()
+        )
+        self.assertFalse((self.output_root / "_试听清单.json").exists())
+        self.assertFalse((self.output_root / "_试听顺序.txt").exists())
+        self.assertEqual(
+            list((self.root / "output").glob(".生成全音域试音-*")),
+            [],
+        )
+
+    def test_selective_rejects_invalid_or_unmatched_existing_batch_manifest(
+        self,
+    ) -> None:
+        manifest, _ = self._make_instrument(
+            "键盘乐器/清单键盘",
+            ["old"],
+            manifest_updates={
+                "type": "oscillator",
+                "note_min": 60,
+                "note_max": 61,
+            },
+        )
+        self.tool.discover_instruments = lambda _root: [
+            SimpleNamespace(manifest_path=manifest)
+        ]
+        rendered = 0
+
+        def should_not_render(*args, **kwargs):
+            nonlocal rendered
+            rendered += 1
+            return self._fake_report(*args, **kwargs)
+
+        self.tool.generate_dedicated_audition_verification = should_not_render
+        batch_manifest = self.output_root / "_试听清单.json"
+        cases = {
+            "invalid-json": b"{not-json",
+            "count-mismatch": json.dumps(
+                {
+                    "schema_version": 2,
+                    "profile": self.tool.PROFILE_ASCENDING_SCALE,
+                    "protocol": self.tool.PROTOCOL_ID,
+                    "instrument_count": 2,
+                    "instruments": [
+                        {"order": 1, "instrument": "键盘乐器/清单键盘"}
+                    ],
+                }
+            ).encode("utf-8"),
+            "selected-missing": json.dumps(
+                {
+                    "schema_version": 2,
+                    "profile": self.tool.PROFILE_ASCENDING_SCALE,
+                    "protocol": self.tool.PROTOCOL_ID,
+                    "instrument_count": 1,
+                    "instruments": [
+                        {"order": 1, "instrument": "管弦乐/别的乐器"}
+                    ],
+                },
+                ensure_ascii=False,
+            ).encode("utf-8"),
+        }
+        for label, content in cases.items():
+            with self.subTest(label=label):
+                batch_manifest.write_bytes(content)
+                with self.assertRaises(ValueError):
+                    self.tool.generate_all_auditions(only=("清单键盘",))
+                self.assertEqual(rendered, 0)
+                self.assertEqual(batch_manifest.read_bytes(), content)
+                self.assertEqual(
+                    list(
+                        (self.root / "output").glob(
+                            ".生成全音域试音-*"
+                        )
+                    ),
+                    [],
+                )
+
+    def test_selective_rejects_incomplete_reordered_or_stale_full_roster(
+        self,
+    ) -> None:
+        first_manifest, _ = self._make_instrument(
+            "键盘乐器/名册甲",
+            ["old"],
+            manifest_updates={
+                "type": "oscillator",
+                "note_min": 60,
+                "note_max": 61,
+            },
+        )
+        second_manifest, _ = self._make_instrument(
+            "管弦乐/名册乙",
+            ["old"],
+            manifest_updates={
+                "type": "oscillator",
+                "note_min": 72,
+                "note_max": 73,
+            },
+        )
+        self.tool.discover_instruments = lambda _root: [
+            SimpleNamespace(manifest_path=first_manifest),
+            SimpleNamespace(manifest_path=second_manifest),
+        ]
+        rendered = 0
+
+        def should_not_render(*args, **kwargs):
+            nonlocal rendered
+            rendered += 1
+            return self._fake_report(*args, **kwargs)
+
+        self.tool.generate_dedicated_audition_verification = should_not_render
+        cases = (
+            (
+                "truncated",
+                [{"order": 1, "instrument": "键盘乐器/名册甲"}],
+                False,
+            ),
+            (
+                "reordered",
+                [
+                    {"order": 1, "instrument": "管弦乐/名册乙"},
+                    {"order": 2, "instrument": "键盘乐器/名册甲"},
+                ],
+                False,
+            ),
+            (
+                "non-contiguous-order",
+                [
+                    {"order": 1, "instrument": "键盘乐器/名册甲"},
+                    {"order": 3, "instrument": "管弦乐/名册乙"},
+                ],
+                False,
+            ),
+            (
+                "stale-order-text",
+                [
+                    {"order": 1, "instrument": "键盘乐器/名册甲"},
+                    {"order": 2, "instrument": "管弦乐/名册乙"},
+                ],
+                True,
+            ),
+        )
+        for label, entries, corrupt_order_text in cases:
+            with self.subTest(label=label):
+                self._seed_existing_batch_manifest(entries)
+                if corrupt_order_text:
+                    (self.output_root / "_试听顺序.txt").write_text(
+                        "stale\n",
+                        encoding="utf-8",
+                    )
+                with self.assertRaises(ValueError):
+                    self.tool.generate_all_auditions(only=("名册甲",))
+                self.assertEqual(rendered, 0)
+                self.assertEqual(
+                    list(
+                        (self.root / "output").glob(
+                            ".生成全音域试音-*"
+                        )
+                    ),
+                    [],
+                )
+
+    def test_selective_render_failure_preserves_all_existing_files(self) -> None:
+        first_manifest, _ = self._make_instrument(
+            "键盘乐器/事务甲",
+            ["first old report"],
+            manifest_updates={
+                "type": "oscillator",
+                "note_min": 60,
+                "note_max": 61,
+            },
+        )
+        second_manifest, _ = self._make_instrument(
+            "键盘乐器/事务乙",
+            ["second old report"],
+            manifest_updates={
+                "type": "oscillator",
+                "note_min": 62,
+                "note_max": 63,
+            },
+        )
+        untouched_manifest, _ = self._make_instrument(
+            "管弦乐/事务外长笛",
+            ["untouched report"],
+            manifest_updates={
+                "type": "oscillator",
+                "note_min": 72,
+                "note_max": 73,
+            },
+        )
+        self.tool.discover_instruments = lambda _root: [
+            SimpleNamespace(manifest_path=first_manifest),
+            SimpleNamespace(manifest_path=second_manifest),
+            SimpleNamespace(manifest_path=untouched_manifest),
+        ]
+        batch_manifest = self._seed_existing_batch_manifest(
+            [
+                {"order": 1, "instrument": "键盘乐器/事务甲"},
+                {"order": 2, "instrument": "键盘乐器/事务乙"},
+                {"order": 3, "instrument": "管弦乐/事务外长笛"},
+            ],
+            batch_marker="old batch",
+        )
+
+        old_files: dict[Path, bytes] = {batch_manifest: batch_manifest.read_bytes()}
+        for relative, content in (
+            ("键盘乐器/事务甲.wav", b"old first wav"),
+            ("键盘乐器/事务乙.wav", b"old second wav"),
+            ("管弦乐/事务外长笛.wav", b"untouched wav"),
+        ):
+            path = self.output_root / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(content)
+            old_files[path] = content
+        for relative, content in (
+            ("键盘乐器/事务甲_全音域上行.events.json", b"old first events"),
+            ("键盘乐器/事务乙_全音域上行.events.json", b"old second events"),
+            ("管弦乐/事务外长笛_全音域上行.events.json", b"untouched events"),
+        ):
+            path = self.tool.FULL_RANGE_EVENTS_ROOT / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(content)
+            old_files[path] = content
+        for instrument_manifest in (
+            first_manifest,
+            second_manifest,
+            untouched_manifest,
+        ):
+            report = instrument_manifest.parent / "试听核验.json"
+            old_files[report] = report.read_bytes()
+
+        rendered: list[Path] = []
+
+        def fail_second(*args, **kwargs):
+            manifest_path = Path(args[0])
+            rendered.append(manifest_path)
+            if manifest_path == second_manifest:
+                raise RuntimeError("second selected render failed")
+            return self._fake_report(*args, **kwargs)
+
+        self.tool.generate_dedicated_audition_verification = fail_second
+
+        with self.assertRaises(self.tool.AuditionBatchError) as raised:
+            self.tool.generate_all_auditions(
+                only=("键盘乐器/事务甲", "事务乙")
+            )
+
+        self.assertEqual(rendered, [first_manifest, second_manifest])
+        self.assertIn("second selected render failed", raised.exception.failures[0][1])
+        for path, content in old_files.items():
+            with self.subTest(path=path):
+                self.assertEqual(path.read_bytes(), content)
+        self.assertEqual(
+            list((self.root / "output").glob(".生成全音域试音-*")),
+            [],
+        )
+
+    def test_selective_commit_failure_rolls_back_manifest_wav_event_and_report(
+        self,
+    ) -> None:
+        selected_manifest, _ = self._make_instrument(
+            "键盘乐器/提交回滚键盘",
+            ["old selected report"],
+            manifest_updates={
+                "type": "oscillator",
+                "note_min": 60,
+                "note_max": 61,
+            },
+        )
+        untouched_manifest, _ = self._make_instrument(
+            "管弦乐/提交外长笛",
+            ["untouched report"],
+            manifest_updates={
+                "type": "oscillator",
+                "note_min": 72,
+                "note_max": 73,
+            },
+        )
+        self.tool.discover_instruments = lambda _root: [
+            SimpleNamespace(manifest_path=selected_manifest),
+            SimpleNamespace(manifest_path=untouched_manifest),
+        ]
+        batch_manifest = self._seed_existing_batch_manifest(
+            [
+                {"order": 1, "instrument": "键盘乐器/提交回滚键盘"},
+                {"order": 2, "instrument": "管弦乐/提交外长笛"},
+            ]
+        )
+        selected_wav = self.output_root / "键盘乐器" / "提交回滚键盘.wav"
+        untouched_wav = self.output_root / "管弦乐" / "提交外长笛.wav"
+        selected_events = (
+            self.tool.FULL_RANGE_EVENTS_ROOT
+            / "键盘乐器"
+            / "提交回滚键盘_全音域上行.events.json"
+        )
+        untouched_events = (
+            self.tool.FULL_RANGE_EVENTS_ROOT
+            / "管弦乐"
+            / "提交外长笛_全音域上行.events.json"
+        )
+        for path, content in (
+            (selected_wav, b"old selected wav"),
+            (untouched_wav, b"untouched wav"),
+            (selected_events, b"old selected events"),
+            (untouched_events, b"untouched events"),
+        ):
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(content)
+        selected_report = selected_manifest.parent / "试听核验.json"
+        untouched_report = untouched_manifest.parent / "试听核验.json"
+        old_files = {
+            batch_manifest: batch_manifest.read_bytes(),
+            self.output_root / "_试听顺序.txt": (
+                self.output_root / "_试听顺序.txt"
+            ).read_bytes(),
+            selected_wav: selected_wav.read_bytes(),
+            untouched_wav: untouched_wav.read_bytes(),
+            selected_events: selected_events.read_bytes(),
+            untouched_events: untouched_events.read_bytes(),
+            selected_report: selected_report.read_bytes(),
+            untouched_report: untouched_report.read_bytes(),
+        }
+        self.tool.generate_dedicated_audition_verification = self._fake_report
+        real_replace = self.tool.os.replace
+        destinations: list[Path] = []
+
+        def fail_selected_report(source, destination):
+            destination = Path(destination)
+            destinations.append(destination)
+            if destination == selected_report:
+                raise OSError("selected report commit failed")
+            return real_replace(source, destination)
+
+        with mock.patch.object(self.tool.os, "replace", fail_selected_report):
+            with self.assertRaisesRegex(
+                OSError,
+                "selected report commit failed",
+            ):
+                self.tool.generate_all_auditions(
+                    only=("提交回滚键盘",)
+                )
+
+        self.assertIn(batch_manifest, destinations)
+        self.assertIn(self.output_root / "_试听顺序.txt", destinations)
+        self.assertIn(selected_wav, destinations)
+        self.assertIn(selected_events, destinations)
+        for path, content in old_files.items():
+            with self.subTest(path=path):
+                self.assertEqual(path.read_bytes(), content)
+        self.assertEqual(
+            list((self.root / "output").glob(".生成全音域试音-*")),
+            [],
+        )
+
+    def test_incomplete_selective_rollback_preserves_recovery_directory(
+        self,
+    ) -> None:
+        selected_manifest, _ = self._make_instrument(
+            "键盘乐器/恢复键盘",
+            ["old selected report"],
+            manifest_updates={
+                "type": "oscillator",
+                "note_min": 60,
+                "note_max": 61,
+            },
+        )
+        untouched_manifest, _ = self._make_instrument(
+            "管弦乐/恢复外长笛",
+            ["untouched report"],
+            manifest_updates={
+                "type": "oscillator",
+                "note_min": 72,
+                "note_max": 73,
+            },
+        )
+        self.tool.discover_instruments = lambda _root: [
+            SimpleNamespace(manifest_path=selected_manifest),
+            SimpleNamespace(manifest_path=untouched_manifest),
+        ]
+        batch_manifest = self._seed_existing_batch_manifest(
+            [
+                {"order": 1, "instrument": "键盘乐器/恢复键盘"},
+                {"order": 2, "instrument": "管弦乐/恢复外长笛"},
+            ]
+        )
+        selected_wav = self.output_root / "键盘乐器" / "恢复键盘.wav"
+        selected_events = (
+            self.tool.FULL_RANGE_EVENTS_ROOT
+            / "键盘乐器"
+            / "恢复键盘_全音域上行.events.json"
+        )
+        selected_wav.parent.mkdir(parents=True, exist_ok=True)
+        selected_events.parent.mkdir(parents=True, exist_ok=True)
+        selected_wav.write_bytes(b"old selected wav")
+        selected_events.write_bytes(b"old selected events")
+        self.tool.generate_dedicated_audition_verification = self._fake_report
+
+        final_targets = {
+            batch_manifest,
+            self.output_root / "_试听顺序.txt",
+            selected_wav,
+            selected_events,
+            selected_manifest.parent / "试听核验.json",
+        }
+        real_replace = self.tool.os.replace
+        first_published: Path | None = None
+        commit_failed = False
+
+        def fail_commit_then_rollback(source, destination):
+            nonlocal first_published, commit_failed
+            source = Path(source)
+            destination = Path(destination)
+            if destination in final_targets and not commit_failed:
+                if first_published is None:
+                    first_published = destination
+                    return real_replace(source, destination)
+                commit_failed = True
+                raise KeyboardInterrupt("intentional selective commit interruption")
+            if (
+                commit_failed
+                and destination == first_published
+                and source.name.endswith(".previous")
+            ):
+                raise OSError("intentional selective rollback failure")
+            return real_replace(source, destination)
+
+        with mock.patch.object(
+            self.tool.os,
+            "replace",
+            fail_commit_then_rollback,
+        ):
+            with self.assertRaisesRegex(
+                self.tool.AuditionRollbackError,
+                "回滚不完整",
+            ) as raised:
+                self.tool.generate_all_auditions(only=("恢复键盘",))
+
+        recovery = raised.exception.recovery_path
+        self.assertTrue(recovery.is_dir())
+        self.assertIn(
+            recovery,
+            list((self.root / "output").glob(".生成全音域试音-*")),
+        )
+        backups = list((recovery / "previous-selected-files").glob("*.previous"))
+        self.assertTrue(backups)
+        self.assertTrue(
+            any(path.read_bytes() == b"old selected events" for path in backups)
+        )
 
     def test_existing_renders_once_uses_honest_coverage_and_current_hashes(
         self,
@@ -430,6 +1157,74 @@ class GenerateAllAuditionsTests(unittest.TestCase):
             list((self.root / "output").glob(".生成全音域试音-*")),
             [],
         )
+
+    def test_incomplete_full_batch_report_rollback_preserves_old_reports(
+        self,
+    ) -> None:
+        first_manifest, _ = self._make_instrument(
+            "键盘乐器/完整恢复甲",
+            ["old first report"],
+        )
+        second_manifest, _ = self._make_instrument(
+            "管弦乐/完整恢复乙",
+            ["old second report"],
+        )
+        self.tool.discover_instruments = lambda _root: [
+            SimpleNamespace(manifest_path=first_manifest),
+            SimpleNamespace(manifest_path=second_manifest),
+        ]
+        self.tool.generate_dedicated_audition_verification = self._fake_report
+        first_report = first_manifest.parent / "试听核验.json"
+        second_report = second_manifest.parent / "试听核验.json"
+        old_first_report = first_report.read_bytes()
+        old_second_report = second_report.read_bytes()
+        output_marker = self.output_root / "old.txt"
+        output_marker.write_text("old output", encoding="utf-8")
+
+        real_replace = self.tool.os.replace
+        commit_interrupted = False
+
+        def interrupt_second_report_and_fail_first_restore(source, destination):
+            nonlocal commit_interrupted
+            source = Path(source)
+            destination = Path(destination)
+            if destination == second_report and not commit_interrupted:
+                commit_interrupted = True
+                raise KeyboardInterrupt("full batch report commit interrupted")
+            if (
+                commit_interrupted
+                and destination == first_report
+                and source.parent.name == "previous-reports"
+            ):
+                raise OSError("full batch report restore failed")
+            return real_replace(source, destination)
+
+        with mock.patch.object(
+            self.tool.os,
+            "replace",
+            interrupt_second_report_and_fail_first_restore,
+        ):
+            with self.assertRaisesRegex(
+                self.tool.AuditionRollbackError,
+                "回滚不完整",
+            ) as raised:
+                self.tool.generate_all_auditions(
+                    profile=self.tool.PROFILE_EXISTING
+                )
+
+        self.assertTrue(commit_interrupted)
+        recovery = raised.exception.recovery_path
+        self.assertTrue(recovery.is_dir())
+        self.assertIn(
+            recovery,
+            list((self.root / "output").glob(".生成全音域试音-*")),
+        )
+        backups = list((recovery / "previous-reports").glob("*.previous.json"))
+        self.assertEqual(len(backups), 2)
+        self.assertIn(old_first_report, [path.read_bytes() for path in backups])
+        self.assertIn(old_second_report, [path.read_bytes() for path in backups])
+        self.assertEqual(output_marker.read_text(encoding="utf-8"), "old output")
+        self.assertEqual(second_report.read_bytes(), old_second_report)
 
     def test_failure_moving_old_output_never_deletes_that_output(self) -> None:
         old_marker = self.output_root / "old.txt"
@@ -1090,7 +1885,7 @@ class GenerateAllAuditionsTests(unittest.TestCase):
             ValueError,
             "期望 103，实际 1；拒绝开始渲染",
         ):
-            self.tool.generate_all_auditions()
+            self.tool.generate_all_auditions(only=("不存在",))
 
         self.assertFalse(render_called)
         self.assertEqual(

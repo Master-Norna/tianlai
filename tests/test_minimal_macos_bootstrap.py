@@ -46,7 +46,7 @@ class MinimalMacOSBootstrapTests(unittest.TestCase):
             (ROOT / "pyproject.toml").read_text(encoding="utf-8")
         )
         mcp = metadata["project"]["optional-dependencies"]["mcp"]
-        self.assertIn("mcp==1.28.1", mcp)
+        self.assertIn("mcp==2.0.0", mcp)
         self.assertIn(
             "cryptography>=48,<49; sys_platform == 'darwin' and "
             "platform_machine == 'x86_64'",

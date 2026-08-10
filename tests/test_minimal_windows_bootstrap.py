@@ -92,7 +92,7 @@ class MinimalWindowsBootstrapTests(unittest.TestCase):
         scripts = project["scripts"]
         self.assertNotIn("pyfluidsynth==1.4.0", dependencies)
         self.assertEqual(extras["soundfont"], ["pyfluidsynth==1.4.0"])
-        self.assertIn("mcp==1.28.1", extras["mcp"])
+        self.assertIn("mcp==2.0.0", extras["mcp"])
         self.assertIn(
             "cryptography>=48,<49; sys_platform == 'darwin' and "
             "platform_machine == 'x86_64'",

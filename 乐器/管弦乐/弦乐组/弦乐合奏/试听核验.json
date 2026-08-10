@@ -1,42 +1,24 @@
 {
   "status": "machine_pass_human_pending",
-  "rendered_at": "2026-07-26",
+  "rendered_at": "2026-08-07",
   "platform": "Windows Chinese-path workspace",
   "sample_rate": 48000,
   "channels": 2,
   "subtype": "PCM_24",
   "frame_count": 2439840,
   "duration_seconds": 50.83,
-  "peak_active_voices": 14,
-  "peak": 0.251798,
-  "rms": 0.045455,
+  "peak_active_voices": 9,
+  "peak": 0.178598,
+  "rms": 0.032117,
   "clipped_samples": 0,
   "wav": "output/全音域试音/管弦乐/弦乐组/弦乐合奏.wav",
   "wav_persistence": "temporary",
-  "wav_sha256": "1962af9dd7e06495b4827b9ebd0e7fa41d7f3ee776b9800554f6850592a38ebf",
+  "wav_sha256": "0ca3d92f64b7d15494d7ab80cb959f0e241e6fd855640b91e60611e5ab91d1aa",
   "hash_algorithm": "SHA-256",
   "canonicalization": "tianlai-json-v1",
   "manifest_canonical_sha256": "d339956f64ab52a963cf0b2093d01b627c58b002a6254be23347ee43b5d1fca9",
-  "license_metadata_migration": {
-    "status": "license_metadata_only_no_audio_change",
-    "migrated_at": "2026-08-02",
-    "previous_manifest_canonical_sha256": "7aa2f668700e2eb21ffe719157bd91bab407815afec24d396acf6d37c9e5d8d0",
-    "changed_fields": [
-      "creator",
-      "attribution"
-    ],
-    "audio_rerendered": false,
-    "reason": "Only creator and attribution metadata changed; runtime and render parameters are unchanged."
-  },
   "events": "examples/全音域上行/管弦乐/弦乐组/弦乐合奏_全音域上行.events.json",
   "events_canonical_sha256": "66ffe6f8f9814a7ba5008aaf8cbeb96969178a64d127f0955be0afbc719f44c6",
-  "identity_migration": {
-    "status": "superseded_by_canonical_json_v1",
-    "hash_algorithm": "SHA-256",
-    "hash_semantics": "source-file-bytes",
-    "manifest_sha256": "25e1e54fde2d180b51b4f335156f0512f6418dcf7bcab4da89ac4491b87b73ca",
-    "events_sha256": "ef29c4b61fd7cf92ad0788a963441da334cc0ed33c053c6fc59ac45856dba98a"
-  },
   "audition_profile": "ascending-scale",
   "audition_protocol": "full-range-chromatic-ascending-v1",
   "coverage": [
@@ -46,11 +28,30 @@
   "human_review": "pending",
   "previous_protocol_evidence": {
     "status": "superseded_event_bound_machine_evidence",
-    "events_sha256": "f2ab1367017d20defd4950a3bc65323da5b5c980097079311f35969b63c1d5b4",
-    "wav_sha256": "b6011693392d12bae7e4555f243b44de21f2b1dbde06d6ac9de3c88943cc33ab",
+    "wav_sha256": "1962af9dd7e06495b4827b9ebd0e7fa41d7f3ee776b9800554f6850592a38ebf",
     "fields": {
-      "wav_persistence": "temporary"
-    }
+      "license_metadata_migration": {
+        "status": "license_metadata_only_no_audio_change",
+        "migrated_at": "2026-08-02",
+        "previous_manifest_canonical_sha256": "7aa2f668700e2eb21ffe719157bd91bab407815afec24d396acf6d37c9e5d8d0",
+        "changed_fields": [
+          "creator",
+          "attribution"
+        ],
+        "audio_rerendered": false,
+        "reason": "Only creator and attribution metadata changed; runtime and render parameters are unchanged."
+      },
+      "identity_migration": {
+        "status": "superseded_by_canonical_json_v1",
+        "hash_algorithm": "SHA-256",
+        "hash_semantics": "source-file-bytes",
+        "manifest_sha256": "25e1e54fde2d180b51b4f335156f0512f6418dcf7bcab4da89ac4491b87b73ca",
+        "events_sha256": "ef29c4b61fd7cf92ad0788a963441da334cc0ed33c053c6fc59ac45856dba98a"
+      }
+    },
+    "hash_algorithm": "SHA-256",
+    "canonicalization": "tianlai-json-v1",
+    "events_canonical_sha256": "66ffe6f8f9814a7ba5008aaf8cbeb96969178a64d127f0955be0afbc719f44c6"
   },
   "specialized_machine_evidence_status": "previous_protocol_only_not_current_measurement",
   "review_evidence_status": "pending_new_review_old_hash_bound_reviews_do_not_apply"

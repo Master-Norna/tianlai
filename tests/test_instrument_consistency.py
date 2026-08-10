@@ -219,22 +219,52 @@ class InstrumentConsistencyTests(unittest.TestCase):
             "试听报告未由当前乐器清单渲染：" + "、".join(mismatches),
         )
 
-    def test_license_metadata_only_migrations_are_reconstructable(self) -> None:
-        """许可署名补录不得冒充音频重渲染，也必须能还原旧清单身份。"""
+    def test_resource_report_manifest_bindings_use_canonical_json(self) -> None:
+        """结构化资源证据不得重新绑定到平台相关的 JSON 原始字节。"""
 
-        migrated = []
+        legacy = []
+        mismatches = []
+        canonical_reports = []
         for relative, directory in _sound_entries():
-            manifest = json.loads(
-                (directory / "乐器.json").read_text(encoding="utf-8")
-            )
             report = json.loads(
-                (directory / "试听核验.json").read_text(encoding="utf-8")
+                (directory / "资源核验.json").read_text(encoding="utf-8")
             )
-            record = report.get("license_metadata_migration")
-            if record is None:
+            if "manifest_sha256" in report:
+                legacy.append(relative)
+            if "manifest_canonical_sha256" not in report:
                 continue
-            migrated.append(relative)
+            canonical_reports.append(relative)
+            actual = canonical_json_file_sha256(directory / "乐器.json")
+            if (
+                report.get("schema_version") != 2
+                or report.get("hash_algorithm") != HASH_ALGORITHM
+                or report.get("canonicalization") != CANONICALIZATION
+                or report.get("manifest_canonical_sha256") != actual
+            ):
+                mismatches.append(relative)
 
+        self.assertEqual(
+            legacy,
+            [],
+            "资源报告仍使用平台相关 manifest_sha256：" + "、".join(legacy),
+        )
+        self.assertEqual(
+            set(canonical_reports),
+            {"键盘乐器/手风琴", "管弦乐/弦乐组/中提琴"},
+        )
+        self.assertEqual(
+            mismatches,
+            [],
+            "资源报告的规范化清单身份已过期：" + "、".join(mismatches),
+        )
+
+    def test_license_metadata_only_migrations_are_reconstructable(self) -> None:
+        """纯元数据迁移可复原；重渲染后的旧记录必须留在历史证据中。"""
+
+        current_migrations = []
+        archived_migrations = []
+
+        def validate_record(record: dict, relative: str) -> None:
             self.assertEqual(
                 record.get("status"),
                 "license_metadata_only_no_audio_change",
@@ -257,30 +287,76 @@ class InstrumentConsistencyTests(unittest.TestCase):
                 "render parameters are unchanged.",
                 relative,
             )
-            self.assertTrue(str(manifest.get("creator", "")).strip(), relative)
-            self.assertTrue(
-                str(manifest.get("attribution", "")).strip(), relative
-            )
-
-            previous = dict(manifest)
-            previous.pop("creator")
-            previous.pop("attribution")
-            expected_previous_hash = canonical_json_sha256(previous)
             recorded_previous_hash = record.get(
                 "previous_manifest_canonical_sha256"
             )
             self.assertIsInstance(recorded_previous_hash, str, relative)
             self.assertRegex(recorded_previous_hash, r"^[0-9a-f]{64}$", relative)
-            self.assertEqual(
-                recorded_previous_hash,
-                expected_previous_hash,
-                f"{relative} 的旧清单身份不能由当前清单移除许可字段后复原",
+
+        def archived_records(value: object) -> list[dict]:
+            records = []
+            if isinstance(value, dict):
+                record = value.get("license_metadata_migration")
+                if isinstance(record, dict):
+                    records.append(record)
+                for nested in value.values():
+                    records.extend(archived_records(nested))
+            elif isinstance(value, list):
+                for nested in value:
+                    records.extend(archived_records(nested))
+            return records
+
+        for relative, directory in _sound_entries():
+            manifest = json.loads(
+                (directory / "乐器.json").read_text(encoding="utf-8")
             )
+            report = json.loads(
+                (directory / "试听核验.json").read_text(encoding="utf-8")
+            )
+            record = report.get("license_metadata_migration")
+
+            if record is not None:
+                self.assertIsInstance(record, dict, relative)
+                current_migrations.append(relative)
+                validate_record(record, relative)
+                previous = dict(manifest)
+                previous.pop("creator")
+                previous.pop("attribution")
+                expected_previous_hash = canonical_json_sha256(previous)
+                self.assertEqual(
+                    record["previous_manifest_canonical_sha256"],
+                    expected_previous_hash,
+                    f"{relative} 的旧清单身份不能由当前清单移除许可字段后复原",
+                )
+
+            history = archived_records(report.get("previous_protocol_evidence"))
+            self.assertLessEqual(len(history), 1, relative)
+            if record is not None or history:
+                self.assertTrue(
+                    str(manifest.get("creator", "")).strip(), relative
+                )
+                self.assertTrue(
+                    str(manifest.get("attribution", "")).strip(), relative
+                )
+            if history:
+                self.assertIsNone(record, f"{relative} 不得同时声明当前与历史迁移")
+                archived_migrations.append(relative)
+                validate_record(history[0], relative)
 
         self.assertEqual(
-            len(migrated),
+            len(current_migrations),
+            26,
+            "仍未重渲染的纯许可元数据迁移应恰有 26 件",
+        )
+        self.assertEqual(
+            len(archived_migrations),
+            14,
+            "本轮音频重渲染应恰好归档 14 件旧许可元数据迁移",
+        )
+        self.assertEqual(
+            len(current_migrations) + len(archived_migrations),
             40,
-            "本轮应恰有 40 件乐器补录许可署名元数据",
+            "原 40 件许可署名迁移记录必须全部保留且不重复",
         )
 
     def test_audition_event_hashes_match_current_examples(self) -> None:

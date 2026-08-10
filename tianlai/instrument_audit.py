@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import datetime as _datetime
+import fnmatch
 import hashlib
 import json
 import math
@@ -75,6 +76,72 @@ def collect_loaded_samples(instrument: Instrument) -> list[Path]:
 
     visit(instrument, 0)
     return sorted(found.values(), key=lambda item: item.as_posix())
+
+
+def _pitch_calibration_include_globs(
+    manifest: dict[str, Any],
+) -> tuple[str, ...] | None:
+    """读取并校验可选的音准校准采样白名单。"""
+
+    field = "pitch_calibration_include_globs"
+    raw = manifest.get(field)
+    if raw is None:
+        return None
+    if not isinstance(raw, list) or not raw:
+        raise ValueError(f"{field} 必须是非空 POSIX 相对 glob 数组")
+
+    patterns: list[str] = []
+    for pattern in raw:
+        if not isinstance(pattern, str) or not pattern:
+            raise ValueError(f"{field} 的每一项都必须是非空字符串")
+        parts = pattern.split("/")
+        if (
+            pattern.startswith("/")
+            or "\\" in pattern
+            or ":" in pattern
+            or "\x00" in pattern
+            or any(part in {"", ".", ".."} for part in parts)
+        ):
+            raise ValueError(
+                f"{field} 只能包含 asset_root 下的 POSIX 相对 glob: {pattern!r}"
+            )
+        patterns.append(pattern)
+    if len(set(patterns)) != len(patterns):
+        raise ValueError(f"{field} 不得包含重复 glob")
+    return tuple(patterns)
+
+
+def _matches_posix_glob(relative_path: str, pattern: str) -> bool:
+    """按 POSIX 路径分段、大小写敏感地匹配 glob；``**`` 可跨目录。"""
+
+    path_parts = relative_path.split("/")
+    pattern_parts = pattern.split("/")
+    memo: dict[tuple[int, int], bool] = {}
+
+    def match(path_index: int, pattern_index: int) -> bool:
+        key = (path_index, pattern_index)
+        cached = memo.get(key)
+        if cached is not None:
+            return cached
+        if pattern_index == len(pattern_parts):
+            result = path_index == len(path_parts)
+        elif pattern_parts[pattern_index] == "**":
+            result = match(path_index, pattern_index + 1) or (
+                path_index < len(path_parts)
+                and match(path_index + 1, pattern_index)
+            )
+        else:
+            result = (
+                path_index < len(path_parts)
+                and fnmatch.fnmatchcase(
+                    path_parts[path_index], pattern_parts[pattern_index]
+                )
+                and match(path_index + 1, pattern_index + 1)
+            )
+        memo[key] = result
+        return result
+
+    return match(0, 0)
 
 
 def generate_sampled_resource_verification(
@@ -173,6 +240,7 @@ def generate_sampled_pitch_calibration(
     manifest = json.loads(source_manifest.read_text(encoding="utf-8"))
     base = source_manifest.parent
     asset_root = (base / str(manifest["asset_root"])).resolve()
+    include_globs = _pitch_calibration_include_globs(manifest)
     instrument = create_instrument(manifest, 48000, base_directory=str(base))
 
     roots: dict[Path, float] = {}
@@ -216,16 +284,45 @@ def generate_sampled_pitch_calibration(
     if not roots:
         raise ValueError(f"未收集到任何有音高根采样:{source_manifest}")
 
+    root_samples: list[tuple[Path, float, str]] = []
+    for path, root_hz in sorted(roots.items(), key=lambda item: item[0].as_posix()):
+        try:
+            relative = path.relative_to(asset_root).as_posix()
+        except ValueError:
+            if include_globs is not None:
+                raise ValueError(
+                    "配置 pitch_calibration_include_globs 时，有音高根采样必须位于 "
+                    f"asset_root 内: {path}"
+                ) from None
+            relative = path.name
+        root_samples.append((path, root_hz, relative))
+
+    excluded: list[str] = []
+    if include_globs is not None:
+        included_root_samples: list[tuple[Path, float, str]] = []
+        for root_sample in root_samples:
+            relative = root_sample[2]
+            if any(
+                _matches_posix_glob(relative, pattern)
+                for pattern in include_globs
+            ):
+                included_root_samples.append(root_sample)
+            else:
+                excluded.append(relative)
+        if not included_root_samples:
+            raise ValueError(
+                "pitch_calibration_include_globs 未匹配任何已加载的有音高根采样: "
+                + ", ".join(include_globs)
+            )
+    else:
+        included_root_samples = root_samples
+
     samples: dict[str, dict[str, float]] = {}
     detunes: list[float] = []
     skipped: list[str] = []
     unreliable: list[str] = []
     outliers: list[dict[str, Any]] = []
-    for path, root_hz in sorted(roots.items(), key=lambda item: item[0].as_posix()):
-        try:
-            relative = path.relative_to(asset_root).as_posix()
-        except ValueError:
-            relative = path.name
+    for path, root_hz, relative in included_root_samples:
         # 谐波约束只在低音区可靠:高音采样本就泛音稀少,继续按 10 个
         # 谐波求和会被噪声底带偏,收敛到 1000/2000/4000 Hz 这类整数假解。
         # 因此把参与求和的分音上限压在 4 kHz 以内。
@@ -265,6 +362,9 @@ def generate_sampled_pitch_calibration(
         if abs(detune) > 50.0:
             outliers.append({"sample": relative, "detune_cents": round(detune, 3)})
 
+    sample_count = (
+        len(included_root_samples) if include_globs is not None else len(samples)
+    )
     document = {
         "applicable": True,
         "method": (
@@ -274,7 +374,7 @@ def generate_sampled_pitch_calibration(
         ),
         "reference_a4_hz": float(manifest.get("reference_a4_hz", 440.0)),
         "summary": {
-            "sample_count": len(samples),
+            "sample_count": sample_count,
             "measured_count": len(detunes),
             "skipped_count": len(skipped),
             "unreliable_count": len(unreliable),
@@ -295,6 +395,10 @@ def generate_sampled_pitch_calibration(
         "samples": samples,
         "generated_at": _datetime.date.today().isoformat(),
     }
+    if include_globs is not None:
+        document["pitch_calibration_include_globs"] = list(include_globs)
+        document["summary"]["excluded_count"] = len(excluded)
+        document["excluded_samples"] = excluded
     destination = (
         Path(output_path).resolve()
         if output_path is not None

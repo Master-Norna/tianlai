@@ -116,7 +116,22 @@ class LicenseSidecarTests(unittest.TestCase):
             (
                 "乐器/键盘乐器/电钢琴/乐器.json",
                 "Greg Sullivan",
-                ("kinwie", "CC BY 3.0"),
+                (
+                    "kinwie",
+                    "https://creativecommons.org/licenses/by/3.0/",
+                    "remain unmodified",
+                    "band-limited",
+                ),
+            ),
+            (
+                "乐器/键盘乐器/合唱电钢琴/乐器.json",
+                "Greg Sullivan",
+                (
+                    "kinwie",
+                    "https://creativecommons.org/licenses/by/3.0/",
+                    "remain unmodified",
+                    "stereo chorus",
+                ),
             ),
             (
                 "乐器/键盘乐器/钢琴/乐器.json",

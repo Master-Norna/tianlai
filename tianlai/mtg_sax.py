@@ -530,6 +530,9 @@ class MtgSoloSaxInstrument(Instrument):
             "gain": float(manifest.get("gain", 0.42)),
             "velocity_exponent": float(manifest.get("velocity_exponent", 0.7)),
             "release_seconds": float(manifest.get("release_seconds", 0.4)),
+            "resampling_quality": str(
+                manifest.get("resampling_quality", "linear")
+            ),
         }
         self.engines = {
             "sustain": SampleInstrument.from_manifest(
@@ -550,6 +553,9 @@ class MtgSoloSaxInstrument(Instrument):
             "gain": float(manifest.get("noise_gain", 0.035)),
             "velocity_exponent": 0.55,
             "release_seconds": 0.04,
+            "resampling_quality": str(
+                manifest.get("resampling_quality", "linear")
+            ),
         }
         self.noise_engines = {
             "breath": SampleInstrument.from_manifest(
@@ -724,12 +730,16 @@ class MtgSoloSaxInstrument(Instrument):
             )
             self.note_routes[public_id] = _NoteRoute(engine_name, note_id)
             self.held_notes.add(public_id)
-            self._start_noise(
-                "breath",
-                event,
-                tuning,
-                float(event.payload.get("velocity", 0.8)),
-            )
+            if not is_legato_continuation:
+                # One breath transient belongs to the phrase onset.  Replaying
+                # it on every overlapped legato note produces an artificial
+                # inhale inside a continuous air stream.
+                self._start_noise(
+                    "breath",
+                    event,
+                    tuning,
+                    float(event.payload.get("velocity", 0.8)),
+                )
             return
 
         if event.type == "note_off":

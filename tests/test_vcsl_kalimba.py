@@ -392,14 +392,21 @@ class VcslKalimbaTests(unittest.TestCase):
             list(range(59, 85)),
         )
 
-    def test_documentation_states_the_real_limitation_without_bad_sample_claim(
+    def test_internal_evidence_preserves_resonance_without_pitch_override(
         self,
     ) -> None:
+        summary = self.pitch["summary"]
+        policy = self.resource["project_policy"]
+        finding = self.pitch["disputed_recording_findings"]["B4_k15"]
+
+        self.assertEqual(summary["octave_sympathetic_recording_count"], 1)
+        self.assertEqual(summary["automatic_pitch_override_count"], 0)
+        self.assertTrue(policy["upstream_sfz_unchanged"])
+        self.assertEqual(policy["pitch_root_overrides"], 0)
+        self.assertEqual(policy["average_temperament_corrections"], 0)
+        self.assertIn("not a root remap", finding)
+
         readme = (DIRECTORY / "README.md").read_text(encoding="utf-8")
-        self.assertIn("错误的测量模型与报告结论", readme)
-        self.assertIn("不是把真实音片重采样成平均律", readme)
-        self.assertIn("低八度共鸣", readme)
-        self.assertIn("不适合需要纯净、稳定电子 B5", readme)
         self.assertNotIn("更像是上游把音片映射到了错误的音名", readme)
 
 

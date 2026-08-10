@@ -369,14 +369,14 @@ def _atomic_write(path: Path, payload: bytes) -> None:
         suffix=".tmp",
     )
     temporary = Path(temporary_name)
-    try:
-        with os.fdopen(descriptor, "wb") as output:
-            output.write(payload)
-            output.flush()
-            os.fsync(output.fileno())
-        os.replace(temporary, path)
-    finally:
-        temporary.unlink(missing_ok=True)
+    with os.fdopen(descriptor, "wb") as output:
+        output.write(payload)
+        output.flush()
+        os.fsync(output.fileno())
+    # A successful replacement consumes ``temporary``.  On failure, preserve
+    # the exact temporary name for recovery: unlinking it by path here could
+    # delete a different file installed at that name after a race.
+    os.replace(temporary, path)
 
 
 def write_license_sidecars(

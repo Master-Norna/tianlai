@@ -3,7 +3,7 @@
 # Documentation
 
 This map collects the user and integration documentation shipped with Tianlai
-`0.6.0rc1`. The current `tianlai-doctor` result is authoritative for the
+`0.7.0rc1`. The current `tianlai-doctor` result is authoritative for the
 runtime environment, instrument availability, and local resource state.
 
 ## Quick start
@@ -15,13 +15,15 @@ runtime environment, instrument availability, and local resource state.
   optional sound sources, inspect resource plans, and resolve common
   installation problems.
 - [Linux / WSL quick start](Linux快速开始.en.md): Bash entry point, support
-  boundary, MCP configuration, and external-sample limitations.
+  boundary, MCP configuration, and external-sample installation and restoration.
 - [macOS quick start](macOS快速开始.en.md): native Apple Silicon / Intel setup,
   portable gates, MCP configuration, and cross-platform resource-restoration
   boundaries.
 - [From score to second render](从乐谱到第二次渲染.en.md): the complete flow from
   MIDI/MusicXML import and explicit instrumentation through first render,
   time-based location, editing, and A/B comparison.
+- [Post-render self-check](渲染后自检.en.md): strict final-PCM integrity gates,
+  True Peak/LUFS measurements, risk review, and the human-listening boundary.
 
 Shortest Windows entry point:
 
@@ -51,6 +53,9 @@ architectures.
 - [MCP interface](MCP.en.md): current tools, stdio configuration, input-root
   permissions, explicit instrumentation, immutable candidates, and cache
   boundaries.
+- [Optional creative workflow](创作工作流.en.md): work charters, layered review,
+  evidence binding, managed rendering, bounded iteration, and the explicit
+  boundary that workflow completion does not certify good music.
 
 The CLI and MCP use the same score, instrumentation, rendering, and candidate
 contracts. An agent may read contracts, propose changes, and execute an approved
