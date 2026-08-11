@@ -25,6 +25,7 @@ from typing import Any
 
 from .audio import audio_file_info, read_audio_float
 from .events import PerformanceEvent
+from ._event_free_blocks import audited_event_free_blocks
 from .instrument import Instrument, StereoFrame
 from .tuning import EqualTemperament
 
@@ -41,6 +42,7 @@ class _Voice:
         self.fade = -1.0  # <0 表示尚未进入骤停淡出
 
 
+@audited_event_free_blocks(silence_safe=False)
 class ReversedCymbalInstrument(Instrument):
     def __init__(self, sample_rate: int, manifest: dict[str, Any], base_directory: str) -> None:
         super().__init__(sample_rate)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import gc
 import json
 import multiprocessing
 import os
@@ -49,6 +50,21 @@ def _project(tmp_path: Path, title: str = "天籁 工程"):
     root = tmp_path / "创作 空间" / title
     root.parent.mkdir()
     return root, create_authoring_project(root, title=title)
+
+
+def test_project_lock_registry_releases_unused_roots(tmp_path: Path) -> None:
+    root = (tmp_path / "weak-lock-project").resolve()
+    identity = os.path.normcase(str(root)) if os.name == "nt" else str(root)
+    first = project_module._project_lock(root)
+    second = project_module._project_lock(root)
+    assert first is second
+    assert project_module._PROJECT_LOCKS.get(identity) is first
+
+    del second
+    del first
+    gc.collect()
+
+    assert identity not in project_module._PROJECT_LOCKS
 
 
 @pytest.mark.skipif(os.name != "nt", reason="Windows 8.3 paths are required")

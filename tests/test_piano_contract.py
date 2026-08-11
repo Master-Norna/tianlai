@@ -10,31 +10,18 @@ clean source checkout where the CC-BY sample library is not installed.
 from __future__ import annotations
 
 import copy
-import importlib.util
 from pathlib import Path
 from types import SimpleNamespace
-import sys
 import tempfile
 import unittest
 from unittest import mock
 
+import tianlai.piano as PIANO_MODULE
+
 
 ROOT = Path(__file__).resolve().parents[1]
 PIANO_DIRECTORY = ROOT / "乐器" / "键盘乐器" / "钢琴"
-IMPLEMENTATION_PATH = PIANO_DIRECTORY / "乐器.py"
 EXPRESSIVE_AUDITION_SCRIPT = PIANO_DIRECTORY / "核验试听.py"
-
-SPEC = importlib.util.spec_from_file_location(
-    "tianlai_test_piano_contract",
-    IMPLEMENTATION_PATH,
-)
-if SPEC is None or SPEC.loader is None:
-    raise RuntimeError(f"cannot import piano implementation: {IMPLEMENTATION_PATH}")
-PIANO_MODULE = importlib.util.module_from_spec(SPEC)
-# dataclasses resolves postponed annotations through ``sys.modules`` while
-# executing the module, so the dynamically loaded module must be registered.
-sys.modules[SPEC.name] = PIANO_MODULE
-SPEC.loader.exec_module(PIANO_MODULE)
 
 
 def _sample_names(manifest: dict) -> tuple[str, ...]:

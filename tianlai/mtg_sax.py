@@ -14,6 +14,7 @@ from typing import Any
 
 from .audio import audio_file_info
 from .events import PerformanceEvent, event_pitch_hz
+from ._event_free_blocks import audited_event_free_blocks
 from .instrument import Instrument, StereoFrame
 from .sampler import SampleInstrument
 from .tuning import EqualTemperament
@@ -453,6 +454,7 @@ def mtg_sax_source_inventory(
     }
 
 
+@audited_event_free_blocks(silence_safe=False)
 class MtgSoloSaxInstrument(Instrument):
     """Dedicated deterministic runtime for sfzinstruments/MTG.SoloSax."""
 

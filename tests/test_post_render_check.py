@@ -16,6 +16,7 @@ from tianlai.post_render_check import (
     POST_RENDER_CHECK_NAME,
     PostRenderCheckError,
     _Accumulator,
+    _KWeighting,
     _LoudnessMeter,
     _TruePeakMeter,
     _calculate_lra,
@@ -242,6 +243,22 @@ class PostRenderCheckTests(unittest.TestCase):
         report = meter.report()
         self.assertAlmostEqual(report["integrated_lufs"], -23.0, delta=0.1)
         self.assertGreater(report["absolute_gated_block_count"], report["final_gated_block_count"])
+
+    def test_k_weighting_streaming_output_keeps_the_reference_bytes(self) -> None:
+        rng = np.random.default_rng(20260811)
+        samples = rng.normal(0.0, 0.2, size=(10_000, 2))
+        meter = _KWeighting()
+        outputs: list[np.ndarray] = []
+        offset = 0
+        for size in (1, 17, 257, 4_093, 5_632):
+            outputs.append(meter.process(samples[offset : offset + size]))
+            offset += size
+        filtered = np.concatenate(outputs)
+        payload = filtered.astype("<f8").tobytes() + meter._state.astype("<f8").tobytes()
+        self.assertEqual(
+            hashlib.sha256(payload).hexdigest(),
+            "087435617b1c5cb77f8b2cfef179b268326841b5ed87924c53dd06d8bf728365",
+        )
 
     def test_annex2_true_peak_reference_vectors_and_streaming_state(self) -> None:
         # EBU Tech 3341 v4 test cases 15-19.

@@ -24,6 +24,8 @@
   },
   "sample_count": 163,
   "sample_bytes": 28340587,
+  "decoded_float32_stereo_bytes": 135236816,
+  "decoded_float32_stereo_algorithm": "sum unique runtime sample frame_count * 2 output channels * 4-byte float32; mono sources are expanded to stereo by read_audio_float",
   "sample_formats": {
     ".flac:48000Hz:1ch": 163
   },

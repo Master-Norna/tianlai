@@ -5,7 +5,6 @@
   "collaboration_review_status": "untested",
   "upgrade_status": "vcsl_concert_harp_strict_cc0",
   "fallback_policy": "explicit_only_no_silent_gm",
-  "implementation": "乐器.py",
   "instrument_name": "concert harp",
   "asset_root": "../../../../音源/VCSL",
   "source_sfz": "Chordophones/Composite Chordophones/Concert Harp.sfz",

@@ -26,6 +26,7 @@ import stat
 from threading import Lock, RLock
 import time
 from typing import Any, Mapping
+from weakref import WeakValueDictionary
 
 from .authoring_json import (
     AuthoringJsonError,
@@ -243,7 +244,7 @@ class AuthoringProjectState:
 
 
 _LOCKS_GUARD = Lock()
-_PROJECT_LOCKS: dict[str, RLock] = {}
+_PROJECT_LOCKS: WeakValueDictionary[str, RLock] = WeakValueDictionary()
 _PROJECT_LOCK_TIMEOUT_SECONDS = 5.0
 
 

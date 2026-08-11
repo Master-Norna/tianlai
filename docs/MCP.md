@@ -2,7 +2,7 @@
 
 # 天籁 MCP 接口
 
-天籁 `0.7.0rc1` 通过 stdio MCP 把可编辑、可复算的音乐工程交给 AI Agent。Agent
+天籁 `0.8.0rc1` 通过 stdio MCP 把可编辑、可复算的音乐工程交给 AI Agent。Agent
 拿到的不是一个不可解释的“一句话转音频”按钮，而是一组细粒度工具：读取合同、
 选择乐器、导入谱面、明确配器、预检、渲染不可变候选、按秒定位、局部修改，再
 渲染并 A/B。
@@ -23,7 +23,7 @@ Windows 源码包用户先运行：
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -e ".[mcp]"
-.\.venv\Scripts\python.exe -m tianlai.mcp_server
+.\.venv\Scripts\python.exe -m tianlai.mcp_entry
 ```
 
 第二条命令启动 stdio 服务。客户端配置示例：
@@ -33,7 +33,7 @@ Windows 源码包用户先运行：
   "mcpServers": {
     "tianlai": {
       "command": "C:\\path\\to\\tianlai\\.venv\\Scripts\\python.exe",
-      "args": ["-m", "tianlai.mcp_server"],
+      "args": ["-m", "tianlai.mcp_entry"],
       "cwd": "C:\\path\\to\\tianlai"
     }
   }
@@ -77,7 +77,7 @@ Apple Silicon 与 Intel 的解释器必须匹配当前原生宿主。安装与�
   "mcpServers": {
     "tianlai": {
       "command": "C:\\path\\to\\tianlai\\.venv\\Scripts\\python.exe",
-      "args": ["-m", "tianlai.mcp_server"],
+      "args": ["-m", "tianlai.mcp_entry"],
       "cwd": "C:\\path\\to\\tianlai",
       "env": {
         "TIANLAI_INPUT_ROOTS": "D:\\Scores;E:\\SharedMusicXML"

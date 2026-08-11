@@ -139,6 +139,61 @@ class PerformanceDocumentTests(unittest.TestCase):
                 {"tuning": {"a4": 442.0}, "events": []}
             )
 
+    def test_numeric_fields_reject_boolean_string_and_fractional_coercion(self) -> None:
+        invalid_documents = (
+            {"sample_rate": True, "events": []},
+            {"sample_rate": "48000", "events": []},
+            {"sample_rate": 48000.5, "events": []},
+            {
+                "events": [
+                    {
+                        "time": "0",
+                        "type": "control",
+                        "name": "sustain_pedal",
+                        "value": 0.5,
+                    }
+                ]
+            },
+            {
+                "events": [
+                    {
+                        "time": 0,
+                        "type": "note_on",
+                        "note_id": 1.5,
+                        "midi_note": 60,
+                    }
+                ]
+            },
+            {
+                "events": [
+                    {
+                        "time": 0,
+                        "type": "note_on",
+                        "note_id": 1,
+                        "midi_note": True,
+                    }
+                ]
+            },
+            {"tuning": {"a4_hz": "440"}, "events": []},
+        )
+        for document in invalid_documents:
+            with self.subTest(document=document):
+                with self.assertRaises(ValueError):
+                    parse_performance_document(document)
+
+    def test_missing_note_id_is_reported_as_value_error(self) -> None:
+        with self.assertRaisesRegex(
+            ValueError,
+            r"events\[0\]\.note_id is required",
+        ):
+            parse_performance_document(
+                {
+                    "events": [
+                        {"time": 0, "type": "note_on", "midi_note": 60}
+                    ]
+                }
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

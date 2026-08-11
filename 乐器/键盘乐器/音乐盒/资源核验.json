@@ -5,12 +5,12 @@
   "profile": "music_box",
   "seed": 41051,
   "model_params_override": {},
-  "engine_sha256": "e04a9170dd1f31508038335bb0676f4d25cb7b0ffd9a343da78d1cdc160ad6e3",
+  "engine_sha256": "f6f6a7f5d69045dc3d709c27b8f71ea4f109c35c44b3ec912f71deda7f9eda47",
   "external_assets": [],
   "provenance_kind": "project_authored_dsp",
   "implementation_license": "Apache-2.0",
   "external_audio_assets": [],
   "audio_asset_license": "not_applicable",
   "license_status": "approved",
-  "generated_at": "2026-07-27"
+  "generated_at": "2026-08-11"
 }

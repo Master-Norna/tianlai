@@ -9,6 +9,7 @@ import statistics
 from typing import Any
 
 from .events import PerformanceEvent, event_pitch_hz
+from ._event_free_blocks import audited_event_free_blocks
 from .instrument import Instrument, StereoFrame
 from .sampler import SampleInstrument
 from .sfz import note_number
@@ -172,6 +173,7 @@ def _apply_calibration(
             region["measured_tuning_cents"] = float(measurement["detune_cents"])
 
 
+@audited_event_free_blocks(silence_safe=False)
 class VpoBrassInstrument(Instrument):
     """Deterministic VPO brass candidate with explicit articulation routing.
 

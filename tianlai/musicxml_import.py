@@ -21,7 +21,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from fractions import Fraction
+import io
 import math
+import os
 from pathlib import Path, PurePosixPath
 import re
 from typing import Any, Iterable
@@ -315,11 +317,11 @@ def _safe_rootfile_name(raw: str) -> str:
     return normalised
 
 
-def _read_mxl(path: Path) -> bytes:
-    if path.stat().st_size > _MAX_ARCHIVE_BYTES:
+def _read_mxl(payload: bytes, path: Path) -> bytes:
+    if len(payload) > _MAX_ARCHIVE_BYTES:
         raise ValueError(f"MXL 文件超过 {_MAX_ARCHIVE_BYTES // 1024 // 1024} MiB")
     try:
-        with zipfile.ZipFile(path, "r") as package:
+        with zipfile.ZipFile(io.BytesIO(payload), "r") as package:
             infos = package.infolist()
             if len(infos) > _MAX_ARCHIVE_ENTRIES:
                 raise ValueError(f"MXL 成员数超过 {_MAX_ARCHIVE_ENTRIES}")
@@ -344,18 +346,42 @@ def _read_mxl(path: Path) -> bytes:
         raise ValueError(f"损坏或不受支持的 MXL 压缩包: {path}") from exc
 
 
-def _read_source(path: Path) -> tuple[bytes, str]:
-    if not path.is_file():
-        raise FileNotFoundError(f"找不到 MusicXML 文件: {path}")
+def _read_source(
+    path: Path,
+    *,
+    source_bytes: bytes | None = None,
+) -> tuple[bytes, str]:
     suffix = path.suffix.lower()
     if suffix not in (".musicxml", ".xml", ".mxl"):
         raise ValueError("MusicXML 输入扩展名必须是 .musicxml、.xml 或 .mxl")
+    if source_bytes is None:
+        limit = _MAX_ARCHIVE_BYTES if suffix == ".mxl" else _MAX_XML_BYTES
+        label = "MXL" if suffix == ".mxl" else "MusicXML"
+        try:
+            # Bind the size check and bounded read to one descriptor.  This
+            # retains the CLI's normal symlink behaviour without reopening a
+            # pathname that can be swapped between stat and read.
+            with path.open("rb") as source:
+                if os.fstat(source.fileno()).st_size > limit:
+                    raise ValueError(
+                        f"{label} 文件超过 {limit // 1024 // 1024} MiB"
+                    )
+                payload = source.read(limit + 1)
+        except FileNotFoundError as exc:
+            raise FileNotFoundError(f"找不到 MusicXML 文件: {path}") from exc
+        if len(payload) > limit:
+            raise ValueError(
+                f"{label} 文件超过 {limit // 1024 // 1024} MiB"
+            )
+    else:
+        if not isinstance(source_bytes, bytes):
+            raise TypeError("source_bytes must be bytes")
+        payload = source_bytes
     if suffix == ".mxl":
-        return _read_mxl(path), "mxl"
-    size = path.stat().st_size
-    if size > _MAX_XML_BYTES:
+        return _read_mxl(payload, path), "mxl"
+    if len(payload) > _MAX_XML_BYTES:
         raise ValueError(f"MusicXML 文件超过 {_MAX_XML_BYTES // 1024 // 1024} MiB")
-    return path.read_bytes(), suffix.lstrip(".")
+    return payload, suffix.lstrip(".")
 
 
 def _title(root: ET.Element, path: Path) -> str:
@@ -1315,11 +1341,22 @@ def _range_pitch(value: float) -> str:
     return f"{value:.3f}".rstrip("0").rstrip(".")
 
 
-def read_musicxml(path: str | Path) -> tuple[dict[str, Any], ImportReport]:
-    """Read ``.musicxml``/``.xml``/``.mxl`` into a validated score-shaped dict."""
+def read_musicxml(
+    path: str | Path,
+    *,
+    source_bytes: bytes | None = None,
+) -> tuple[dict[str, Any], ImportReport]:
+    """Read ``.musicxml``/``.xml``/``.mxl`` into a validated score-shaped dict.
+
+    When ``source_bytes`` is supplied, ``path`` is used only for its suffix,
+    title fallback and diagnostics; parsing never reopens the pathname.
+    """
 
     source = Path(path)
-    payload, source_format = _read_source(source)
+    payload, source_format = _read_source(
+        source,
+        source_bytes=source_bytes,
+    )
     root = _parse_xml(payload, str(source))
     root_name = _local_name(root.tag)
     if root_name == "score-timewise":

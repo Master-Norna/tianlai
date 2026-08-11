@@ -333,6 +333,33 @@ def _now() -> str:
     return canonical_utc_now()
 
 
+def _transition_timestamp(
+    state: dict[str, Any], *lower_bounds: str
+) -> str:
+    """Return and retain a causal timestamp for one state transition.
+
+    Wall clocks can move backwards between two compare-and-swap revisions (or
+    even between the event timestamp and pointer publication).  Clamp durable
+    event time to the already verified aggregate clock and any event-specific
+    lower bounds, then retain it in ``updated_at_utc`` so publication cannot
+    move behind the event it contains.
+    """
+
+    observed = _now()
+    try:
+        validate_canonical_utc_timestamp(observed)
+    except ValueError as exc:
+        raise CreativeWorkflowError("invalid_system_timestamp") from exc
+    timestamp = max(
+        observed,
+        state["created_at_utc"],
+        state["updated_at_utc"],
+        *lower_bounds,
+    )
+    state["updated_at_utc"] = timestamp
+    return timestamp
+
+
 def _plain_file_status(path: Path, *, code: str) -> os.stat_result:
     try:
         status = os.lstat(path)
@@ -939,7 +966,10 @@ def _validate_revision_directory(
         raise CreativeWorkflowError("workflow_state_identity_mismatch")
     if state["sequence"] != sequence or state["parent_revision"] != parent_revision:
         raise CreativeWorkflowError("workflow_revision_lineage_mismatch")
-    revalidate_plain_directory(identity)
+    try:
+        revalidate_plain_directory(identity)
+    except OSError as exc:
+        raise CreativeWorkflowError("unsafe_workflow_revision") from exc
     return state
 
 
@@ -1747,9 +1777,17 @@ def _validate_render_attempt(value: object, *, iteration: dict[str, Any]) -> Non
         raise CreativeWorkflowError("invalid_render_attempt")
     if (value["status"] == "pending") is not (value["finished_at_utc"] is None):
         raise CreativeWorkflowError("invalid_render_attempt")
-    _canonical_timestamp(value["requested_at_utc"], code="invalid_render_timestamp")
+    requested_at = _canonical_timestamp(
+        value["requested_at_utc"], code="invalid_render_timestamp"
+    )
+    if requested_at < iteration["opened_at_utc"]:
+        raise CreativeWorkflowError("invalid_render_timestamp")
     if value["finished_at_utc"] is not None:
-        _canonical_timestamp(value["finished_at_utc"], code="invalid_render_timestamp")
+        finished_at = _canonical_timestamp(
+            value["finished_at_utc"], code="invalid_render_timestamp"
+        )
+        if finished_at < requested_at:
+            raise CreativeWorkflowError("invalid_render_timestamp")
 
 
 def _validate_decision(value: object, *, iteration: dict[str, Any]) -> None:
@@ -1863,9 +1901,15 @@ def _validate_iteration(
         raise CreativeWorkflowError("invalid_iteration_identity")
     if value["status"] not in {"reviewing", "candidate_pending", "revision_pending", "closed"}:
         raise CreativeWorkflowError("invalid_iteration_status")
-    _canonical_timestamp(value["opened_at_utc"], code="invalid_iteration_timestamp")
+    opened_at = _canonical_timestamp(
+        value["opened_at_utc"], code="invalid_iteration_timestamp"
+    )
     if value["closed_at_utc"] is not None:
-        _canonical_timestamp(value["closed_at_utc"], code="invalid_iteration_timestamp")
+        closed_at = _canonical_timestamp(
+            value["closed_at_utc"], code="invalid_iteration_timestamp"
+        )
+        if closed_at < opened_at:
+            raise CreativeWorkflowError("invalid_iteration_timestamp")
     if (value["status"] == "closed") is not (value["closed_at_utc"] is not None):
         raise CreativeWorkflowError("invalid_iteration_status")
     anchor = value["anchor"]
@@ -1885,6 +1929,12 @@ def _validate_iteration(
         raise CreativeWorkflowError("too_many_iteration_reviews")
     for review in value["reviews"]:
         _validate_review(review, iteration=value)
+        reviewed_at = review["reviewed_at_utc"]
+        if reviewed_at < opened_at or (
+            value["closed_at_utc"] is not None
+            and reviewed_at > value["closed_at_utc"]
+        ):
+            raise CreativeWorkflowError("invalid_review_timestamp")
     if len({item["review_id"] for item in value["reviews"]}) != len(value["reviews"]):
         raise CreativeWorkflowError("duplicate_review_record")
     if not isinstance(value["evidence"], list) or len(value["evidence"]) > MAX_EVIDENCE_PER_ITERATION:
@@ -1897,6 +1947,12 @@ def _validate_iteration(
             charter_fields=charter_fields,
             trusted_hard_failure=True,
         )
+        recorded_at = evidence["recorded_at_utc"]
+        if recorded_at < opened_at or (
+            value["closed_at_utc"] is not None
+            and recorded_at > value["closed_at_utc"]
+        ):
+            raise CreativeWorkflowError("invalid_evidence_timestamp")
     if len({item["evidence_id"] for item in value["evidence"]}) != len(value["evidence"]):
         raise CreativeWorkflowError("duplicate_evidence_record")
     evidence_by_id = {item["evidence_id"]: item for item in value["evidence"]}
@@ -1908,6 +1964,12 @@ def _validate_iteration(
             evidence_by_id=evidence_by_id,
             active_clause_ids=active_clause_ids,
         )
+        registered_at = exception["registered_at_utc"]
+        if registered_at < opened_at or (
+            value["closed_at_utc"] is not None
+            and registered_at > value["closed_at_utc"]
+        ):
+            raise CreativeWorkflowError("invalid_exception_timestamp")
     if len({item["exception_id"] for item in value["exceptions"]}) != len(value["exceptions"]):
         raise CreativeWorkflowError("duplicate_exception_record")
     if not isinstance(value["render_attempts"], list) or len(value["render_attempts"]) > MAX_RENDER_ATTEMPTS_PER_ITERATION:
@@ -1916,12 +1978,28 @@ def _validate_iteration(
         _validate_render_attempt(attempt, iteration=value)
         if attempt["attempt_number"] != index:
             raise CreativeWorkflowError("invalid_render_attempt_identity")
+        if (
+            value["closed_at_utc"] is not None
+            and (
+                attempt["requested_at_utc"] > value["closed_at_utc"]
+                or (
+                    attempt["finished_at_utc"] is not None
+                    and attempt["finished_at_utc"] > value["closed_at_utc"]
+                )
+            )
+        ):
+            raise CreativeWorkflowError("invalid_render_timestamp")
     pending = [item for item in value["render_attempts"] if item["status"] == "pending"]
     if len(pending) > 1 or (value["status"] == "candidate_pending") is not bool(pending):
         raise CreativeWorkflowError("invalid_pending_render_state")
     if value["decision"] is not None:
         _validate_decision(value["decision"], iteration=value)
         decision = value["decision"]
+        if decision["decided_at_utc"] < opened_at or (
+            value["closed_at_utc"] is not None
+            and decision["decided_at_utc"] > value["closed_at_utc"]
+        ):
+            raise CreativeWorkflowError("invalid_decision_timestamp")
         if (
             decision["disposition"] != "stop"
             or decision["perception_basis"] == "audio_audition"
@@ -2035,6 +2113,37 @@ def _validate_state_document(state: dict[str, Any]) -> None:
             active_clause_ids=active_ids,
             charter_fields=charter_fields,
         )
+        if iteration["opened_at_utc"] > updated or (
+            iteration["closed_at_utc"] is not None
+            and iteration["closed_at_utc"] > updated
+        ):
+            raise CreativeWorkflowError("invalid_workflow_timestamp")
+        event_timestamps = [
+            *(item["reviewed_at_utc"] for item in iteration["reviews"]),
+            *(item["recorded_at_utc"] for item in iteration["evidence"]),
+            *(item["registered_at_utc"] for item in iteration["exceptions"]),
+            *(item["requested_at_utc"] for item in iteration["render_attempts"]),
+            *(
+                item["finished_at_utc"]
+                for item in iteration["render_attempts"]
+                if item["finished_at_utc"] is not None
+            ),
+        ]
+        if isinstance(iteration["decision"], dict):
+            event_timestamps.append(iteration["decision"]["decided_at_utc"])
+        if isinstance(iteration["anchor"].get("candidate"), dict):
+            event_timestamps.append(
+                iteration["anchor"]["candidate"]["verified_at_utc"]
+            )
+        if any(timestamp > updated for timestamp in event_timestamps):
+            raise CreativeWorkflowError("invalid_workflow_timestamp")
+        if index > 1:
+            previous_closed = iterations[index - 2]["closed_at_utc"]
+            if (
+                previous_closed is None
+                or iteration["opened_at_utc"] < previous_closed
+            ):
+                raise CreativeWorkflowError("invalid_iteration_timestamp")
         if (
             isinstance(iteration["decision"], dict)
             and iteration["decision"]["final_authority"]
@@ -2075,6 +2184,17 @@ def _validate_state_document(state: dict[str, Any]) -> None:
         raise CreativeWorkflowError("workflow_termination_state_mismatch")
     if state["termination"] is not None:
         _validate_termination(state["termination"])
+        terminated_at = state["termination"]["terminated_at_utc"]
+        if terminated_at > updated or terminated_at < created:
+            raise CreativeWorkflowError("invalid_workflow_timestamp")
+        if iterations and terminated_at < iterations[-1]["closed_at_utc"]:
+            raise CreativeWorkflowError("invalid_workflow_timestamp")
+        selected_candidate = state["termination"]["selected_candidate"]
+        if (
+            isinstance(selected_candidate, dict)
+            and selected_candidate["verified_at_utc"] > updated
+        ):
+            raise CreativeWorkflowError("invalid_workflow_timestamp")
         if state["termination"]["final_authority"] != state["final_authority"]:
             raise CreativeWorkflowError("termination_authority_mismatch")
         if state["termination"]["perception_basis"] == "audio_audition" and (
@@ -2134,7 +2254,9 @@ def _allowed_actions(state: dict[str, Any]) -> list[str]:
         current = state["iterations"][-1]
         actions = ["record_review", "record_evidence", "register_exception", "decide", "terminate"]
         if current["anchor"]["candidate"] is None:
-            actions.extend(["request_render", "attach_existing_candidate_for_audit"])
+            actions.append("request_render")
+            if state["mode"] == "audit" and not current["render_attempts"]:
+                actions.append("attach_existing_candidate_for_audit")
         if any(
             isinstance(item["anchor"].get("candidate"), dict)
             for item in state["iterations"][:-1]
@@ -2299,6 +2421,7 @@ def _transition(
                 raise CreativeWorkflowError("invalid_system_timestamp") from exc
             state["updated_at_utc"] = max(
                 observed,
+                state["updated_at_utc"],
                 state["created_at_utc"],
                 current.updated_at_utc,
             )
@@ -2348,7 +2471,7 @@ def activate_creative_workflow(
         state["constitution"] = copy.deepcopy(constitution_binding)
         state["work_charter"] = copy.deepcopy(charter)
         state["active_clauses"] = copy.deepcopy(clauses)
-        timestamp = max(_now(), state["created_at_utc"])
+        timestamp = _transition_timestamp(state)
         state["iterations"] = [
             _new_iteration(
                 1,
@@ -2582,7 +2705,12 @@ def _verified_candidate_anchor(
     )
     if manifest_recheck != candidate or receipt_recheck != receipt:
         raise CreativeWorkflowError("candidate_changed_during_verification")
-    revalidate_plain_directory(identity)
+    try:
+        revalidate_plain_directory(identity)
+    except OSError as exc:
+        raise CreativeWorkflowError(
+            "candidate_changed_during_verification"
+        ) from exc
     return {
         "candidate_id": _portable_identifier(
             candidate.get("candidate_id"), field="candidate_id"
@@ -2942,7 +3070,12 @@ def inspect_workflow_candidate_status(
         and isinstance(selected, dict)
         and _same_verified_candidate(selected, anchor)
     )
-    revalidate_plain_directory(identity)
+    try:
+        revalidate_plain_directory(identity)
+    except OSError as exc:
+        raise CreativeWorkflowError(
+            "candidate_changed_during_verification"
+        ) from exc
     return {
         "kind": "tianlai.workflow_candidate_status",
         "schema_version": WORKFLOW_VERSION,
@@ -2996,7 +3129,9 @@ def record_workflow_review(
         candidate_id = _candidate_id(iteration)
         if phase in {"render_report", "audio_audition"} and candidate_id is None:
             raise CreativeWorkflowError("candidate_required_for_review")
-        timestamp = _now()
+        timestamp = _transition_timestamp(
+            state, iteration["opened_at_utc"]
+        )
         body = {
             "phase": phase,
             "reviewer": reviewer,
@@ -3084,7 +3219,9 @@ def record_workflow_evidence(
             authoring_revision=iteration["anchor"]["authoring_revision"],
             candidate_id=_candidate_id(iteration),
         )
-        timestamp = _now()
+        timestamp = _transition_timestamp(
+            state, iteration["opened_at_utc"]
+        )
         body = {
             "category": category,
             "code": code,
@@ -3169,7 +3306,9 @@ def record_verified_workflow_hard_failure(
         ]
         if not matching:
             raise CreativeWorkflowError("hard_failure_not_reproduced")
-        timestamp = _now()
+        timestamp = _transition_timestamp(
+            state, iteration["opened_at_utc"]
+        )
         body = {
             "category": "hard_failure",
             "code": issue_code,
@@ -3333,7 +3472,9 @@ def register_workflow_exception(
         iteration = _current_iteration(state)
         if len(iteration["exceptions"]) >= state["budget"]["max_exceptions_per_iteration"]:
             raise CreativeWorkflowError("exception_budget_exhausted")
-        timestamp = _now()
+        timestamp = _transition_timestamp(
+            state, iteration["opened_at_utc"]
+        )
         body = {
             "target_type": target_type,
             **checked,
@@ -3399,6 +3540,9 @@ def request_workflow_render(
             layout.project_root,
             authoring_revision=iteration["anchor"]["authoring_revision"],
         )
+        requested_at = _transition_timestamp(
+            state, iteration["opened_at_utc"]
+        )
         attempts.append(
             {
                 "attempt_number": len(attempts) + 1,
@@ -3411,7 +3555,7 @@ def request_workflow_render(
                     iteration["anchor"]["parent_candidate"]
                 ),
                 "status": "pending",
-                "requested_at_utc": _now(),
+                "requested_at_utc": requested_at,
                 "finished_at_utc": None,
             }
         )
@@ -3440,9 +3584,14 @@ def cancel_workflow_render(
         ]
         if len(pending) != 1:
             raise CreativeWorkflowError("no_pending_render_reservation")
+        timestamp = _transition_timestamp(
+            state,
+            iteration["opened_at_utc"],
+            pending[0]["requested_at_utc"],
+        )
         pending[0]["reservation_revision"] = expected
         pending[0]["status"] = "cancelled"
-        pending[0]["finished_at_utc"] = _now()
+        pending[0]["finished_at_utc"] = timestamp
         iteration["status"] = "reviewing"
         state["status"] = "reviewing"
 
@@ -3463,6 +3612,8 @@ def attach_existing_candidate_for_audit(
 ) -> CreativeWorkflowSnapshot:
     def mutate(state: dict[str, Any], layout: _WorkflowLayout, _expected: str) -> None:
         _require_status(state, "reviewing")
+        if state["mode"] != "audit":
+            raise CreativeWorkflowError("candidate_attachment_requires_audit_mode")
         iteration = _current_iteration(state)
         if iteration["anchor"]["candidate"] is not None or iteration["render_attempts"]:
             raise CreativeWorkflowError("iteration_candidate_already_bound")
@@ -3471,6 +3622,9 @@ def attach_existing_candidate_for_audit(
             project_id=state["project_id"],
             authoring_revision=iteration["anchor"]["authoring_revision"],
             expected_authorization=None,
+        )
+        anchor["verified_at_utc"] = _transition_timestamp(
+            state, iteration["opened_at_utc"], anchor["verified_at_utc"]
         )
         iteration["anchor"]["candidate"] = anchor
 
@@ -3534,9 +3688,16 @@ def record_workflow_candidate(
             authoring_revision=attempt["authoring_revision"],
             expected_authorization=authorization,
         )
+        timestamp = _transition_timestamp(
+            state,
+            iteration["opened_at_utc"],
+            attempt["requested_at_utc"],
+            anchor["verified_at_utc"],
+        )
+        anchor["verified_at_utc"] = timestamp
         attempt["reservation_revision"] = expected
         attempt["status"] = "completed"
-        attempt["finished_at_utc"] = _now()
+        attempt["finished_at_utc"] = timestamp
         iteration["anchor"]["candidate"] = anchor
         iteration["status"] = "reviewing"
         state["status"] = "reviewing"
@@ -3670,7 +3831,9 @@ def decide_workflow_iteration(
         iteration = _current_iteration(state)
         if final_authority != state["final_authority"]:
             raise CreativeWorkflowError("decision_authority_mismatch")
-        timestamp = _now()
+        timestamp = _transition_timestamp(
+            state, iteration["opened_at_utc"]
+        )
         decision = _decision_record(
             disposition=disposition,
             summary=summary,
@@ -3736,6 +3899,11 @@ def decide_workflow_iteration(
             )
             if not _same_verified_candidate(candidate, observed):
                 raise CreativeWorkflowError("candidate_changed_since_recording")
+            timestamp = _transition_timestamp(
+                state, timestamp, observed["verified_at_utc"]
+            )
+            observed["verified_at_utc"] = timestamp
+            decision["decided_at_utc"] = timestamp
             iteration["decision"] = decision
             _close_iteration(iteration, outcome="accepted", timestamp=timestamp)
             state["status"] = "completed"
@@ -3832,7 +4000,9 @@ def record_workflow_authoring_revision(
             raise CreativeWorkflowError("revision_budget_exhausted")
         if len(state["iterations"]) >= MAX_ITERATIONS:
             raise CreativeWorkflowError("iteration_limit_exceeded")
-        timestamp = _now()
+        timestamp = _transition_timestamp(
+            state, iteration["opened_at_utc"]
+        )
         candidate = iteration["anchor"]["candidate"]
         parent = (
             _anchor_locator(candidate)
@@ -3900,7 +4070,9 @@ def rollback_workflow(
             current, authority=final_authority, perception_basis=perception_basis
         ):
             raise CreativeWorkflowError("decision_perception_basis_unproven")
-        timestamp = _now()
+        timestamp = _transition_timestamp(
+            state, current["opened_at_utc"]
+        )
         decision = _decision_record(
             disposition="rollback",
             summary=summary,
@@ -3923,6 +4095,10 @@ def rollback_workflow(
             ]
             if len(pending) != 1:
                 raise CreativeWorkflowError("no_pending_render_reservation")
+            timestamp = _transition_timestamp(
+                state, timestamp, pending[0]["requested_at_utc"]
+            )
+            decision["decided_at_utc"] = timestamp
             pending[0]["reservation_revision"] = expected
             pending[0]["status"] = "cancelled"
             pending[0]["finished_at_utc"] = timestamp
@@ -3977,7 +4153,7 @@ def terminate_creative_workflow(
             raise CreativeWorkflowError("workflow_already_terminal")
         if final_authority != state["final_authority"]:
             raise CreativeWorkflowError("termination_authority_mismatch")
-        timestamp = _now()
+        timestamp = _transition_timestamp(state)
         selected: dict[str, Any] | None = None
         if perception_basis == "audio_audition" and not state["iterations"]:
             raise CreativeWorkflowError("decision_perception_basis_unproven")
@@ -3997,9 +4173,18 @@ def terminate_creative_workflow(
                 ]
                 if len(pending) != 1:
                     raise CreativeWorkflowError("no_pending_render_reservation")
+                timestamp = _transition_timestamp(
+                    state,
+                    timestamp,
+                    iteration["opened_at_utc"],
+                    pending[0]["requested_at_utc"],
+                )
                 pending[0]["reservation_revision"] = expected
                 pending[0]["status"] = "cancelled"
                 pending[0]["finished_at_utc"] = timestamp
+            timestamp = _transition_timestamp(
+                state, timestamp, iteration["opened_at_utc"]
+            )
             selected = copy.deepcopy(iteration["anchor"].get("candidate"))
             _close_iteration(iteration, outcome="stopped", timestamp=timestamp)
         state["status"] = "stopped"

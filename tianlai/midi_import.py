@@ -31,6 +31,7 @@ from collections import deque
 from dataclasses import dataclass, field
 import hashlib
 import math
+import os
 from pathlib import Path
 import re
 from typing import Any
@@ -529,16 +530,37 @@ def _select_timeline_events(
     return [selected[tick] for tick in sorted(selected)]
 
 
-def read_midi(path: str | Path) -> tuple[dict[str, Any], ImportReport]:
-    """Parse a Standard MIDI File into a score document plus a report."""
+def read_midi(
+    path: str | Path,
+    *,
+    source_bytes: bytes | None = None,
+) -> tuple[dict[str, Any], ImportReport]:
+    """Parse a Standard MIDI File into a score document plus a report.
+
+    ``source_bytes`` lets a security boundary supply payload captured from an
+    already-authorised descriptor.  ``path`` then labels the source only and
+    is never reopened.  Omitting it preserves the normal CLI path interface.
+    """
 
     source_path = Path(path)
-    size = source_path.stat().st_size
-    if size > _MAX_MIDI_BYTES:
+    if source_bytes is None:
+        # Open once, inspect that same descriptor, and cap the read.  A
+        # pathname replacement after open can no longer substitute different
+        # bytes, while a file grown in place cannot force an unbounded read.
+        with source_path.open("rb") as source:
+            if os.fstat(source.fileno()).st_size > _MAX_MIDI_BYTES:
+                raise ValueError(
+                    f"MIDI 文件超过 {_MAX_MIDI_BYTES // 1024 // 1024} MiB"
+                )
+            data = source.read(_MAX_MIDI_BYTES + 1)
+    else:
+        if not isinstance(source_bytes, bytes):
+            raise TypeError("source_bytes must be bytes")
+        data = source_bytes
+    if len(data) > _MAX_MIDI_BYTES:
         raise ValueError(
             f"MIDI 文件超过 {_MAX_MIDI_BYTES // 1024 // 1024} MiB"
         )
-    data = source_path.read_bytes()
     source_midi_sha256 = hashlib.sha256(data).hexdigest()
     reader = _Reader(data)
     if reader.read(4) != b"MThd":

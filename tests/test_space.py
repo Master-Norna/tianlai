@@ -7,15 +7,22 @@
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 
 import numpy as np
 
+import tianlai.space as space_module
 from tianlai.space import (
     SpaceConfig,
     render_reverb,
     render_reverb_stereo,
+    _apply_spectral_response,
+    _apply_spectral_response_in_place,
     _allpass,
     _comb,
+    _feedback_along_rows,
+    _reshape_columns,
+    _spectral_response,
     _spectral_shape,
 )
 
@@ -46,9 +53,76 @@ class CombAllpassTest(unittest.TestCase):
         x = np.ones(1000)
         self.assertEqual(_comb(x, 37, 0.7).shape, x.shape)
         self.assertEqual(_allpass(x, 37, 0.5).shape, x.shape)
+        self.assertEqual(_allpass(np.zeros(0), 37, 0.5).shape, (0,))
+
+    def test_allpass_matches_the_allocation_heavy_equation_bit_for_bit(self):
+        rng = np.random.default_rng(20260811)
+        x = rng.standard_normal(10003)
+        x[:4] = (
+            0.0,
+            -0.0,
+            np.nextafter(0.0, 1.0),
+            -np.nextafter(0.0, 1.0),
+        )
+        delay = 113
+        gain = 0.5
+
+        grid, n = _reshape_columns(x, delay)
+        x_prev = np.zeros_like(grid)
+        x_prev[1:] = grid[:-1]
+        expected = -gain * grid + x_prev
+        _feedback_along_rows(expected, gain)
+        expected = expected.reshape(-1)[:n]
+
+        actual = _allpass(x, delay, gain)
+        np.testing.assert_array_equal(
+            actual.view(np.uint64),
+            expected.view(np.uint64),
+        )
+        self.assertTrue(actual.flags.owndata)
+        self.assertIsNone(actual.base)
 
 
 class SpectralShapeTest(unittest.TestCase):
+    def test_in_place_fft_matches_the_owned_formula_bit_for_bit(self):
+        rng = np.random.default_rng(20260813)
+        original = rng.standard_normal(10003)
+        response = _spectral_response(10003, 48000, 150.0, 6500.0)
+        expected = _apply_spectral_response(original, response)
+        actual = original.copy()
+
+        returned = _apply_spectral_response_in_place(actual, response)
+
+        self.assertIs(returned, actual)
+        self.assertTrue(actual.flags.owndata)
+        self.assertIsNone(actual.base)
+        np.testing.assert_array_equal(
+            actual.view(np.uint64),
+            expected.view(np.uint64),
+        )
+
+    def test_in_place_spectrum_matches_the_previous_formula_bit_for_bit(self):
+        rng = np.random.default_rng(20260812)
+        x = rng.standard_normal(10001)
+        sr = 48000
+        highpass_hz = 150.0
+        lowpass_hz = 6500.0
+
+        freqs = np.fft.rfftfreq(x.size, 1.0 / sr)
+        response = np.ones_like(freqs)
+        with np.errstate(divide="ignore"):
+            response *= 1.0 / np.sqrt(
+                1.0 + (highpass_hz / np.maximum(freqs, 1e-9)) ** 4
+            )
+        response *= 1.0 / np.sqrt(1.0 + (freqs / lowpass_hz) ** 4)
+        expected = np.fft.irfft(np.fft.rfft(x) * response, x.size)
+
+        actual = _spectral_shape(x, sr, highpass_hz, lowpass_hz)
+        np.testing.assert_array_equal(
+            actual.view(np.uint64),
+            expected.view(np.uint64),
+        )
+
     def test_lowpass_attenuates_highs_keeps_lows(self):
         sr = 48000
         t = np.arange(sr) / sr
@@ -123,8 +197,165 @@ class ReverbTest(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "sample_rate"):
                     render_reverb(send, sample_rate, SpaceConfig())
 
+    def test_channel_pair_builds_one_shared_spectral_response(self):
+        send = np.zeros(4000)
+        send[0] = 1.0
+        with patch.object(
+            space_module,
+            "_spectral_response",
+            wraps=space_module._spectral_response,
+        ) as build_response:
+            render_reverb(send, 48000, SpaceConfig())
+
+        self.assertEqual(build_response.call_count, 1)
+
+    def test_predelay_keeps_exact_sized_owned_output_buffers(self):
+        send = np.zeros(4000)
+        send[0] = 1.0
+        wet_l, wet_r = render_reverb(
+            send,
+            48000,
+            SpaceConfig(predelay_ms=18.0),
+        )
+
+        self.assertTrue(wet_l.flags.owndata)
+        self.assertTrue(wet_r.flags.owndata)
+        self.assertIsNone(wet_l.base)
+        self.assertIsNone(wet_r.base)
+        self.assertEqual(wet_l.shape, send.shape)
+        self.assertEqual(wet_r.shape, send.shape)
+
 
 class StereoReverbTest(unittest.TestCase):
+    @staticmethod
+    def _allocation_heavy_reference(left, right, sr, cfg):
+        """Reproduce the former simultaneous mid/side topology exactly."""
+
+        left_channel = space_module._validated_audio_channel(left, "left")
+        right_channel = space_module._validated_audio_channel(right, "right")
+        mid = 0.5 * left_channel + 0.5 * right_channel
+        side = 0.5 * left_channel - 0.5 * right_channel
+        spread = round(space_module._STEREO_SPREAD_44K * sr / 44100.0)
+        wet_mid_l, wet_mid_r = space_module._render_reverb_pair(
+            mid,
+            sr,
+            cfg,
+            0,
+            spread,
+        )
+        side_left_offset = max(1, round(spread / 3.0))
+        side_right_offset = min(
+            spread - 1,
+            max(side_left_offset + 1, round(2.0 * spread / 3.0)),
+        )
+        wet_side_l, wet_side_r = space_module._render_reverb_pair(
+            side,
+            sr,
+            cfg,
+            side_left_offset,
+            side_right_offset,
+        )
+        wet_mid_l += wet_side_l
+        wet_mid_r -= wet_side_r
+        return wet_mid_l, wet_mid_r
+
+    def test_reduced_peak_topology_matches_the_previous_stereo_bits(self):
+        rng = np.random.default_rng(20260814)
+        random_left = rng.standard_normal(5003) * 0.02
+        random_right = rng.standard_normal(5003) * 0.02
+        same = rng.standard_normal(5003) * 0.02
+        impulse = np.zeros(5003)
+        impulse[0] = 0.5
+        cases = (
+            ("random", random_left, random_right, SpaceConfig()),
+            ("in_phase", same, same.copy(), SpaceConfig()),
+            (
+                "anti_phase",
+                same,
+                -same,
+                SpaceConfig(
+                    predelay_ms=0.0,
+                    damping_hz=0.0,
+                    highpass_hz=0.0,
+                ),
+            ),
+            ("impulse_tail", impulse, np.zeros_like(impulse), SpaceConfig()),
+        )
+
+        for name, left, right, cfg in cases:
+            with self.subTest(name=name):
+                expected_l, expected_r = self._allocation_heavy_reference(
+                    left,
+                    right,
+                    48000,
+                    cfg,
+                )
+                actual_l, actual_r = render_reverb_stereo(
+                    left,
+                    right,
+                    48000,
+                    cfg,
+                )
+                np.testing.assert_array_equal(
+                    actual_l.view(np.uint64),
+                    expected_l.view(np.uint64),
+                )
+                np.testing.assert_array_equal(
+                    actual_r.view(np.uint64),
+                    expected_r.view(np.uint64),
+                )
+
+    def test_array_like_inputs_are_normalized_once_before_rendering(self):
+        class ChangingArray:
+            def __init__(self, first, later):
+                self.first = np.asarray(first)
+                self.later = np.asarray(later)
+                self.calls = 0
+
+            def __array__(self, dtype=None, copy=None):
+                self.calls += 1
+                value = self.first if self.calls <= 2 else self.later
+                return np.array(value, dtype=dtype, copy=True)
+
+        first_left = np.zeros(1201)
+        first_right = np.zeros(1201)
+        first_left[0] = 0.5
+        later_left = np.zeros(1201)
+        later_right = np.zeros(1201)
+        later_left[17] = -0.5
+        later_right[29] = 0.5
+        cfg = SpaceConfig(
+            predelay_ms=0.0,
+            damping_hz=0.0,
+            highpass_hz=0.0,
+        )
+        expected_l, expected_r = render_reverb_stereo(
+            first_left,
+            first_right,
+            8000,
+            cfg,
+        )
+        changing_left = ChangingArray(first_left, later_left)
+        changing_right = ChangingArray(first_right, later_right)
+
+        actual_l, actual_r = render_reverb_stereo(
+            changing_left,
+            changing_right,
+            8000,
+            cfg,
+        )
+
+        self.assertEqual(changing_left.calls, 2)
+        self.assertEqual(changing_right.calls, 2)
+        np.testing.assert_array_equal(
+            actual_l.view(np.uint64),
+            expected_l.view(np.uint64),
+        )
+        np.testing.assert_array_equal(
+            actual_r.view(np.uint64),
+            expected_r.view(np.uint64),
+        )
+
     def test_same_phase_input_matches_the_legacy_mono_entry(self):
         rng = np.random.default_rng(31)
         send = rng.standard_normal(12000) * 0.03

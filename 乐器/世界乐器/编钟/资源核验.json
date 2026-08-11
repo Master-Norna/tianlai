@@ -2,9 +2,9 @@
   "schema_version": 1,
   "implementation": "Tianlai project-authored deterministic procedural DSP",
   "model_family": "representative double-tone bell nonharmonic modal bank",
-  "engine": "乐器.py",
+  "engine": "tianlai/bianzhong.py",
   "engine_version": "1.0.0",
-  "engine_sha256": "701b61a8f705a88cd365f011f9089a961d06000508e25d0e857bfc7a6936ab5d",
+  "engine_sha256": "1d12dbb5c6d203ad57532a6eb0ad0d3a4f748ad28213fc116a0ad1927dbf72ea",
   "seed": 41038,
   "external_assets": [],
   "external_asset_bytes": 0,
@@ -27,5 +27,5 @@
     "same-MIDI articulation changes select different hypothetical bells so the requested sounding pitch remains invariant",
     "standalone timbre is approved; ensemble and mix review remain pending"
   ],
-  "generated_at": "2026-07-27"
+  "generated_at": "2026-08-11"
 }

@@ -5,7 +5,12 @@ import math
 from typing import Any
 
 from .events import PerformanceEvent, event_pitch_hz
-from .instrument import Instrument, StereoFrame
+from .instrument import (
+    Instrument,
+    StereoFrame,
+    _EVENT_FREE_RENDER_BLOCK_CONTRACT,
+    _render_frame_block,
+)
 from .tuning import EqualTemperament
 
 
@@ -113,6 +118,33 @@ class OscillatorInstrument(Instrument):
         angle = (self.pan + 1.0) * math.pi / 4.0
         return mono * math.cos(angle), mono * math.sin(angle)
 
+    def render_block(
+        self,
+        frame_count: int,
+        *,
+        sample_dtype: Any = "float64",
+    ) -> Any:
+        """Render an event-free span without changing frame arithmetic."""
+
+        if not self.voices:
+            if isinstance(frame_count, bool) or not isinstance(frame_count, int):
+                raise ValueError("render block frame_count must be an integer")
+            if frame_count < 0:
+                raise ValueError("render block frame_count must not be negative")
+            import numpy as np
+
+            dtype = np.dtype(sample_dtype)
+            if dtype not in (np.dtype(np.float32), np.dtype(np.float64)):
+                raise ValueError(
+                    "render block sample_dtype must be float32 or float64"
+                )
+            return np.zeros((frame_count, 2), dtype=dtype)
+        return _render_frame_block(
+            self.render_frame,
+            frame_count,
+            sample_dtype=sample_dtype,
+        )
+
     @property
     def active_voice_count(self) -> int:
         return len(self.voices)
@@ -129,3 +161,11 @@ class OscillatorInstrument(Instrument):
             "expected_component_sha256s": [],
             "expected_selection_count": 0,
         }
+
+    # Renderer admission checks identity as well as this exact-class marker.
+    # This keeps monkeypatches and subclasses on the conservative frame path.
+    _tianlai_render_block_contract = _EVENT_FREE_RENDER_BLOCK_CONTRACT
+    _tianlai_original_handle_event = handle_event
+    _tianlai_original_render_frame = render_frame
+    _tianlai_original_render_block = render_block
+    _tianlai_original_active_voice_count = active_voice_count

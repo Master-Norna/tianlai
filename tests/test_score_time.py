@@ -129,6 +129,24 @@ class ScoreTimeValidationTests(unittest.TestCase):
         ):
             validate_score_time_coordinates(score)
 
+    def test_reversed_phrase_is_rejected(self):
+        score = _document()
+        phrase = Phrase(
+            start_bar=3,
+            start_beat=2,
+            end_bar=2,
+            end_beat=2,
+        )
+        part = replace(score.parts[0], phrases=(phrase,))
+        score = replace(score, parts=(part,))
+
+        with self.assertRaisesRegex(
+            ScoreTimeError,
+            r"score\.parts\[0\]\.phrases\[0\]\.end must not precede "
+            r"score\.parts\[0\]\.phrases\[0\]\.start",
+        ):
+            validate_score_time_coordinates(score)
+
     def test_invalid_mid_bar_tempo_reports_tempo_json_path(self):
         score = _document()
         first = score.tempo_map.entries[0]

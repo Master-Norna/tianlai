@@ -30,6 +30,14 @@ class ReleaseMetadataTests(unittest.TestCase):
             "Programming Language :: Python :: Implementation :: CPython",
             project["classifiers"],
         )
+        self.assertIn(
+            "Operating System :: Microsoft :: Windows",
+            project["classifiers"],
+        )
+        self.assertIn(
+            "Operating System :: POSIX :: Linux",
+            project["classifiers"],
+        )
         self.assertFalse(
             any(
                 item.startswith("License ::")
@@ -92,8 +100,17 @@ class ReleaseMetadataTests(unittest.TestCase):
             "tianlai.mcp_entry:main",
         )
         self.assertFalse(project["tool"]["setuptools"]["include-package-data"])
+        self.assertEqual(project["project"]["readme"], "README.pypi.md")
         manifest = (ROOT / "MANIFEST.in").read_text(encoding="utf-8")
+        self.assertIn("exclude README.md", manifest)
         self.assertIn("prune tests", manifest)
+        pypi_readme = (ROOT / "README.pypi.md").read_text(encoding="utf-8")
+        self.assertNotIn("](docs/", pypi_readme)
+        self.assertNotIn("](examples/", pypi_readme)
+        engine_smoke = pypi_readme.split("## Installation", 1)[1].split(
+            "`tianlai-doctor` performs", 1
+        )[0]
+        self.assertNotIn("tianlai-doctor", engine_smoke)
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         self.assertIn("正式产品是项目提供的轻量源码 ZIP", readme)
         self.assertIn("只提供可复用的 Python 引擎", readme)

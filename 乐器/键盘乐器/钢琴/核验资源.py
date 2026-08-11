@@ -1,5 +1,6 @@
 """复算钢琴实际加载采样的 SHA-256 与许可证据。"""
 
+import hashlib
 import json
 from pathlib import Path
 import sys
@@ -13,6 +14,7 @@ from tianlai.instrument_audit import generate_sampled_resource_verification
 
 
 UPSTREAM_COMMIT = "3382bf9496bba2486f5ab0de55a264d1dfc38404"
+IMPLEMENTATION_SOURCE = ROOT / "tianlai" / "piano.py"
 
 
 def main() -> None:
@@ -25,6 +27,10 @@ def main() -> None:
         evidence_files=("LICENSE", "README.md"),
     )
     report["upstream_commit"] = UPSTREAM_COMMIT
+    report["implementation_source"] = "tianlai/piano.py"
+    report["implementation_sha256"] = hashlib.sha256(
+        IMPLEMENTATION_SOURCE.read_bytes()
+    ).hexdigest()
     (here / "资源核验.json").write_text(
         json.dumps(report, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",

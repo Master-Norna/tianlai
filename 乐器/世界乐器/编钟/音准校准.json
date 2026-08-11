@@ -3,7 +3,7 @@
   "applicable": true,
   "method": "render each probe for both strike banks; estimate the dominant fundamental with two Hann-windowed quadrature lock-in phases",
   "engine_version": "1.0.0",
-  "engine_sha256": "701b61a8f705a88cd365f011f9089a961d06000508e25d0e857bfc7a6936ab5d",
+  "engine_sha256": "1d12dbb5c6d203ad57532a6eb0ad0d3a4f748ad28213fc116a0ad1927dbf72ea",
   "reference_a4_hz": 440.0,
   "pitch_semantics": "MIDI note is the final sounding target for both zhenggu and cegu; articulation changes modal colour, not concert pitch",
   "summary": {
@@ -48,5 +48,5 @@
       }
     }
   },
-  "generated_at": "2026-07-27"
+  "generated_at": "2026-08-11"
 }

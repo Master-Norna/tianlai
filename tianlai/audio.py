@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from itertools import islice
+import math
 from pathlib import Path
 import struct
 import wave
@@ -9,32 +11,277 @@ from typing import Any
 from .instrument import StereoFrame
 
 
+_PCM24_SCALE = 8_388_607.0
+_PCM24_NUMPY_CHUNK_FRAMES = 65_536
+
+
 def _pcm24(value: float) -> bytes:
-    integer = round(max(-1.0, min(1.0, value)) * 8_388_607.0)
+    integer = round(max(-1.0, min(1.0, value)) * _PCM24_SCALE)
     if integer < 0:
         integer += 1 << 24
     return bytes((integer & 0xFF, (integer >> 8) & 0xFF, (integer >> 16) & 0xFF))
 
 
-def write_wav_pcm24(path: str | Path, frames: Iterable[StereoFrame], sample_rate: int) -> int:
+def _validate_pcm24_frame(
+    left: object,
+    right: object,
+    frame_index: int,
+) -> tuple[float, float]:
+    left_value = float(left)
+    right_value = float(right)
+    if not math.isfinite(left_value) or not math.isfinite(right_value):
+        raise ValueError(
+            "单乐器渲染产生了非有限样本："
+            f"第 {frame_index} 帧 left={left_value!r}, right={right_value!r}"
+        )
+    frame_peak = max(abs(left_value), abs(right_value))
+    if frame_peak > 1.0:
+        excess_db = 20.0 * math.log10(frame_peak)
+        raise ValueError(
+            "单乐器渲染过载："
+            f"第 {frame_index} 帧量化前峰值 {frame_peak:.6f}"
+            f"（超出 {excess_db:+.2f} dB）。"
+            "写盘会被静默削平，因此拒绝输出；"
+            f"请将乐器或演奏增益降低至少 {excess_db:.2f} dB"
+        )
+    return left_value, right_value
+
+
+def _validate_pcm24_samples(samples: Any, frame_offset: int) -> None:
+    """Reject the first non-finite or clipping stereo frame in one batch."""
+
+    import numpy as np
+
+    finite_frames = np.isfinite(samples).all(axis=1)
+    overloaded = (
+        (samples[:, 0] > 1.0)
+        | (samples[:, 0] < -1.0)
+        | (samples[:, 1] > 1.0)
+        | (samples[:, 1] < -1.0)
+    )
+    nonfinite_indices = np.flatnonzero(~finite_frames)
+    overload_indices = np.flatnonzero(overloaded)
+    first_nonfinite = (
+        None if nonfinite_indices.size == 0 else int(nonfinite_indices[0])
+    )
+    first_overload = (
+        None if overload_indices.size == 0 else int(overload_indices[0])
+    )
+    if first_nonfinite is not None and (
+        first_overload is None or first_nonfinite <= first_overload
+    ):
+        local_index = first_nonfinite
+        _validate_pcm24_frame(
+            samples[local_index, 0],
+            samples[local_index, 1],
+            frame_offset + local_index,
+        )
+    if first_overload is not None:
+        local_index = first_overload
+        _validate_pcm24_frame(
+            samples[local_index, 0],
+            samples[local_index, 1],
+            frame_offset + local_index,
+        )
+
+
+def _write_numpy_pcm24(
+    output: Any,
+    frames: object,
+    *,
+    reject_out_of_range: bool = False,
+    frame_offset: int = 0,
+) -> int | None:
+    """Write a numeric ``(frames, 2)`` ndarray in bounded vector chunks.
+
+    Return ``None`` when the value is not eligible, allowing the public writer
+    to retain its generic iterable behaviour.  Conversion intentionally keeps
+    the scalar writer's clipping, bankers-rounding and NaN/Infinity semantics.
+    """
+
+    import numpy as np
+
+    if (
+        not isinstance(frames, np.ndarray)
+        or frames.ndim != 2
+        or frames.shape[1] != 2
+        or not (
+            np.issubdtype(frames.dtype, np.integer)
+            or (
+                np.issubdtype(frames.dtype, np.floating)
+                and frames.dtype.itemsize <= 8
+            )
+        )
+    ):
+        return None
+    frame_count = int(frames.shape[0])
+    for start in range(0, frame_count, _PCM24_NUMPY_CHUNK_FRAMES):
+        samples = np.array(
+            frames[start : start + _PCM24_NUMPY_CHUNK_FRAMES],
+            dtype=np.float64,
+            order="C",
+            copy=True,
+        )
+        if reject_out_of_range:
+            _validate_pcm24_samples(samples, frame_offset + start)
+        np.nan_to_num(
+            samples,
+            copy=False,
+            nan=1.0,
+            posinf=1.0,
+            neginf=-1.0,
+        )
+        np.clip(samples, -1.0, 1.0, out=samples)
+        samples *= _PCM24_SCALE
+        np.rint(samples, out=samples)
+        integers = samples.astype("<i4")
+        packed = integers.view(np.uint8).reshape(-1, 4)[:, :3]
+        output.writeframesraw(packed.tobytes(order="C"))
+    return frame_count
+
+
+def _write_iterable_pcm24(
+    output: Any,
+    frames: Iterable[StereoFrame],
+    *,
+    reject_out_of_range: bool = False,
+) -> int:
+    """Encode a generic frame iterator in bounded, vectorizable batches.
+
+    Numeric stereo batches take the same NumPy encoder as ndarray callers.
+    Unusual iterable values retain the original scalar unpacking and encoding
+    behaviour instead of becoming a narrower API as a side effect of the fast
+    path.
+    """
+
+    import numpy as np
+
+    iterator = iter(frames)
+    frame_count = 0
+    scalar_buffer = bytearray()
+    while True:
+        batch = list(islice(iterator, _PCM24_NUMPY_CHUNK_FRAMES))
+        if not batch:
+            break
+        try:
+            numeric_batch: object = np.asarray(batch)
+        except (TypeError, ValueError, OverflowError):
+            numeric_batch = None
+        written = _write_numpy_pcm24(
+            output,
+            numeric_batch,
+            reject_out_of_range=reject_out_of_range,
+            frame_offset=frame_count,
+        )
+        if written is not None:
+            frame_count += written
+            continue
+        for left, right in batch:
+            if reject_out_of_range:
+                left, right = _validate_pcm24_frame(left, right, frame_count)
+            scalar_buffer.extend(_pcm24(left))
+            scalar_buffer.extend(_pcm24(right))
+            frame_count += 1
+            if len(scalar_buffer) >= 24_576:
+                output.writeframesraw(scalar_buffer)
+                scalar_buffer.clear()
+    if scalar_buffer:
+        output.writeframesraw(scalar_buffer)
+    return frame_count
+
+
+def write_wav_pcm24(
+    path: str | Path,
+    frames: Iterable[StereoFrame],
+    sample_rate: int,
+    *,
+    reject_out_of_range: bool = False,
+) -> int:
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    frame_count = 0
-    buffer = bytearray()
     with wave.open(str(output_path), "wb") as output:
         output.setnchannels(2)
         output.setsampwidth(3)
         output.setframerate(sample_rate)
-        for left, right in frames:
-            buffer.extend(_pcm24(left))
-            buffer.extend(_pcm24(right))
-            frame_count += 1
-            if len(buffer) >= 24_576:
-                output.writeframesraw(buffer)
-                buffer.clear()
-        if buffer:
-            output.writeframesraw(buffer)
-    return frame_count
+        numpy_frame_count = _write_numpy_pcm24(
+            output,
+            frames,
+            reject_out_of_range=reject_out_of_range,
+        )
+        if numpy_frame_count is not None:
+            return numpy_frame_count
+        return _write_iterable_pcm24(
+            output,
+            frames,
+            reject_out_of_range=reject_out_of_range,
+        )
+
+
+def write_wav_pcm24_blocks(
+    path: str | Path,
+    blocks: Iterable[Any],
+    sample_rate: int,
+    *,
+    reject_out_of_range: bool = False,
+) -> int:
+    """Write bounded stereo blocks without flattening them into frame tuples.
+
+    Numeric arrays go directly to the existing bit-compatible vector encoder.
+    Generic blocks retain the scalar fallback, which keeps custom instrument
+    behaviour no narrower than :func:`write_wav_pcm24`.
+    """
+
+    import numpy as np
+
+    output_path = Path(path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with wave.open(str(output_path), "wb") as output:
+        output.setnchannels(2)
+        output.setsampwidth(3)
+        output.setframerate(sample_rate)
+        frame_count = 0
+        scalar_buffer = bytearray()
+        for block in blocks:
+            if isinstance(block, np.ndarray):
+                batch: Any = block
+            else:
+                batch = block if isinstance(block, (list, tuple)) else list(block)
+                try:
+                    batch = np.asarray(batch)
+                except (TypeError, ValueError, OverflowError):
+                    pass
+            # The numeric encoder writes immediately.  Flush any preceding
+            # scalar fallback first so heterogeneous block streams cannot be
+            # reordered on disk.
+            if scalar_buffer:
+                output.writeframesraw(scalar_buffer)
+                scalar_buffer.clear()
+            written = _write_numpy_pcm24(
+                output,
+                batch,
+                reject_out_of_range=reject_out_of_range,
+                frame_offset=frame_count,
+            )
+            if written is not None:
+                frame_count += written
+                continue
+
+            for left, right in batch:
+                if reject_out_of_range:
+                    left, right = _validate_pcm24_frame(
+                        left,
+                        right,
+                        frame_count,
+                    )
+                scalar_buffer.extend(_pcm24(left))
+                scalar_buffer.extend(_pcm24(right))
+                frame_count += 1
+                if len(scalar_buffer) >= 24_576:
+                    output.writeframesraw(scalar_buffer)
+                    scalar_buffer.clear()
+        if scalar_buffer:
+            output.writeframesraw(scalar_buffer)
+        return frame_count
 
 
 def audio_file_info(path: str | Path) -> tuple[int, int, int]:
@@ -79,9 +326,14 @@ def wav_loop_points(path: str | Path) -> tuple[int, int] | None:
                 return None
             chunk_size = struct.unpack("<I", raw_size)[0]
             if chunk_id == b"smpl" and chunk_size >= 60:
-                payload = source.read(chunk_size)
+                # Only the fixed header and first loop record are needed.
+                # Do not trust an unbounded chunk length from a third-party
+                # sample, and check the bounded read before unpacking it.
+                payload = source.read(60)
+                if len(payload) < 60:
+                    return None
                 loop_count = struct.unpack_from("<I", payload, 28)[0]
-                if loop_count < 1 or len(payload) < 60:
+                if loop_count < 1:
                     return None
                 loop_type, start, end = struct.unpack_from("<III", payload, 40)[0:3]
                 if loop_type != 0 or end < start:

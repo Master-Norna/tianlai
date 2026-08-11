@@ -10,6 +10,7 @@ import zlib
 import numpy as np
 
 from .audio import audio_file_info, read_audio_float, wav_loop_points
+from ._event_free_blocks import audited_event_free_blocks
 from .events import PerformanceEvent, event_pitch_hz
 from .instrument import Instrument, StereoFrame
 from .runtime_variants import (
@@ -23,6 +24,7 @@ _BANDLIMITED_PHASE_COUNT = 1024
 _BANDLIMITED_FIRST_OFFSET = -7
 _BANDLIMITED_TAP_COUNT = 16
 _BANDLIMITED_CUTOFF_STEPS = 128
+_MONO_PAN_POWER = math.sqrt(2.0)
 
 
 def _bandlimited_cutoff_index(increment: float) -> int:
@@ -140,8 +142,11 @@ class _SampleVoice:
     looped: bool = False
     resampler_table: Any | None = None
     resampler_cutoff_index: int | None = None
+    mono_pan_cosine: float = 1.0
+    mono_pan_sine: float = 1.0
 
 
+@audited_event_free_blocks(silence_safe=True)
 class SampleInstrument(Instrument):
     """Deterministic velocity-layer sample instrument with sustain support."""
 
@@ -950,6 +955,12 @@ class SampleInstrument(Instrument):
                 envelope=initial_envelope,
                 resampler_table=resampler_table,
                 resampler_cutoff_index=resampler_cutoff_index,
+                mono_pan_cosine=math.cos(
+                    (region.pan + 1.0) * math.pi / 4.0
+                ),
+                mono_pan_sine=math.sin(
+                    (region.pan + 1.0) * math.pi / 4.0
+                ),
             )
         elif event.type == "note_off":
             voice = self.voices.get(int(event.payload["note_id"]))
@@ -1193,18 +1204,17 @@ class SampleInstrument(Instrument):
 
             amplitude = voice.amplitude * voice.envelope
             if voice.region.sample.channels == 1:
-                angle = (voice.region.pan + 1.0) * math.pi / 4.0
                 left += (
                     source_left
                     * amplitude
-                    * math.cos(angle)
-                    * math.sqrt(2.0)
+                    * voice.mono_pan_cosine
+                    * _MONO_PAN_POWER
                 )
                 right += (
                     source_left
                     * amplitude
-                    * math.sin(angle)
-                    * math.sqrt(2.0)
+                    * voice.mono_pan_sine
+                    * _MONO_PAN_POWER
                 )
             elif voice.region.pan >= 0.0:
                 left += source_left * amplitude * (1.0 - voice.region.pan)

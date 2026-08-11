@@ -7,6 +7,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+import tianlai.path_policy as path_policy_module
 from tianlai.path_policy import (
     INPUT_ROOTS_ENV,
     InputPathPolicy,
@@ -90,6 +91,38 @@ class InputPathPolicyTests(unittest.TestCase):
                 resolved = policy.resolve_file("乐谱/MIDI/example.mid")
 
         self.assertEqual(resolved, score.resolve())
+
+    def test_read_file_returns_captured_bytes_without_a_path_reopen(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            home = Path(temporary)
+            source = home / "score.mid"
+            original = b"descriptor-bound source"
+            replacement = b"replacement after capture"
+            source.write_bytes(original)
+            policy = InputPathPolicy.from_roots([home])
+            real_read = path_policy_module.read_plain_file_bytes
+
+            def capture_then_replace(path, *, maximum_bytes):
+                identity, payload = real_read(
+                    path,
+                    maximum_bytes=maximum_bytes,
+                )
+                Path(path).write_bytes(replacement)
+                return identity, payload
+
+            with patch.object(
+                path_policy_module,
+                "read_plain_file_bytes",
+                side_effect=capture_then_replace,
+            ):
+                canonical, payload = policy.read_file(
+                    source,
+                    maximum_bytes=1024,
+                )
+
+            self.assertEqual(canonical, source.resolve())
+            self.assertEqual(payload, original)
+            self.assertEqual(source.read_bytes(), replacement)
 
     def test_dot_dot_escape_is_rejected_after_resolution(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

@@ -504,16 +504,26 @@ def render_project_candidate(
                 raise AuthoringRenderError(
                     "workflow.reservation_inactive", stage="validate"
                 )
-        selected_output = (
-            root / RENDERS_DIRECTORY_NAME
-            if output_root is None
-            else _canonical_plain_directory(
-                output_root, code="output.root_unsafe"
-            )
+        project_output = _canonical_plain_directory(
+            root / RENDERS_DIRECTORY_NAME, code="output.root_unsafe"
         )
         if output_root is None:
+            selected_output = project_output
+        else:
             selected_output = _canonical_plain_directory(
-                selected_output, code="output.root_unsafe"
+                output_root, code="output.root_unsafe"
+            )
+        if (
+            managed_authorization is not None
+            and selected_output != project_output
+        ):
+            # One workflow reservation names one deterministic candidate in
+            # the project's durable render namespace.  Allowing the same
+            # reservation to fan out across caller-selected roots would evade
+            # the render-attempt budget and create multiple artifacts with the
+            # same workflow operation identity.
+            raise AuthoringRenderError(
+                "workflow.output_root_mismatch", stage="validate"
             )
         private = root / PRIVATE_DIRECTORY_NAME
         try:

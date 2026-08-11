@@ -1,7 +1,6 @@
 {
   "name": "程序建模 编钟",
   "type": "modeled_bianzhong",
-  "implementation": "乐器.py",
   "instrument_name": "天籁代表性双音编钟模型",
   "quality_tier": "formal",
   "collaboration_review_status": "untested",

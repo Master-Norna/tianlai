@@ -1,4 +1,4 @@
-"""Signal and contract tests for the local procedural bianzhong backend."""
+"""Signal and contract tests for the built-in procedural bianzhong backend."""
 
 from __future__ import annotations
 
@@ -22,29 +22,22 @@ if str(ROOT) not in sys.path:
 
 from tianlai.events import PerformanceEvent
 from tianlai.audition_protocol import build_full_range_audition
+from tianlai.bianzhong import (
+    BianzhongInstrument,
+    ENGINE_VERSION,
+    generate_pitch_calibration,
+    generate_resource_verification,
+)
 from tianlai.instrument import create_instrument
 from tianlai.tuning import EqualTemperament
 
 
 DIRECTORY = ROOT / "乐器" / "世界乐器" / "编钟"
-IMPLEMENTATION = DIRECTORY / "乐器.py"
+ENGINE_SOURCE = ROOT / "tianlai" / "bianzhong.py"
+COMPATIBILITY_WRAPPER = DIRECTORY / "乐器.py"
 MANIFEST_PATH = DIRECTORY / "乐器.json"
 SCHEMA_PATH = ROOT / "schemas" / "instrument.schema.json"
 TUNING = EqualTemperament(440.0)
-
-_SPEC = importlib.util.spec_from_file_location(
-    "tianlai_test_bianzhong_local",
-    IMPLEMENTATION,
-)
-if _SPEC is None or _SPEC.loader is None:
-    raise RuntimeError("cannot load bianzhong implementation")
-_MODULE = importlib.util.module_from_spec(_SPEC)
-sys.modules[_SPEC.name] = _MODULE
-_SPEC.loader.exec_module(_MODULE)
-
-BianzhongInstrument = _MODULE.BianzhongInstrument
-ENGINE_VERSION = _MODULE.ENGINE_VERSION
-
 
 def _manifest() -> dict:
     return json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
@@ -162,7 +155,7 @@ class BianzhongManifestTests(unittest.TestCase):
     def test_manifest_is_formal_after_listening_and_schema_valid(self) -> None:
         manifest = _manifest()
         self.assertEqual(manifest["type"], "modeled_bianzhong")
-        self.assertEqual(manifest["implementation"], "乐器.py")
+        self.assertNotIn("implementation", manifest)
         self.assertEqual(manifest["engine_version"], ENGINE_VERSION)
         self.assertEqual(manifest["quality_tier"], "formal")
         self.assertEqual(manifest["collaboration_review_status"], "untested")
@@ -199,7 +192,7 @@ class BianzhongManifestTests(unittest.TestCase):
                 broken[field] = invalid
                 self.assertTrue(list(validator.iter_errors(broken)))
 
-    def test_chinese_path_factory_route_loads_local_backend(self) -> None:
+    def test_chinese_path_factory_route_loads_builtin_backend(self) -> None:
         instrument = create_instrument(
             _manifest(),
             48_000,
@@ -213,8 +206,29 @@ class BianzhongManifestTests(unittest.TestCase):
         self.assertIsNotNone(provenance)
         self.assertEqual(
             provenance["factory_route"],
-            "local_implementation_factory",
+            "builtin_manifest_dispatch_no_implementation",
         )
+
+    def test_directory_wrapper_accepts_current_and_historical_manifests(self) -> None:
+        spec = importlib.util.spec_from_file_location(
+            "tianlai_test_bianzhong_compatibility_wrapper",
+            COMPATIBILITY_WRAPPER,
+        )
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        current = _manifest()
+        current.pop("implementation", None)
+        historical = dict(current, implementation="乐器.py")
+        for manifest in (current, historical):
+            with self.subTest(historical="implementation" in manifest):
+                instrument = module.create(
+                    manifest=manifest,
+                    sample_rate=8_000,
+                    base_directory=str(DIRECTORY),
+                )
+                self.assertIsInstance(instrument, BianzhongInstrument)
 
     def test_manifest_version_range_and_declarations_fail_closed(self) -> None:
         mutations = (
@@ -516,15 +530,15 @@ class BianzhongSafetyTests(unittest.TestCase):
 
 class BianzhongEvidenceTests(unittest.TestCase):
     def test_resource_and_pitch_generators_write_hash_locked_json(self) -> None:
-        engine_hash = hashlib.sha256(IMPLEMENTATION.read_bytes()).hexdigest()
+        engine_hash = hashlib.sha256(ENGINE_SOURCE.read_bytes()).hexdigest()
         with tempfile.TemporaryDirectory() as temporary:
             resource_path = Path(temporary) / "resource.json"
             pitch_path = Path(temporary) / "pitch.json"
-            resource = _MODULE.generate_resource_verification(
+            resource = generate_resource_verification(
                 MANIFEST_PATH,
                 output_path=resource_path,
             )
-            pitch = _MODULE.generate_pitch_calibration(
+            pitch = generate_pitch_calibration(
                 MANIFEST_PATH,
                 output_path=pitch_path,
                 probe_notes=(36, 67, 98),
@@ -549,7 +563,7 @@ class BianzhongEvidenceTests(unittest.TestCase):
         pitch = json.loads(
             (DIRECTORY / "音准校准.json").read_text(encoding="utf-8")
         )
-        digest = hashlib.sha256(IMPLEMENTATION.read_bytes()).hexdigest()
+        digest = hashlib.sha256(ENGINE_SOURCE.read_bytes()).hexdigest()
         self.assertEqual(resource["engine_sha256"], digest)
         self.assertEqual(pitch["engine_sha256"], digest)
         self.assertEqual(resource["external_assets"], [])

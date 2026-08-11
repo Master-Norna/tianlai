@@ -92,7 +92,8 @@ This entry is `formal`. Verification materials:
 ### C8 sample group
 
 The upstream `C8v*.flac` files measure approximately C#8.
-`_ROOT_TUNING_CENTS` in `乐器.py` declares this group of root samples as
+`_ROOT_TUNING_CENTS` in the central implementation `tianlai/piano.py` declares
+this group of root samples as
 `+100 cents`, allowing the engine to resample the B7 / C8 keys back to their
 correct pitches. This calibration is already active; C8 is not an unresolved
 defect. Other root samples do not receive this correction, preserving the

@@ -17,8 +17,6 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[3]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
-if str(HERE) not in sys.path:
-    sys.path.insert(0, str(HERE))
 
 from tianlai.audio import wav_loop_points  # noqa: E402
 from tianlai.canonical_json import (  # noqa: E402
@@ -28,7 +26,7 @@ from tianlai.canonical_json import (  # noqa: E402
 )
 from tianlai.instrument import create_instrument  # noqa: E402
 from tianlai.instrument_audit import collect_loaded_samples  # noqa: E402
-from VSCO2中提琴映射 import (  # noqa: E402
+from tianlai.vsco2_viola_mapping import (  # noqa: E402
     ALL_SAMPLES,
     LICENSE_EVIDENCE,
     SOURCE_SUBDIRECTORY,
@@ -38,6 +36,8 @@ from VSCO2中提琴映射 import (  # noqa: E402
 
 
 OUTPUT = HERE / "资源核验.json"
+MAPPING_SOURCE = ROOT / "tianlai" / "vsco2_viola_mapping.py"
+IMPLEMENTATION_SOURCE = ROOT / "tianlai" / "vsco2_viola.py"
 ACTIVE_THRESHOLD = 1e-4
 SPICCATO_TAIL_RMS_MAXIMUM = 1e-4
 SPICCATO_END_DISCONTINUITY_MAXIMUM = 1e-3
@@ -167,6 +167,7 @@ def verify() -> dict[str, Any]:
     content_hashes: set[str] = set()
     format_counts: dict[str, int] = {}
     total_bytes = 0
+    decoded_float32_stereo_bytes = 0
     maximum_spiccato_tail_rms = 0.0
     maximum_spiccato_end_discontinuity = 0.0
     maximum_sustain_loop_seam = 0.0
@@ -186,6 +187,7 @@ def verify() -> dict[str, Any]:
         content_hashes.add(digest)
         set_hash_lines.append(f"{digest}  {relative}\n")
         total_bytes += path.stat().st_size
+        decoded_float32_stereo_bytes += int(info.frames) * 2 * 4
         format_key = f"{info.format}:{info.subtype}:{info.samplerate}Hz:{info.channels}ch"
         format_counts[format_key] = format_counts.get(format_key, 0) + 1
 
@@ -438,15 +440,21 @@ def verify() -> dict[str, Any]:
         "manifest_canonical_sha256": canonical_json_file_sha256(
             manifest_path
         ),
-        "mapping_sha256": hashlib.sha256(
-            (HERE / "VSCO2中提琴映射.py").read_bytes()
-        ).hexdigest(),
+        "mapping_source": "tianlai/vsco2_viola_mapping.py",
+        "mapping_sha256": hashlib.sha256(MAPPING_SOURCE.read_bytes()).hexdigest(),
+        "implementation_source": "tianlai/vsco2_viola.py",
         "implementation_sha256": hashlib.sha256(
-            (HERE / "乐器.py").read_bytes()
+            IMPLEMENTATION_SOURCE.read_bytes()
         ).hexdigest(),
         "sample_count": len(records),
         "unique_audio_sha256_count": len(content_hashes),
         "sample_bytes": total_bytes,
+        "decoded_float32_stereo_bytes": decoded_float32_stereo_bytes,
+        "decoded_float32_stereo_algorithm": (
+            "sum unique runtime sample frame_count * 2 output channels * "
+            "4-byte float32; mono sources are expanded to stereo by "
+            "read_audio_float"
+        ),
         "sample_formats": {
             name: format_counts[name] for name in sorted(format_counts)
         },

@@ -45,7 +45,7 @@ directly exercises import, explicit instrumentation, first sound, location,
 patching, second render, and comparison without downloading several gigabytes
 of sound sources first.
 
-> Current release candidate: `0.7.0rc1`
+> Current release candidate: `0.8.0rc1`
 >
 > **Distribution boundary:** the formal product is the lightweight source ZIP
 > published by the project. If PyPI sdists or wheels are published later,
@@ -57,8 +57,8 @@ of sound sources first.
 
 | Environment | Shortest entry point | Current boundary |
 | --- | --- | --- |
-| Windows 10/11 x64 | [Windows in three steps](#windows-in-three-steps) | Complete reference platform for `0.7.0rc1` |
-| Linux / WSL | [Linux / WSL quick start](docs/Linux快速开始.en.md) | Bash, programmatic instruments, and MCP are available; the success path and real-sample coverage are validated in separate layers |
+| Windows 10/11 x64 | [Windows in three steps](#windows-in-three-steps) | Complete reference platform for `0.8.0rc1` |
+| Linux / WSL x86_64 | [Linux / WSL quick start](docs/Linux快速开始.en.md) | Bash, programmatic instruments, and MCP are available; the success path and real-sample coverage are validated in separate layers |
 | macOS Apple Silicon / Intel | [macOS quick start](docs/macOS快速开始.en.md) | Native 64-bit CPython 3.11–3.14; clean-source-ZIP portable CI is included, while real samples are accepted separately |
 
 From the source root, Linux / WSL users can start with:
@@ -67,10 +67,10 @@ From the source root, Linux / WSL users can start with:
 bash ./bootstrap_linux.sh
 ```
 
-With a supported 64-bit CPython 3.11–3.14 interpreter, this creates a Linux
-`.venv`, installs the core and MCP dependencies, runs environment diagnostics,
-and produces a first WAV without external samples. Do not share a `.venv`
-between Windows and WSL. See the
+On Linux x86_64 with a supported 64-bit CPython 3.11–3.14 interpreter, this
+creates a Linux `.venv`, installs the core and MCP dependencies, runs
+environment diagnostics, and produces a first WAV without external samples.
+Do not share a `.venv` between Windows and WSL. See the
 [Linux / WSL quick start](docs/Linux快速开始.en.md) for the support boundary,
 MCP stdio configuration, and external-sample installation and restoration.
 
@@ -92,7 +92,7 @@ and every installation must pass complete integrity verification. See the
 ## Windows in three steps
 
 Windows 10/11 x64 with 64-bit CPython 3.11–3.14 is the reference environment
-for `0.7.0rc1`. Run the following `cmd` blocks from Command Prompt (`cmd.exe`)
+for `0.8.0rc1`. Run the following `cmd` blocks from Command Prompt (`cmd.exe`)
 in the source-release root. The multiline continuation character is `^`.
 
 1. Create the project's own virtual environment and skip the automatic smoke
@@ -142,7 +142,7 @@ before using your own score.
 
 ## Recommended creative loop
 
-For `0.7.0rc1`, use this main workflow instead of invoking older import and
+For `0.8.0rc1`, use this main workflow instead of invoking older import and
 ensemble commands separately and assembling their artifacts by hand:
 
 | Stage | CLI | Result |
@@ -268,10 +268,17 @@ boundaries.
 - `manual`, `analyze`, and `suggest` separate analysis from revision. `suggest`
   produces a bounded, reviewable diagnostic draft that a creator can carry into
   the next candidate.
-- Offline rendering produces per-track 24-bit WAV audio, optional stems, a
-  shared hall, and complete receipts. Stem and content-addressed analysis caches
-  accelerate later remixes, with closed telemetry and its hash retained by the
-  candidate.
+- Offline rendering produces 24-bit WAV audio, optional stems, a shared hall,
+  and complete receipts. `0.8.0rc1` automatically chooses serial execution or
+  up to four managed workers from CPU, memory, scratch-space, work, and verified
+  resource evidence, and passes long stems through bounded streaming blocks.
+  It adds no render-profile option, falls back to the complete serial path when
+  required worker-safety or resource evidence is insufficient, and preserves
+  one formal audio-byte contract.
+- Stem and content-addressed analysis caches accelerate later remixes, with
+  closed telemetry and its hash retained by the candidate. Local adaptive
+  scheduling learns only from successful tasks that were fully verified and
+  committed, never from failures or cache hits.
 - Every formal standalone or ensemble render streams its final PCM back from
   disk and produces a
   Hash-bound [`渲染后自检.json`](docs/渲染后自检.en.md). Damage, format

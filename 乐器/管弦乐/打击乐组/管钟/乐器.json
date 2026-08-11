@@ -5,7 +5,6 @@
   "collaboration_review_status": "untested",
   "upgrade_status": "vcsl_tubular_bells_2_strict_cc0",
   "fallback_policy": "explicit_only_no_silent_gm",
-  "implementation": "乐器.py",
   "instrument_name": "管钟",
   "profile": "vcsl_tubular_bells_2",
   "asset_root": "../../../../音源/VCSL",

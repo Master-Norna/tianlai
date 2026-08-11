@@ -93,14 +93,14 @@ class AtomicCliRenderTests(unittest.TestCase):
         stale = self.base / f".{output.name}.stale.tianlai-part"
         stale.write_bytes(b"orphan from a force-killed process")
         written_paths: list[Path] = []
-        real_write = renderer.write_wav_pcm24
+        real_write = renderer._write_wav_pcm24_blocks
 
-        def recording_write(path, frames, sample_rate):
+        def recording_write(path, blocks, sample_rate, **kwargs):
             written_paths.append(Path(path))
-            return real_write(path, frames, sample_rate)
+            return real_write(path, blocks, sample_rate, **kwargs)
 
         with patch(
-            "tianlai.renderer.write_wav_pcm24",
+            "tianlai.renderer._write_wav_pcm24_blocks",
             side_effect=recording_write,
         ):
             exit_code, stdout, stderr = self._run(output)
@@ -147,12 +147,12 @@ class AtomicCliRenderTests(unittest.TestCase):
         original = b"previous trusted WAV bytes"
         output.write_bytes(original)
 
-        def broken_write(path, _frames, _sample_rate):
+        def broken_write(path, _blocks, _sample_rate, **_kwargs):
             Path(path).write_bytes(b"not a readable WAV")
             return self.performance.total_samples
 
         with patch(
-            "tianlai.renderer.write_wav_pcm24",
+            "tianlai.renderer._write_wav_pcm24_blocks",
             side_effect=broken_write,
         ):
             exit_code, _stdout, stderr = self._run(output)
@@ -179,12 +179,13 @@ class AtomicCliRenderTests(unittest.TestCase):
 
                 def mismatched_write(
                     path,
-                    _frames,
+                    _blocks,
                     _sample_rate,
                     *,
                     sr=sample_rate,
                     channel_count=channels,
                     frame_count=actual_frames,
+                    **_kwargs,
                 ):
                     sf.write(
                         str(path),
@@ -199,7 +200,7 @@ class AtomicCliRenderTests(unittest.TestCase):
                     return expected_frames
 
                 with patch(
-                    "tianlai.renderer.write_wav_pcm24",
+                    "tianlai.renderer._write_wav_pcm24_blocks",
                     side_effect=mismatched_write,
                 ):
                     exit_code, _stdout, _stderr = self._run(output)
@@ -216,11 +217,11 @@ class AtomicCliRenderTests(unittest.TestCase):
         output = self.base / "locked.wav"
         original = b"old locked target"
         output.write_bytes(original)
-        real_write = renderer.write_wav_pcm24
+        real_write = renderer._write_wav_pcm24_blocks
 
         with (
             patch(
-                "tianlai.renderer.write_wav_pcm24",
+                "tianlai.renderer._write_wav_pcm24_blocks",
                 side_effect=real_write,
             ),
             patch(
@@ -242,12 +243,12 @@ class AtomicCliRenderTests(unittest.TestCase):
         original = b"old target"
         output.write_bytes(original)
 
-        def interrupted_write(path, _frames, _sample_rate):
+        def interrupted_write(path, _blocks, _sample_rate, **_kwargs):
             Path(path).write_bytes(b"partial")
             raise KeyboardInterrupt()
 
         with patch(
-            "tianlai.renderer.write_wav_pcm24",
+            "tianlai.renderer._write_wav_pcm24_blocks",
             side_effect=interrupted_write,
         ):
             with self.assertRaises(KeyboardInterrupt):

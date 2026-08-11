@@ -249,31 +249,42 @@ class _KWeighting:
         b20, b21, b22 = _K_STAGE_2_B
         _, a21, a22 = _K_STAGE_2_A
         state = self._state
-        for index, frame in enumerate(samples):
-            left = float(frame[0])
-            right = float(frame[1])
+        left_10 = float(state[0, 0, 0])
+        left_11 = float(state[0, 0, 1])
+        left_20 = float(state[0, 1, 0])
+        left_21 = float(state[0, 1, 1])
+        right_10 = float(state[1, 0, 0])
+        right_11 = float(state[1, 0, 1])
+        right_20 = float(state[1, 1, 0])
+        right_21 = float(state[1, 1, 1])
+        for index in range(len(samples)):
+            left = float(samples[index, 0])
+            right = float(samples[index, 1])
 
-            left_stage_1 = b10 * left + state[0, 0, 0]
-            state[0, 0, 0] = b11 * left - a11 * left_stage_1 + state[0, 0, 1]
-            state[0, 0, 1] = b12 * left - a12 * left_stage_1
-            left_stage_2 = b20 * left_stage_1 + state[0, 1, 0]
-            state[0, 1, 0] = (
-                b21 * left_stage_1 - a21 * left_stage_2 + state[0, 1, 1]
-            )
-            state[0, 1, 1] = b22 * left_stage_1 - a22 * left_stage_2
+            left_stage_1 = b10 * left + left_10
+            left_10 = b11 * left - a11 * left_stage_1 + left_11
+            left_11 = b12 * left - a12 * left_stage_1
+            left_stage_2 = b20 * left_stage_1 + left_20
+            left_20 = b21 * left_stage_1 - a21 * left_stage_2 + left_21
+            left_21 = b22 * left_stage_1 - a22 * left_stage_2
 
-            right_stage_1 = b10 * right + state[1, 0, 0]
-            state[1, 0, 0] = (
-                b11 * right - a11 * right_stage_1 + state[1, 0, 1]
-            )
-            state[1, 0, 1] = b12 * right - a12 * right_stage_1
-            right_stage_2 = b20 * right_stage_1 + state[1, 1, 0]
-            state[1, 1, 0] = (
-                b21 * right_stage_1 - a21 * right_stage_2 + state[1, 1, 1]
-            )
-            state[1, 1, 1] = b22 * right_stage_1 - a22 * right_stage_2
+            right_stage_1 = b10 * right + right_10
+            right_10 = b11 * right - a11 * right_stage_1 + right_11
+            right_11 = b12 * right - a12 * right_stage_1
+            right_stage_2 = b20 * right_stage_1 + right_20
+            right_20 = b21 * right_stage_1 - a21 * right_stage_2 + right_21
+            right_21 = b22 * right_stage_1 - a22 * right_stage_2
 
             result[index] = left_stage_2 * left_stage_2 + right_stage_2 * right_stage_2
+
+        state[0, 0, 0] = left_10
+        state[0, 0, 1] = left_11
+        state[0, 1, 0] = left_20
+        state[0, 1, 1] = left_21
+        state[1, 0, 0] = right_10
+        state[1, 0, 1] = right_11
+        state[1, 1, 0] = right_20
+        state[1, 1, 1] = right_21
         return result
 
 
@@ -293,7 +304,7 @@ class _LoudnessMeter:
 
     @staticmethod
     def _window_sums(
-        extended: np.ndarray,
+        cumulative: np.ndarray,
         *,
         extended_start: int,
         chunk_start: int,
@@ -304,9 +315,6 @@ class _LoudnessMeter:
         if first_end > chunk_end:
             return np.empty(0, dtype=np.int64), np.empty(0, dtype=np.float64)
         ends = np.arange(first_end, chunk_end + 1, dtype=np.int64)
-        cumulative = np.empty(len(extended) + 1, dtype=np.float64)
-        cumulative[0] = 0.0
-        np.cumsum(extended, dtype=np.float64, out=cumulative[1:])
         right = ends - extended_start
         left = right - window_frames
         return ends, cumulative[right] - cumulative[left]
@@ -317,9 +325,12 @@ class _LoudnessMeter:
         chunk_end = chunk_start + len(powers)
         extended = np.concatenate((self._history, powers))
         extended_start = chunk_start - len(self._history)
+        cumulative = np.empty(len(extended) + 1, dtype=np.float64)
+        cumulative[0] = 0.0
+        np.cumsum(extended, dtype=np.float64, out=cumulative[1:])
 
         moment_ends, moment_sums = self._window_sums(
-            extended,
+            cumulative,
             extended_start=extended_start,
             chunk_start=chunk_start,
             chunk_end=chunk_end,
@@ -338,7 +349,7 @@ class _LoudnessMeter:
             )
 
         short_ends, short_sums = self._window_sums(
-            extended,
+            cumulative,
             extended_start=extended_start,
             chunk_start=chunk_start,
             chunk_end=chunk_end,
@@ -549,7 +560,11 @@ class _Accumulator:
         if count == 0:
             return
         self.input_frame_count += count
-        buffered = np.concatenate((self._pending, samples), axis=0)
+        buffered = (
+            samples
+            if len(self._pending) == 0
+            else np.concatenate((self._pending, samples), axis=0)
+        )
         offset = 0
         while len(buffered) - offset >= _READ_BLOCK_FRAMES:
             self._process_canonical_block(

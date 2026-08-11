@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from contextlib import redirect_stderr
 import io
+from pathlib import Path
 from types import SimpleNamespace
 import unittest
 from unittest import mock
@@ -9,7 +10,21 @@ from unittest import mock
 from tianlai import mcp_entry
 
 
+ROOT = Path(__file__).resolve().parents[1]
+
+
 class McpEntryTests(unittest.TestCase):
+    def test_public_client_examples_use_dependency_light_entry(self) -> None:
+        for relative_path in (
+            ".mcp.json.example",
+            "docs/MCP.md",
+            "docs/MCP.en.md",
+        ):
+            text = (ROOT / relative_path).read_text(encoding="utf-8")
+            with self.subTest(path=relative_path):
+                self.assertIn("tianlai.mcp_entry", text)
+                self.assertNotIn("tianlai.mcp_server", text)
+
     def test_missing_optional_dependency_has_one_line_install_hint(self) -> None:
         missing = ModuleNotFoundError("No module named 'mcp'", name="mcp")
         stderr = io.StringIO()

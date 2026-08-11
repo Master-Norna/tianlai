@@ -10,7 +10,6 @@
   "external_audio_assets": [],
   "audio_asset_license": "not_applicable",
   "license_status": "approved",
-  "implementation": "乐器.py",
   "profile": "breath",
   "engine_version": "1.1.0",
   "seed": 2955607581,

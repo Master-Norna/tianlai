@@ -16,7 +16,17 @@
   "wav_sha256": "6e19e6d7797989b08f309b8faf2b25a88848209ef3c882036c0ba2b1e43ac3ff",
   "hash_algorithm": "SHA-256",
   "canonicalization": "tianlai-json-v1",
-  "manifest_canonical_sha256": "d1f8854b0a97998791175f06d364fbf1978c6f56b2325283d304774661402313",
+  "manifest_canonical_sha256": "b11b6dc0c13a5b867531fd2f04e846dc0eda98c4a508b6e237b273f0a5b75922",
+  "factory_dispatch_migration": {
+    "status": "factory_route_only_no_audio_change",
+    "migrated_at": "2026-08-11",
+    "previous_manifest_canonical_sha256": "d1f8854b0a97998791175f06d364fbf1978c6f56b2325283d304774661402313",
+    "changed_fields": [
+      "implementation"
+    ],
+    "audio_rerendered": false,
+    "reason": "Only the redundant implementation field and factory route changed; the compatibility wrapper remains available and current-source frozen-event A/B rendering was byte-exact."
+  },
   "events": "examples/全音域上行/现代管乐/次中音萨克斯_全音域上行.events.json",
   "events_canonical_sha256": "78021fc23dbed1b336a9d60f61e96f4cd1b60b87fa1b2f9e30469668d0b2cd0a",
   "audition_profile": "ascending-scale",

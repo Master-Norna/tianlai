@@ -40,10 +40,24 @@ $timLocalCompatibility = Join-Path $resourceRoot "TimGM6mb.sf2"
 $timCopyright = Join-Path $resourceRoot "TimGM6mb-COPYRIGHT.txt"
 $fluidRoot = Join-Path $resourceRoot "fluidsynth"
 
-New-Item -ItemType Directory -Force -Path $resourceRoot, $cache | Out-Null
-
 function Get-Sha256([string] $Path) {
     return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToUpperInvariant()
+}
+
+function Get-TreeManifestText([string] $Path) {
+    $fullRoot = [IO.Path]::GetFullPath($Path).TrimEnd("\") + "\"
+    $treeMarkerPath = [IO.Path]::GetFullPath(
+        (Join-Path $Path ".tianlai-tree-sha256")
+    )
+    $entries = New-Object System.Collections.Generic.List[string]
+    Get-ChildItem -LiteralPath $Path -Recurse -File |
+        Where-Object { $_.FullName -ne $treeMarkerPath } |
+        Sort-Object -Property FullName |
+        ForEach-Object {
+            $relative = $_.FullName.Substring($fullRoot.Length).Replace("\", "/")
+            $entries.Add("$(Get-Sha256 $_.FullName)`t$relative")
+        }
+    return (($entries -join "`n") + "`n")
 }
 
 function Receive-File([string] $Url, [string] $Output) {
@@ -187,6 +201,7 @@ function Install-FluidSynth {
     Get-VerifiedFile "FluidSynth $fluidSynthVersion Windows x64" $fluidSynthUrl $archive $fluidSynthArchiveSha256
 
     $versionMarker = Join-Path $fluidRoot ".tianlai-version"
+    $treeMarker = Join-Path $fluidRoot ".tianlai-tree-sha256"
     $dll = Join-Path $fluidRoot "bin\libfluidsynth-3.dll"
     $installedVersion = ""
     if (Test-Path -LiteralPath $versionMarker) {
@@ -197,7 +212,9 @@ function Install-FluidSynth {
         (Test-Path -LiteralPath $dll) -and
         (Test-Path -LiteralPath $installedLicense) -and
         ((Get-Item -LiteralPath $installedLicense).Length -gt 100) -and
-        ($installedVersion -eq $fluidSynthVersion)
+        ($installedVersion -eq $fluidSynthVersion) -and
+        (Test-Path -LiteralPath $treeMarker -PathType Leaf) -and
+        ([IO.File]::ReadAllText($treeMarker, [Text.Encoding]::UTF8) -ceq (Get-TreeManifestText $fluidRoot))
     ) {
         Write-Host "FluidSynth $fluidSynthVersion 已存在。"
         return
@@ -229,6 +246,11 @@ function Install-FluidSynth {
     Copy-Item -Path (Join-Path $packageRoot "*") -Destination $stage -Recurse -Force
     Get-PinnedLicenseFile "FluidSynth $fluidSynthVersion" $fluidSynthLicenseUrl (Join-Path $stage "LICENSE")
     [IO.File]::WriteAllText((Join-Path $stage ".tianlai-version"), "$fluidSynthVersion`r`n", (New-Object Text.UTF8Encoding($false)))
+    [IO.File]::WriteAllText(
+        (Join-Path $stage ".tianlai-tree-sha256"),
+        (Get-TreeManifestText $stage),
+        (New-Object Text.UTF8Encoding($false))
+    )
 
     try {
         if (Test-Path -LiteralPath $fluidRoot) {
@@ -251,37 +273,22 @@ function Install-FluidSynth {
 }
 
 function Ensure-PythonEnvironment {
+    $bootstrap = Join-Path $root "bootstrap_windows.ps1"
     $python = Join-Path $root ".venv\Scripts\python.exe"
-    if (-not (Test-Path -LiteralPath $python)) {
-        $py = Get-Command "py.exe" -ErrorAction SilentlyContinue
-        if ($null -ne $py) {
-            $version = & $py.Source -3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
-            if ($LASTEXITCODE -ne 0 -or [version]$version -lt [version]"3.11") {
-                throw "天籁要求 Python 3.11 或更高版本，py -3 当前选择的是 $version。"
-            }
-            & $py.Source -3 -m venv (Join-Path $root ".venv")
-        } else {
-            $systemPython = Get-Command "python.exe" -ErrorAction SilentlyContinue
-            if ($null -eq $systemPython) {
-                throw "未找到 Python 3。请先安装 Python 3.11 或更高版本。"
-            }
-            $version = & $systemPython.Source -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
-            if ($LASTEXITCODE -ne 0 -or [version]$version -lt [version]"3.11") {
-                throw "天籁要求 Python 3.11 或更高版本，当前 python.exe 为 $version。"
-            }
-            & $systemPython.Source -m venv (Join-Path $root ".venv")
-        }
-        if ($LASTEXITCODE -ne 0) {
-            throw "创建项目虚拟环境失败。"
-        }
+    if (-not (Test-Path -LiteralPath $bootstrap -PathType Leaf)) {
+        throw "缺少规范 Windows 环境引导脚本：$bootstrap"
     }
-    $venvVersion = & $python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
-    if ($LASTEXITCODE -ne 0 -or [version]$venvVersion -lt [version]"3.11") {
-        throw "现有 .venv 使用 Python $venvVersion，但天籁要求 3.11 或更高版本。请删除该可重建虚拟环境后重新运行安装器。"
+    & $bootstrap -SkipSmoke
+    if (-not (Test-Path -LiteralPath $python -PathType Leaf)) {
+        throw "规范环境引导完成后仍未找到 Python：$python"
     }
-    & $python -m pip install -r (Join-Path $root "requirements.txt")
+    & $python -m pip install -r (Join-Path $root "requirements-soundfont.txt")
     if ($LASTEXITCODE -ne 0) {
-        throw "Python 依赖安装失败。"
+        throw "SoundFont Python 依赖安装失败。"
+    }
+    & $python -c "import importlib.metadata as m; assert m.version('pyfluidsynth') == '1.4.0'"
+    if ($LASTEXITCODE -ne 0) {
+        throw "pyfluidsynth 1.4.0 安装校验失败。"
     }
 }
 
@@ -289,6 +296,11 @@ $generalUserReady = $false
 $timGmReady = $false
 $fluidSynthReady = $false
 $problems = New-Object System.Collections.Generic.List[string]
+
+# 所有安装动作共用正式入口；它会先拒绝不受支持的 Windows、架构和
+# Python，再创建或复用完整的 editable 核心/MCP 环境。
+Ensure-PythonEnvironment
+New-Item -ItemType Directory -Force -Path $resourceRoot, $cache | Out-Null
 
 if ($InstallLocalCompatibilitySoundFonts) {
     Write-Warning (
@@ -331,12 +343,10 @@ if (-not $fluidSynthReady) {
 }
 if (
     $InstallLocalCompatibilitySoundFonts -and
-    -not ($generalUserReady -or $timGmReady)
+    -not ($generalUserReady -and $timGmReady)
 ) {
-    throw "显式请求的两个本机兼容 SoundFont 均未安装成功。`r`n - $($problems -join "`r`n - ")"
+    throw "显式请求的两个本机兼容 SoundFont 未全部安装成功。`r`n - $($problems -join "`r`n - ")"
 }
-
-Ensure-PythonEnvironment
 
 if ($generalUserReady) {
     Write-Warning "GeneralUser GS 本机兼容副本已就绪（不进入 public/trusted）：$generalUser"

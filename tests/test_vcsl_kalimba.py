@@ -175,18 +175,31 @@ class VcslKalimbaTests(unittest.TestCase):
         import soundfile as sf
 
         peaks: dict[Path, float] = {}
+        decoded_float32_stereo_bytes = 0
         for relative in self.resource["sample_sha256"]:
             path = (VCSL_ROOT / relative).resolve()
             info = sf.info(path)
             self.assertEqual(info.samplerate, 48_000)
             self.assertEqual(info.channels, 2)
             self.assertEqual(info.subtype, "PCM_24")
+            decoded_float32_stereo_bytes += int(info.frames) * 2 * 4
             self.assertIsNone(wav_loop_points(path), relative)
             audio, _sample_rate = sf.read(path, dtype="float32", always_2d=True)
             peak = float(abs(audio).max())
             self.assertGreater(peak, 1e-6, relative)
             self.assertLess(peak, 1.0, relative)
             peaks[path] = peak
+
+        self.assertEqual(
+            self.resource["decoded_float32_stereo_bytes"],
+            decoded_float32_stereo_bytes,
+        )
+        self.assertEqual(
+            self.resource["decoded_float32_stereo_algorithm"],
+            "sum unique runtime sample frame_count * 2 output channels * "
+            "4-byte float32; mono sources are expanded to stereo by "
+            "read_audio_float",
+        )
 
         maximum = max(
             peaks[Path(region["sample"]).resolve()]

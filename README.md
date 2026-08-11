@@ -38,7 +38,7 @@ MIDI / MusicXML / 可编辑 score
 “导入—明确配器—首次出声—定位—补丁—二次渲染—比较”，不需要先下载数 GB
 音源。
 
-> 当前候选版本：`0.7.0rc1`
+> 当前候选版本：`0.8.0rc1`
 >
 > **发行边界：** 正式产品是项目提供的轻量源码 ZIP。若未来发布 PyPI 的
 > sdist/wheel，`tianlai-audio` 只提供可复用的 Python 引擎，不包含完整乐器目录、
@@ -48,8 +48,8 @@ MIDI / MusicXML / 可编辑 score
 
 | 环境 | 最短入口 | 当前边界 |
 | --- | --- | --- |
-| Windows 10/11 x64 | [Windows 三步上手](#windows-三步上手) | `0.7.0rc1` 完整参考平台 |
-| Linux / WSL | [Linux / WSL 快速开始](docs/Linux快速开始.md) | 已提供 Bash、程序音色与 MCP 入口；成功链和真实采样按层验收 |
+| Windows 10/11 x64 | [Windows 三步上手](#windows-三步上手) | `0.8.0rc1` 完整参考平台 |
+| Linux / WSL x86_64 | [Linux / WSL 快速开始](docs/Linux快速开始.md) | 已提供 Bash、程序音色与 MCP 入口；成功链和真实采样按层验收 |
 | macOS Apple Silicon / Intel | [macOS 快速开始](docs/macOS快速开始.md) | 原生 64 位 CPython 3.11–3.14；已纳入干净源码 ZIP portable CI，真实采样另行验收 |
 
 Linux / WSL 用户进入源码根目录后可先运行：
@@ -58,9 +58,10 @@ Linux / WSL 用户进入源码根目录后可先运行：
 bash ./bootstrap_linux.sh
 ```
 
-在受支持的 64 位 CPython 3.11–3.14 上，它会创建 Linux 自己的 `.venv`，安装
-核心与 MCP 依赖，运行环境诊断，并生成不依赖外部采样的第一份 WAV。不要在
-Windows 和 WSL 之间共用 `.venv`。支持范围、MCP stdio 配置和外部采样安装与恢复见
+在 Linux x86_64 与受支持的 64 位 CPython 3.11–3.14 上，它会创建 Linux
+自己的 `.venv`，安装核心与 MCP 依赖，运行环境诊断，并生成不依赖外部采样的
+第一份 WAV。不要在 Windows 和 WSL 之间共用 `.venv`。支持范围、MCP stdio 配置和
+外部采样安装与恢复见
 [Linux / WSL 快速开始](docs/Linux快速开始.md)。
 
 macOS 用户进入源码根目录后可运行：
@@ -77,7 +78,7 @@ bash ./bootstrap_macos.sh
 
 ## Windows 三步上手
 
-Windows 10/11 x64 与 64 位 CPython 3.11–3.14 是 `0.7.0rc1` 的参考环境。
+Windows 10/11 x64 与 64 位 CPython 3.11–3.14 是 `0.8.0rc1` 的参考环境。
 以下 `cmd` 代码块都在源码包根目录的“命令提示符（cmd.exe）”执行；多行续写符
 是 `^`。
 
@@ -121,7 +122,7 @@ Windows 10/11 x64 与 64 位 CPython 3.11–3.14 是 `0.7.0rc1` 的参考环境�
 
 ## 推荐创作闭环
 
-`0.7.0rc1` 推荐使用下面这一条主链，而不是分别调用早期导入和合奏命令后手工拼接
+`0.8.0rc1` 推荐使用下面这一条主链，而不是分别调用早期导入和合奏命令后手工拼接
 产物：
 
 | 阶段 | CLI | 结果 |
@@ -220,8 +221,13 @@ readiness 授权继续渲染，已转译或无法核验都会令 readiness 保�
   通过 `manual`、`analyze`、`suggest` 工作流继续吸收创作者与社区反馈。
 - `manual`、`analyze`、`suggest` 把分析与修改分层；`suggest` 生成有界、可复核的
   诊断草稿，由创作者确认后进入下一版候选。
-- 离线渲染逐轨生成 24-bit WAV、可选分轨、共享厅堂与完整回执；分轨缓存和内容
-  寻址分析缓存可加速后续重混，闭合遥测及其 Hash 会随候选一并保存。
+- 离线渲染生成 24-bit WAV、可选分轨、共享厅堂与完整回执；`0.8.0rc1` 会按
+  CPU、内存、临时磁盘、工作量和已核验资源自动选择串行或最多四个受管 worker，
+  并以有界块流式交接长分轨。它不新增 `render profile` 参数，必需的 worker 安全
+  或资源证据不足时回退到完整串行路径，串行与并行保持相同的正式音频字节合同。
+- 分轨缓存和内容寻址分析缓存可加速后续重混，闭合遥测及其 Hash 会随候选一并
+  保存；本机自适应调度只学习已完整验证并提交的成功任务，不把失败或缓存命中
+  当作性能证据。
 - 单乐器与合奏正式入口在写盘后重新流式读取最终 PCM，生成 Hash 绑定的
   [`渲染后自检.json`](docs/渲染后自检.md)：损坏、格式错配和明确应发声却数字
   静音属于硬错误；True Peak/LUFS、DC、相位、声道与尾音风险供创作者复核，

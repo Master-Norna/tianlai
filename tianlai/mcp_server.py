@@ -241,6 +241,8 @@ _AUTHORING_PROJECT_KEY_PATTERN = re.compile(
 )
 _AUTHORING_REVISION_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 _AUTHORING_EVIDENCE_MAX_BYTES = 32 * 1024 * 1024
+_MIDI_IMPORT_SOURCE_MAX_BYTES = 64 * 1024 * 1024
+_MUSICXML_IMPORT_SOURCE_MAX_BYTES = 128 * 1024 * 1024
 _WORKFLOW_RESULT_KIND = "tianlai.creative_workflow_mcp_result"
 _WORKFLOW_RESULT_VERSION = 1
 _WORKFLOW_ID_PATTERN = re.compile(r"^[0-9a-f]{32}$")
@@ -1318,12 +1320,19 @@ def _variant_hints() -> dict[str, str]:
         return {}
 
 
-def _resolve_mcp_input(value: str) -> Path:
-    """Authorise a local source path without granting ambient disk access."""
+def _read_mcp_input(
+    value: str,
+    *,
+    maximum_bytes: int,
+) -> tuple[Path, bytes]:
+    """Authorise and capture one MCP source without a pathname reopen."""
 
     return discover_mcp_input_policy(
         layout=_RUNTIME_LAYOUT,
-    ).resolve_file(value)
+    ).read_file(
+        value,
+        maximum_bytes=maximum_bytes,
+    )
 
 
 def _articulation_range_contracts(cap: Any) -> dict[str, dict[str, Any]]:
@@ -2804,8 +2813,11 @@ def import_midi(midi_path: str) -> dict[str, Any]:
         read_midi,
     )
     try:
-        path = _resolve_mcp_input(midi_path)
-        score_doc, report = read_midi(path)
+        path, source_bytes = _read_mcp_input(
+            midi_path,
+            maximum_bytes=_MIDI_IMPORT_SOURCE_MAX_BYTES,
+        )
+        score_doc, report = read_midi(path, source_bytes=source_bytes)
         parsed = parse_score_document(score_doc)
         roster_draft = build_roster_draft(score_doc, report)
     except InputPathPolicyError as exc:
@@ -2839,8 +2851,14 @@ def import_musicxml(musicxml_path: str) -> dict[str, Any]:
     from .musicxml_import import read_musicxml  # 延迟导入，保持 MCP 冷启动轻量
 
     try:
-        path = _resolve_mcp_input(musicxml_path)
-        score_doc, report = read_musicxml(path)
+        path, source_bytes = _read_mcp_input(
+            musicxml_path,
+            maximum_bytes=_MUSICXML_IMPORT_SOURCE_MAX_BYTES,
+        )
+        score_doc, report = read_musicxml(
+            path,
+            source_bytes=source_bytes,
+        )
         parsed = parse_score_document(score_doc)
     except InputPathPolicyError as exc:
         result = exc.to_result(stage="source_import")
@@ -2907,9 +2925,18 @@ def import_score_project(
             ],
         }
     try:
-        path = _resolve_mcp_input(source_path)
+        maximum_bytes = (
+            _MIDI_IMPORT_SOURCE_MAX_BYTES
+            if Path(source_path).suffix.lower() in {".mid", ".midi"}
+            else _MUSICXML_IMPORT_SOURCE_MAX_BYTES
+        )
+        path, source_bytes = _read_mcp_input(
+            source_path,
+            maximum_bytes=maximum_bytes,
+        )
         bundle = import_project_bundle(
             path,
+            source_bytes=source_bytes,
             capabilities=_caps(),
             trusted_only=True,
             trusted_instruments=allowed,

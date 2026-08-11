@@ -162,6 +162,22 @@
         }
       }
     },
+    "builtinMetadata": {
+      "description": "Optional engine identity metadata shared by built-in factories; local implementation selection is deliberately excluded.",
+      "type": "object",
+      "properties": {
+        "instrument_name": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "display_name": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "engine_version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$"
+        }
+      }
+    },
     "sampledAsset": {
       "type": "object",
       "required": [
@@ -1274,7 +1290,6 @@
         }
       ],
       "required": [
-        "implementation",
         "harmonics"
       ],
       "properties": {
@@ -1304,7 +1319,7 @@
           "$ref": "#/$defs/candidateMetadata"
         },
         {
-          "$ref": "#/$defs/implementationFields"
+          "$ref": "#/$defs/builtinMetadata"
         },
         {
           "$ref": "#/$defs/verificationFields"
@@ -1323,7 +1338,6 @@
         }
       ],
       "required": [
-        "implementation",
         "instrument_name",
         "engine_version",
         "model_family",
@@ -1348,9 +1362,6 @@
       "properties": {
         "type": {
           "const": "modeled_bianzhong"
-        },
-        "implementation": {
-          "const": "乐器.py"
         },
         "engine_version": {
           "const": "1.0.0"
@@ -1446,7 +1457,7 @@
           "$ref": "#/$defs/candidateMetadata"
         },
         {
-          "$ref": "#/$defs/implementationFields"
+          "$ref": "#/$defs/builtinMetadata"
         },
         {
           "$ref": "#/$defs/sampledAsset"
@@ -1465,7 +1476,6 @@
         }
       ],
       "required": [
-        "implementation",
         "instrument_name",
         "sample_subtree",
         "pitch_calibration",
@@ -1653,7 +1663,7 @@
           "$ref": "#/$defs/candidateMetadata"
         },
         {
-          "$ref": "#/$defs/implementationFields"
+          "$ref": "#/$defs/builtinMetadata"
         },
         {
           "$ref": "#/$defs/sampledAsset"
@@ -1672,7 +1682,6 @@
         }
       ],
       "required": [
-        "implementation",
         "pitch_calibration",
         "resource_verification",
         "note_min",
@@ -1695,7 +1704,7 @@
           "$ref": "#/$defs/candidateMetadata"
         },
         {
-          "$ref": "#/$defs/implementationFields"
+          "$ref": "#/$defs/builtinMetadata"
         },
         {
           "$ref": "#/$defs/sampledAsset"
@@ -1717,7 +1726,6 @@
         }
       ],
       "required": [
-        "implementation",
         "pitch_calibration",
         "resource_verification",
         "note_min",
@@ -1764,7 +1772,7 @@
           "$ref": "#/$defs/candidateMetadata"
         },
         {
-          "$ref": "#/$defs/implementationFields"
+          "$ref": "#/$defs/builtinMetadata"
         },
         {
           "$ref": "#/$defs/sampledAsset"
@@ -1786,7 +1794,6 @@
         }
       ],
       "required": [
-        "implementation",
         "pitch_calibration",
         "resource_verification",
         "note_min",
@@ -1811,7 +1818,7 @@
           "$ref": "#/$defs/candidateMetadata"
         },
         {
-          "$ref": "#/$defs/implementationFields"
+          "$ref": "#/$defs/builtinMetadata"
         },
         {
           "$ref": "#/$defs/sampledAsset"
@@ -1833,7 +1840,6 @@
         }
       ],
       "required": [
-        "implementation",
         "pitch_calibration",
         "resource_verification",
         "note_min",
@@ -2063,7 +2069,6 @@
         }
       ],
       "required": [
-        "implementation",
         "instrument_name",
         "pitch_calibration",
         "note_min",
@@ -2234,7 +2239,6 @@
         }
       ],
       "required": [
-        "implementation",
         "profile",
         "engine_version",
         "pitch_calibration",
@@ -2311,7 +2315,6 @@
         }
       ],
       "required": [
-        "implementation",
         "instrument_name",
         "pitch_calibration",
         "note_min",
@@ -2356,7 +2359,6 @@
         }
       ],
       "required": [
-        "implementation",
         "instrument_name",
         "pitch_calibration",
         "note_min",
@@ -2415,7 +2417,6 @@
         }
       ],
       "required": [
-        "implementation",
         "instrument_name",
         "profile",
         "pitch_calibration",
@@ -2483,7 +2484,6 @@
         }
       ],
       "required": [
-        "implementation",
         "instrument_name",
         "sfz_prefix",
         "pitch_calibration",
@@ -2561,7 +2561,6 @@
         }
       ],
       "required": [
-        "implementation",
         "instrument_name",
         "sfz_prefix",
         "pitch_calibration",
@@ -2609,7 +2608,6 @@
         }
       ],
       "required": [
-        "implementation",
         "instrument_name",
         "sfz_prefix",
         "pitch_calibration",
@@ -2660,7 +2658,6 @@
         }
       ],
       "required": [
-        "implementation",
         "profile",
         "pitch_calibration",
         "note_min",
@@ -2706,7 +2703,6 @@
         }
       ],
       "required": [
-        "implementation",
         "profile",
         "pitch_calibration",
         "fixed_source_midi_note",
@@ -2752,7 +2748,6 @@
         }
       ],
       "required": [
-        "implementation",
         "profile",
         "pitch_calibration",
         "note_min",
@@ -2798,7 +2793,6 @@
         }
       ],
       "required": [
-        "implementation",
         "profile",
         "pitch_calibration",
         "note_min",

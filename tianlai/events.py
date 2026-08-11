@@ -56,10 +56,31 @@ class PerformanceDocument:
 
 
 def _finite_float(value: object, field: str) -> float:
-    number = float(value)
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"{field} must be a finite number")
+    try:
+        number = float(value)
+    except OverflowError as exc:
+        raise ValueError(f"{field} must be a finite number") from exc
     if not math.isfinite(number):
         raise ValueError(f"{field} must be finite")
     return number
+
+
+def _integer(value: object, field: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"{field} must be an integer")
+    return value
+
+
+def _required_integer(
+    value: dict[str, Any],
+    key: str,
+    field: str,
+) -> int:
+    if key not in value:
+        raise ValueError(f"{field} is required")
+    return _integer(value[key], field)
 
 
 def _unit_float(value: object, field: str) -> float:
@@ -84,8 +105,8 @@ def parse_performance_document(data: dict[str, Any]) -> PerformanceDocument:
         raise ValueError("performance document must be an object")
     _reject_unknown_fields(data, _PERFORMANCE_FIELDS, "performance document")
 
-    sample_rate = int(data.get("sample_rate", 48_000))
-    channels = int(data.get("channels", 2))
+    sample_rate = _integer(data.get("sample_rate", 48_000), "sample_rate")
+    channels = _integer(data.get("channels", 2), "channels")
     if sample_rate < 8_000 or sample_rate > 384_000:
         raise ValueError("sample_rate must be between 8000 and 384000")
     if channels != 2:
@@ -98,6 +119,12 @@ def parse_performance_document(data: dict[str, Any]) -> PerformanceDocument:
         if not isinstance(raw_tuning, dict):
             raise ValueError("tuning must be an object")
         _reject_unknown_fields(raw_tuning, _TUNING_FIELDS, "tuning")
+        raw_tuning = dict(raw_tuning)
+        if "a4_hz" in raw_tuning:
+            raw_tuning["a4_hz"] = _finite_float(
+                raw_tuning["a4_hz"],
+                "tuning.a4_hz",
+            )
     tuning = tuning_from_document(raw_tuning)
     raw_events = data.get("events")
     if not isinstance(raw_events, list):
@@ -133,7 +160,12 @@ def parse_performance_document(data: dict[str, Any]) -> PerformanceDocument:
                 )
 
         if event_type == "note_on":
-            note_id = int(payload["note_id"])
+            note_id = _required_integer(
+                payload,
+                "note_id",
+                f"events[{sequence}].note_id",
+            )
+            payload["note_id"] = note_id
             if note_id in active_note_sources:
                 raise ValueError(f"note_id {note_id} is already active")
             active_note_sources[note_id] = payload.get("source_event_id")
@@ -147,7 +179,12 @@ def parse_performance_document(data: dict[str, Any]) -> PerformanceDocument:
                 payload["midi_note"] = _finite_float(payload["midi_note"], "midi_note")
             payload["velocity"] = _unit_float(payload.get("velocity", 0.8), "velocity")
         elif event_type == "note_off":
-            note_id = int(payload["note_id"])
+            note_id = _required_integer(
+                payload,
+                "note_id",
+                f"events[{sequence}].note_id",
+            )
+            payload["note_id"] = note_id
             if note_id not in active_note_sources:
                 raise ValueError(f"note_id {note_id} is not active")
             if (

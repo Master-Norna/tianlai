@@ -1,7 +1,6 @@
 {
   "name": "精确音高参考振荡器",
   "type": "oscillator",
-  "implementation": "乐器.py",
   "runtime_asset_policy": "no_external_audio_assets",
   "note_min": 0,
   "note_max": 127,

@@ -2,16 +2,6 @@
   "upstream": "Virtual Playing Orchestra",
   "sfz_version": "Standard Orchestra 3.3 (2026-06-27)",
   "wave_version": "Wave Files 3.2 (2026-06-27)",
-  "source_sfz_sha256": {
-    "Strings/bass-SOLO-sustain.sfz": "4a5b2ef73d70423ab98d46404927e593df1211c1b639be32ff0e2ae7bba21066",
-    "Strings/bass-SOLO-staccato.sfz": "c56ab2a80848c92f34970dbf54acf2d65b978c0b4eee9803c11da834936b75b8",
-    "Strings/bass-SOLO-pizzicato.sfz": "90790252fff1022191edcb6586de937d7e7f1426063b2a4194d2923caddadb96",
-    "Strings/bass-SOLO-accent.sfz": "29609ba519e1f444542d4275e60b8aefbb2dce2c15a69ee420802b4ae4d69c61"
-  },
-  "sample_count": 55,
-  "sample_bytes": 8225880,
-  "sample_set_sha256": "1bb3719bb96cd60f9a46ba17577ffd591694fe3b5c6a2d082465dba900020bc7",
-  "sample_set_algorithm": "Sort unique VPO-relative UTF-8 paths; for each write '<lowercase file sha256>  <path>\\n'; SHA-256 the concatenated UTF-8 bytes.",
   "license_file_sha256": {
     "Documentation/license.htm": "852e3be507b193625eaf76bd18f4740209287781fb95f2a06d78ae9205d4682e",
     "libs/VSCO2-CE/LICENSE.txt": "36ffd9dc085d529a7e60e1276d73ae5a030b020313e6c5408593a6ae2af39673",
@@ -20,5 +10,51 @@
   "version_evidence_sha256": {
     "Documentation/change-log-Standard-Orchestra.txt": "e74cf4054b94bf0549d9c4b1fd3fa1816bd8a54ab3ae8847dd254725b52b4667",
     "Documentation/change-log-Wave-Files.txt": "c62001d37b9e9fb076784fad2cb339e98a7c1e5918369f2b4f4f68c9112c6db5"
+  },
+  "sample_bytes": 16713442,
+  "sample_bytes_upper_bound_algorithm": "max over trusted runtime variants {SOLO, SEC} of sum unique runtime sample file byte sizes; variants are mutually exclusive at run time",
+  "decoded_float32_stereo_bytes": 33392304,
+  "decoded_float32_stereo_algorithm": "max over trusted runtime variants {SOLO, SEC} of sum unique runtime sample frame_count * 2 output channels * 4-byte float32; mono sources are expanded to stereo by read_audio_float; variants are mutually exclusive at run time",
+  "managed_runtime_variant_bounds": {
+    "SOLO": {
+      "sample_count": 55,
+      "sample_bytes": 8225880,
+      "decoded_float32_stereo_bytes": 32890576
+    },
+    "SEC": {
+      "sample_count": 50,
+      "sample_bytes": 16713442,
+      "decoded_float32_stereo_bytes": 33392304
+    }
+  },
+  "variants": {
+    "SOLO": {
+      "source_sfz_sha256": {
+        "Strings/bass-SOLO-sustain.sfz": "4a5b2ef73d70423ab98d46404927e593df1211c1b639be32ff0e2ae7bba21066",
+        "Strings/bass-SOLO-staccato.sfz": "c56ab2a80848c92f34970dbf54acf2d65b978c0b4eee9803c11da834936b75b8",
+        "Strings/bass-SOLO-pizzicato.sfz": "90790252fff1022191edcb6586de937d7e7f1426063b2a4194d2923caddadb96",
+        "Strings/bass-SOLO-accent.sfz": "29609ba519e1f444542d4275e60b8aefbb2dce2c15a69ee420802b4ae4d69c61"
+      },
+      "sample_count": 55,
+      "sample_bytes": 8225880,
+      "decoded_float32_stereo_bytes": 32890576,
+      "decoded_float32_stereo_algorithm": "sum unique runtime sample frame_count * 2 output channels * 4-byte float32; mono sources are expanded to stereo by read_audio_float",
+      "sample_set_sha256": "1bb3719bb96cd60f9a46ba17577ffd591694fe3b5c6a2d082465dba900020bc7",
+      "sample_set_hash_algorithm": "sort unique asset-root-relative UTF-8 paths; concatenate lowercase '<sha256>  <path>\\n>'; SHA-256 the UTF-8 bytes"
+    },
+    "SEC": {
+      "source_sfz_sha256": {
+        "Strings/bass-SEC-sustain.sfz": "be82b4b93438315705c54be5e9e1d7204d4f39dd403a5118ffb68ac8665ae13a",
+        "Strings/bass-SEC-staccato.sfz": "0335d91f1f864099bb6d4e79e7d18bda62c58bac1967e83eaf08de6c98b16c25",
+        "Strings/bass-SEC-pizzicato.sfz": "8a8669d7f343058590e58ef4750933671342bea65bd7dcdef64b54f18602a8af",
+        "Strings/bass-SEC-accent.sfz": "11beb3b92a181024a710153150418bef8c293042654e7d11e8645dd41c8a3dbd"
+      },
+      "sample_count": 50,
+      "sample_bytes": 16713442,
+      "decoded_float32_stereo_bytes": 33392304,
+      "decoded_float32_stereo_algorithm": "sum unique runtime sample frame_count * 2 output channels * 4-byte float32; mono sources are expanded to stereo by read_audio_float",
+      "sample_set_sha256": "32bc7fb72bfaf4ce46eb35f5d80f7b90ed8675cb192cb1594414a67dd65b8069",
+      "sample_set_hash_algorithm": "sort unique asset-root-relative UTF-8 paths; concatenate lowercase '<sha256>  <path>\\n>'; SHA-256 the UTF-8 bytes"
+    }
   }
 }

@@ -16,7 +16,17 @@
   "wav_sha256": "901a469e7744d356f044e166e305d0445e9045cfd9bb2f400820b39ca11d38c0",
   "hash_algorithm": "SHA-256",
   "canonicalization": "tianlai-json-v1",
-  "manifest_canonical_sha256": "af83a4dca8a59b6ed00553516e201792ac01ec87e91e93a0ba872ff597380ac0",
+  "manifest_canonical_sha256": "0484037ec9f765a10890cf803fbd102b8790d6a07e06cd98df971228a3c22947",
+  "factory_dispatch_migration": {
+    "status": "factory_route_only_no_audio_change",
+    "migrated_at": "2026-08-11",
+    "previous_manifest_canonical_sha256": "af83a4dca8a59b6ed00553516e201792ac01ec87e91e93a0ba872ff597380ac0",
+    "changed_fields": [
+      "implementation"
+    ],
+    "audio_rerendered": false,
+    "reason": "Only the redundant implementation field and factory route changed; the compatibility wrapper remains available and current-source frozen-event A/B rendering was byte-exact."
+  },
   "license_metadata_migration": {
     "status": "license_metadata_only_no_audio_change",
     "migrated_at": "2026-08-02",

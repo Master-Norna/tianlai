@@ -209,10 +209,10 @@ if (-not $RestorableOnly) {
 }
 
 if ($selectedFamilies.Count -gt 0) {
-    if (-not (Test-Path -LiteralPath $venvPython -PathType Leaf)) {
-        Write-Host "尚无项目虚拟环境，先安装最小运行环境（不下载大型音源）..."
-        & (Join-Path $root "bootstrap_windows.ps1") -SkipSmoke
-    }
+    # 即使 python.exe 已存在，也必须让规范入口复验平台、架构、版本和
+    # editable 包；这会修复或明确拒绝旧安装器留下的半成品环境。
+    Write-Host "正在检查项目最小运行环境（不下载大型音源）..."
+    & (Join-Path $root "bootstrap_windows.ps1") -SkipSmoke
     if (-not (Test-Path -LiteralPath $venvPython -PathType Leaf)) {
         throw "最小运行环境完成后仍未找到 Python：$venvPython"
     }

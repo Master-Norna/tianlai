@@ -320,6 +320,18 @@ class InstrumentConsistencyTests(unittest.TestCase):
                 current_migrations.append(relative)
                 validate_record(record, relative)
                 previous = dict(manifest)
+                # The factory-dispatch migration happened after the older
+                # license-only migration.  Rewind that later identity step
+                # first so the license record is reconstructed against the
+                # manifest version it actually followed.
+                factory_migration = report.get("factory_dispatch_migration")
+                if isinstance(factory_migration, dict):
+                    self.assertEqual(
+                        factory_migration.get("changed_fields"),
+                        ["implementation"],
+                        relative,
+                    )
+                    previous["implementation"] = "乐器.py"
                 previous.pop("creator")
                 previous.pop("attribution")
                 expected_previous_hash = canonical_json_sha256(previous)

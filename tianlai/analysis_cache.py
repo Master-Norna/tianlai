@@ -16,10 +16,11 @@ import stat
 import tempfile
 import threading
 from typing import Any, Mapping
+from weakref import WeakValueDictionary
 
 from .canonical_json import canonical_json_bytes
 from .render_lock import RenderLockError, acquire_render_lock
-from .stem_cache import build_cache_key
+from .stem_cache import _canonical_cache_identity_bytes
 
 
 CACHE_FORMAT = "tianlai.collaboration_analysis_cache"
@@ -38,7 +39,9 @@ _ENTRY_KEYS = frozenset(
     }
 )
 _PROCESS_LOCKS_GUARD = threading.Lock()
-_PROCESS_LOCKS: dict[str, threading.Lock] = {}
+_PROCESS_LOCKS: WeakValueDictionary[str, threading.Lock] = (
+    WeakValueDictionary()
+)
 
 
 def _process_key_lock(key: str) -> threading.Lock:
@@ -120,8 +123,8 @@ def _validate_entry(
     *,
     key: str,
     kind: str,
-    identity: Mapping[str, Any],
-) -> dict[str, Any]:
+    identity_canonical: bytes,
+) -> tuple[dict[str, Any], bytes]:
     if set(document) != _ENTRY_KEYS:
         raise _InvalidDocument("entry keys do not exactly match the schema")
     if (
@@ -136,23 +139,54 @@ def _validate_entry(
     stored_identity = document["identity"]
     if not isinstance(stored_identity, dict):
         raise _InvalidDocument("entry identity is not an object")
-    if build_cache_key(stored_identity) != key:
+    stored_identity_canonical = _canonical_cache_identity_bytes(
+        stored_identity
+    )
+    if hashlib.sha256(stored_identity_canonical).hexdigest() != key:
         raise _InvalidDocument("stored identity does not reproduce the key")
-    if canonical_json_bytes(stored_identity) != canonical_json_bytes(identity):
+    if stored_identity_canonical != identity_canonical:
         raise _InvalidDocument("stored identity differs from the live identity")
     payload = document["payload"]
     if not isinstance(payload, dict):
         raise _InvalidDocument("entry payload is not an object")
     expected_payload_hash = document["payload_canonical_sha256"]
-    actual_payload_hash = hashlib.sha256(
-        canonical_json_bytes(payload)
-    ).hexdigest()
+    payload_canonical = canonical_json_bytes(payload)
+    actual_payload_hash = hashlib.sha256(payload_canonical).hexdigest()
     if (
         not _is_sha256(expected_payload_hash)
         or expected_payload_hash != actual_payload_hash
     ):
         raise _InvalidDocument("payload digest does not match")
-    return dict(payload)
+    return dict(payload), payload_canonical
+
+
+def _entry_fragments(
+    *,
+    key: str,
+    kind: str,
+    identity_canonical: bytes,
+    payload_canonical: bytes,
+    payload_hash: str,
+) -> tuple[bytes, ...]:
+    """Return exact canonical entry pieces without encoding payload twice."""
+
+    return (
+        b'{"format":',
+        canonical_json_bytes(CACHE_FORMAT),
+        b',"identity":',
+        identity_canonical,
+        b',"key":"',
+        key.encode("ascii"),
+        b'","kind":',
+        canonical_json_bytes(kind),
+        b',"payload":',
+        payload_canonical,
+        b',"payload_canonical_sha256":"',
+        payload_hash.encode("ascii"),
+        b'","version":',
+        str(CACHE_VERSION).encode("ascii"),
+        b"}",
+    )
 
 
 class CollaborationAnalysisCache:
@@ -190,10 +224,6 @@ class CollaborationAnalysisCache:
             raise _UnsafePath("cache entry escaped cache root")
         return path
 
-    @staticmethod
-    def _regular_file(path: Path) -> bool:
-        return not path.is_symlink() and stat.S_ISREG(path.stat().st_mode)
-
     def load(
         self,
         identity: Mapping[str, Any],
@@ -205,28 +235,12 @@ class CollaborationAnalysisCache:
         try:
             if not isinstance(kind, str) or not kind:
                 raise ValueError("kind must be a non-empty string")
-            key = build_cache_key(identity)
-            path = self._path(key, create=False)
-            if not (path.exists() or path.is_symlink()):
-                return AnalysisCacheLookup("missing", reason="entry absent")
-            if not self._regular_file(path):
-                return AnalysisCacheLookup(
-                    "corrupt",
-                    reason="entry must be a regular non-symlink file",
-                )
-            if path.stat().st_size > _MAX_ENTRY_BYTES:
-                raise _InvalidDocument("entry exceeds the size limit")
-            payload = _validate_entry(
-                _strict_json(path.read_bytes()),
+            identity_canonical = _canonical_cache_identity_bytes(identity)
+            key = hashlib.sha256(identity_canonical).hexdigest()
+            return self._load_canonical(
                 key=key,
+                identity_canonical=identity_canonical,
                 kind=kind,
-                identity=identity,
-            )
-            return AnalysisCacheLookup("hit", payload=payload)
-        except (OSError, PermissionError) as exc:
-            return AnalysisCacheLookup(
-                "unavailable",
-                reason=f"cache read failed: {exc}",
             )
         except (
             TypeError,
@@ -236,6 +250,77 @@ class CollaborationAnalysisCache:
             RecursionError,
         ) as exc:
             return AnalysisCacheLookup("corrupt", reason=str(exc))
+
+    def _load_canonical(
+        self,
+        *,
+        key: str,
+        identity_canonical: bytes,
+        kind: str,
+    ) -> AnalysisCacheLookup:
+        """Load using an identity already canonicalised by the caller."""
+
+        lookup, _payload_canonical = self._load_canonical_entry(
+            key=key,
+            identity_canonical=identity_canonical,
+            kind=kind,
+        )
+        return lookup
+
+    def _load_canonical_entry(
+        self,
+        *,
+        key: str,
+        identity_canonical: bytes,
+        kind: str,
+    ) -> tuple[AnalysisCacheLookup, bytes | None]:
+        """Load and retain verified payload bytes for store comparisons."""
+
+        try:
+            path = self._path(key, create=False)
+            try:
+                status = path.lstat()
+            except FileNotFoundError:
+                return (
+                    AnalysisCacheLookup("missing", reason="entry absent"),
+                    None,
+                )
+            if not stat.S_ISREG(status.st_mode):
+                return (
+                    AnalysisCacheLookup(
+                        "corrupt",
+                        reason="entry must be a regular non-symlink file",
+                    ),
+                    None,
+                )
+            if status.st_size > _MAX_ENTRY_BYTES:
+                raise _InvalidDocument("entry exceeds the size limit")
+            payload, payload_canonical = _validate_entry(
+                _strict_json(path.read_bytes()),
+                key=key,
+                kind=kind,
+                identity_canonical=identity_canonical,
+            )
+            return (
+                AnalysisCacheLookup("hit", payload=payload),
+                payload_canonical,
+            )
+        except (OSError, PermissionError) as exc:
+            return (
+                AnalysisCacheLookup(
+                    "unavailable",
+                    reason=f"cache read failed: {exc}",
+                ),
+                None,
+            )
+        except (
+            TypeError,
+            ValueError,
+            _InvalidDocument,
+            _UnsafePath,
+            RecursionError,
+        ) as exc:
+            return AnalysisCacheLookup("corrupt", reason=str(exc)), None
 
     @staticmethod
     def _write_atomic(path: Path, payload: bytes) -> None:
@@ -270,21 +355,25 @@ class CollaborationAnalysisCache:
                 raise ValueError("payload must be an object")
             identity_document = dict(identity)
             payload_document = dict(payload)
-            key = build_cache_key(identity_document)
-            payload_hash = hashlib.sha256(
-                canonical_json_bytes(payload_document)
-            ).hexdigest()
-            document = {
-                "format": CACHE_FORMAT,
-                "version": CACHE_VERSION,
-                "key": key,
-                "kind": kind,
-                "identity": identity_document,
-                "payload": payload_document,
-                "payload_canonical_sha256": payload_hash,
-            }
-            encoded = canonical_json_bytes(document)
-            if len(encoded) > _MAX_ENTRY_BYTES:
+            # Store documents must already be JSON-compatible.  This retains
+            # the previous input contract while allowing all later identity
+            # checks to reuse the same exact bytes.
+            identity_canonical = _canonical_cache_identity_bytes(
+                identity_document
+            )
+            if canonical_json_bytes(identity_document) != identity_canonical:
+                raise ValueError("identity is not canonical JSON")
+            key = hashlib.sha256(identity_canonical).hexdigest()
+            payload_canonical = canonical_json_bytes(payload_document)
+            payload_hash = hashlib.sha256(payload_canonical).hexdigest()
+            fragments = _entry_fragments(
+                key=key,
+                kind=kind,
+                identity_canonical=identity_canonical,
+                payload_canonical=payload_canonical,
+                payload_hash=payload_hash,
+            )
+            if sum(map(len, fragments)) > _MAX_ENTRY_BYTES:
                 raise ValueError("entry exceeds the size limit")
         except (TypeError, ValueError, RecursionError) as exc:
             return AnalysisCacheStoreResult("invalid_input", str(exc))
@@ -302,13 +391,16 @@ class CollaborationAnalysisCache:
             try:
                 with acquire_render_lock(root / ".locks" / key):
                     path = self._path(key, create=True)
-                    existing = self.load(identity_document, kind=kind)
+                    existing, existing_payload_canonical = (
+                        self._load_canonical_entry(
+                            key=key,
+                            identity_canonical=identity_canonical,
+                            kind=kind,
+                        )
+                    )
                     if existing.hit:
                         assert existing.payload is not None
-                        if (
-                            canonical_json_bytes(existing.payload)
-                            != canonical_json_bytes(payload_document)
-                        ):
+                        if existing_payload_canonical != payload_canonical:
                             return AnalysisCacheStoreResult(
                                 "conflict",
                                 "a valid entry for this identity has a "
@@ -318,8 +410,13 @@ class CollaborationAnalysisCache:
                             "exists",
                             "entry already published",
                         )
+                    encoded = b"".join(fragments)
                     self._write_atomic(path, encoded)
-                    verified = self.load(identity_document, kind=kind)
+                    verified = self._load_canonical(
+                        key=key,
+                        identity_canonical=identity_canonical,
+                        kind=kind,
+                    )
                     if not verified.hit:
                         return AnalysisCacheStoreResult(
                             "write_error",

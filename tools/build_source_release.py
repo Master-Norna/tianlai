@@ -69,6 +69,10 @@ _PUBLIC_MARKDOWN_PAIRS: Final[tuple[tuple[str, str], ...]] = (
 )
 _PUBLIC_DOCUMENT_PATHS: Final = frozenset(
     {
+        # ``pyproject.toml`` names this file as the distribution README.  The
+        # minimal source release must retain every local packaging input so a
+        # checkout-free extraction remains valid build metadata.
+        "README.pypi.md",
         "docs/音源许可例外.json",
         *(
             path

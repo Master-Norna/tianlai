@@ -3,6 +3,7 @@ __pycache__/
 .venv/
 .pytest_cache/
 .mcp.json
+/debug.log
 build/
 dist/
 *.egg-info/

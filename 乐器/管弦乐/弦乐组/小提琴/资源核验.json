@@ -6,11 +6,38 @@
   "evidence_sha256": {
     "Documentation/license.htm": "852e3be507b193625eaf76bd18f4740209287781fb95f2a06d78ae9205d4682e"
   },
-  "说明": "一件乐器两种编制变体,各用不同采样库:SOLO=No Budget Orchestra 独奏,SEC=SSO 第一小提琴声部。下面按变体分别冻结其真实加载的采样。",
-  "variants": {
+  "implementation_source": "tianlai/violin.py",
+  "implementation_sha256": "6ca31bf8876261b8d419798f4056b686894edb8b4d736df87674cb761e6330d1",
+  "sample_bytes": 27061102,
+  "sample_bytes_upper_bound_algorithm": "max over trusted runtime variants {SOLO, SEC} of sum unique runtime sample file byte sizes; variants are mutually exclusive at run time",
+  "decoded_float32_stereo_bytes": 89510912,
+  "decoded_float32_stereo_algorithm": "max over trusted runtime variants {SOLO, SEC} of sum unique runtime sample frame_count * 2 output channels * 4-byte float32; mono sources are expanded to stereo by read_audio_float; variants are mutually exclusive at run time",
+  "managed_runtime_variant_bounds": {
     "SOLO": {
       "sample_count": 116,
       "sample_bytes": 22403326,
+      "decoded_float32_stereo_bytes": 89510912
+    },
+    "SEC": {
+      "sample_count": 87,
+      "sample_bytes": 27061102,
+      "decoded_float32_stereo_bytes": 66502568
+    }
+  },
+  "说明": "一件乐器两种编制变体,各用不同采样库:SOLO=No Budget Orchestra 独奏,SEC=SSO 第一小提琴声部。下面按变体分别冻结其真实加载的采样。",
+  "variants": {
+    "SOLO": {
+      "source_sfz_sha256": {
+        "Strings/1st-violin-SOLO-normal-mod-wheel.sfz": "86858d803e4d497e8fafd07e43c79dba17594c385bc5019ebb14839d46518c3b",
+        "Strings/1st-violin-SOLO-sustain.sfz": "f7129e7b82bd4200ca7a962016b80f64d3803777235c9b0003e08d341cf1be4e",
+        "Strings/1st-violin-SOLO-staccato.sfz": "09e03c20796c294697893d24363d481fb8508c01aee9365629958db1b92da758",
+        "Strings/1st-violin-SOLO-pizzicato.sfz": "d5ceb145bf232fcaea5754b35222af73cf8e684007ade3d98dc884910624271e",
+        "Strings/1st-violin-SOLO-tremolo.sfz": "4fc2d4108efc115fba647f10608a75349c0cacc2c35c95ac5ab21d130bd6c705"
+      },
+      "sample_count": 116,
+      "sample_bytes": 22403326,
+      "decoded_float32_stereo_bytes": 89510912,
+      "decoded_float32_stereo_algorithm": "sum unique runtime sample frame_count * 2 output channels * 4-byte float32; mono sources are expanded to stereo by read_audio_float",
       "sample_formats": {
         ".wav:44100Hz:1ch": 116
       },
@@ -19,8 +46,17 @@
       "sample_set_hash_algorithm": "sort unique asset-root-relative UTF-8 paths; concatenate lowercase '<sha256>  <path>\\n>'; SHA-256 the UTF-8 bytes"
     },
     "SEC": {
+      "source_sfz_sha256": {
+        "Strings/1st-violin-SEC-sustain.sfz": "8982cecac76a5c4fec868cb29537add2afe840ef94f1462393b0b668799b008f",
+        "Strings/1st-violin-SEC-staccato.sfz": "bee015f63ed48f71797c0a5ab583ac17a84de8d70d8d6a3fb26eb9800f4aaa02",
+        "Strings/1st-violin-SEC-pizzicato.sfz": "7b77407bd438735ec71b13e3fa88d0d4f9be9b5d4ea048ee39592c122a66780d",
+        "Strings/1st-violin-SEC-tremolo.sfz": "9e8fe75849dc91584d91d14b82eb1d83aaa7cd81840e4baab19c201bddc6726c",
+        "Strings/1st-violin-SEC-accent.sfz": "42b2d9f488faebd15790847101b2c2f4b48aefbe3373d9fc07a262baf81f1d81"
+      },
       "sample_count": 87,
       "sample_bytes": 27061102,
+      "decoded_float32_stereo_bytes": 66502568,
+      "decoded_float32_stereo_algorithm": "sum unique runtime sample frame_count * 2 output channels * 4-byte float32; mono sources are expanded to stereo by read_audio_float",
       "sample_formats": {
         ".wav:44100Hz:1ch": 21,
         ".wav:44100Hz:2ch": 66
@@ -30,5 +66,5 @@
       "sample_set_hash_algorithm": "sort unique asset-root-relative UTF-8 paths; concatenate lowercase '<sha256>  <path>\\n>'; SHA-256 the UTF-8 bytes"
     }
   },
-  "generated_at": "2026-07-25"
+  "generated_at": "2026-08-11"
 }

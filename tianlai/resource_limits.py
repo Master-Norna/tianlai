@@ -4,7 +4,10 @@ Tianlai is intentionally able to render large scores, but accepting an
 unbounded Agent-supplied document is unsafe: a perfectly finite duration can
 still request gigabytes of RAM or disk.  This module keeps those operational
 limits separate from musical validation and makes every default override
-explicit through environment variables.
+explicit through environment variables.  Stem production may use bounded
+internal parallelism, while the coordinator still consumes, writes and mixes
+stems strictly in performance-plan order.  The additional worker window has
+its own automatic, fail-closed resource policy; it is not a user setting.
 """
 
 from __future__ import annotations
@@ -15,6 +18,11 @@ import os
 from typing import Any
 
 from .canonical_json import canonical_json_bytes
+
+
+_FLOAT32_STEREO_BYTES_PER_FRAME = 2 * 4
+_PCM24_STEREO_BYTES_PER_FRAME = 2 * 3
+_ANALYSIS_TRANSACTION_FREE_RESERVE_BYTES = 512 * 1024 * 1024
 
 
 class ResourceLimitError(ValueError):
@@ -203,9 +211,16 @@ def estimate_render_resources(
         1,
         math.ceil((duration + hall_tail_seconds) * sample_rate),
     )
-    # Dry rendering keeps the float64 stereo mix bus (16 B/frame) plus one
-    # float32 stereo stem (8 B/frame) and bounded numeric overhead.  The
-    # shared hall is materially heavier: stereo mid/side decomposition,
+    # This public preflight retains the established final-processing baseline:
+    # the float64 stereo mix bus (16 B/frame), a conservative allowance for
+    # one coordinator-owned float32 stem (8 B/frame), and bounded numeric
+    # overhead.  Long manual-mode stems may instead use bounded private
+    # scratch blocks, but retaining the larger baseline keeps analysis and
+    # short/direct paths covered.  An optional bounded
+    # worker window is admitted separately by the automatic parallelism policy
+    # using the runtime CPU count, configured audio-memory budget, live
+    # scratch-space facts and verified instrument-resource evidence.
+    # The shared hall is materially heavier: stereo mid/side decomposition,
     # four reverb banks, FFT complex spectra/responses and wet outputs overlap
     # in memory.  Use a deliberately conservative peak model instead of
     # pretending the send bus alone describes the cost.
@@ -226,6 +241,35 @@ def estimate_render_resources(
         "estimated_audio_memory_bytes": estimated_memory_bytes,
         "estimated_primary_output_bytes": estimated_primary_output_bytes,
     }
+
+
+def _analysis_transaction_scratch_requirement(
+    frame_count: int,
+    *,
+    write_stems: bool,
+) -> int:
+    """Return the conservative same-volume free-space gate for one stem.
+
+    The live probe happens after the immutable raw source already exists.  It
+    therefore reserves an additional float32 analysis mapping, a possible raw
+    cache tee, an optional PCM24 stem payload, and a fixed safety margin.
+    """
+
+    if (
+        isinstance(frame_count, bool)
+        or not isinstance(frame_count, int)
+        or frame_count < 0
+    ):
+        raise ValueError("frame_count must be a non-negative integer")
+    if not isinstance(write_stems, bool):
+        raise ValueError("write_stems must be boolean")
+    bytes_per_frame = 2 * _FLOAT32_STEREO_BYTES_PER_FRAME
+    if write_stems:
+        bytes_per_frame += _PCM24_STEREO_BYTES_PER_FRAME
+    return (
+        frame_count * bytes_per_frame
+        + _ANALYSIS_TRANSACTION_FREE_RESERVE_BYTES
+    )
 
 
 _RENDER_BUDGETS = (
@@ -317,13 +361,30 @@ def _render_preflight_report(
                 160 if hall_tail_seconds > 0.0 else 0
             ),
             "write_stems": (
-                "disk_output_only; stems are rendered and written sequentially"
+                "write_stems changes published disk output only; stems may "
+                "render with bounded internal parallelism using managed "
+                "children that may stay warm only inside one proven render "
+                "run; their incremental memory and exact raw "
+                "scratch claims are admitted atomically across same-user "
+                "processes; unavailable slots select the complete serial "
+                "path; long manual-mode serial stems also use bounded private "
+                "scratch when space permits, and the coordinator consumes, "
+                "writes and mixes strictly in performance-plan order"
             ),
             "stem_cache": (
-                "one active float32 stem; cache entries do not accumulate in RAM"
+                "the coordinator consumes stems in plan order and verifies "
+                "existing cache audio before use; small hits may load directly "
+                "while long stems use bounded blocks and at most one exact-size "
+                "anonymous snapshot on private render scratch guarded by a "
+                "512 MiB free-space reserve; the internal worker window is "
+                "bounded separately and cache entries do not accumulate in RAM"
             ),
             "collaboration_analysis": (
-                "bounded FFT batches; relation audio uses scratch float32 memmap"
+                "bounded FFT batches; relation audio uses scratch float32 "
+                "memmap; long verified block sources may enter diagnostics "
+                "through an automatic same-volume transaction only when live "
+                "free space covers analysis, a possible cache tee, optional "
+                "PCM24 stem output and a 512 MiB reserve"
             ),
         },
         "limits": limits.to_dict(),

@@ -9,6 +9,7 @@ import statistics
 from typing import Any
 
 from .events import PerformanceEvent, event_pitch_hz
+from ._event_free_blocks import audited_event_free_blocks
 from .instrument import Instrument, StereoFrame
 from .sampler import SampleInstrument
 from .sfz import note_number
@@ -446,6 +447,7 @@ class _NoteRoute:
     velocity: float = 1.0
 
 
+@audited_event_free_blocks(silence_safe=False)
 class VpoPercussionInstrument(Instrument):
     """Dedicated deterministic adapter for mapped orchestral percussion."""
 

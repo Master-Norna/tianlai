@@ -4,9 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tianlai-audio"
-version = "0.7.0rc1"
+version = "0.8.0rc1"
 description = "Local-first, deterministic music rendering and iteration runtime"
-readme = "README.md"
+readme = "README.pypi.md"
 authors = [{name = "Nor.na"}]
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE", "OUTPUT_RIGHTS.md", "TRADEMARKS.md"]
@@ -17,6 +17,8 @@ classifiers = [
   "Intended Audience :: Developers",
   "Intended Audience :: End Users/Desktop",
   "Operating System :: MacOS :: MacOS X",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX :: Linux",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",

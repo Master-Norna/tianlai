@@ -256,6 +256,52 @@ class ProjectImportTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "cannot infer"):
             import_project(unknown)
 
+    def test_descriptor_bound_bytes_are_parsed_after_path_replacement(self) -> None:
+        midi_payload = _midi()
+        midi_path = self.root / "captured.mid"
+        midi_path.write_bytes(b"replacement is not MIDI")
+        midi_bundle = import_project(
+            midi_path,
+            source_bytes=midi_payload,
+        )
+        self.assertEqual(
+            midi_bundle["import_report"]["source"]["sha256"],
+            hashlib.sha256(midi_payload).hexdigest(),
+        )
+
+        xml_payload = _musicxml()
+        xml_path = self.root / "captured.musicxml"
+        xml_path.write_bytes(b"replacement is not XML")
+        xml_bundle = import_project(
+            xml_path,
+            source_bytes=xml_payload,
+        )
+        self.assertEqual(
+            xml_bundle["import_report"]["source"]["sha256"],
+            hashlib.sha256(xml_payload).hexdigest(),
+        )
+
+        archive_path = self.root / "captured.mxl"
+        with zipfile.ZipFile(archive_path, "w") as package:
+            package.writestr(
+                "META-INF/container.xml",
+                b"""<?xml version="1.0"?>
+                <container xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+                  <rootfiles><rootfile full-path="score.xml"/></rootfiles>
+                </container>""",
+            )
+            package.writestr("score.xml", xml_payload)
+        archive_payload = archive_path.read_bytes()
+        archive_path.write_bytes(b"replacement is not an archive")
+        mxl_bundle = import_project(
+            archive_path,
+            source_bytes=archive_payload,
+        )
+        self.assertEqual(
+            mxl_bundle["import_report"]["source"]["sha256"],
+            hashlib.sha256(archive_payload).hexdigest(),
+        )
+
     def test_promote_requires_matching_hash_and_returns_formal_roster(self) -> None:
         bundle = import_musicxml_project(self._write_musicxml())
         instrument = "管弦乐/木管组/长笛"

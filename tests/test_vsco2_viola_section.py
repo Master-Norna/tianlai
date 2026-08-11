@@ -23,6 +23,8 @@ from tianlai.tuning import EqualTemperament
 ROOT = Path(__file__).resolve().parents[1]
 HERE = ROOT / "乐器" / "管弦乐" / "弦乐组" / "中提琴"
 MANIFEST_PATH = HERE / "乐器.json"
+MAPPING_SOURCE = ROOT / "tianlai" / "vsco2_viola_mapping.py"
+IMPLEMENTATION_SOURCE = ROOT / "tianlai" / "vsco2_viola.py"
 VPO_ROOT = (
     ROOT
     / "音源"
@@ -384,14 +386,20 @@ class Vsco2ViolaSectionTests(unittest.TestCase):
             canonical_json_file_sha256(MANIFEST_PATH),
         )
         self.assertEqual(
+            self.resource["mapping_source"],
+            "tianlai/vsco2_viola_mapping.py",
+        )
+        self.assertEqual(
             self.resource["mapping_sha256"],
-            hashlib.sha256(
-                (HERE / "VSCO2中提琴映射.py").read_bytes()
-            ).hexdigest(),
+            hashlib.sha256(MAPPING_SOURCE.read_bytes()).hexdigest(),
+        )
+        self.assertEqual(
+            self.resource["implementation_source"],
+            "tianlai/vsco2_viola.py",
         )
         self.assertEqual(
             self.resource["implementation_sha256"],
-            hashlib.sha256((HERE / "乐器.py").read_bytes()).hexdigest(),
+            hashlib.sha256(IMPLEMENTATION_SOURCE.read_bytes()).hexdigest(),
         )
         for relative, digest in self.resource["evidence_sha256"].items():
             self.assertEqual(

@@ -13,6 +13,8 @@
   },
   "sample_count": 22,
   "sample_bytes": 75496208,
+  "decoded_float32_stereo_bytes": 150990480,
+  "decoded_float32_stereo_algorithm": "sum unique runtime sample frame_count * 2 output channels * 4-byte float32; mono sources are expanded to stereo by read_audio_float",
   "sample_sha256": {
     "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_A4_v2_1.wav": "1adb591ce8d5cf491a7e2a9fb9c2a4bc8ad6dd9f19f73e09e228f4ee1d1097d4",
     "Idiophones/Struck Idiophones/Tubular Bells 2/TB_hit_A4_v4_1.wav": "1767a647f2f8d5ac52f69c67692335f5718eedd2bce68106472f8b1ebacba9d0",

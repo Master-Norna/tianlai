@@ -1,7 +1,6 @@
 {
   "name": "Virtual Playing Orchestra 小提琴(独奏/声部合一)",
   "type": "violin",
-  "implementation": "乐器.py",
   "asset_root": "../../../../音源/VirtualPlayingOrchestra/Virtual-Playing-Orchestra3",
   "pitch_calibration": "音准校准.json",
   "note_min": 55,

@@ -11,6 +11,7 @@ from tianlai.authoring_project import create_authoring_project, save_authoring_p
 from tianlai.creative_workflow import (
     CreativeWorkflowError,
     activate_creative_workflow,
+    attach_existing_candidate_for_audit,
     cancel_workflow_render,
     create_creative_workflow,
     decide_workflow_iteration,
@@ -131,6 +132,142 @@ class CreativeWorkflowTests(unittest.TestCase):
             self.root, workflow_id=first.workflow_id, revision=active.revision
         )
         self.assertEqual(reopened.detached_state()["sequence"], 2)
+
+    def test_revision_identity_race_returns_stable_workflow_error(self) -> None:
+        active = self.activate()
+        real_revalidate = workflow_module.revalidate_plain_directory
+
+        def replace_current_revision(identity):
+            if identity.path.name == active.revision:
+                raise OSError("revision disappeared at C:\\private\\workflow")
+            return real_revalidate(identity)
+
+        with mock.patch.object(
+            workflow_module,
+            "revalidate_plain_directory",
+            side_effect=replace_current_revision,
+        ):
+            with self.assertRaises(CreativeWorkflowError) as captured:
+                open_creative_workflow(
+                    self.root,
+                    workflow_id=active.workflow_id,
+                )
+
+        self.assertEqual(captured.exception.code, "unsafe_workflow_revision")
+        self.assertEqual(str(captured.exception), "unsafe_workflow_revision")
+
+    def test_existing_candidate_attachment_is_advertised_only_for_audit(self) -> None:
+        iterate = self.activate(mode="iterate")
+        self.assertNotIn(
+            "attach_existing_candidate_for_audit",
+            iterate.to_dict()["allowed_actions"],
+        )
+        self.assertEqual(
+            _error_code(
+                lambda: attach_existing_candidate_for_audit(
+                    self.root,
+                    workflow_id=iterate.workflow_id,
+                    expected_revision=iterate.revision,
+                    candidate_path=self.root / "renders" / "missing-candidate",
+                )
+            ),
+            "candidate_attachment_requires_audit_mode",
+        )
+        unchanged = open_creative_workflow(
+            self.root,
+            workflow_id=iterate.workflow_id,
+        )
+        self.assertEqual(unchanged.revision, iterate.revision)
+
+        audit = self.activate(mode="audit")
+        self.assertIn(
+            "attach_existing_candidate_for_audit",
+            audit.to_dict()["allowed_actions"],
+        )
+        audit = self.review(audit, "symbolic_structure")
+        audit = self.review(audit, "orchestration_performance")
+        pending_audit = request_workflow_render(
+            self.root,
+            workflow_id=audit.workflow_id,
+            expected_revision=audit.revision,
+        )
+        cancelled_audit = cancel_workflow_render(
+            self.root,
+            workflow_id=audit.workflow_id,
+            expected_revision=pending_audit.revision,
+        )
+        self.assertNotIn(
+            "attach_existing_candidate_for_audit",
+            cancelled_audit.to_dict()["allowed_actions"],
+        )
+
+    def test_clock_rollback_preserves_causal_iteration_timestamps(self) -> None:
+        ready = self.render_ready()
+        rolled_back_clock = "2000-01-01T00:00:00.000Z"
+        with mock.patch.object(
+            workflow_module,
+            "_now",
+            return_value=rolled_back_clock,
+        ):
+            pending = request_workflow_render(
+                self.root,
+                workflow_id=ready.workflow_id,
+                expected_revision=ready.revision,
+            )
+            cancelled = cancel_workflow_render(
+                self.root,
+                workflow_id=pending.workflow_id,
+                expected_revision=pending.revision,
+            )
+            stopped = terminate_creative_workflow(
+                self.root,
+                workflow_id=cancelled.workflow_id,
+                expected_revision=cancelled.revision,
+                reason="cancelled",
+                summary="Stop after a simulated wall-clock rollback.",
+                final_authority="agent",
+            )
+
+        state = stopped.detached_state()
+        iteration = state["iterations"][0]
+        attempt = iteration["render_attempts"][0]
+        self.assertLessEqual(
+            attempt["requested_at_utc"], attempt["finished_at_utc"]
+        )
+        self.assertLessEqual(
+            iteration["opened_at_utc"], iteration["closed_at_utc"]
+        )
+        self.assertLessEqual(iteration["closed_at_utc"], state["updated_at_utc"])
+        self.assertEqual(
+            verify_creative_workflow_history(
+                self.root, workflow_id=stopped.workflow_id
+            )["complete"],
+            True,
+        )
+
+        invalid_render = json.loads(json.dumps(state))
+        invalid_render["iterations"][0]["render_attempts"][0][
+            "finished_at_utc"
+        ] = rolled_back_clock
+        self.assertEqual(
+            _error_code(
+                lambda: workflow_module._validate_state_document(invalid_render)
+            ),
+            "invalid_render_timestamp",
+        )
+
+        invalid_iteration = json.loads(json.dumps(state))
+        invalid_iteration["iterations"][0][
+            "closed_at_utc"
+        ] = rolled_back_clock
+        self.assertEqual(
+            _error_code(
+                lambda: workflow_module._validate_state_document(
+                    invalid_iteration
+                )
+            ),
+            "invalid_iteration_timestamp",
+        )
 
     def test_render_reservation_is_exact_active_then_historical(self) -> None:
         ready = self.render_ready()

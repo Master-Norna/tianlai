@@ -32,9 +32,11 @@ from tianlai.candidate import (
 from tianlai.creative_workflow import (
     CreativeWorkflowError,
     activate_creative_workflow,
+    attach_existing_candidate_for_audit,
     cancel_workflow_render,
     create_creative_workflow,
     decide_workflow_iteration,
+    inspect_workflow_candidate_status,
     record_verified_workflow_hard_failure,
     record_workflow_authoring_revision,
     record_workflow_candidate,
@@ -562,6 +564,114 @@ def test_managed_render_binds_authorization_and_retry_reuses_exact_candidate(
         for child in directory.parent.iterdir()
         if child.is_dir() and not child.name.startswith(".")
     ] == [directory]
+
+
+def test_managed_render_rejects_an_alternate_output_namespace(
+    tmp_path: Path,
+) -> None:
+    root, state = _renderable_project(tmp_path)
+    _pending, authorization = _reserve_real_workflow(root, state)
+    alternate = tmp_path / "alternate-managed-output"
+    alternate.mkdir()
+
+    with pytest.raises(AuthoringRenderError) as captured:
+        render_project_candidate(
+            root,
+            expected_revision=state.revision,
+            output_root=alternate,
+            workflow_authorization=authorization,
+        )
+
+    assert captured.value.code == "workflow.output_root_mismatch"
+    assert captured.value.stage == "validate"
+    assert list(alternate.iterdir()) == []
+
+
+def test_candidate_identity_race_returns_stable_workflow_error(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root, state = _renderable_project(tmp_path)
+    rendered = render_project_candidate(root, expected_revision=state.revision)
+    directory = _candidate_directory(root, rendered).resolve()
+    created = create_creative_workflow(
+        root,
+        mode="audit",
+        final_authority="agent",
+        base_authoring_revision=state.revision,
+    )
+    active = activate_creative_workflow(
+        root,
+        workflow_id=created.workflow_id,
+        expected_revision=created.revision,
+        work_charter=_work_charter(),
+    )
+    real_revalidate = creative_workflow_module.revalidate_plain_directory
+    candidate_revalidations = 0
+
+    def replace_candidate_after_verification(identity):
+        nonlocal candidate_revalidations
+        if identity.path == directory:
+            candidate_revalidations += 1
+            if candidate_revalidations == 2:
+                raise OSError(f"candidate disappeared at {directory}")
+        return real_revalidate(identity)
+
+    monkeypatch.setattr(
+        creative_workflow_module,
+        "revalidate_plain_directory",
+        replace_candidate_after_verification,
+    )
+    with pytest.raises(CreativeWorkflowError) as captured:
+        attach_existing_candidate_for_audit(
+            root,
+            workflow_id=active.workflow_id,
+            expected_revision=active.revision,
+            candidate_path=directory,
+        )
+
+    assert candidate_revalidations == 2
+    assert captured.value.code == "candidate_changed_during_verification"
+    assert str(captured.value) == "candidate_changed_during_verification"
+
+
+def test_candidate_inspection_identity_race_returns_stable_workflow_error(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root, state = _renderable_project(tmp_path)
+    _pending, authorization = _reserve_real_workflow(root, state)
+    rendered = render_project_candidate(
+        root,
+        expected_revision=state.revision,
+        workflow_authorization=authorization,
+    )
+    directory = _candidate_directory(root, rendered).resolve()
+    real_revalidate = creative_workflow_module.revalidate_plain_directory
+    candidate_revalidations = 0
+
+    def replace_candidate_after_inspection(identity):
+        nonlocal candidate_revalidations
+        if identity.path == directory:
+            candidate_revalidations += 1
+            if candidate_revalidations == 4:
+                raise OSError(f"candidate disappeared at {directory}")
+        return real_revalidate(identity)
+
+    monkeypatch.setattr(
+        creative_workflow_module,
+        "revalidate_plain_directory",
+        replace_candidate_after_inspection,
+    )
+    with pytest.raises(CreativeWorkflowError) as captured:
+        inspect_workflow_candidate_status(
+            root,
+            candidate_path=directory,
+        )
+
+    assert candidate_revalidations == 4
+    assert captured.value.code == "candidate_changed_during_verification"
+    assert str(captured.value) == "candidate_changed_during_verification"
 
 
 def test_default_manual_managed_candidate_can_be_accepted_without_mix_report(

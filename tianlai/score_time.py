@@ -244,6 +244,18 @@ def validate_score_time_coordinates(score: ScoreDocument) -> None:
                 phrase.end_beat,
                 path=f"{phrase_path}.end",
             )
+            start_quarter = score.tempo_map.quarter_at(
+                phrase.start_bar,
+                phrase.start_beat,
+            )
+            end_quarter = score.tempo_map.quarter_at(
+                phrase.end_bar,
+                phrase.end_beat,
+            )
+            if end_quarter < start_quarter:
+                raise ScoreTimeError(
+                    f"{phrase_path}.end must not precede {phrase_path}.start"
+                )
 
 
 def _tempo_boundaries(

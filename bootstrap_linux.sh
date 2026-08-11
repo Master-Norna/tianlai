@@ -18,7 +18,7 @@ Options:
                          test suite (no external audio assets required).
   -h, --help             Show this help.
 
-Supported runtime: 64-bit CPython 3.11-3.14.
+Supported runtime: Linux x86_64 with 64-bit CPython 3.11-3.14.
 EOF
 }
 
@@ -72,6 +72,15 @@ done
 root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
 venv_root="$root/.venv"
 venv_python="$venv_root/bin/python"
+host_system=$(uname -s 2>/dev/null || true)
+host_machine=$(uname -m 2>/dev/null || true)
+
+[[ "$host_system" == 'Linux' ]] ||
+    fail "this entry point requires Linux (detected ${host_system:-unknown})"
+case "$host_machine" in
+    x86_64|amd64) ;;
+    *) fail "unsupported Linux architecture: ${host_machine:-unknown}; x86_64 is required" ;;
+esac
 
 export PYTHONUTF8=1
 export PYTHONIOENCODING=utf-8

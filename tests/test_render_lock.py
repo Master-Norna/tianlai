@@ -669,6 +669,34 @@ class RenderLockTests(unittest.TestCase):
             self.assertEqual(raised.exception.lock_path, owned.lock_path)
             self.assertIn("等待现有渲染完成后重试", str(raised.exception))
 
+    def test_existing_file_target_uses_the_same_exclusive_lock(self) -> None:
+        target = self.root / "single-render.wav"
+        target.write_bytes(b"existing render")
+
+        with acquire_render_lock(
+            target,
+            existing_target_kind="file",
+        ) as owned:
+            with self.assertRaises(RenderLockError):
+                with acquire_render_lock(
+                    target,
+                    existing_target_kind="file",
+                ):
+                    self.fail("the same output file was locked twice")
+
+        self.assertEqual(owned.output_directory, target.resolve())
+
+    def test_file_target_mode_rejects_an_existing_directory(self) -> None:
+        target = self.root / "not-a-file.wav"
+        target.mkdir()
+
+        with self.assertRaises(OSError):
+            with acquire_render_lock(
+                target,
+                existing_target_kind="file",
+            ):
+                self.fail("a directory was accepted as a file render target")
+
     def test_two_first_callers_lock_empty_sidecar_before_metadata_write(
         self,
     ) -> None:

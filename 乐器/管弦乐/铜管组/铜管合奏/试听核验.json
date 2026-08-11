@@ -16,7 +16,17 @@
   "wav_sha256": "ed20bf6d0caf7262e7f9e9e2450ab7d06c3bbdc234f49ae7ed3c7584dac00751",
   "hash_algorithm": "SHA-256",
   "canonicalization": "tianlai-json-v1",
-  "manifest_canonical_sha256": "5fbafe7a0cd478a49fa3b7005018f94fe070c01dd6e61be3c01dbbbf35a51ab6",
+  "manifest_canonical_sha256": "c0e2d96b47b0ae039b34a96727774cebd1da759e3d0671b335981d1e6f1ce3bf",
+  "factory_dispatch_migration": {
+    "status": "factory_route_only_no_audio_change",
+    "migrated_at": "2026-08-11",
+    "previous_manifest_canonical_sha256": "5fbafe7a0cd478a49fa3b7005018f94fe070c01dd6e61be3c01dbbbf35a51ab6",
+    "changed_fields": [
+      "implementation"
+    ],
+    "audio_rerendered": false,
+    "reason": "Only the redundant implementation field and factory route changed; the compatibility wrapper remains available and current-source frozen-event A/B rendering was byte-exact."
+  },
   "events": "examples/全音域上行/管弦乐/铜管组/铜管合奏_全音域上行.events.json",
   "events_canonical_sha256": "f0405cd1f8e40fdb2a8250fa6c99bb4cc0543f46c1a03ae03387d607ec25fb5e",
   "audition_profile": "ascending-scale",

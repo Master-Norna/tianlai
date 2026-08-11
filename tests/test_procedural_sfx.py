@@ -49,7 +49,7 @@ def _note(event_type: str, note_id: int = 1) -> PerformanceEvent:
 
 
 class ProceduralSfxTests(unittest.TestCase):
-    def test_eight_catalog_entries_use_local_candidate_implementations(self) -> None:
+    def test_eight_catalog_entries_use_builtin_managed_implementations(self) -> None:
         profiles: set[str] = set()
         seeds: set[int] = set()
         for name, expected_profile in INSTRUMENTS.items():
@@ -63,11 +63,18 @@ class ProceduralSfxTests(unittest.TestCase):
                 manifest["collaboration_review_status"], "untested"
             )
             self.assertNotIn("manual_review", manifest)
-            self.assertEqual(manifest["implementation"], "乐器.py")
+            self.assertNotIn("implementation", manifest)
+            self.assertTrue((path.parent / "乐器.py").is_file())
             self.assertNotIn("soundfont", manifest)
-            self.assertIsInstance(
-                create_instrument(manifest, 8_000, base_directory=str(path.parent)),
-                ProceduralSfxInstrument,
+            instrument = create_instrument(
+                manifest,
+                8_000,
+                base_directory=str(path.parent),
+            )
+            self.assertIsInstance(instrument, ProceduralSfxInstrument)
+            self.assertEqual(
+                instrument._tianlai_factory_provenance["factory_route"],
+                "builtin_manifest_dispatch_no_implementation",
             )
             profiles.add(str(manifest["profile"]))
             seeds.add(int(manifest["seed"]))

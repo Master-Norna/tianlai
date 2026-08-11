@@ -19,6 +19,7 @@ from pathlib import Path
 import stat
 from typing import Iterable
 
+from .plain_file import read_plain_file_bytes
 from .runtime_layout import RuntimeLayout, discover_runtime_layout
 
 
@@ -239,6 +240,36 @@ class InputPathPolicy:
                 allowed_roots=self.allowed_roots,
             )
         return resolved
+
+    def read_file(
+        self,
+        value: str | os.PathLike[str],
+        *,
+        maximum_bytes: int,
+    ) -> tuple[Path, bytes]:
+        """Authorise and read one bounded input through a verified descriptor.
+
+        Returning the captured payload is part of the security contract:
+        callers must parse these bytes instead of reopening ``path`` after
+        authorisation.  The canonical path remains available for format
+        dispatch, diagnostics and source metadata only.
+        """
+
+        resolved = self.resolve_file(value)
+        try:
+            identity, payload = read_plain_file_bytes(
+                resolved,
+                maximum_bytes=maximum_bytes,
+            )
+        except OSError as exc:
+            raise InputPathPolicyError(
+                code="input_path.unreadable",
+                message=f"Input file could not be read safely: {resolved}",
+                requested_path=os.fspath(value),
+                resolved_path=str(resolved),
+                allowed_roots=self.allowed_roots,
+            ) from exc
+        return identity.path, payload
 
     def to_dict(self) -> dict[str, object]:
         return {

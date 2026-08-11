@@ -16,7 +16,17 @@
   "wav_sha256": "ddec3fd27d6118acacb4773226b70a42f6d709c1a314554207762e432ff915d4",
   "hash_algorithm": "SHA-256",
   "canonicalization": "tianlai-json-v1",
-  "manifest_canonical_sha256": "2cf0a05746e110fbeb0d693c70d0a08a9a30a1f6c003ac11a024e6523524bd07",
+  "manifest_canonical_sha256": "68edd459dc660b24cfab66b0dfd37857c2712ea49aa720b78dc1d6bea8b9346b",
+  "factory_dispatch_migration": {
+    "status": "factory_route_only_no_audio_change",
+    "migrated_at": "2026-08-11",
+    "previous_manifest_canonical_sha256": "2cf0a05746e110fbeb0d693c70d0a08a9a30a1f6c003ac11a024e6523524bd07",
+    "changed_fields": [
+      "implementation"
+    ],
+    "audio_rerendered": false,
+    "reason": "Only the redundant implementation field and factory route changed; the compatibility wrapper remains available and current-source frozen-event A/B rendering was byte-exact."
+  },
   "events": "examples/全音域上行/环境与拟音/鸟鸣_全音域上行.events.json",
   "events_canonical_sha256": "fd0ca646cc10966ffb66722d67609a979cd109513de8982236241af003732e47",
   "identity_migration": {

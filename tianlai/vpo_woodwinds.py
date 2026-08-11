@@ -9,6 +9,7 @@ import statistics
 from typing import Any, Literal
 
 from .events import PerformanceEvent, event_pitch_hz
+from ._event_free_blocks import audited_event_free_blocks
 from .instrument import Instrument, StereoFrame
 from .sampler import SampleInstrument
 from .sfz import note_number
@@ -177,6 +178,7 @@ class _ScheduledRelease:
     release_seconds: float
 
 
+@audited_event_free_blocks(silence_safe=False)
 class VpoSoloWoodwindInstrument(Instrument):
     """Deterministic, monophonic VPO SOLO woodwind candidate."""
 

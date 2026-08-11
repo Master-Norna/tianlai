@@ -36,8 +36,20 @@ class VpoSoloStringTests(unittest.TestCase):
         for path in MANIFESTS.values():
             manifest = json.loads(path.read_text(encoding="utf-8"))
             self.assertEqual(manifest["type"], "vpo_solo_string")
-            self.assertEqual(manifest["implementation"], "乐器.py")
+            self.assertNotIn("implementation", manifest)
+            self.assertTrue(path.with_name("乐器.py").is_file())
             self.assertNotIn("soundfont", manifest)
+            instrument = create_instrument(
+                manifest,
+                48_000,
+                base_directory=str(path.parent),
+            )
+            self.assertEqual(
+                instrument._tianlai_factory_provenance["factory_route"],
+                "builtin_manifest_dispatch_no_implementation",
+            )
+            del instrument
+            gc.collect()
 
     def test_vpo_parser_preserves_unquoted_windows_paths_with_spaces(self) -> None:
         regions = vpo_regions_to_manifest(

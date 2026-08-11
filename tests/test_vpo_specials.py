@@ -87,7 +87,8 @@ class VpoSpecialCandidateTests(unittest.TestCase):
             self.assertEqual(
                 manifest["collaboration_review_status"], "untested"
             )
-            self.assertEqual(manifest["implementation"], "乐器.py")
+            self.assertNotIn("implementation", manifest)
+            self.assertTrue(MANIFESTS[name].with_name("乐器.py").is_file())
             self.assertEqual(
                 manifest["fallback_policy"], "explicit_only_no_silent_gm"
             )
@@ -95,6 +96,17 @@ class VpoSpecialCandidateTests(unittest.TestCase):
             self.assertTrue(
                 (MANIFESTS[name].parent / manifest["asset_root"]).resolve().is_dir()
             )
+            instrument = create_instrument(
+                manifest,
+                48_000,
+                base_directory=str(MANIFESTS[name].parent),
+            )
+            self.assertEqual(
+                instrument._tianlai_factory_provenance["factory_route"],
+                "builtin_manifest_dispatch_no_implementation",
+            )
+            del instrument
+            gc.collect()
 
     def test_real_region_counts_layers_and_embedded_loops(self) -> None:
         celesta = self.create_candidate("钢片琴")

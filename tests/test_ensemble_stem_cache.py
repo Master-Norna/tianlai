@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path
 from types import SimpleNamespace
 import tempfile
@@ -12,7 +13,7 @@ import numpy as np
 
 from tianlai.ensemble import render_plan
 from tianlai.events import parse_performance_document
-from tianlai.stem_cache import StemCache
+from tianlai.stem_cache import StemCache, VerifiedStemSource
 
 
 def _sha256(path: Path) -> str:
@@ -29,6 +30,7 @@ class _FakePlan:
         gain_db: float = -6.0,
         pan: float = 0.0,
         override_map: dict | None = None,
+        gain_envelope: tuple[object, ...] = (),
     ) -> None:
         capability = SimpleNamespace(
             manifest_path=str(manifest_path),
@@ -45,6 +47,7 @@ class _FakePlan:
             gain_db=gain_db,
             pan=pan,
             seat=SimpleNamespace(distance_m=3.0),
+            role=None,
         )
         performance = {
             "sample_rate": sample_rate,
@@ -57,7 +60,7 @@ class _FakePlan:
             SimpleNamespace(
                 executor=executor,
                 performance=performance,
-                gain_envelope=(),
+                gain_envelope=gain_envelope,
             ),
         )
         self.sample_rate = sample_rate
@@ -78,6 +81,13 @@ class _FakePlan:
                     "override": executor.override_map,
                     "gain_db": executor.gain_db,
                     "pan": executor.pan,
+                    "gain_envelope": [
+                        {
+                            "time_seconds": point.time_seconds,
+                            "offset_db": point.offset_db,
+                        }
+                        for point in part.gain_envelope
+                    ],
                 }
             ],
         }
@@ -194,11 +204,18 @@ class EnsembleStemCacheTests(unittest.TestCase):
             self.assertEqual(cold.stem_cache["writes"], 1)
             self.assertEqual(cold.stem_cache["hits"], 0)
 
-            hot = render_plan(
-                plan,
-                self.root / "hot",
-                stem_cache_directory=self.cache,
-            )
+            with patch.object(
+                StemCache,
+                "open_verified",
+                side_effect=AssertionError(
+                    "small cache hits must not create a scratch snapshot"
+                ),
+            ):
+                hot = render_plan(
+                    plan,
+                    self.root / "hot",
+                    stem_cache_directory=self.cache,
+                )
             refreshed = render_plan(
                 plan,
                 self.root / "refreshed",
@@ -220,6 +237,355 @@ class EnsembleStemCacheTests(unittest.TestCase):
         )
         receipt = json.loads(Path(hot.receipt_path).read_text(encoding="utf-8"))
         self.assertNotIn("stem_cache", receipt)
+
+    def test_multiblock_gain_automation_hot_path_is_byte_identical(
+        self,
+    ) -> None:
+        plan = _FakePlan(
+            self.manifest,
+            duration_seconds=9.0,
+            gain_db=-8.0,
+            pan=0.35,
+            gain_envelope=(
+                SimpleNamespace(time_seconds=0.0, offset_db=-3.0),
+                SimpleNamespace(time_seconds=4.0, offset_db=2.0),
+                SimpleNamespace(time_seconds=8.0, offset_db=-1.0),
+            ),
+        )
+        fingerprint = {
+            "runtime": "stable",
+            "runtime_asset_graph": {"file_count": 0},
+        }
+        with (
+            patch(
+                "tianlai.ensemble.compute_runtime_fingerprint",
+                return_value=fingerprint,
+            ),
+            patch(
+                "tianlai.ensemble.current_source_tree_matches",
+                return_value=True,
+            ),
+            patch(
+                "tianlai.ensemble._render_part",
+                side_effect=self._fake_render,
+            ) as render_part,
+        ):
+            cold = render_plan(
+                plan,
+                self.root / "automation-cold",
+                stem_cache_directory=self.cache,
+            )
+            with patch.object(
+                VerifiedStemSource,
+                "materialise",
+                side_effect=AssertionError("manual hit was materialised"),
+            ), patch(
+                "tianlai.ensemble._DIRECT_STEM_CACHE_LOAD_BYTES",
+                0,
+            ):
+                hot = render_plan(
+                    plan,
+                    self.root / "automation-hot",
+                    stem_cache_directory=self.cache,
+                )
+
+        self.assertEqual(render_part.call_count, 1)
+        self.assertEqual(hot.stem_cache["hits"], 1)
+        self.assertEqual(
+            self._public_artifacts(hot),
+            self._public_artifacts(cold),
+        )
+
+    def test_failed_stream_consumer_explicitly_closes_verified_source(
+        self,
+    ) -> None:
+        plan = _FakePlan(self.manifest)
+        fingerprint = {
+            "runtime": "stable",
+            "runtime_asset_graph": {"file_count": 0},
+        }
+        common = (
+            patch(
+                "tianlai.ensemble.compute_runtime_fingerprint",
+                return_value=fingerprint,
+            ),
+            patch(
+                "tianlai.ensemble.current_source_tree_matches",
+                return_value=True,
+            ),
+        )
+        with common[0], common[1], patch(
+            "tianlai.ensemble._render_part",
+            side_effect=self._fake_render,
+        ):
+            render_plan(
+                plan,
+                self.root / "close-cold",
+                stem_cache_directory=self.cache,
+            )
+
+        opened: list[VerifiedStemSource] = []
+        snapshot_directories: list[Path] = []
+        original_open = StemCache.open_verified
+
+        def tracking_open(cache: StemCache, key: str, **kwargs: object):
+            snapshot_directories.append(
+                Path(kwargs["snapshot_directory"])
+            )
+            lookup = original_open(cache, key, **kwargs)
+            if lookup.source is not None:
+                opened.append(lookup.source)
+            return lookup
+
+        with (
+            patch("tianlai.ensemble._DIRECT_STEM_CACHE_LOAD_BYTES", 0),
+            patch.object(StemCache, "open_verified", new=tracking_open),
+            patch(
+                "tianlai.ensemble.compute_runtime_fingerprint",
+                return_value=fingerprint,
+            ),
+            patch(
+                "tianlai.ensemble.current_source_tree_matches",
+                return_value=True,
+            ),
+            patch(
+                "tianlai.ensemble._consume_verified_cache_stem",
+                side_effect=RuntimeError("injected consumer failure"),
+            ),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "consumer failure"):
+                render_plan(
+                    plan,
+                    self.root / "close-hot",
+                    stem_cache_directory=self.cache,
+                )
+
+        self.assertTrue(opened, "cache hit did not expose a verified source")
+        self.assertTrue(
+            all(source.closed for source in opened),
+            "failed stream consumption left a verified source open",
+        )
+        self.assertTrue(
+            snapshot_directories,
+            "verified cache lookup did not receive a snapshot directory",
+        )
+        for path in snapshot_directories:
+            with self.subTest(snapshot_directory=path):
+                # Windows may canonicalise an ordinary RUNNER~1 ancestor to
+                # its long spelling.  The staging entry is already gone here,
+                # so bind its still-existing parent by filesystem identity and
+                # retain the exact private-name constraint separately.
+                self.assertTrue(
+                    os.path.samefile(path.parent, self.root),
+                    (
+                        "verified snapshot escaped the render parent: "
+                        f"{path.parent} != {self.root}"
+                    ),
+                )
+                self.assertTrue(
+                    path.name.startswith(".close-hot.render-stage."),
+                    f"verified snapshot used an unexpected name: {path.name}",
+                )
+
+    def test_snapshot_unavailable_transparently_uses_normal_renderer(
+        self,
+    ) -> None:
+        plan = _FakePlan(self.manifest)
+        fingerprint = {
+            "runtime": "stable",
+            "runtime_asset_graph": {"file_count": 0},
+        }
+        with (
+            patch("tianlai.ensemble._DIRECT_STEM_CACHE_LOAD_BYTES", 0),
+            patch(
+                "tianlai.ensemble.compute_runtime_fingerprint",
+                return_value=fingerprint,
+            ),
+            patch(
+                "tianlai.ensemble.current_source_tree_matches",
+                return_value=True,
+            ),
+            patch(
+                "tianlai.ensemble._render_part",
+                side_effect=self._fake_render,
+            ) as render_part,
+        ):
+            cold = render_plan(
+                plan,
+                self.root / "snapshot-cold",
+                stem_cache_directory=self.cache,
+            )
+            with patch(
+                "tianlai.stem_cache.tempfile.TemporaryFile",
+                side_effect=OSError("snapshot unavailable"),
+            ):
+                fallback = render_plan(
+                    plan,
+                    self.root / "snapshot-fallback",
+                    stem_cache_directory=self.cache,
+                )
+
+        self.assertEqual(render_part.call_count, 2)
+        self.assertEqual(fallback.stem_cache["hits"], 0)
+        self.assertEqual(fallback.stem_cache["bypassed"], 1)
+        self.assertIn(
+            "lookup_unavailable",
+            fallback.stem_cache["reason_counts"],
+        )
+        self.assertEqual(
+            self._public_artifacts(fallback),
+            self._public_artifacts(cold),
+        )
+
+    def test_source_change_during_snapshot_closes_hit_and_rerenders(
+        self,
+    ) -> None:
+        plan = _FakePlan(self.manifest)
+        fingerprint = {
+            "runtime": "stable",
+            "runtime_asset_graph": {"file_count": 0},
+        }
+        serial_policy = SimpleNamespace(
+            worker_count=1,
+            worker_count_by_part=(1,),
+            manifest_sha256_by_part=("",),
+        )
+        with (
+            patch("tianlai.ensemble._DIRECT_STEM_CACHE_LOAD_BYTES", 0),
+            patch(
+                "tianlai.ensemble._automatic_stem_parallelism",
+                return_value=serial_policy,
+            ),
+            patch(
+                "tianlai.ensemble.compute_runtime_fingerprint",
+                return_value=fingerprint,
+            ),
+            patch(
+                "tianlai.ensemble.current_source_tree_matches",
+                return_value=True,
+            ),
+            patch(
+                "tianlai.ensemble._render_part",
+                side_effect=self._fake_render,
+            ),
+        ):
+            render_plan(
+                plan,
+                self.root / "source-change-cold",
+                stem_cache_directory=self.cache,
+            )
+
+        opened_sources: list[VerifiedStemSource] = []
+        original_open = StemCache.open_verified
+
+        def tracking_open(
+            cache: StemCache,
+            key: str,
+            **kwargs: object,
+        ):
+            lookup = original_open(cache, key, **kwargs)
+            if lookup.source is not None:
+                opened_sources.append(lookup.source)
+            return lookup
+
+        source_checks = iter((True, False))
+
+        def rerender_after_release(part: object, sample_rate: int):
+            self.assertTrue(opened_sources)
+            self.assertTrue(opened_sources[-1].closed)
+            return self._fake_render(part, sample_rate)
+
+        with (
+            patch("tianlai.ensemble._DIRECT_STEM_CACHE_LOAD_BYTES", 0),
+            patch(
+                "tianlai.ensemble._automatic_stem_parallelism",
+                return_value=serial_policy,
+            ),
+            patch.object(StemCache, "open_verified", new=tracking_open),
+            patch(
+                "tianlai.ensemble.compute_runtime_fingerprint",
+                return_value=fingerprint,
+            ),
+            patch(
+                "tianlai.ensemble.current_source_tree_matches",
+                side_effect=lambda: next(source_checks),
+            ),
+            patch(
+                "tianlai.ensemble._render_part",
+                side_effect=rerender_after_release,
+            ) as render_part,
+        ):
+            result = render_plan(
+                plan,
+                self.root / "source-change-hot",
+                stem_cache_directory=self.cache,
+            )
+
+        self.assertEqual(render_part.call_count, 1)
+        self.assertFalse(result.stem_cache["active"])
+        self.assertEqual(result.stem_cache["hits"], 0)
+        self.assertEqual(result.stem_cache["bypassed"], 1)
+        self.assertEqual(
+            result.stem_cache["reason_counts"],
+            {"producer_source_changed_restart_required": 1},
+        )
+
+    def test_collaboration_analysis_preserves_full_buffer_interface(
+        self,
+    ) -> None:
+        plan = _FakePlan(self.manifest, duration_seconds=0.25)
+        fingerprint = {
+            "runtime": "stable",
+            "runtime_asset_graph": {"file_count": 0},
+        }
+        materialised: list[int] = []
+        original_materialise = VerifiedStemSource.materialise
+
+        def tracking_materialise(source: VerifiedStemSource) -> np.ndarray:
+            materialised.append(source.frame_count)
+            return original_materialise(source)
+
+        with (
+            patch(
+                "tianlai.ensemble.compute_runtime_fingerprint",
+                return_value=fingerprint,
+            ),
+            patch(
+                "tianlai.ensemble.current_source_tree_matches",
+                return_value=True,
+            ),
+            patch(
+                "tianlai.ensemble._render_part",
+                side_effect=self._fake_render,
+            ) as render_part,
+        ):
+            render_plan(
+                plan,
+                self.root / "analysis-cold",
+                stem_cache_directory=self.cache,
+            )
+            with patch.object(
+                VerifiedStemSource,
+                "materialise",
+                new=tracking_materialise,
+            ), patch.object(
+                StemCache,
+                "open_verified",
+                side_effect=AssertionError(
+                    "analysis cache hits must use the direct full-buffer load"
+                ),
+            ):
+                analyzed = render_plan(
+                    plan,
+                    self.root / "analysis-hot",
+                    stem_cache_directory=self.cache,
+                    collaboration_mode="analyze",
+                )
+
+        self.assertEqual(render_part.call_count, 1)
+        self.assertEqual(materialised, [])
+        self.assertEqual(analyzed.stem_cache["hits"], 1)
+        self.assertIsNotNone(analyzed.mix_report)
 
     def test_mix_controls_and_hall_share_unmodified_owned_raw_stem(
         self,
@@ -420,6 +786,76 @@ class EnsembleStemCacheTests(unittest.TestCase):
 
         self.assertEqual(render_part.call_count, 3)
         self.assertEqual(metadata_repaired_hit.stem_cache["hits"], 1)
+
+    def test_semantic_cache_mismatch_releases_audio_before_rerender(self) -> None:
+        plan = _FakePlan(self.manifest, duration_seconds=0.25)
+        fingerprint = {
+            "runtime": "stable",
+            "runtime_asset_graph": {"file_count": 0},
+        }
+        with (
+            patch(
+                "tianlai.ensemble.compute_runtime_fingerprint",
+                return_value=fingerprint,
+            ),
+            patch(
+                "tianlai.ensemble.current_source_tree_matches",
+                return_value=True,
+            ),
+            patch(
+                "tianlai.ensemble._render_part",
+                side_effect=self._fake_render,
+            ),
+        ):
+            render_plan(
+                plan,
+                self.root / "semantic-cold",
+                stem_cache_directory=self.cache,
+            )
+
+        metadata_path = next(self.cache.rglob("*.json"))
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        metadata["stage"] = "valid-but-not-the-raw-stem-stage"
+        metadata_path.write_text(json.dumps(metadata), encoding="utf-8")
+
+        opened_sources: list[VerifiedStemSource] = []
+        original_open = StemCache.open_verified
+
+        def tracking_open(cache: StemCache, key: str, **kwargs: object):
+            lookup = original_open(cache, key, **kwargs)
+            if lookup.source is not None:
+                opened_sources.append(lookup.source)
+            return lookup
+
+        def rerender_after_release(part: object, sample_rate: int):
+            self.assertTrue(opened_sources)
+            self.assertTrue(opened_sources[-1].closed)
+            return self._fake_render(part, sample_rate)
+
+        with (
+            patch("tianlai.ensemble._DIRECT_STEM_CACHE_LOAD_BYTES", 0),
+            patch.object(StemCache, "open_verified", new=tracking_open),
+            patch(
+                "tianlai.ensemble.compute_runtime_fingerprint",
+                return_value=fingerprint,
+            ),
+            patch(
+                "tianlai.ensemble.current_source_tree_matches",
+                return_value=True,
+            ),
+            patch(
+                "tianlai.ensemble._render_part",
+                side_effect=rerender_after_release,
+            ),
+        ):
+            result = render_plan(
+                plan,
+                self.root / "semantic-repair",
+                stem_cache_directory=self.cache,
+            )
+
+        self.assertEqual(result.stem_cache["corrupt_fallbacks"], 1)
+        self.assertEqual(result.stem_cache["writes"], 1)
 
     def test_source_tree_mismatch_bypasses_cache_fail_closed(self) -> None:
         plan = _FakePlan(self.manifest)

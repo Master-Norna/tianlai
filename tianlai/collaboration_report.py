@@ -13,7 +13,10 @@ from dataclasses import dataclass
 import hashlib
 import math
 from numbers import Real
+import os
 from pathlib import Path
+import re
+import stat
 import tempfile
 from typing import Any, BinaryIO
 
@@ -33,6 +36,10 @@ from .roster import (
     MAX_BALANCE_RELATIONS,
     CollaborationSettings,
     Executor,
+)
+from .render_lock import (
+    capture_plain_directory,
+    revalidate_plain_directory,
 )
 from .spectral_overlap import (
     SPECTRAL_OVERLAP_VERSION,
@@ -69,6 +76,8 @@ ANALYSIS_CACHE_STAGE = (
     "post_assignment_gain_pre_pan_pre_space_pre_master_pre_normalize_v1"
 )
 ANALYSIS_CACHE_IDENTITY_VERSION = 1
+_STEM_TRANSACTION_MAX_BLOCK_FRAMES = 65_536
+_FLOAT32_STEREO_FRAME_BYTES = 2 * np.dtype(np.float32).itemsize
 
 
 def _round_optional(value: float | None, digits: int = 6) -> float | None:
@@ -736,6 +745,380 @@ def _valid_cached_relation_payload(
         return False
 
 
+def _same_scratch_file_identity(
+    left: os.stat_result,
+    right: os.stat_result,
+) -> bool:
+    return (
+        stat.S_ISREG(left.st_mode)
+        and stat.S_ISREG(right.st_mode)
+        and left.st_dev == right.st_dev
+        and left.st_ino == right.st_ino
+    )
+
+
+def _close_private_stem_scratch(
+    audio: np.memmap,
+    scratch: BinaryIO,
+    *,
+    flush: bool,
+) -> None:
+    """Release a mapping before its delete-on-close descriptor."""
+
+    first_error: BaseException | None = None
+    if flush:
+        try:
+            audio.flush()
+        except BaseException as exc:
+            first_error = exc
+    mapping = getattr(audio, "_mmap", None)
+    if mapping is not None:
+        try:
+            mapping.close()
+        except BaseException as exc:
+            if first_error is None:
+                first_error = exc
+    try:
+        scratch.close()
+    except BaseException as exc:
+        if first_error is None:
+            first_error = exc
+    if first_error is not None:
+        raise first_error
+
+
+class _AnalyzedStemView:
+    """Explicit post-diagnostic access to one transaction mapping.
+
+    A first relation executor transfers its scratch mapping to the report
+    builder, so that view is borrowed and ``close()`` only drops the caller's
+    reference.  Every other transaction mapping stays owned by the view and is
+    closed, mapping first, when the renderer finishes its WAV and mix stages.
+    """
+
+    __slots__ = (
+        "_audio",
+        "_scratch",
+        "_audio_sha256",
+        "_builder_owned",
+        "_closed",
+    )
+
+    def __init__(
+        self,
+        audio: np.memmap,
+        scratch: BinaryIO | None,
+        *,
+        audio_sha256: str,
+        builder_owned: bool,
+    ) -> None:
+        if builder_owned != (scratch is None):
+            raise ValueError("analyzed stem view ownership is inconsistent")
+        self._audio: np.memmap | None = audio
+        self._scratch = scratch
+        self._audio_sha256 = audio_sha256
+        self._builder_owned = builder_owned
+        self._closed = False
+
+    @property
+    def audio(self) -> np.memmap:
+        audio = self._audio
+        if self._closed or audio is None:
+            raise RuntimeError("analyzed stem view is closed")
+        return audio
+
+    @property
+    def audio_sha256(self) -> str:
+        return self._audio_sha256
+
+    @property
+    def builder_owned(self) -> bool:
+        return self._builder_owned
+
+    @property
+    def closed(self) -> bool:
+        return self._closed
+
+    def close(self) -> None:
+        if self._closed:
+            return
+        self._closed = True
+        audio = self._audio
+        scratch = self._scratch
+        self._audio = None
+        self._scratch = None
+        if audio is not None and scratch is not None:
+            _close_private_stem_scratch(audio, scratch, flush=False)
+
+    def __enter__(self) -> "_AnalyzedStemView":
+        if self._closed:
+            raise RuntimeError("analyzed stem view is closed")
+        return self
+
+    def __exit__(
+        self,
+        exc_type: object,
+        _exc: object,
+        _traceback: object,
+    ) -> None:
+        if exc_type is None:
+            self.close()
+            return
+        try:
+            self.close()
+        except BaseException:
+            # Context-manager cleanup must not replace the body failure.  The
+            # production renderer closes explicitly and applies the same
+            # first-error rule around its broader raw-stem phase.
+            pass
+
+    def __del__(self) -> None:
+        try:
+            self.close()
+        except BaseException:
+            pass
+
+
+class _StemAnalysisTransaction:
+    """Private bounded sink for one complete float32 analysis stem."""
+
+    def __init__(
+        self,
+        builder: "CollaborationReportBuilder",
+        executor: Executor,
+        *,
+        frame_count: int,
+        expected_audio_sha256: str | None,
+        audio: np.memmap,
+        scratch: BinaryIO,
+        opened_status: os.stat_result,
+    ) -> None:
+        self._builder = builder
+        self._executor = executor
+        self._frame_count = frame_count
+        self._expected_audio_sha256 = expected_audio_sha256
+        self._audio: np.memmap | None = audio
+        self._scratch: BinaryIO | None = scratch
+        self._opened_status = opened_status
+        self._digest = hashlib.sha256()
+        self._frames_written = 0
+        self._validated_sha256: str | None = None
+        self._closed = False
+        self._retained = False
+
+    @property
+    def frames_written(self) -> int:
+        return self._frames_written
+
+    @property
+    def closed(self) -> bool:
+        return self._closed
+
+    @property
+    def retained(self) -> bool:
+        return self._retained
+
+    @property
+    def audio_sha256(self) -> str:
+        if self._validated_sha256 is None:
+            raise RuntimeError("stem analysis transaction is not complete")
+        return self._validated_sha256
+
+    def _release(self, *, flush: bool) -> None:
+        if self._closed:
+            return
+        self._closed = True
+        self._builder._stem_transactions.discard(self)
+        audio = self._audio
+        scratch = self._scratch
+        self._audio = None
+        self._scratch = None
+        if audio is not None and scratch is not None:
+            _close_private_stem_scratch(audio, scratch, flush=flush)
+
+    def _release_without_masking_error(self) -> None:
+        try:
+            self._release(flush=False)
+        except BaseException:
+            pass
+
+    def append(self, block: np.ndarray) -> None:
+        """Append one finite float32 stereo block of at most 65,536 frames."""
+
+        if self._closed:
+            raise RuntimeError("stem analysis transaction is closed")
+        try:
+            array = np.asarray(block)
+            if (
+                array.ndim != 2
+                or array.shape[1] != 2
+                or array.dtype != np.dtype(np.float32)
+            ):
+                raise ValueError(
+                    "stem analysis blocks must be float32 stereo"
+                )
+            block_frames = int(array.shape[0])
+            if not 1 <= block_frames <= _STEM_TRANSACTION_MAX_BLOCK_FRAMES:
+                raise ValueError(
+                    "stem analysis blocks must contain between 1 and "
+                    "65536 frames"
+                )
+            stop = self._frames_written + block_frames
+            if stop > self._frame_count:
+                raise ValueError(
+                    "stem analysis transaction received too many frames"
+                )
+            stable = (
+                array
+                if array.flags.c_contiguous
+                else np.ascontiguousarray(array, dtype=np.float32)
+            )
+            if not bool(np.isfinite(stable).all()):
+                raise ValueError("stem analysis block is not finite")
+            audio = self._audio
+            if audio is None:
+                raise RuntimeError("stem analysis transaction lost its mapping")
+            audio[self._frames_written : stop] = stable
+            self._digest.update(memoryview(stable).cast("B"))
+            self._frames_written = stop
+        except BaseException:
+            self._release_without_masking_error()
+            raise
+
+    def finish_view(self) -> _AnalyzedStemView:
+        """Validate, diagnose, and transfer an explicit mapping view."""
+
+        if self._closed:
+            raise RuntimeError("stem analysis transaction is closed")
+        retained = False
+        try:
+            if self._frames_written != self._frame_count:
+                raise ValueError(
+                    "stem analysis transaction frame count is incomplete"
+                )
+            audio = self._audio
+            scratch = self._scratch
+            if audio is None or scratch is None:
+                raise RuntimeError("stem analysis transaction lost its scratch")
+            audio.flush()
+            status = os.fstat(scratch.fileno())
+            expected_bytes = self._frame_count * _FLOAT32_STEREO_FRAME_BYTES
+            if (
+                not _same_scratch_file_identity(self._opened_status, status)
+                or status.st_size != expected_bytes
+            ):
+                raise ValueError(
+                    "stem analysis scratch identity or length changed"
+                )
+            appended_sha256 = self._digest.hexdigest()
+            mapped_sha256 = _audio_content_sha256(audio)
+            final_status = os.fstat(scratch.fileno())
+            if (
+                not _same_scratch_file_identity(status, final_status)
+                or final_status.st_size != expected_bytes
+            ):
+                raise ValueError(
+                    "stem analysis scratch changed during validation"
+                )
+            if mapped_sha256 != appended_sha256:
+                raise ValueError(
+                    "stem analysis scratch SHA-256 differs from appended blocks"
+                )
+            if (
+                self._expected_audio_sha256 is not None
+                and mapped_sha256 != self._expected_audio_sha256
+            ):
+                raise ValueError(
+                    "stem analysis SHA-256 differs from the expected source"
+                )
+            self._validated_sha256 = mapped_sha256
+            retained = self._builder._add_stem(
+                self._executor,
+                audio,
+                validated_audio_sha256=mapped_sha256,
+                owned_scratch=(audio, scratch),
+            )
+        except BaseException:
+            self._release_without_masking_error()
+            raise
+
+        if retained:
+            # _add_stem registered both the mapping and its handle before it
+            # returned.  Clear transaction ownership before allocating the
+            # borrowed view so a MemoryError cannot double-close builder state.
+            self._builder._stem_transactions.discard(self)
+            self._closed = True
+            self._retained = True
+            self._audio = None
+            self._scratch = None
+            try:
+                return _AnalyzedStemView(
+                    audio,
+                    None,
+                    audio_sha256=self.audio_sha256,
+                    builder_owned=True,
+                )
+            except BaseException:
+                self._builder._mark_abort_only()
+                raise
+
+        # Construct the owning view before relinquishing transaction state. If
+        # allocation fails, the transaction's normal error path still owns and
+        # releases both resources.
+        try:
+            view = _AnalyzedStemView(
+                audio,
+                scratch,
+                audio_sha256=self.audio_sha256,
+                builder_owned=False,
+            )
+        except BaseException:
+            self._builder._mark_abort_only()
+            self._release_without_masking_error()
+            raise
+        self._builder._stem_transactions.discard(self)
+        self._closed = True
+        self._audio = None
+        self._scratch = None
+        return view
+
+    def finish(self) -> str:
+        """Validate and diagnose, then retain the legacy digest result."""
+
+        view = self.finish_view()
+        try:
+            return view.audio_sha256
+        finally:
+            view.close()
+
+    def close(self) -> None:
+        self._release(flush=False)
+
+    def __enter__(self) -> "_StemAnalysisTransaction":
+        if self._closed:
+            raise RuntimeError("stem analysis transaction is closed")
+        return self
+
+    def __exit__(
+        self,
+        exc_type: Any,
+        _value: Any,
+        _traceback: Any,
+    ) -> None:
+        if self._closed:
+            return
+        if exc_type is None:
+            self.close()
+        else:
+            self._release_without_masking_error()
+
+    def __del__(self) -> None:
+        try:
+            self._release(flush=False)
+        except BaseException:
+            pass
+
+
 class CollaborationReportBuilder:
     """Collect per-stem measurements and declared part-to-part comparisons."""
 
@@ -821,8 +1204,11 @@ class CollaborationReportBuilder:
         self._endpoint_buffers: dict[str, np.ndarray] = {}
         self._endpoint_sha256: dict[str, str] = {}
         self._scratch_parent: Path | None = None
+        self._scratch_identity: Any | None = None
         self._scratch_handles: list[BinaryIO] = []
+        self._stem_transactions: set[_StemAnalysisTransaction] = set()
         self._closed = False
+        self._abort_only = False
         if (
             expected_stem_count is not None
             and (
@@ -858,7 +1244,9 @@ class CollaborationReportBuilder:
         if scratch_parent is not None:
             parent = Path(scratch_parent)
             parent.mkdir(parents=True, exist_ok=True)
-            self._scratch_parent = parent
+            identity = capture_plain_directory(parent)
+            self._scratch_parent = revalidate_plain_directory(identity)
+            self._scratch_identity = identity
 
     @property
     def cache_summary(self) -> dict[str, Any] | None:
@@ -866,29 +1254,124 @@ class CollaborationReportBuilder:
 
         return self._cache_summary
 
-    def _scratch_memmap(self, shape: tuple[int, ...]) -> np.memmap:
-        """Allocate a delete-on-close mapping without owning a path tree."""
+    def _require_writable(self) -> None:
+        if self._closed:
+            raise RuntimeError("collaboration report builder is closed")
+        if self._abort_only:
+            raise RuntimeError(
+                "collaboration report builder is abort-only after a failed "
+                "stem transaction"
+            )
 
-        if self._scratch_parent is None:
+    def _mark_abort_only(self) -> None:
+        self._abort_only = True
+
+    def _new_scratch_memmap(
+        self,
+        shape: tuple[int, ...],
+    ) -> tuple[np.memmap, BinaryIO, os.stat_result]:
+        """Allocate an unregistered mapping in the bound scratch directory."""
+
+        identity = self._scratch_identity
+        if self._scratch_parent is None or identity is None:
             raise RuntimeError("collaboration scratch storage is disabled")
+        parent = revalidate_plain_directory(identity)
         scratch = tempfile.TemporaryFile(
             mode="w+b",
-            dir=self._scratch_parent,
+            dir=parent,
             prefix=".collaboration-analysis.",
             suffix=".f32",
         )
+        audio: np.memmap | None = None
         try:
+            revalidate_plain_directory(identity)
             audio = np.memmap(
                 scratch,
                 mode="w+",
                 dtype=np.float32,
                 shape=shape,
             )
+            opened_status = os.fstat(scratch.fileno())
+            if (
+                not stat.S_ISREG(opened_status.st_mode)
+                or opened_status.st_size != int(audio.nbytes)
+            ):
+                raise OSError(
+                    "collaboration scratch mapping has an invalid identity"
+                )
         except BaseException:
-            scratch.close()
+            if audio is not None:
+                try:
+                    _close_private_stem_scratch(
+                        audio,
+                        scratch,
+                        flush=False,
+                    )
+                except BaseException:
+                    pass
+            else:
+                try:
+                    scratch.close()
+                except BaseException:
+                    pass
             raise
-        self._scratch_handles.append(scratch)
+        return audio, scratch, opened_status
+
+    def _scratch_memmap(self, shape: tuple[int, ...]) -> np.memmap:
+        """Allocate a builder-owned delete-on-close mapping."""
+
+        audio, scratch, _opened_status = self._new_scratch_memmap(shape)
+        try:
+            self._scratch_handles.append(scratch)
+        except BaseException:
+            try:
+                _close_private_stem_scratch(audio, scratch, flush=False)
+            except BaseException:
+                pass
+            raise
         return audio
+
+    def _begin_stem_transaction(
+        self,
+        executor: Executor,
+        *,
+        frame_count: int,
+        expected_audio_sha256: str | None = None,
+    ) -> _StemAnalysisTransaction:
+        """Begin one private bounded stem-analysis transaction."""
+
+        self._require_writable()
+        if (
+            isinstance(frame_count, bool)
+            or not isinstance(frame_count, int)
+            or frame_count <= 0
+        ):
+            raise ValueError("stem analysis frame_count must be positive")
+        if expected_audio_sha256 is not None and (
+            not isinstance(expected_audio_sha256, str)
+            or re.fullmatch(r"[0-9a-f]{64}", expected_audio_sha256) is None
+        ):
+            raise ValueError(
+                "expected_audio_sha256 must be lowercase SHA-256 hex"
+            )
+        audio, scratch, opened_status = self._new_scratch_memmap(
+            (frame_count, 2)
+        )
+        transaction = _StemAnalysisTransaction(
+            self,
+            executor,
+            frame_count=frame_count,
+            expected_audio_sha256=expected_audio_sha256,
+            audio=audio,
+            scratch=scratch,
+            opened_status=opened_status,
+        )
+        try:
+            self._stem_transactions.add(transaction)
+        except BaseException:
+            transaction._release_without_masking_error()
+            raise
+        return transaction
 
     def _cache_identity(
         self,
@@ -933,8 +1416,61 @@ class CollaborationReportBuilder:
     def add_stem(self, executor: Executor, buffer: np.ndarray) -> None:
         """Measure one post-gain dry stem without changing its samples."""
 
-        if self._closed:
-            raise RuntimeError("collaboration report builder is closed")
+        self._add_stem(executor, buffer)
+
+    def _add_stem(
+        self,
+        executor: Executor,
+        buffer: np.ndarray,
+        *,
+        validated_audio_sha256: str | None = None,
+        owned_scratch: tuple[np.memmap, BinaryIO] | None = None,
+    ) -> bool:
+        """Run the common diagnostic path and optionally adopt its mapping."""
+
+        self._require_writable()
+        transaction_call = owned_scratch is not None
+        try:
+            if owned_scratch is not None and owned_scratch[0] is not buffer:
+                raise ValueError(
+                    "owned analysis scratch does not match its buffer"
+                )
+            previous_relation_buffer = (
+                self._part_buffers.get(executor.part_id)
+                if executor.part_id in self._relation_parts
+                else None
+            )
+            if (
+                previous_relation_buffer is not None
+                and previous_relation_buffer.shape != buffer.shape
+            ):
+                raise ValueError(
+                    f"声部 {executor.part_id!r} "
+                    "的套件执行器时间线长度不一致"
+                )
+            return self._add_stem_after_preflight(
+                executor,
+                buffer,
+                validated_audio_sha256=validated_audio_sha256,
+                owned_scratch=owned_scratch,
+                previous_relation_buffer=previous_relation_buffer,
+            )
+        except BaseException:
+            if transaction_call:
+                self._mark_abort_only()
+            raise
+
+    def _add_stem_after_preflight(
+        self,
+        executor: Executor,
+        buffer: np.ndarray,
+        *,
+        validated_audio_sha256: str | None,
+        owned_scratch: tuple[np.memmap, BinaryIO] | None,
+        previous_relation_buffer: np.ndarray | None,
+    ) -> bool:
+        """Mutate diagnostics only after transaction-wide preflight gates."""
+
         metrics: dict[str, Any]
         cache_identity: dict[str, Any] | None = None
         cache_key: str | None = None
@@ -942,7 +1478,11 @@ class CollaborationReportBuilder:
         if self._cache is not None and self._cache_summary is not None:
             if self._cache_can_read():
                 try:
-                    audio_sha256 = _audio_content_sha256(buffer)
+                    audio_sha256 = (
+                        validated_audio_sha256
+                        if validated_audio_sha256 is not None
+                        else _audio_content_sha256(buffer)
+                    )
                     cache_identity = self._cache_identity(
                         kind="stem_metrics",
                         audio={
@@ -1084,19 +1624,17 @@ class CollaborationReportBuilder:
             )
         )
         if executor.part_id not in self._relation_parts:
-            return
+            return False
         # Relation endpoints can be several minutes long.  The renderer
         # already supplies float32 stems, so retaining float64 duplicates
         # would double memory without adding source precision.
-        previous = self._part_buffers.get(executor.part_id)
-        if previous is not None:
-            if previous.shape != buffer.shape:
-                raise ValueError(
-                    f"声部 {executor.part_id!r} 的套件执行器时间线长度不一致"
-                )
-            previous += np.asarray(buffer, dtype=np.float32)
-            return
-        if self._scratch_parent is None:
+        if previous_relation_buffer is not None:
+            previous_relation_buffer += np.asarray(buffer, dtype=np.float32)
+            return False
+        scratch: BinaryIO | None = None
+        if owned_scratch is not None:
+            audio, scratch = owned_scratch
+        elif self._scratch_parent is None:
             audio = np.array(buffer, dtype=np.float32, copy=True)
         else:
             audio = self._scratch_memmap(buffer.shape)
@@ -1104,7 +1642,24 @@ class CollaborationReportBuilder:
         # Relation endpoints are normally a single executor.  Retain only
         # these explicitly referenced parts; unrelated stems do not
         # accumulate in memory or scratch storage.
-        self._part_buffers[executor.part_id] = audio
+        try:
+            self._part_buffers[executor.part_id] = audio
+            if scratch is not None:
+                self._scratch_handles.append(scratch)
+        except BaseException:
+            try:
+                if self._part_buffers.get(executor.part_id) is audio:
+                    self._part_buffers.pop(executor.part_id, None)
+                if scratch is not None:
+                    self._scratch_handles[:] = [
+                        candidate
+                        for candidate in self._scratch_handles
+                        if candidate is not scratch
+                    ]
+            except BaseException:
+                pass
+            raise
+        return owned_scratch is not None
 
     def _endpoint_document(self, endpoint: str) -> dict[str, Any]:
         expanded = self._part_groups.get(endpoint)
@@ -1764,6 +2319,14 @@ class CollaborationReportBuilder:
         if self._closed:
             return
         self._closed = True
+        cleanup_errors: list[BaseException] = []
+        transactions = tuple(self._stem_transactions)
+        for transaction in transactions:
+            try:
+                transaction.close()
+            except BaseException as exc:
+                cleanup_errors.append(exc)
+        self._stem_transactions.clear()
         buffers_by_identity = {
             id(audio): audio
             for audio in (
@@ -1778,7 +2341,7 @@ class CollaborationReportBuilder:
         scratch_handles = tuple(self._scratch_handles)
         self._scratch_handles.clear()
         self._scratch_parent = None
-        cleanup_errors: list[BaseException] = []
+        self._scratch_identity = None
         for audio in buffers:
             if not isinstance(audio, np.memmap):
                 continue
@@ -1806,15 +2369,32 @@ class CollaborationReportBuilder:
         if self._closed:
             raise RuntimeError("collaboration report builder is closed")
         try:
-            return self._build_report()
-        finally:
-            self.close()
+            self._require_writable()
+            if self._stem_transactions:
+                raise RuntimeError(
+                    "collaboration report has an unfinished stem transaction"
+                )
+            report = self._build_report()
+        except BaseException:
+            try:
+                self.close()
+            except BaseException:
+                pass
+            raise
+        self.close()
+        return report
 
     def __enter__(self) -> "CollaborationReportBuilder":
         return self
 
-    def __exit__(self, _type: Any, _value: Any, _traceback: Any) -> None:
-        self.close()
+    def __exit__(self, exc_type: Any, _value: Any, _traceback: Any) -> None:
+        if exc_type is None:
+            self.close()
+        else:
+            try:
+                self.close()
+            except BaseException:
+                pass
 
 
 __all__ = (

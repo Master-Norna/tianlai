@@ -31,10 +31,16 @@ import platform
 import re
 import sys
 import tempfile
+import time
 from typing import Any, Literal
 import wave
 
 from .canonical_json import canonical_json_bytes as _project_canonical_json_bytes
+from .plain_file import (
+    PlainFileIdentity,
+    read_plain_file_bytes,
+    revalidate_plain_file,
+)
 from .runtime_variants import (
     RuntimeVariantError,
     capture_runtime_variants,
@@ -69,6 +75,8 @@ _OBSERVATION_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 _DECISION_STATUSES = frozenset(("pending", "measured", "exclude", "unsure"))
 _CONDITION_COVERAGE_KIND = "sampled_conditions"
 _CONDITION_ID_ALGORITHM = "onset-isolated-sampled-condition-v1"
+_TRANSIENT_WINDOWS_REPLACE_ERRORS = frozenset((5, 32, 33))
+_WINDOWS_REPLACE_RETRY_DELAYS = (0.010, 0.025, 0.050, 0.100)
 
 
 class OnsetEvidenceError(ValueError):
@@ -165,6 +173,64 @@ def read_json_strict(path: str | Path) -> dict[str, Any]:
     return document
 
 
+def _is_windows_runtime() -> bool:
+    return os.name == "nt"
+
+
+def _replace_json_temporary(
+    temporary: Path,
+    target: Path,
+    *,
+    identity: PlainFileIdentity,
+    payload: bytes,
+) -> None:
+    """Replace once, retrying only short-lived Windows sharing conflicts.
+
+    A failed replace leaves a mutable pathname behind.  Before every retry,
+    bind that name back to the descriptor-checked file and bytes created by
+    this writer.  If either changed, retain both entries and fail closed.
+    """
+
+    try:
+        os.replace(temporary, target)
+        return
+    except OSError as error:
+        if (
+            not _is_windows_runtime()
+            or getattr(error, "winerror", None)
+            not in _TRANSIENT_WINDOWS_REPLACE_ERRORS
+        ):
+            raise
+        last_error = error
+
+    for delay in _WINDOWS_REPLACE_RETRY_DELAYS:
+        time.sleep(delay)
+        try:
+            revalidate_plain_file(identity)
+            current_identity, current_payload = read_plain_file_bytes(
+                temporary,
+                maximum_bytes=len(payload),
+            )
+            if current_identity != identity or current_payload != payload:
+                raise OSError(
+                    "atomic JSON temporary file changed before retry"
+                )
+        except OSError as validation_error:
+            raise last_error from validation_error
+        try:
+            os.replace(temporary, target)
+            return
+        except OSError as error:
+            if (
+                not _is_windows_runtime()
+                or getattr(error, "winerror", None)
+                not in _TRANSIENT_WINDOWS_REPLACE_ERRORS
+            ):
+                raise
+            last_error = error
+    raise last_error
+
+
 def write_json_atomic(path: str | Path, document: dict[str, Any]) -> None:
     """Durably finish a temporary file before replacing the destination."""
 
@@ -187,24 +253,38 @@ def write_json_atomic(path: str | Path, document: dict[str, Any]) -> None:
         suffix=".tmp",
     )
     temporary = Path(temporary_name)
-    try:
-        with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as output:
-            output.write(payload)
-            output.flush()
-            os.fsync(output.fileno())
-        os.replace(temporary, target)
-        # POSIX can durably persist the directory entry.  Windows cannot open
-        # directories with os.open in the same portable manner, so the fsync
-        # above plus atomic ReplaceFile semantics is the strongest common path.
-        if os.name != "nt":
-            flags = getattr(os, "O_DIRECTORY", 0) | os.O_RDONLY
-            directory_fd = os.open(target.parent, flags)
-            try:
-                os.fsync(directory_fd)
-            finally:
-                os.close(directory_fd)
-    finally:
-        temporary.unlink(missing_ok=True)
+    with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as output:
+        output.write(payload)
+        output.flush()
+        os.fsync(output.fileno())
+        created = os.fstat(output.fileno())
+    payload_bytes = payload.encode("utf-8")
+    identity, observed_payload = read_plain_file_bytes(
+        temporary,
+        maximum_bytes=len(payload_bytes),
+    )
+    if (
+        identity.device != int(created.st_dev)
+        or identity.inode != int(created.st_ino)
+        or observed_payload != payload_bytes
+    ):
+        raise OSError("atomic JSON temporary file changed after writing")
+    _replace_json_temporary(
+        temporary,
+        target,
+        identity=identity,
+        payload=payload_bytes,
+    )
+    # POSIX can durably persist the directory entry.  Windows cannot open
+    # directories with os.open in the same portable manner, so the fsync
+    # above plus atomic ReplaceFile semantics is the strongest common path.
+    if os.name != "nt":
+        flags = getattr(os, "O_DIRECTORY", 0) | os.O_RDONLY
+        directory_fd = os.open(target.parent, flags)
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
 
 
 def _expect_keys(
@@ -372,11 +452,12 @@ _DYNAMIC_BACKEND_MODULES: dict[str, tuple[str, ...]] = {
     "reversed_cymbal": ("tianlai.reversed_cymbal",),
     "melodic_toms": ("tianlai.melodic_toms",),
     "modeled_instrument": ("tianlai.modeled_instruments",),
+    "modeled_bianzhong": ("tianlai.bianzhong",),
     "sample": ("tianlai.sampler",),
-    "piano": ("tianlai.sampler",),
-    "violin": ("tianlai.sampler", "tianlai.sfz"),
-    "cello": ("tianlai.sampler", "tianlai.sfz"),
-    "flute": ("tianlai.sampler", "tianlai.sfz"),
+    "piano": ("tianlai.piano",),
+    "violin": ("tianlai.violin",),
+    "cello": ("tianlai.cello",),
+    "flute": ("tianlai.flute",),
     "vpo_solo_string": ("tianlai.vpo_strings",),
     "vpo_string_section": ("tianlai.vpo_strings",),
     "vpo_harp": ("tianlai.vpo_strings",),
@@ -386,9 +467,9 @@ _DYNAMIC_BACKEND_MODULES: dict[str, tuple[str, ...]] = {
     "vpo_mixed_choir": ("tianlai.vpo_specials",),
     "vpo_orchestral_hit": ("tianlai.vpo_specials",),
     "vpo_celesta": ("tianlai.vpo_specials",),
-    "vpo_cowbell": ("tianlai.vpo_percussion",),
+    "vpo_cowbell": ("tianlai.vpo_specials",),
     "mtg_solo_sax": ("tianlai.mtg_sax",),
-    "vsco2_viola_section": ("tianlai.vpo_strings",),
+    "vsco2_viola_section": ("tianlai.vsco2_viola",),
 }
 
 
@@ -957,8 +1038,6 @@ def compute_runtime_fingerprint(
     manifest = disk_manifest if runtime_manifest is None else runtime_manifest
     instrument_directory = manifest_file.parent
     raw_implementation = manifest.get("implementation")
-    if raw_implementation is None and (instrument_directory / "乐器.py").is_file():
-        raw_implementation = "乐器.py"
     implementation = _optional_bound_file(
         root,
         instrument_directory,

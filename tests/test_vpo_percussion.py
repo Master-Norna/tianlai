@@ -74,8 +74,20 @@ class VpoPercussionTests(unittest.TestCase):
             self.assertEqual(
                 manifest["collaboration_review_status"], "untested"
             )
-            self.assertEqual(manifest["implementation"], "乐器.py")
+            self.assertNotIn("implementation", manifest)
+            self.assertTrue(path.with_name("乐器.py").is_file())
             self.assertNotIn("soundfont", manifest)
+            instrument = create_instrument(
+                manifest,
+                48_000,
+                base_directory=str(path.parent),
+            )
+            self.assertEqual(
+                instrument._tianlai_factory_provenance["factory_route"],
+                "builtin_manifest_dispatch_no_implementation",
+            )
+            del instrument
+            gc.collect()
 
         # 马林巴已改用 VCSL 专用多采样升级为 dedicated_sfz candidate;
         # 守住它不再是通用 SoundFont,且 VPO 树内确实没有马林巴素材。

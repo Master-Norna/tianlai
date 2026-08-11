@@ -56,6 +56,50 @@ class CommonSoundFontPolicyTests(unittest.TestCase):
         self.assertNotIn("InstallLocalCompatibilitySoundFonts", text)
         self.assertIn("不默认安装许可未进入公开边界", text)
 
+    def test_restore_path_always_revalidates_the_canonical_environment(self) -> None:
+        text = _read_windows_powershell(ALL_INSTALLER)
+        restore_block = text.split(
+            "if ($selectedFamilies.Count -gt 0) {",
+            maxsplit=1,
+        )[1]
+
+        self.assertIn('"bootstrap_windows.ps1") -SkipSmoke', restore_block)
+        self.assertLess(
+            restore_block.index('"bootstrap_windows.ps1") -SkipSmoke'),
+            restore_block.index('"tianlai.resource_restore"'),
+        )
+
+    def test_common_installer_uses_canonical_environment_and_soundfont_extra(
+        self,
+    ) -> None:
+        text = _read_windows_powershell(COMMON_INSTALLER)
+        compact = " ".join(text.split())
+
+        self.assertIn('"bootstrap_windows.ps1"', text)
+        self.assertIn("& $bootstrap -SkipSmoke", text)
+        self.assertIn('"requirements-soundfont.txt"', text)
+        self.assertIn("m.version('pyfluidsynth') == '1.4.0'", text)
+        self.assertNotIn("-m venv", text)
+        self.assertLess(
+            compact.index("Ensure-PythonEnvironment New-Item"),
+            compact.index("try { Install-GeneralUser"),
+        )
+
+    def test_explicit_compatibility_request_is_all_or_nothing(self) -> None:
+        text = _read_windows_powershell(COMMON_INSTALLER)
+
+        self.assertIn("-not ($generalUserReady -and $timGmReady)", text)
+        self.assertIn("未全部安装成功", text)
+
+    def test_existing_fluidsynth_tree_is_integrity_checked(self) -> None:
+        text = _read_windows_powershell(COMMON_INSTALLER)
+
+        self.assertIn("Get-TreeManifestText", text)
+        self.assertIn('".tianlai-tree-sha256"', text)
+        self.assertIn("$_.FullName -ne $treeMarkerPath", text)
+        self.assertIn("[IO.File]::ReadAllText($treeMarker", text)
+        self.assertIn("-ceq (Get-TreeManifestText $fluidRoot)", text)
+
     def test_installers_parse_with_powershell(self) -> None:
         executable = shutil.which("pwsh")
         if os.name == "nt":

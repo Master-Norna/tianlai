@@ -16,7 +16,26 @@
   "wav_sha256": "754377cd46ff70b0ade2a9501f8268b8dc1b8e8b90d9eb6d24204c9f11d5367c",
   "hash_algorithm": "SHA-256",
   "canonicalization": "tianlai-json-v1",
-  "manifest_canonical_sha256": "a2db461d67851c738e6e04ad1b871015084a71f9e1980871690dd77fac0b6619",
+  "manifest_canonical_sha256": "41e287b25ded5d27c03e87b9fd7bf7b90c75c87407cd031d485abefe607d6b85",
+  "factory_dispatch_migration": {
+    "status": "implementation_relocated_to_builtin_no_audio_change",
+    "migrated_at": "2026-08-11",
+    "previous_manifest_canonical_sha256": "a2db461d67851c738e6e04ad1b871015084a71f9e1980871690dd77fac0b6619",
+    "changed_fields": [
+      "implementation"
+    ],
+    "audio_rerendered": false,
+    "baseline_revision": "4b3e3aa5b19a587ccc0e766212165a43a739ee12",
+    "verified_by": "tools/reverify_substantive_builtin_dispatch_migration.py",
+    "byte_exact_fields": [
+      "float64_stream",
+      "float32_stream",
+      "pcm24_wav",
+      "frame_count",
+      "peak_active_voices"
+    ],
+    "reason": "The implementation was relocated into the trusted Tianlai source tree and the manifest now selects built-in dispatch; the directory compatibility wrapper remains available and current-source frozen-event A/B rendering was byte-exact."
+  },
   "events": "examples/全音域上行/管弦乐/弦乐组/中提琴_全音域上行.events.json",
   "events_canonical_sha256": "9f8055269c1470a691de32a1bb0eb622d701dcf109d951f7a01715f089abce1c",
   "audition_profile": "ascending-scale",

@@ -27,6 +27,9 @@ from typing import Any
 # 后端模块里的奏法常量。写成显式表而不是反射搜索,是为了让"某个奏法名从哪来"
 # 这个问题永远有确定答案;后端改了名字这里会立刻失配报错,而不是悄悄查不到。
 _BACKEND_ARTICULATIONS: dict[str, tuple[str, str]] = {
+    "violin": ("tianlai.violin", "_PUBLIC_ARTICULATIONS"),
+    "cello": ("tianlai.cello", "_PUBLIC_ARTICULATIONS"),
+    "flute": ("tianlai.flute", "_PUBLIC_ARTICULATIONS"),
     "vpo_solo_string": ("tianlai.vpo_strings", "_PUBLIC_ARTICULATIONS"),
     "vpo_brass": ("tianlai.vpo_brass", "_PUBLIC_ARTICULATIONS"),
     "vpo_woodwind": ("tianlai.vpo_woodwinds", "_PUBLIC_ARTICULATIONS"),
@@ -1406,13 +1409,10 @@ def _read_range_profiles(
 def _load_local_articulations(
     directory: Path, manifest: dict[str, Any]
 ) -> tuple[str, ...] | None:
-    """Read the articulation set out of an instrument's own ``乐器.py``.
+    """Read a legacy local factory's articulation set from ``乐器.py``.
 
-    Four instruments (钢琴 / 小提琴 / 大提琴 / 长笛) carry their state machine in
-    their own directory rather than in ``tianlai/``, and declare the articulations
-    they accept as a module constant there.  Without this the capability layer
-    only sees ``default_articulation`` and reports a one-articulation instrument,
-    so the conductor can never reach for a faster attack on a moving line.
+    Trusted built-in backends belong in ``_BACKEND_ARTICULATIONS`` above.  This
+    fallback remains for compatible third-party or historical local factories.
     """
 
     implementation = manifest.get("implementation")

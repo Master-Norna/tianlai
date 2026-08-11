@@ -5,7 +5,6 @@
   "collaboration_review_status": "untested",
   "upgrade_status": "vpo_dedicated_multisample",
   "fallback_policy": "explicit_only_no_silent_gm",
-  "implementation": "乐器.py",
   "instrument_name": "大号",
   "sfz_prefix": "tuba",
   "ensemble_scope": "SOLO",

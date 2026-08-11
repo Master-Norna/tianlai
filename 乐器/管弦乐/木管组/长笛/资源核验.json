@@ -8,11 +8,15 @@
   },
   "sample_count": 20,
   "sample_bytes": 6279064,
+  "decoded_float32_stereo_bytes": 25104480,
+  "decoded_float32_stereo_algorithm": "sum unique runtime sample frame_count * 2 output channels * 4-byte float32; mono sources are expanded to stereo by read_audio_float",
   "sample_formats": {
     ".wav:44100Hz:1ch": 20
   },
   "sample_enumeration": "constructed the instrument and walked its loaded sample regions; hashes cover exactly the files the engine reads at run time",
   "sample_set_sha256": "0d2b5891f1efef412eec6d8ecde79def0ecb3c2743d862a4ef0c0c220c926a01",
   "sample_set_hash_algorithm": "sort unique asset-root-relative UTF-8 paths; concatenate lowercase '<sha256>  <path>\\n>'; SHA-256 the UTF-8 bytes",
-  "generated_at": "2026-07-22"
+  "generated_at": "2026-08-11",
+  "implementation_source": "tianlai/flute.py",
+  "implementation_sha256": "71da5a0f69bf79a5d49f7a9075d41a5ca4c24cccad9379b2e6546282969d6de1"
 }

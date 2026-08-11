@@ -10,6 +10,8 @@
   },
   "sample_count": 10,
   "sample_bytes": 4160034,
+  "decoded_float32_stereo_bytes": 15830432,
+  "decoded_float32_stereo_algorithm": "sum unique runtime sample frame_count * 2 output channels * 4-byte float32; mono sources are expanded to stereo by read_audio_float",
   "sample_set_sha256": "ddb6490c6f9a0a78b6f04171714dcd46ba5fecd31b4cb81292c7a4000af2779d",
   "sample_set_algorithm": "Sort unique VPO-relative UTF-8 paths; for each write '<lowercase file sha256>  <path>\\n'; SHA-256 the concatenated UTF-8 bytes.",
   "license_file_sha256": {

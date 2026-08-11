@@ -14,6 +14,8 @@
   },
   "sample_count": 64,
   "sample_bytes": 132588162,
+  "decoded_float32_stereo_bytes": 202661824,
+  "decoded_float32_stereo_algorithm": "sum unique runtime sample frame_count * 2 output channels * 4-byte float32; mono sources are expanded to stereo by read_audio_float",
   "sample_sha256": {
     "Membranophones/Struck Membranophones/Timpani 1/Roll/Timpani1_Roll_v3_rr1_Sum.wav": "834f3fcf28a546d854cf3e331cde3d14da68788d130ca306a2ef6f975230566a",
     "Membranophones/Struck Membranophones/Timpani 1/Roll/Timpani1_Roll_v5_rr1_Sum.wav": "9a4b61ae283d607cc77f07d99908f5f1835c4512fdfaa2a69b8b878f51a0ae60",

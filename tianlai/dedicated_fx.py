@@ -22,6 +22,7 @@ from typing import Any
 
 from .dedicated_sfz import DedicatedSfzInstrument
 from .events import PerformanceEvent
+from ._event_free_blocks import audited_event_free_blocks
 from .instrument import Instrument, StereoFrame
 from .tuning import EqualTemperament
 
@@ -203,6 +204,7 @@ _EFFECTS = {
 }
 
 
+@audited_event_free_blocks(silence_safe=False)
 class DedicatedFxInstrument(Instrument):
     """DedicatedSfzInstrument 输出经过固定效果链的包装。"""
 

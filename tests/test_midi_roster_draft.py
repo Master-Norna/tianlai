@@ -373,6 +373,25 @@ class MidiRosterDraftTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, r"超过 64 MiB"):
             read_midi(path)
 
+    def test_path_import_uses_one_descriptor_instead_of_path_reopen(self) -> None:
+        path = Path(self._temporary_directory.name) / "single-open.mid"
+        path.write_bytes(_midi_fixture())
+        with (
+            mock.patch.object(
+                Path,
+                "stat",
+                side_effect=AssertionError("pathname stat is forbidden"),
+            ),
+            mock.patch.object(
+                Path,
+                "read_bytes",
+                side_effect=AssertionError("pathname reopen is forbidden"),
+            ),
+        ):
+            document, _report = read_midi(path)
+
+        self.assertEqual(document["schema_version"], 1)
+
     def test_rejects_format_zero_with_multiple_tracks(self) -> None:
         self._assert_midi_rejected(
             "format-zero-two-tracks.mid",

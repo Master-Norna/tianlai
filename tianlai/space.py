@@ -269,27 +269,86 @@ def _comb(x: np.ndarray, delay: int, g: float) -> np.ndarray:
 
 def _allpass(x: np.ndarray, delay: int, g: float) -> np.ndarray:
     """Schroeder 全通:y[n] = -g·x[n] + x[n-D] + g·y[n-D],做扩散不改幅频。"""
-    grid, n = _reshape_columns(x, delay)
-    x_prev = np.zeros_like(grid)
-    x_prev[1:] = grid[:-1]              # x[n-D]:上移一行(同列即差 D 个样本)
-    u = -g * grid + x_prev
-    _feedback_along_rows(u, g)
-    return u.reshape(-1)[:n]
-
-
-def _spectral_shape(x: np.ndarray, sr: int, highpass_hz: float, lowpass_hz: float) -> np.ndarray:
-    """FFT 域的高通+低通成型(零相位,只改幅度)。给混响尾去底糊、变暖。"""
+    # The former reshape implementation first copied ``x`` into a padded
+    # track-sized grid and then allocated ``u`` beside it.  The recurrence is
+    # independent in each delay column, so the same row operations can be
+    # applied to exact-length slices.  This keeps one owned output only.  The
+    # explicit ``+ 0.0`` on the first row preserves the old signed-zero bits.
     n = x.size
-    spectrum = np.fft.rfft(x)
+    u = np.empty(n, dtype=np.float64)
+    np.multiply(x, -g, out=u)
+    u[: min(delay, n)] += 0.0
+    if delay < n:
+        u[delay:] += x[:-delay]
+        for start in range(delay, n, delay):
+            stop = min(n, start + delay)
+            u[start:stop] += g * u[start - delay : stop - delay]
+    return u
+
+
+def _spectral_response(
+    n: int,
+    sr: int,
+    highpass_hz: float,
+    lowpass_hz: float,
+) -> np.ndarray:
+    """Build the deterministic zero-phase response shared by wet channels."""
     freqs = np.fft.rfftfreq(n, 1.0 / sr)
     response = np.ones_like(freqs)
+    if highpass_hz <= 0.0 and lowpass_hz <= 0.0:
+        return response
+    scratch = np.empty_like(freqs)
     if highpass_hz > 0.0:
         # 二阶巴特沃斯幅频:|H| = 1/sqrt(1+(fc/f)^4)
         with np.errstate(divide="ignore"):
-            response *= 1.0 / np.sqrt(1.0 + (highpass_hz / np.maximum(freqs, 1e-9)) ** 4)
+            np.maximum(freqs, 1e-9, out=scratch)
+            np.divide(highpass_hz, scratch, out=scratch)
+            np.power(scratch, 4, out=scratch)
+            np.add(1.0, scratch, out=scratch)
+            np.sqrt(scratch, out=scratch)
+            np.reciprocal(scratch, out=scratch)
+            np.multiply(response, scratch, out=response)
     if lowpass_hz > 0.0:
-        response *= 1.0 / np.sqrt(1.0 + (freqs / lowpass_hz) ** 4)
-    return np.fft.irfft(spectrum * response, n)
+        np.divide(freqs, lowpass_hz, out=scratch)
+        np.power(scratch, 4, out=scratch)
+        np.add(1.0, scratch, out=scratch)
+        np.sqrt(scratch, out=scratch)
+        np.reciprocal(scratch, out=scratch)
+        np.multiply(response, scratch, out=response)
+    return response
+
+
+def _apply_spectral_response(x: np.ndarray, response: np.ndarray) -> np.ndarray:
+    """Apply a precomputed response without allocating a second spectrum."""
+
+    spectrum = np.fft.rfft(x)
+    spectrum *= response
+    return np.fft.irfft(spectrum, x.size)
+
+
+def _apply_spectral_response_in_place(
+    x: np.ndarray,
+    response: np.ndarray,
+) -> np.ndarray:
+    """Apply the same FFT formula while retaining ``x`` as the output.
+
+    NumPy 2.4's explicit FFT outputs avoid a second full-length wet channel.
+    The transform, response multiplication and inverse transform retain the
+    exact operation order used by :func:`_apply_spectral_response`.
+    """
+
+    spectrum = np.empty(response.shape, dtype=np.complex128)
+    np.fft.rfft(x, out=spectrum)
+    spectrum *= response
+    np.fft.irfft(spectrum, x.size, out=x)
+    return x
+
+
+def _spectral_shape(x: np.ndarray, sr: int, highpass_hz: float, lowpass_hz: float) -> np.ndarray:
+    """Apply the hall's deterministic zero-phase spectral shaping."""
+
+    response = _spectral_response(x.size, sr, highpass_hz, lowpass_hz)
+    return _apply_spectral_response(x, response)
 
 
 def _reverb_bank(send: np.ndarray, sr: int, cfg: SpaceConfig, offset: int) -> np.ndarray:
@@ -317,18 +376,55 @@ def _render_reverb_pair(
     """用两套延时银行渲染一条信号，并完成公共的滤波、前置延时和增益。"""
 
     highpass_hz, damping_hz = cfg.effective_filter_frequencies(sr)
-    wet_l = _reverb_bank(send, sr, cfg, left_offset)
-    wet_r = _reverb_bank(send, sr, cfg, right_offset)
-    wet_l = _spectral_shape(wet_l, sr, highpass_hz, damping_hz)
-    wet_r = _spectral_shape(wet_r, sr, highpass_hz, damping_hz)
+    # Both channels have the same length and filter settings.  Build the
+    # response once, then finish one channel before allocating the next.  This
+    # avoids retaining both unfiltered channels beside an FFT output while
+    # preserving the two independent channel calculations bit for bit.
+    response = _spectral_response(send.size, sr, highpass_hz, damping_hz)
+    wet_l = _render_reverb_channel(
+        send,
+        sr,
+        cfg,
+        left_offset,
+        response,
+    )
+    wet_r = _render_reverb_channel(
+        send,
+        sr,
+        cfg,
+        right_offset,
+        response,
+    )
+
+    return wet_l, wet_r
+
+
+def _render_reverb_channel(
+    send: np.ndarray,
+    sr: int,
+    cfg: SpaceConfig,
+    offset: int,
+    response: np.ndarray,
+) -> np.ndarray:
+    """Render one independent wet channel into one owned full-length array."""
+
+    wet = _reverb_bank(send, sr, cfg, offset)
+    _apply_spectral_response_in_place(wet, response)
 
     predelay = max(0, round(cfg.predelay_ms * 1e-3 * sr))
     if predelay:
-        wet_l = np.concatenate([np.zeros(predelay), wet_l])[: send.size]
-        wet_r = np.concatenate([np.zeros(predelay), wet_r])[: send.size]
+        if predelay >= send.size:
+            wet.fill(0.0)
+        else:
+            # These arrays are private contiguous FFT results, so an
+            # overlapping slice assignment can shift them without another
+            # full-size allocation.
+            wet[predelay:] = wet[:-predelay]
+            wet[:predelay] = 0.0
 
     wet_gain = 10.0 ** (cfg.wet_db / 20.0)
-    return wet_l * wet_gain, wet_r * wet_gain
+    wet *= wet_gain
+    return wet
 
 
 def render_reverb(send: np.ndarray, sr: int, cfg: SpaceConfig) -> tuple[np.ndarray, np.ndarray]:
@@ -390,9 +486,11 @@ def render_reverb_stereo(
     # 先乘 0.5 再相加，避免两个很大的有限输入在 L+R 中间步骤溢出。
     mid = 0.5 * left_channel + 0.5 * right_channel
     side = 0.5 * left_channel - 0.5 * right_channel
+    del left_channel, right_channel
 
     spread = round(_STEREO_SPREAD_44K * sr / 44100.0)
     wet_mid_l, wet_mid_r = _render_reverb_pair(mid, sr, cfg, 0, spread)
+    del mid
 
     # 另取 spread 内的两个确定性偏移；最大延时不超过原右声道银行，因此
     # SpaceConfig.tail_seconds() 的既有保守估计仍然成立。即使 side 恰为零也
@@ -402,15 +500,34 @@ def render_reverb_stereo(
         spread - 1,
         max(side_left_offset + 1, round(2.0 * spread / 3.0)),
     )
-    wet_side_l, wet_side_r = _render_reverb_pair(
+    highpass_hz, damping_hz = cfg.effective_filter_frequencies(sr)
+    response = _spectral_response(
+        side.size,
+        sr,
+        highpass_hz,
+        damping_hz,
+    )
+    wet_side_l = _render_reverb_channel(
         side,
         sr,
         cfg,
         side_left_offset,
-        side_right_offset,
+        response,
     )
-    wet_l = wet_mid_l + wet_side_l
-    wet_r = wet_mid_r - wet_side_r
+    wet_mid_l += wet_side_l
+    del wet_side_l
+    wet_side_r = _render_reverb_channel(
+        side,
+        sr,
+        cfg,
+        side_right_offset,
+        response,
+    )
+    del side, response
+    wet_mid_r -= wet_side_r
+    del wet_side_r
+    wet_l = wet_mid_l
+    wet_r = wet_mid_r
 
     if not np.isfinite(wet_l).all() or not np.isfinite(wet_r).all():
         raise ValueError("space stereo 渲染结果超出有限数值范围")

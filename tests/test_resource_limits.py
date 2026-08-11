@@ -8,6 +8,7 @@ from unittest.mock import patch
 from tianlai.resource_limits import (
     ProjectLimits,
     ResourceLimitError,
+    _analysis_transaction_scratch_requirement,
     estimate_render_resources,
     validate_plan_resource_limits,
     validate_score_resource_limits,
@@ -57,6 +58,26 @@ class _Plan:
 
 
 class ResourceLimitTests(unittest.TestCase):
+    def test_analysis_transaction_space_gate_covers_conservative_overlap(
+        self,
+    ) -> None:
+        frames = 123
+        reserve = 512 * 1024 * 1024
+        self.assertEqual(
+            _analysis_transaction_scratch_requirement(
+                frames,
+                write_stems=False,
+            ),
+            reserve + frames * (8 + 8),
+        )
+        self.assertEqual(
+            _analysis_transaction_scratch_requirement(
+                frames,
+                write_stems=True,
+            ),
+            reserve + frames * (8 + 8 + 6),
+        )
+
     def test_score_note_budget_is_enforced(self) -> None:
         document = _score(2)
         parsed = parse_score_document(document)

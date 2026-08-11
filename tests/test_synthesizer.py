@@ -8,6 +8,7 @@ from pathlib import Path
 import struct
 import tempfile
 import unittest
+from unittest.mock import patch
 import wave
 
 import numpy as np
@@ -351,6 +352,55 @@ class SynthesizerInstrumentTests(unittest.TestCase):
                     self.assertEqual(audio.getsampwidth(), 3)
                     self.assertEqual(audio.getframerate(), 16_000)
                     self.assertEqual(audio.getnframes(), 2_560)
+
+    def test_dense_production_render_keeps_the_established_frame_path(
+        self,
+    ) -> None:
+        performance = {
+            "sample_rate": 8_000,
+            "duration_seconds": 0.12,
+            "events": [
+                {
+                    "time": 0.0,
+                    "type": "note_on",
+                    "note_id": 1,
+                    "midi_note": 60,
+                    "velocity": 0.8,
+                },
+                {"time": 0.1, "type": "note_off", "note_id": 1},
+            ],
+        }
+        with tempfile.TemporaryDirectory(prefix="天籁密集合成器_") as raw:
+            temporary = Path(raw)
+            events_path = temporary / "持续发声.events.json"
+            events_path.write_text(
+                json.dumps(performance, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            with patch(
+                "tianlai.renderer.render_document_blocks",
+                side_effect=AssertionError("dense synth entered block path"),
+            ):
+                result = render_to_wav(
+                    SYNTH_ROOT / "温暖铺底" / "乐器.json",
+                    events_path,
+                    temporary / "持续发声.wav",
+                )
+        self.assertEqual(result.frame_count, 960)
+        self.assertGreater(result.peak_active_voices, 0)
+
+    def test_resource_evidence_tracks_the_current_synth_engine(self) -> None:
+        engine_sha256 = hashlib.sha256(
+            (ROOT / "tianlai" / "synthesizer.py").read_bytes()
+        ).hexdigest().upper()
+        for name in INSTRUMENTS:
+            with self.subTest(instrument=name):
+                report = json.loads(
+                    (SYNTH_ROOT / name / "资源核验.json").read_text(
+                        encoding="utf-8"
+                    )
+                )
+                self.assertEqual(report["engine_sha256"], engine_sha256)
 
 
 if __name__ == "__main__":

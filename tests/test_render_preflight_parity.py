@@ -110,8 +110,28 @@ class RenderResourceRequestTests(unittest.TestCase):
             with_stems["render_parameters"]["analysis_enabled"]
         )
         self.assertIn(
-            "sequentially",
+            "bounded internal parallelism",
             with_stems["memory_model"]["write_stems"],
+        )
+        self.assertIn(
+            "performance-plan order",
+            with_stems["memory_model"]["write_stems"],
+        )
+        self.assertIn(
+            "same-user processes",
+            with_stems["memory_model"]["write_stems"],
+        )
+        self.assertIn(
+            "plan order",
+            with_stems["memory_model"]["stem_cache"],
+        )
+        self.assertIn(
+            "anonymous snapshot",
+            with_stems["memory_model"]["stem_cache"],
+        )
+        self.assertIn(
+            "small hits may load directly",
+            with_stems["memory_model"]["stem_cache"],
         )
         self.assertIn(
             "memmap",

@@ -172,6 +172,7 @@ def generate_sampled_resource_verification(
 
     lines: list[str] = []
     total_bytes = 0
+    decoded_float32_stereo_bytes = 0
     formats: dict[str, int] = {}
     for path in samples:
         try:
@@ -181,7 +182,10 @@ def generate_sampled_resource_verification(
         digest = hashlib.sha256(path.read_bytes()).hexdigest()
         lines.append(f"{digest}  {relative}\n")
         total_bytes += path.stat().st_size
-        sample_rate, _, channels = audio_file_info(path)
+        sample_rate, frame_count, channels = audio_file_info(path)
+        if channels not in (1, 2):
+            raise ValueError(f"采样声道数必须是 1 或 2:{path}")
+        decoded_float32_stereo_bytes += frame_count * 2 * 4
         key = f"{path.suffix.lower()}:{sample_rate}Hz:{channels}ch"
         formats[key] = formats.get(key, 0) + 1
 
@@ -200,6 +204,12 @@ def generate_sampled_resource_verification(
         "evidence_sha256": evidence,
         "sample_count": len(samples),
         "sample_bytes": total_bytes,
+        "decoded_float32_stereo_bytes": decoded_float32_stereo_bytes,
+        "decoded_float32_stereo_algorithm": (
+            "sum unique runtime sample frame_count * 2 output channels * "
+            "4-byte float32; mono sources are expanded to stereo by "
+            "read_audio_float"
+        ),
         "sample_formats": formats,
         "sample_enumeration": (
             "constructed the instrument and walked its loaded sample regions; "

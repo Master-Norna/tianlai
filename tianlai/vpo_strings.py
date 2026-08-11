@@ -10,6 +10,7 @@ import statistics
 from typing import Any
 
 from .events import PerformanceEvent, event_pitch_hz
+from ._event_free_blocks import audited_event_free_blocks
 from .instrument import Instrument, StereoFrame
 from .sampler import SampleInstrument
 from .sfz import note_number
@@ -352,6 +353,7 @@ class _ScheduledRelease:
     release_seconds: float
 
 
+@audited_event_free_blocks(silence_safe=False)
 class VpoSoloStringInstrument(Instrument):
     """Deterministic VPO solo-string candidate shared by viola and bass."""
 
@@ -950,6 +952,7 @@ def harp_source_regions(
     }
 
 
+@audited_event_free_blocks(silence_safe=False)
 class VpoStringSectionInstrument(Instrument):
     """VPO all-string section candidate with real articulation routing.
 
@@ -1245,6 +1248,7 @@ class VpoStringSectionInstrument(Instrument):
         )
 
 
+@audited_event_free_blocks(silence_safe=False)
 class VpoHarpInstrument(Instrument):
     """Mapped concert-harp candidate with explicit ringing/dampened releases."""
 

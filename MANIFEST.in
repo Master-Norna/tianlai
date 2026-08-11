@@ -1,4 +1,5 @@
 # PyPI source distributions expose the reusable Python engine only.
 # The formal Tianlai product is the separately built source release ZIP.
+exclude README.md
 prune tests
 global-exclude __pycache__ *.py[cod]

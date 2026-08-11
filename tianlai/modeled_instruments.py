@@ -29,6 +29,7 @@ from pathlib import Path
 from typing import Any
 
 from .events import PerformanceEvent, event_pitch_hz
+from ._event_free_blocks import audited_event_free_blocks
 from .instrument import Instrument, StereoFrame
 from .provenance import project_authored_dsp_provenance
 from .tuning import EqualTemperament
@@ -136,7 +137,8 @@ class _PluckedStringVoice(_VoiceBase):
         "body_state2", "body_mix", "body_cutoff1", "body_cutoff2", "amplitude",
         "age", "attack_noise", "attack_noise_samples", "attack_samples",
         "random", "pan", "sympathetic", "dc_input_state", "dc_output_state",
-        "dc_coefficient", "level_envelope", "level_release_coefficient",
+        "body_coefficient1", "body_coefficient2", "dc_coefficient",
+        "level_envelope", "level_release_coefficient",
         "silent_samples", "silence_window_samples", "silence_threshold",
     )
 
@@ -187,6 +189,12 @@ class _PluckedStringVoice(_VoiceBase):
         self.buzz_threshold = _finite(params.get("buzz_threshold", 0.12), "buzz_threshold")
         self.body_cutoff1 = _finite(params.get("body_low_hz", 180.0), "body_low_hz")
         self.body_cutoff2 = _finite(params.get("body_mid_hz", 900.0), "body_mid_hz")
+        self.body_coefficient1 = 1.0 - math.exp(
+            -2.0 * math.pi * self.body_cutoff1 / self.sample_rate
+        )
+        self.body_coefficient2 = 1.0 - math.exp(
+            -2.0 * math.pi * self.body_cutoff2 / self.sample_rate
+        )
         self.body_mix = _finite(params.get("body_mix", 0.35), "body_mix")
         self.body_state1 = 0.0
         self.body_state2 = 0.0
@@ -278,10 +286,12 @@ class _PluckedStringVoice(_VoiceBase):
             self.sympathetic[entry_index] = (line, position + 1, damping)
             output += value * 0.35
 
-        coefficient1 = 1.0 - math.exp(-2.0 * math.pi * self.body_cutoff1 / self.sample_rate)
-        self.body_state1 += coefficient1 * (output - self.body_state1)
-        coefficient2 = 1.0 - math.exp(-2.0 * math.pi * self.body_cutoff2 / self.sample_rate)
-        self.body_state2 += coefficient2 * (output - self.body_state2)
+        self.body_state1 += self.body_coefficient1 * (
+            output - self.body_state1
+        )
+        self.body_state2 += self.body_coefficient2 * (
+            output - self.body_state2
+        )
         body = 0.6 * self.body_state1 + 0.4 * (self.body_state2 - self.body_state1)
         mixed = output * (1.0 - self.body_mix) + body * self.body_mix
 
@@ -325,7 +335,7 @@ class _BlownPipeVoice(_VoiceBase):
         "age", "breath_gain", "breath_state", "breath_center", "amplitude",
         "random", "vibrato_depth", "vibrato_rate", "vibrato_phase",
         "attack_bend_cents", "attack_bend_samples", "chiff_gain",
-        "chiff_samples", "odd_bias",
+        "chiff_samples", "odd_bias", "breath_coefficient",
     )
 
     def __init__(
@@ -360,6 +370,13 @@ class _BlownPipeVoice(_VoiceBase):
         self.breath_gain = _finite(params.get("breath_noise", 0.16), "breath_noise")
         self.breath_state = 0.0
         self.breath_center = _finite(params.get("breath_center_ratio", 2.6), "breath_center_ratio")
+        breath_center_hz = min(
+            self.frequency * self.breath_center,
+            self.sample_rate * 0.4,
+        )
+        self.breath_coefficient = 1.0 - math.exp(
+            -2.0 * math.pi * breath_center_hz / self.sample_rate
+        )
         self.amplitude = 0.35 + 0.65 * velocity
         self.random = random
         self.vibrato_depth = _finite(params.get("vibrato_cents", 22.0), "vibrato_cents")
@@ -392,9 +409,9 @@ class _BlownPipeVoice(_VoiceBase):
                 tone += amplitude * math.sin(self.phase * order)
 
         noise = self.random.noise()
-        center = min(self.frequency * self.breath_center, self.sample_rate * 0.4)
-        coefficient = 1.0 - math.exp(-2.0 * math.pi * center / self.sample_rate)
-        self.breath_state += coefficient * (noise - self.breath_state)
+        self.breath_state += self.breath_coefficient * (
+            noise - self.breath_state
+        )
         breath = (noise - self.breath_state) * self.breath_gain
         if self.age < self.chiff_samples:
             breath += noise * self.chiff_gain * (1.0 - self.age / self.chiff_samples)
@@ -407,7 +424,7 @@ class _BlownPipeVoice(_VoiceBase):
 class _DoubleReedVoice(_BlownPipeVoice):
     """双簧亮音:在气鸣模型上叠加共振峰。"""
 
-    __slots__ = ("formant_states", "formants")
+    __slots__ = ("formant_coefficients", "formant_states", "formants")
 
     def __init__(self, sample_rate, frequency_hz, velocity, params, random) -> None:
         super().__init__(sample_rate, frequency_hz, velocity, params, random)
@@ -415,14 +432,18 @@ class _DoubleReedVoice(_BlownPipeVoice):
             (_finite(center, "formant center"), _finite(gain, "formant gain"))
             for center, gain in params.get("formants", [(1250.0, 1.8), (3100.0, 1.1)])
         ]
+        self.formant_coefficients = [
+            1.0 - math.exp(-2.0 * math.pi * center / self.sample_rate)
+            for center, _gain in self.formants
+        ]
         self.formant_states = [[0.0, 0.0] for _ in self.formants]
 
     def step(self, modulation: float) -> StereoFrame:
         left, _ = super().step(modulation)
         boosted = left
-        for index, (center, gain) in enumerate(self.formants):
+        for index, (_center, gain) in enumerate(self.formants):
             state = self.formant_states[index]
-            coefficient = 1.0 - math.exp(-2.0 * math.pi * center / self.sample_rate)
+            coefficient = self.formant_coefficients[index]
             state[0] += coefficient * (left - state[0])
             state[1] += coefficient * (state[0] - state[1])
             boosted += (state[0] - state[1]) * gain
@@ -789,6 +810,7 @@ PROFILES: dict[str, dict[str, Any]] = {
 }
 
 
+@audited_event_free_blocks(silence_safe=True)
 class ModeledInstrument(Instrument):
     def __init__(self, sample_rate: int, manifest: dict[str, Any], base_directory: str) -> None:
         super().__init__(sample_rate)

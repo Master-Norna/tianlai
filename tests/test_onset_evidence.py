@@ -39,6 +39,16 @@ from tianlai.runtime_variants import (
 )
 
 
+def _windows_replace_error(code: int) -> PermissionError:
+    error = PermissionError(13, f"simulated Windows replace error {code}")
+    error.winerror = code
+    return error
+
+
+def _raise_windows_replace_error(code: int) -> None:
+    raise _windows_replace_error(code)
+
+
 class OnsetEvidenceWorkflowTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory(
@@ -766,6 +776,38 @@ class OnsetEvidenceWorkflowTests(unittest.TestCase):
             frozen,
         )
 
+    def test_unreferenced_sibling_wrapper_is_not_a_runtime_input(self) -> None:
+        manifest = read_json_strict(self.manifest)
+        manifest["type"] = "oscillator"
+        manifest.pop("implementation")
+        self.manifest.write_text(
+            json.dumps(manifest, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        frozen = compute_runtime_fingerprint(self.root, self.manifest)
+        self.assertEqual(
+            frozen["local_implementation"],
+            {"path": None, "sha256": None},
+        )
+        paths = {
+            record["path"]
+            for record in frozen["render_python_closure"]["files"]
+        }
+        self.assertNotIn(self._relative(self.implementation), paths)
+
+        self.implementation.write_text(
+            "raise AssertionError('unreferenced compatibility entry')\n",
+            encoding="utf-8",
+        )
+        self.assertEqual(
+            validate_runtime_fingerprint(
+                frozen,
+                project_root=self.root,
+                manifest_path=self.manifest,
+            ),
+            frozen,
+        )
+
     def test_render_closure_stales_for_each_bound_render_source(self) -> None:
         targets = (
             self.root / "tianlai" / "renderer.py",
@@ -1138,6 +1180,198 @@ class OnsetEvidenceWorkflowTests(unittest.TestCase):
         replace.assert_called_once()
         self.assertEqual(read_json_strict(target), {"ok": True})
         self.assertFalse(any(self.probes.glob(".atomic.json.*.tmp")))
+
+    def test_atomic_write_retries_one_transient_windows_lock(self) -> None:
+        for code in (5, 32, 33):
+            with self.subTest(winerror=code):
+                target = self.probes / f"transient-lock-{code}.json"
+                write_json_atomic(target, {"generation": "old"})
+                real_replace = os.replace
+                attempts = 0
+
+                def transient_once(source, destination) -> None:
+                    nonlocal attempts
+                    attempts += 1
+                    if attempts == 1:
+                        raise _windows_replace_error(code)
+                    real_replace(source, destination)
+
+                with (
+                    mock.patch(
+                        "tianlai.onset_evidence._is_windows_runtime",
+                        return_value=True,
+                    ),
+                    mock.patch(
+                        "tianlai.onset_evidence.os.replace",
+                        side_effect=transient_once,
+                    ),
+                    mock.patch("tianlai.onset_evidence.time.sleep") as sleep,
+                ):
+                    write_json_atomic(target, {"generation": "new"})
+
+                self.assertEqual(attempts, 2)
+                sleep.assert_called_once_with(0.010)
+                self.assertEqual(
+                    read_json_strict(target),
+                    {"generation": "new"},
+                )
+                self.assertFalse(
+                    any(self.probes.glob(f".{target.name}.*.tmp"))
+                )
+
+    def test_atomic_write_bounds_persistent_windows_lock_and_preserves_temp(
+        self,
+    ) -> None:
+        target = self.probes / "persistent-lock.json"
+        write_json_atomic(target, {"generation": "old"})
+
+        with (
+            mock.patch(
+                "tianlai.onset_evidence._is_windows_runtime",
+                return_value=True,
+            ),
+            mock.patch(
+                "tianlai.onset_evidence.os.replace",
+                side_effect=lambda *_args: _raise_windows_replace_error(5),
+            ) as replace,
+            mock.patch("tianlai.onset_evidence.time.sleep") as sleep,
+        ):
+            with self.assertRaisesRegex(
+                PermissionError,
+                "simulated Windows replace error 5",
+            ):
+                write_json_atomic(target, {"generation": "new"})
+
+        self.assertEqual(replace.call_count, 5)
+        self.assertEqual(
+            sleep.call_args_list,
+            [
+                mock.call(0.010),
+                mock.call(0.025),
+                mock.call(0.050),
+                mock.call(0.100),
+            ],
+        )
+        self.assertEqual(read_json_strict(target), {"generation": "old"})
+        temporaries = list(self.probes.glob(".persistent-lock.json.*.tmp"))
+        self.assertEqual(len(temporaries), 1)
+        self.assertEqual(
+            read_json_strict(temporaries[0]),
+            {"generation": "new"},
+        )
+
+    def test_atomic_write_refuses_changed_temp_before_windows_retry(self) -> None:
+        target = self.probes / "racing-lock.json"
+        write_json_atomic(target, {"generation": "old"})
+        preserved_writer = self.probes / "original-writer-entry.json"
+        racing_payload = b'{"generation":"racer"}\n'
+        observed_temporary: list[Path] = []
+
+        def replace_then_race(source, destination) -> None:
+            source_path = Path(source)
+            self.assertEqual(Path(destination), target)
+            source_path.rename(preserved_writer)
+            source_path.write_bytes(racing_payload)
+            observed_temporary.append(source_path)
+            raise _windows_replace_error(32)
+
+        with (
+            mock.patch(
+                "tianlai.onset_evidence._is_windows_runtime",
+                return_value=True,
+            ),
+            mock.patch(
+                "tianlai.onset_evidence.os.replace",
+                side_effect=replace_then_race,
+            ) as replace,
+            mock.patch("tianlai.onset_evidence.time.sleep") as sleep,
+        ):
+            with self.assertRaisesRegex(
+                PermissionError,
+                "simulated Windows replace error 32",
+            ):
+                write_json_atomic(target, {"generation": "new"})
+
+        replace.assert_called_once()
+        sleep.assert_called_once_with(0.010)
+        self.assertEqual(read_json_strict(target), {"generation": "old"})
+        self.assertEqual(
+            read_json_strict(preserved_writer),
+            {"generation": "new"},
+        )
+        self.assertEqual(len(observed_temporary), 1)
+        self.assertEqual(observed_temporary[0].read_bytes(), racing_payload)
+
+    def test_atomic_write_refuses_in_place_temp_change_before_retry(self) -> None:
+        target = self.probes / "in-place-racing-lock.json"
+        write_json_atomic(target, {"generation": "old"})
+        observed_temporary: list[Path] = []
+        observed_inode: list[int] = []
+
+        def replace_then_modify(source, destination) -> None:
+            source_path = Path(source)
+            self.assertEqual(Path(destination), target)
+            original = bytearray(source_path.read_bytes())
+            marker = original.index(ord("n"))
+            original[marker] = ord("x")
+            observed_inode.append(source_path.stat().st_ino)
+            source_path.write_bytes(original)
+            observed_inode.append(source_path.stat().st_ino)
+            observed_temporary.append(source_path)
+            raise _windows_replace_error(33)
+
+        with (
+            mock.patch(
+                "tianlai.onset_evidence._is_windows_runtime",
+                return_value=True,
+            ),
+            mock.patch(
+                "tianlai.onset_evidence.os.replace",
+                side_effect=replace_then_modify,
+            ) as replace,
+            mock.patch("tianlai.onset_evidence.time.sleep") as sleep,
+        ):
+            with self.assertRaisesRegex(
+                PermissionError,
+                "simulated Windows replace error 33",
+            ):
+                write_json_atomic(target, {"generation": "new"})
+
+        replace.assert_called_once()
+        sleep.assert_called_once_with(0.010)
+        self.assertEqual(observed_inode[0], observed_inode[1])
+        self.assertEqual(read_json_strict(target), {"generation": "old"})
+        self.assertEqual(len(observed_temporary), 1)
+        self.assertTrue(observed_temporary[0].is_file())
+
+    def test_atomic_write_does_not_retry_other_or_non_windows_errors(self) -> None:
+        cases = ((True, 87), (False, 5))
+        for index, (is_windows, error_code) in enumerate(cases):
+            with self.subTest(is_windows=is_windows, error_code=error_code):
+                target = self.probes / f"no-retry-{index}.json"
+                with (
+                    mock.patch(
+                        "tianlai.onset_evidence._is_windows_runtime",
+                        return_value=is_windows,
+                    ),
+                    mock.patch(
+                        "tianlai.onset_evidence.os.replace",
+                        side_effect=lambda *_args, code=error_code: (
+                            _raise_windows_replace_error(code)
+                        ),
+                    ) as replace,
+                    mock.patch(
+                        "tianlai.onset_evidence.time.sleep"
+                    ) as sleep,
+                ):
+                    with self.assertRaises(PermissionError):
+                        write_json_atomic(target, {"case": index})
+                replace.assert_called_once()
+                sleep.assert_not_called()
+                temporaries = list(
+                    self.probes.glob(f".no-retry-{index}.json.*.tmp")
+                )
+                self.assertEqual(len(temporaries), 1)
 
     def test_json_schemas_accept_generated_chain_when_jsonschema_available(self) -> None:
         try:

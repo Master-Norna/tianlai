@@ -62,6 +62,7 @@ EXPECTED_PUBLIC_MARKDOWN_PAIRS = (
 )
 EXPECTED_PUBLIC_DOCUMENTS = frozenset(
     {
+        "README.pypi.md",
         "docs/音源许可例外.json",
         *(
             path

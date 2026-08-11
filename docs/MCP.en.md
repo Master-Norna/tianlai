@@ -2,7 +2,7 @@
 
 # Tianlai MCP interface
 
-Tianlai `0.7.0rc1` exposes editable, reproducible music projects to AI agents
+Tianlai `0.8.0rc1` exposes editable, reproducible music projects to AI agents
 through stdio MCP. An agent does not receive an opaque “one sentence to audio”
 button. It receives fine-grained tools for reading contracts, choosing
 instruments, importing a score, confirming instrumentation, running preflight,
@@ -28,7 +28,7 @@ development environment, run:
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -e ".[mcp]"
-.\.venv\Scripts\python.exe -m tianlai.mcp_server
+.\.venv\Scripts\python.exe -m tianlai.mcp_entry
 ```
 
 The second command starts the stdio server. Example client configuration:
@@ -38,7 +38,7 @@ The second command starts the stdio server. Example client configuration:
   "mcpServers": {
     "tianlai": {
       "command": "C:\\path\\to\\tianlai\\.venv\\Scripts\\python.exe",
-      "args": ["-m", "tianlai.mcp_server"],
+      "args": ["-m", "tianlai.mcp_entry"],
       "cwd": "C:\\path\\to\\tianlai"
     }
   }
@@ -93,7 +93,7 @@ Example:
   "mcpServers": {
     "tianlai": {
       "command": "C:\\path\\to\\tianlai\\.venv\\Scripts\\python.exe",
-      "args": ["-m", "tianlai.mcp_server"],
+      "args": ["-m", "tianlai.mcp_entry"],
       "cwd": "C:\\path\\to\\tianlai",
       "env": {
         "TIANLAI_INPUT_ROOTS": "D:\\Scores;E:\\SharedMusicXML"

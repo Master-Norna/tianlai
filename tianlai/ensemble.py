@@ -1,15 +1,20 @@
 """Ensemble rendering: one stem per executor, then a deterministic mix.
 
-Stems are rendered **sequentially**, not by advancing every instrument
-together.  Three reasons, in order of weight:
+Independent raw stems may be rendered by a small, automatically selected set
+of managed subprocesses.  The coordinator still consumes every result in
+performance-plan order, and automatically keeps the established in-process
+serial path for short, heavy or otherwise ineligible work.  This preserves
+three important properties:
 
-* the sample libraries total well over 8 GB, so holding a full orchestra in
-  memory at once is not realistic while holding one instrument always is;
+* the sample libraries total well over 8 GB, so both worker memory and the
+  anonymous scratch window are conservatively bounded;
 * every stem stays byte-reproducible on its own, which lets the optional raw
   stem cache reuse an unchanged instrument performance without disturbing
   any other part;
-* it reuses the single-instrument path that the 103 instruments were already
-  audited against, so nothing downstream of ``create_instrument`` changes.
+* workers are admitted only for built-in manifest dispatch whose process
+  independence and resource bounds can be proved; local factories keep the
+  established serial path, while gain, analysis, writing and mixing remain
+  in the coordinator.
 
 The cache boundary is deliberately before assignment gain/automation, pan,
 shared hall, collaboration analysis, master gain and normalization.  Those
@@ -31,7 +36,9 @@ advertised by an old receipt.
 
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import dataclass, replace
+import errno
 import hashlib
 import json
 import math
@@ -39,12 +46,19 @@ from numbers import Real
 import os
 from pathlib import Path
 from pathlib import PurePosixPath
+import shutil
 import tempfile
+from types import SimpleNamespace
 from typing import Any, Callable
 import uuid
 import warnings
 
-from .audio import write_wav_pcm24
+from .adaptive_parallelism import (
+    AdaptiveWorkload,
+    make_adaptive_backend_key,
+)
+from .adaptive_runtime import AdaptiveRenderSession
+from .audio import write_wav_pcm24, write_wav_pcm24_blocks
 from .canonical_json import canonical_json_bytes as _project_canonical_json_bytes
 from .collaboration_report import (
     CollaborationReportBuilder,
@@ -79,14 +93,30 @@ from .post_render_check import (
     write_post_render_check,
 )
 from .portable_filename import portable_stem_filename
-from .renderer import render_document
+from . import renderer as _renderer_module
+from .renderer import (
+    _prefer_dense_synth_frame_path,
+    _prefer_frame_stream_path,
+    render_document,
+    render_document_blocks,
+)
 from .render_lock import (
     PlainDirectoryIdentity,
     acquire_render_lock,
     capture_plain_directory,
     revalidate_plain_directory,
 )
-from .resource_limits import validate_render_request_resource_limits
+from .render_parallelism import (
+    automatic_worker_capacity,
+    derive_parallelism_work_frames,
+    derive_worker_resource_estimate,
+    select_render_parallelism,
+)
+from .resource_limits import (
+    ProjectLimits,
+    _analysis_transaction_scratch_requirement,
+    validate_render_request_resource_limits,
+)
 from .roster import CollaborationSettings
 from .stem_cache import (
     PROCESS_SOURCE_TREE_SHA256,
@@ -94,8 +124,25 @@ from .stem_cache import (
     build_cache_key,
     current_source_tree_matches,
 )
+from .stem_source import OwnedStemSource, StemBlockSource
+from .stem_worker import (
+    StemRenderJob,
+    StemWorkerError,
+    _ManagedWarmBinding,
+    _retire_managed_stem_worker_session,
+    _try_start_stem_worker,
+    collect_stem_worker,
+    managed_subprocess_workers_available,
+    retire_idle_stem_workers,
+    terminate_stem_worker,
+)
 from .stereo_stage_metrics import analyze_stereo_stage
 from .workflow_binding import validate_workflow_authorization
+from .worker_slots import (
+    WorkerResourceClaim,
+    WorkerSlotPool,
+    scratch_volume_identity,
+)
 
 
 RENDER_RECEIPT_VERSION = 3
@@ -109,6 +156,12 @@ CACHE_TELEMETRY_NAME = "缓存遥测.json"
 CACHE_TELEMETRY_FORMAT = "tianlai.render_cache_telemetry"
 CACHE_TELEMETRY_VERSION = 1
 RAW_STEM_CACHE_STAGE = "raw_instrument_render_pre_assignment_gain_v1"
+_DIRECT_STEM_CACHE_LOAD_BYTES = 32 * 1024 * 1024
+_DIRECT_SERIAL_STEM_LOAD_BYTES = 32 * 1024 * 1024
+_DIRECT_ANALYSIS_STEM_LOAD_BYTES = 32 * 1024 * 1024
+_STREAMED_STEM_FREE_RESERVE_BYTES = 512 * 1024 * 1024
+_STREAMED_STEM_OUTPUT_MARGIN_BYTES = 1024 * 1024
+_MANAGED_WORKER_CHUNK_BYTES = 65_536 * 2 * 4
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 _LOWER_HEX = frozenset("0123456789abcdef")
 
@@ -919,7 +972,7 @@ def _publish_render_artifacts(staging: Path, final: Path) -> None:
                     parent_identity=parent_identity,
                     directory_identity=backup_identity,
                 )
-            except BaseException as exc:
+            except Exception as exc:
                 # At this point either the new generation was committed or
                 # the original exception is already propagating.  Backup
                 # cleanup must not turn a valid visible generation into a
@@ -1067,6 +1120,8 @@ def apply_gain_envelope(
     if sample_rate <= 0:
         raise ValueError("sample_rate must be positive")
     if not points:
+        if base_gain_db == 0.0:
+            return
         buffer *= 10.0 ** (base_gain_db / 20.0)
         return
     times = np.asarray([point.time_seconds for point in points], dtype=np.float64)
@@ -1085,14 +1140,86 @@ def apply_gain_envelope(
     for start in range(0, int(buffer.shape[0]), chunk_frames):
         end = min(int(buffer.shape[0]), start + chunk_frames)
         frame_times = np.arange(start, end, dtype=np.float64) / float(sample_rate)
-        db = base_gain_db + np.interp(
+        db = np.interp(
             frame_times,
             times,
             offsets,
             left=offsets[0],
             right=offsets[-1],
         )
-        buffer[start:end] *= np.power(10.0, db / 20.0)[:, np.newaxis]
+        db += base_gain_db
+        np.divide(db, 20.0, out=db)
+        np.power(10.0, db, out=db)
+        buffer[start:end] *= db[:, np.newaxis]
+
+
+def _compile_gain_envelope_points(points: Any) -> tuple[Any, Any]:
+    """Validate one curve and freeze its numeric interpolation data."""
+
+    import numpy as np
+
+    times = np.asarray(
+        [point.time_seconds for point in points],
+        dtype=np.float64,
+    )
+    offsets = np.asarray(
+        [point.offset_db for point in points],
+        dtype=np.float64,
+    )
+    if (
+        times.ndim != 1
+        or times.size == 0
+        or not np.isfinite(times).all()
+        or not np.isfinite(offsets).all()
+        or times[0] < 0.0
+        or np.any(np.diff(times) <= 0.0)
+    ):
+        raise ValueError(
+            "gain envelope points must be finite and strictly ordered"
+        )
+    return times, offsets
+
+
+def _apply_gain_envelope_block(
+    buffer: Any,
+    sample_rate: int,
+    base_gain_db: float,
+    points: Any,
+    *,
+    frame_offset: int,
+    compiled_points: tuple[Any, Any] | None = None,
+) -> None:
+    """Block form of ``apply_gain_envelope`` with absolute frame timing."""
+
+    import numpy as np
+
+    if sample_rate <= 0:
+        raise ValueError("sample_rate must be positive")
+    if frame_offset < 0:
+        raise ValueError("frame_offset must be non-negative")
+    if not points:
+        if base_gain_db != 0.0:
+            buffer *= 10.0 ** (base_gain_db / 20.0)
+        return
+    if compiled_points is None:
+        times, offsets = _compile_gain_envelope_points(points)
+    else:
+        times, offsets = compiled_points
+    stop = frame_offset + int(buffer.shape[0])
+    frame_times = np.arange(frame_offset, stop, dtype=np.float64) / float(
+        sample_rate
+    )
+    db = np.interp(
+        frame_times,
+        times,
+        offsets,
+        left=offsets[0],
+        right=offsets[-1],
+    )
+    db += base_gain_db
+    np.divide(db, 20.0, out=db)
+    np.power(10.0, db, out=db)
+    buffer *= db[:, np.newaxis]
 
 
 @dataclass(frozen=True, slots=True)
@@ -1100,6 +1227,16 @@ class _RawStemCacheIdentity:
     key: str
     manifest_sha256: str
     frame_count: int
+
+
+@dataclass(frozen=True, slots=True)
+class _PreparedParallelStemCache:
+    """One parent-side cache decision prepared for ordered consumption."""
+
+    identity: _RawStemCacheIdentity | None
+    lookup: Any | None
+    accounting: tuple[tuple[str, str], ...]
+    disable_session: bool = False
 
 
 def _local_instrument_python_sha256(manifest_path: Path) -> str:
@@ -1302,17 +1439,517 @@ def _cache_lookup_matches(
     identity: _RawStemCacheIdentity,
     sample_rate: int,
 ) -> bool:
-    if not lookup.hit or lookup.record is None or lookup.audio is None:
+    if (
+        not lookup.hit
+        or lookup.record is None
+        or (lookup.audio is None and lookup.source is None)
+    ):
         return False
     metadata = lookup.record.metadata
+    shape_matches = (
+        tuple(lookup.audio.shape) == (identity.frame_count, 2)
+        if lookup.audio is not None
+        else lookup.source.shape == (identity.frame_count, 2)
+    )
     return (
         metadata.get("stage") == RAW_STEM_CACHE_STAGE
         and metadata.get("sample_rate") == sample_rate
         and metadata.get("frame_count") == identity.frame_count
         and metadata.get("manifest_sha256")
         == identity.manifest_sha256
-        and tuple(lookup.audio.shape) == (identity.frame_count, 2)
+        and shape_matches
     )
+
+
+def _close_cache_lookup(lookup: Any | None) -> None:
+    source = None if lookup is None else getattr(lookup, "source", None)
+    if source is not None:
+        source.close()
+
+
+def _load_stem_cache_for_render(
+    cache: StemCache,
+    key: str,
+    *,
+    snapshot_directory: Path,
+    stream_cache_hits: bool,
+    direct_cache_fallback: bool = False,
+) -> Any:
+    """Prefer RAM for small hits and bounded scratch for long tracks."""
+
+    if not stream_cache_hits:
+        # Collaboration analysis needs random access to the complete stem, so
+        # snapshotting first would only add I/O and a disk-space dependency.
+        return cache.load(key)
+    lookup = cache.load(
+        key,
+        maximum_audio_bytes=_DIRECT_STEM_CACHE_LOAD_BYTES,
+    )
+    if lookup.status != "too_large":
+        return lookup
+    snapshot = cache.open_verified(
+        key,
+        snapshot_directory=snapshot_directory,
+    )
+    if not direct_cache_fallback or snapshot.status != "unavailable":
+        return snapshot
+
+    # Collaboration analysis historically loaded a verified cache hit into
+    # memory.  If bounded snapshot scratch is unavailable, retain that exact
+    # hit path instead of silently turning it into a render miss.  Manual
+    # rendering leaves this disabled and therefore keeps its bounded contract.
+    _close_cache_lookup(snapshot)
+    return cache.load(key)
+
+
+def _prepare_parallel_stem_cache(
+    part: Any,
+    sample_rate: int,
+    *,
+    cache: StemCache,
+    snapshot_directory: Path,
+    stream_cache_hits: bool,
+    refresh: bool,
+    runtime_fingerprints: dict[
+        tuple[str, str, int, str],
+        str,
+    ],
+    summary: dict[str, Any],
+    direct_cache_fallback: bool = False,
+) -> _PreparedParallelStemCache:
+    """Inspect one cache entry without changing ordered telemetry yet.
+
+    A parallel look-ahead window may finish later stems first.  Deferring all
+    counters until the coordinator consumes this part keeps the existing
+    session-disable and reason ordering identical to serial rendering.
+    """
+
+    if not summary["active"]:
+        return _PreparedParallelStemCache(
+            None,
+            None,
+            (("bypassed", "session_disabled"),),
+        )
+    if not current_source_tree_matches():
+        return _PreparedParallelStemCache(
+            None,
+            None,
+            (
+                (
+                    "bypassed",
+                    "producer_source_changed_restart_required",
+                ),
+            ),
+            disable_session=True,
+        )
+    try:
+        identity = _raw_stem_cache_identity(
+            part,
+            sample_rate,
+            runtime_fingerprints,
+        )
+    except MemoryError:
+        raise
+    except Exception:
+        return _PreparedParallelStemCache(
+            None,
+            None,
+            (("bypassed", "live_identity_unavailable"),),
+        )
+
+    if refresh:
+        return _PreparedParallelStemCache(
+            identity,
+            None,
+            (("misses", "refresh_requested"),),
+        )
+
+    lookup = _load_stem_cache_for_render(
+        cache,
+        identity.key,
+        snapshot_directory=snapshot_directory,
+        stream_cache_hits=stream_cache_hits,
+        direct_cache_fallback=direct_cache_fallback,
+    )
+    if _cache_lookup_matches(lookup, identity, sample_rate):
+        return _PreparedParallelStemCache(
+            identity,
+            lookup,
+            (("hits", "verified_hit"),),
+        )
+    if lookup.status in ("corrupt", "incomplete") or lookup.hit:
+        _close_cache_lookup(lookup)
+        return _PreparedParallelStemCache(
+            identity,
+            None,
+            (
+                (
+                    "corrupt_fallbacks",
+                    "metadata_mismatch" if lookup.hit else lookup.status,
+                ),
+                ("misses", "corrupt_or_incomplete"),
+            ),
+        )
+    if lookup.status == "missing":
+        return _PreparedParallelStemCache(
+            identity,
+            None,
+            (("misses", "not_found"),),
+        )
+    return _PreparedParallelStemCache(
+        identity,
+        None,
+        (("bypassed", f"lookup_{lookup.status}"),),
+    )
+
+
+def _activate_prepared_cache_accounting(
+    prepared: _PreparedParallelStemCache,
+    summary: dict[str, Any],
+) -> bool:
+    """Apply deferred counters and report whether publication stays eligible."""
+
+    if not summary["active"]:
+        _note_cache_result(summary, "bypassed", "session_disabled")
+        return False
+    if prepared.disable_session:
+        summary["active"] = False
+    for field, reason in prepared.accounting:
+        _note_cache_result(summary, field, reason)
+    return prepared.identity is not None and not prepared.disable_session
+
+
+def _note_cache_store_result(
+    summary: dict[str, Any],
+    stored: Any,
+) -> None:
+    """Map buffered and streaming stores into the established telemetry."""
+
+    if stored.status in ("stored", "repaired"):
+        _note_cache_result(
+            summary,
+            "writes",
+            f"store_{stored.status}",
+        )
+    elif stored.status in ("exists", "busy"):
+        _note_cache_result(
+            summary,
+            "write_skips",
+            f"store_{stored.status}",
+        )
+    elif stored.status == "conflict":
+        _note_cache_result(summary, "conflicts", "store_conflict")
+    else:
+        _note_cache_result(
+            summary,
+            "write_failures",
+            f"store_{stored.status}",
+        )
+
+
+def _cache_publication_is_live(
+    part: Any,
+    sample_rate: int,
+    *,
+    summary: dict[str, Any],
+    identity: _RawStemCacheIdentity,
+    manifest_sha256: str,
+) -> bool:
+    """Recheck every live identity after authoritative source completion."""
+
+    if manifest_sha256 != identity.manifest_sha256:
+        _note_cache_result(
+            summary,
+            "write_skips",
+            "manifest_changed_during_render",
+        )
+        return False
+    if not current_source_tree_matches():
+        summary["active"] = False
+        _note_cache_result(
+            summary,
+            "write_skips",
+            "producer_source_changed_during_render",
+        )
+        return False
+    try:
+        post_render_identity = _raw_stem_cache_identity(
+            part,
+            sample_rate,
+            {},
+        )
+    except MemoryError:
+        raise
+    except Exception:
+        summary["active"] = False
+        _note_cache_result(
+            summary,
+            "write_skips",
+            "live_identity_recheck_unavailable",
+        )
+        return False
+    if post_render_identity.key != identity.key:
+        summary["active"] = False
+        _note_cache_result(
+            summary,
+            "write_skips",
+            "live_identity_changed_during_render",
+        )
+        return False
+    return True
+
+
+def _store_parallel_rendered_stem(
+    part: Any,
+    sample_rate: int,
+    *,
+    cache: StemCache,
+    summary: dict[str, Any],
+    identity: _RawStemCacheIdentity,
+    buffer: Any,
+    peak_voices: int,
+    manifest_sha256: str,
+) -> None:
+    """Publish an already-materialised serial stem after the live gates."""
+
+    if not _cache_publication_is_live(
+        part,
+        sample_rate,
+        summary=summary,
+        identity=identity,
+        manifest_sha256=manifest_sha256,
+    ):
+        return
+
+    stored = cache.store(
+        identity.key,
+        buffer,
+        stage=RAW_STEM_CACHE_STAGE,
+        sample_rate=sample_rate,
+        peak_voices=peak_voices,
+        manifest_sha256=manifest_sha256,
+    )
+    _note_cache_store_result(summary, stored)
+
+
+class _StreamedRawStemIterator:
+    """Release the wrapped source even if iteration never starts."""
+
+    __slots__ = ("_owner", "_iterator", "_closed")
+
+    def __init__(self, owner: "_StreamedRawStem", iterator: Any) -> None:
+        self._owner: _StreamedRawStem | None = owner
+        self._iterator = iterator
+        self._closed = False
+
+    def __iter__(self) -> "_StreamedRawStemIterator":
+        return self
+
+    def __next__(self) -> Any:
+        if self._closed or self._iterator is None:
+            raise StopIteration
+        try:
+            return next(self._iterator)
+        except StopIteration:
+            self._closed = True
+            self._iterator = None
+            self._owner = None
+            raise
+        except BaseException:
+            self._closed = True
+            self._iterator = None
+            self._owner = None
+            raise
+
+    def close(self) -> None:
+        if self._closed:
+            return
+        self._closed = True
+        iterator = self._iterator
+        owner = self._owner
+        self._iterator = None
+        self._owner = None
+        if iterator is not None:
+            try:
+                close = getattr(iterator, "close", None)
+                if callable(close):
+                    close()
+            except BaseException as exc:
+                pass
+        if owner is not None:
+            owner._abort(suppress_errors=True)
+
+    def __del__(self) -> None:
+        try:
+            self.close()
+        except BaseException:
+            pass
+
+
+class _StreamedRawStem:
+    """Single-consumer raw source with an optional cache tee transaction."""
+
+    __slots__ = (
+        "_source",
+        "_transaction",
+        "_finish_cache",
+        "_consumed",
+        "_iterator_active",
+        "_closed",
+        "_completed",
+    )
+
+    def __init__(
+        self,
+        source: StemBlockSource,
+        *,
+        transaction: Any | None = None,
+        finish_cache: Callable[[], None] | None = None,
+    ) -> None:
+        if not isinstance(source, StemBlockSource):
+            raise TypeError("streamed raw stem requires a StemBlockSource")
+        if source.closed:
+            raise ValueError("streamed raw stem source is closed")
+        if (transaction is None) != (finish_cache is None):
+            raise ValueError(
+                "streamed raw cache transaction and finisher must be paired"
+            )
+        self._source = source
+        self._transaction = transaction
+        self._finish_cache = finish_cache
+        self._consumed = False
+        self._iterator_active = False
+        self._closed = False
+        self._completed = False
+
+    @property
+    def frame_count(self) -> int:
+        return self._source.frame_count
+
+    @property
+    def shape(self) -> tuple[int, int]:
+        return self._source.shape
+
+    @property
+    def audio_sha256(self) -> str:
+        return self._source.audio_sha256
+
+    @property
+    def closed(self) -> bool:
+        return self._closed
+
+    def _abort(self, *, suppress_errors: bool) -> None:
+        if self._closed:
+            return
+        self._closed = True
+        first_error: BaseException | None = None
+        transaction = self._transaction
+        self._transaction = None
+        self._finish_cache = None
+        if transaction is not None:
+            try:
+                transaction.abort()
+            except BaseException as exc:
+                first_error = exc
+        try:
+            self._source.close()
+        except BaseException as exc:
+            if first_error is None:
+                first_error = exc
+        if first_error is not None and not suppress_errors:
+            raise first_error
+
+    def iter_blocks(self, block_frames: int = 65_536) -> Any:
+        if (
+            isinstance(block_frames, bool)
+            or not isinstance(block_frames, int)
+            or block_frames <= 0
+            or block_frames > 65_536
+        ):
+            raise ValueError("block_frames must be between 1 and 65536")
+        if self._closed:
+            raise ValueError("streamed raw stem is closed")
+        if self._consumed or self._iterator_active:
+            raise ValueError("streamed raw stem can only be consumed once")
+        self._consumed = True
+        self._iterator_active = True
+        return _StreamedRawStemIterator(
+            self,
+            self._iter_blocks(block_frames),
+        )
+
+    def _iter_blocks(self, block_frames: int) -> Any:
+        completed = False
+        try:
+            for block in self._source.iter_blocks(block_frames):
+                transaction = self._transaction
+                if transaction is not None:
+                    # The exact immutable pre-gain bytes enter the cache tee
+                    # before the sole writable processing copy is exposed.
+                    transaction.append(block)
+                yield block
+
+            # Exhaustion above includes the source's SHA/finite/identity and
+            # length gates.  Its close must also succeed before publication.
+            self._source.close()
+            finish_cache = self._finish_cache
+            if finish_cache is not None:
+                finish_cache()
+            self._transaction = None
+            self._finish_cache = None
+            self._completed = True
+            self._closed = True
+            completed = True
+        except BaseException:
+            self._abort(suppress_errors=True)
+            raise
+        finally:
+            self._iterator_active = False
+            if not completed and not self._closed:
+                self._abort(suppress_errors=True)
+
+    def materialise(self) -> Any:
+        import numpy as np
+
+        blocks = self.iter_blocks()
+        try:
+            audio = np.empty(self.shape, dtype="<f4")
+            offset = 0
+            for block in blocks:
+                stop = offset + int(block.shape[0])
+                if stop > self.frame_count:
+                    raise RuntimeError("streamed raw stem produced excess frames")
+                audio[offset:stop] = block
+                offset = stop
+            if offset != self.frame_count:
+                raise RuntimeError("streamed raw stem changed frame count")
+            return audio
+        except BaseException:
+            try:
+                blocks.close()
+            except BaseException as exc:
+                pass
+            self._abort(suppress_errors=True)
+            raise
+
+    def close(self) -> None:
+        if self._completed:
+            return
+        self._abort(suppress_errors=False)
+
+    def __enter__(self) -> "_StreamedRawStem":
+        if self._closed:
+            raise ValueError("streamed raw stem is closed")
+        return self
+
+    def __exit__(self, *_exc: object) -> None:
+        self.close()
+
+    def __del__(self) -> None:
+        try:
+            self._abort(suppress_errors=True)
+        except BaseException:
+            pass
 
 
 def _render_part_cached(
@@ -1320,18 +1957,33 @@ def _render_part_cached(
     sample_rate: int,
     *,
     cache: StemCache,
+    snapshot_directory: Path,
+    stream_cache_hits: bool,
     refresh: bool,
     runtime_fingerprints: dict[
         tuple[str, str, int, str],
         str,
     ],
     summary: dict[str, Any],
+    adaptive_session: AdaptiveRenderSession | None = None,
+    adaptive_backend_key: str = "",
+    adaptive_work_frames: int = 0,
+    stream_output: bool = False,
+    direct_cache_fallback: bool = False,
 ) -> tuple[Any, int, str]:
     """Reuse one raw stem when every live input still matches."""
 
     if not summary["active"]:
         _note_cache_result(summary, "bypassed", "session_disabled")
-        return _render_part(part, sample_rate)
+        return _render_part_adaptively(
+            part,
+            sample_rate,
+            adaptive_session=adaptive_session,
+            adaptive_backend_key=adaptive_backend_key,
+            adaptive_work_frames=adaptive_work_frames,
+            stream_output=stream_output,
+            scratch_directory=snapshot_directory,
+        )
     if not current_source_tree_matches():
         summary["active"] = False
         _note_cache_result(
@@ -1339,7 +1991,15 @@ def _render_part_cached(
             "bypassed",
             "producer_source_changed_restart_required",
         )
-        return _render_part(part, sample_rate)
+        return _render_part_adaptively(
+            part,
+            sample_rate,
+            adaptive_session=adaptive_session,
+            adaptive_backend_key=adaptive_backend_key,
+            adaptive_work_frames=adaptive_work_frames,
+            stream_output=stream_output,
+            scratch_directory=snapshot_directory,
+        )
 
     try:
         identity = _raw_stem_cache_identity(
@@ -1347,6 +2007,8 @@ def _render_part_cached(
             sample_rate,
             runtime_fingerprints,
         )
+    except MemoryError:
+        raise
     except Exception:
         # Fingerprinting is a safety gate, not a new render dependency.
         # External manifests or unavailable evidence simply take the audited
@@ -1356,18 +2018,56 @@ def _render_part_cached(
             "bypassed",
             "live_identity_unavailable",
         )
-        return _render_part(part, sample_rate)
+        return _render_part_adaptively(
+            part,
+            sample_rate,
+            adaptive_session=adaptive_session,
+            adaptive_backend_key=adaptive_backend_key,
+            adaptive_work_frames=adaptive_work_frames,
+            stream_output=stream_output,
+            scratch_directory=snapshot_directory,
+        )
 
     if refresh:
         _note_cache_result(summary, "misses", "refresh_requested")
     else:
-        lookup = cache.load(identity.key)
+        lookup = _load_stem_cache_for_render(
+            cache,
+            identity.key,
+            snapshot_directory=snapshot_directory,
+            stream_cache_hits=stream_cache_hits,
+            direct_cache_fallback=direct_cache_fallback,
+        )
         if _cache_lookup_matches(lookup, identity, sample_rate):
-            assert lookup.audio is not None
             assert lookup.record is not None
+            # A long cache verification/snapshot copy must not bridge a live
+            # source edit.  Close the private source before taking the normal
+            # renderer so a non-authoritative cache never pins an obsolete
+            # producer generation into this render.
+            if not current_source_tree_matches():
+                _close_cache_lookup(lookup)
+                summary["active"] = False
+                _note_cache_result(
+                    summary,
+                    "bypassed",
+                    "producer_source_changed_restart_required",
+                )
+                return _render_part_adaptively(
+                    part,
+                    sample_rate,
+                    adaptive_session=adaptive_session,
+                    adaptive_backend_key=adaptive_backend_key,
+                    adaptive_work_frames=adaptive_work_frames,
+                    stream_output=stream_output,
+                    scratch_directory=snapshot_directory,
+                )
             _note_cache_result(summary, "hits", "verified_hit")
             return (
-                lookup.audio,
+                (
+                    lookup.source
+                    if lookup.source is not None
+                    else lookup.audio
+                ),
                 int(lookup.record.metadata["peak_voices"]),
                 identity.manifest_sha256,
             )
@@ -1394,81 +2094,52 @@ def _render_part_cached(
                 "bypassed",
                 f"lookup_{lookup.status}",
             )
+        # A structurally valid cache payload can still fail the live semantic
+        # identity check.  Drop its track-sized ndarray before rendering the
+        # replacement so the serial refresh path also keeps one parent stem.
+        _close_cache_lookup(lookup)
+        lookup = None
 
-    buffer, peak_voices, manifest_sha256 = _render_part(
+    buffer, peak_voices, manifest_sha256 = _render_part_adaptively(
         part,
         sample_rate,
+        adaptive_session=adaptive_session,
+        adaptive_backend_key=adaptive_backend_key,
+        adaptive_work_frames=adaptive_work_frames,
+        stream_output=stream_output,
+        scratch_directory=snapshot_directory,
     )
-    if manifest_sha256 != identity.manifest_sha256:
-        _note_cache_result(
-            summary,
-            "write_skips",
-            "manifest_changed_during_render",
-        )
-        return buffer, peak_voices, manifest_sha256
-    if not current_source_tree_matches():
-        summary["active"] = False
-        _note_cache_result(
-            summary,
-            "write_skips",
-            "producer_source_changed_during_render",
-        )
-        return buffer, peak_voices, manifest_sha256
-    try:
-        post_render_identity = _raw_stem_cache_identity(
+    if isinstance(buffer, StemBlockSource):
+        buffer = _wrap_streamed_cache_store(
             part,
             sample_rate,
-            {},
+            source=buffer,
+            cache=cache,
+            summary=summary,
+            identity=identity,
+            peak_voices=peak_voices,
+            manifest_sha256=manifest_sha256,
         )
-    except Exception:
-        summary["active"] = False
-        _note_cache_result(
-            summary,
-            "write_skips",
-            "live_identity_recheck_unavailable",
-        )
-        return buffer, peak_voices, manifest_sha256
-    if post_render_identity.key != identity.key:
-        summary["active"] = False
-        _note_cache_result(
-            summary,
-            "write_skips",
-            "live_identity_changed_during_render",
-        )
-        return buffer, peak_voices, manifest_sha256
-
-    stored = cache.store(
-        identity.key,
-        buffer,
-        stage=RAW_STEM_CACHE_STAGE,
-        sample_rate=sample_rate,
-        peak_voices=peak_voices,
-        manifest_sha256=manifest_sha256,
-    )
-    if stored.status in ("stored", "repaired"):
-        _note_cache_result(
-            summary,
-            "writes",
-            f"store_{stored.status}",
-        )
-    elif stored.status in ("exists", "busy"):
-        _note_cache_result(
-            summary,
-            "write_skips",
-            f"store_{stored.status}",
-        )
-    elif stored.status == "conflict":
-        _note_cache_result(summary, "conflicts", "store_conflict")
     else:
-        _note_cache_result(
-            summary,
-            "write_failures",
-            f"store_{stored.status}",
+        _store_parallel_rendered_stem(
+            part,
+            sample_rate,
+            cache=cache,
+            summary=summary,
+            identity=identity,
+            buffer=buffer,
+            peak_voices=peak_voices,
+            manifest_sha256=manifest_sha256,
         )
     return buffer, peak_voices, manifest_sha256
 
 
 def _render_part(part: Any, sample_rate: int) -> tuple[Any, int, str]:
+    # A serial barrier (heavy/sample/native part or a transparent worker
+    # fallback) is budgeted without any idle subprocess RSS.  Preserve warm
+    # reuse across cache hits, which never enter this renderer, but physically
+    # reap idle stem children before allocating an in-process instrument.
+    retire_idle_stem_workers()
     import numpy as np
 
     manifest_path = Path(part.executor.capability.manifest_path)
@@ -1489,16 +2160,2343 @@ def _render_part(part: Any, sample_rate: int) -> tuple[Any, int, str]:
         manifest, sample_rate, base_directory=str(manifest_path.parent)
     )
     try:
-        frames, peak = render_document(instrument, document)
-        buffer = np.empty((document.total_samples, 2), dtype=np.float32)
-        for index, (left, right) in enumerate(frames):
-            buffer[index, 0] = left
-            buffer[index, 1] = right
+        if _prefer_frame_stream_path(instrument, document):
+            frames, peak = render_document(instrument, document)
+
+            def stereo_samples() -> Any:
+                for left, right in frames:
+                    yield left
+                    yield right
+
+            buffer = np.fromiter(
+                stereo_samples(),
+                dtype=np.float32,
+                count=document.total_samples * 2,
+            ).reshape(document.total_samples, 2)
+        else:
+            blocks, peak = render_document_blocks(
+                instrument,
+                document,
+                sample_dtype=np.float32,
+            )
+            buffer = np.empty((document.total_samples, 2), dtype=np.float32)
+            offset = 0
+            for block in blocks:
+                frame_count = int(block.shape[0])
+                stop = offset + frame_count
+                if stop > document.total_samples:
+                    raise RuntimeError("stem renderer produced excess frames")
+                buffer[offset:stop] = block
+                offset = stop
+            if offset != document.total_samples:
+                raise RuntimeError(
+                    "stem renderer produced an invalid frame count"
+                )
         return buffer, peak[0], manifest_sha256
     finally:
         close = getattr(instrument, "close", None)
         if callable(close):
             close()
+
+
+def _prefer_streamed_serial_stem(
+    part: Any,
+    sample_rate: int,
+    scratch_directory: Path,
+) -> bool:
+    """Use private scratch only when it removes meaningful coordinator RAM."""
+
+    try:
+        # Private embedders and tests have historically replaced
+        # ``_render_part`` as the in-process compatibility seam.  Never route
+        # around that replacement merely because a stem is long.
+        if _render_part is not _ORIGINAL_RENDER_PART:
+            return False
+        document = parse_performance_document(part.performance)
+        if document.sample_rate != sample_rate:
+            return False
+        byte_count = document.total_samples * 2 * 4
+        if byte_count <= _DIRECT_SERIAL_STEM_LOAD_BYTES:
+            return False
+        scratch = scratch_directory.resolve(strict=True)
+        # A published PCM24 stem may be written while the raw private source
+        # is still open.  ``write_stems`` is intentionally not threaded into
+        # this internal transport choice; always reserving its exact 6-byte
+        # frame payload keeps the optional fast path safe and conservative.
+        possible_pcm24_stem = (
+            document.total_samples * 2 * 3
+            + _STREAMED_STEM_OUTPUT_MARGIN_BYTES
+        )
+        return shutil.disk_usage(scratch).free >= (
+            byte_count
+            + max(
+                _STREAMED_STEM_FREE_RESERVE_BYTES,
+                possible_pcm24_stem,
+            )
+        )
+    except MemoryError:
+        raise
+    except Exception:
+        # This is only a transport choice.  The established renderer remains
+        # responsible for reporting malformed performance input precisely.
+        return False
+
+
+def _render_part_source(
+    part: Any,
+    sample_rate: int,
+    *,
+    scratch_directory: Path,
+) -> tuple[StemBlockSource, int, str]:
+    """Render one long serial stem to bounded private float32 scratch."""
+
+    retire_idle_stem_workers()
+    import numpy as np
+
+    manifest_path = Path(part.executor.capability.manifest_path)
+    manifest_bytes = manifest_path.read_bytes()
+    manifest = json.loads(manifest_bytes.decode("utf-8"))
+    manifest_sha256 = hashlib.sha256(manifest_bytes).hexdigest()
+    override_map = part.executor.override_map
+    if override_map:
+        manifest = {**manifest, **override_map}
+    document = parse_performance_document(part.performance)
+    if document.sample_rate != sample_rate:
+        raise ValueError(
+            f"澹伴儴 {part.executor.executor_id!r} 鐨勯噰鏍风巼涓庢€昏氨涓嶄竴鑷?"
+        )
+
+    try:
+        temporary: Any | None = tempfile.TemporaryFile(
+            mode="w+b",
+            dir=scratch_directory,
+        )
+    except MemoryError:
+        raise
+    except OSError:
+        # The transport is optional and no instrument has been constructed
+        # yet, so an unavailable scratch handle can safely retain the exact
+        # established in-memory renderer.
+        return _render_part(part, sample_rate)
+    digest = hashlib.sha256()
+    written_frames = 0
+
+    def append_block(raw_block: Any) -> None:
+        nonlocal written_frames
+
+        block = np.asarray(raw_block, dtype="<f4", order="C")
+        if block.ndim != 2 or block.shape[1:] != (2,):
+            raise RuntimeError("stem renderer produced an invalid block")
+        frame_count = int(block.shape[0])
+        if frame_count <= 0 or frame_count > 65_536:
+            raise RuntimeError("stem renderer produced an invalid block size")
+        if written_frames + frame_count > document.total_samples:
+            raise RuntimeError("stem renderer produced excess frames")
+        payload = memoryview(block).cast("B")
+        digest.update(payload)
+        offset = 0
+        while offset < len(payload):
+            count = temporary.write(payload[offset:])
+            if count is None or count <= 0:
+                raise OSError("stem scratch write made no progress")
+            offset += count
+        written_frames += frame_count
+
+    instrument: Any | None = None
+    render_failed = False
+    try:
+        instrument = create_instrument(
+            manifest,
+            sample_rate,
+            base_directory=str(manifest_path.parent),
+        )
+        if _prefer_frame_stream_path(instrument, document):
+            frames, peak = render_document(instrument, document)
+
+            def stereo_samples() -> Any:
+                for left, right in frames:
+                    yield left
+                    yield right
+
+            samples = stereo_samples()
+            remaining = document.total_samples
+            while remaining:
+                frame_count = min(65_536, remaining)
+                block = np.fromiter(
+                    samples,
+                    dtype=np.float32,
+                    count=frame_count * 2,
+                )
+                if block.size != frame_count * 2:
+                    raise RuntimeError(
+                        "stem renderer produced an invalid frame count"
+                    )
+                append_block(block.reshape(frame_count, 2))
+                remaining -= frame_count
+        else:
+            blocks, peak = render_document_blocks(
+                instrument,
+                document,
+                sample_dtype=np.float32,
+            )
+            for block in blocks:
+                append_block(block)
+        if written_frames != document.total_samples:
+            raise RuntimeError("stem renderer produced an invalid frame count")
+    except BaseException:
+        render_failed = True
+        try:
+            temporary.close()
+        except BaseException:
+            pass
+        raise
+    finally:
+        close = None if instrument is None else getattr(instrument, "close", None)
+        if callable(close):
+            try:
+                close()
+            except BaseException as exc:
+                try:
+                    temporary.close()
+                except BaseException:
+                    pass
+                if render_failed:
+                    _warn_cleanup(
+                        "serial stem instrument cleanup did not complete: "
+                        f"{type(exc).__name__}"
+                    )
+                else:
+                    raise
+
+    try:
+        temporary.flush()
+        source = OwnedStemSource(
+            temporary,
+            audio_offset=0,
+            frame_count=document.total_samples,
+            expected_sha256=digest.hexdigest(),
+        )
+    except BaseException:
+        try:
+            temporary.close()
+        except BaseException:
+            pass
+        raise
+    temporary = None
+    return source, peak[0], manifest_sha256
+
+
+_ORIGINAL_RENDER_PART = _render_part
+_ORIGINAL_CREATE_INSTRUMENT = create_instrument
+_ORIGINAL_PARSE_PERFORMANCE_DOCUMENT = parse_performance_document
+_ORIGINAL_RENDER_DOCUMENT = render_document
+_ORIGINAL_RENDER_DOCUMENT_BLOCKS = render_document_blocks
+_ORIGINAL_PREFER_DENSE_SYNTH_FRAME_PATH = _prefer_dense_synth_frame_path
+_ORIGINAL_PREFER_FRAME_STREAM_PATH = _prefer_frame_stream_path
+_ORIGINAL_RENDERER_EXACT_BUILTIN_RENDER_BLOCK = (
+    _renderer_module._exact_builtin_render_block
+)
+_ORIGINAL_RENDERER_PREFER_DENSE_SYNTH_FRAME_PATH = (
+    _renderer_module._prefer_dense_synth_frame_path
+)
+_ORIGINAL_RENDERER_PREFER_FRAME_STREAM_PATH = (
+    _renderer_module._prefer_frame_stream_path
+)
+_ORIGINAL_RENDERER_RENDER_DOCUMENT = _renderer_module.render_document
+_ORIGINAL_RENDERER_RENDER_DOCUMENT_BLOCKS = (
+    _renderer_module.render_document_blocks
+)
+
+
+class _ManagedStemBatchFailure(RuntimeError):
+    """Internal signal that the remaining batch must use the serial path."""
+
+    def __init__(self, position: int, cause: BaseException) -> None:
+        super().__init__(str(cause))
+        self.position = position
+        self.__cause__ = cause
+
+
+def _warn_cleanup(message: str) -> None:
+    """Report best-effort cleanup without ever replacing a primary error."""
+
+    try:
+        warnings.warn(message, RuntimeWarning)
+    except BaseException:
+        pass
+
+
+@dataclass(frozen=True, slots=True)
+class _AutomaticStemParallelism:
+    worker_count: int
+    worker_count_by_part: tuple[int, ...]
+    manifest_sha256_by_part: tuple[str, ...]
+    worker_reserve_bytes_by_part: tuple[int, ...] = ()
+    sample_backed_by_part: tuple[bool, ...] = ()
+    adaptive_backend_key_by_part: tuple[str, ...] = ()
+    adaptive_work_frames_by_part: tuple[int, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class _ManagedWorkerSlotContext:
+    """Private resource evidence shared by one render coordinator."""
+
+    pool: WorkerSlotPool
+    owner_id: str
+    owner_cpu_capacity: int
+    worker_memory_bytes_by_part: tuple[int, ...]
+    coordinator_memory_bytes: int
+    memory_budget_bytes: int
+    scratch_directory: Path
+
+
+def _managed_warm_binding_for_run(
+    *,
+    start: int,
+    end: int,
+    parts: tuple[Any, ...],
+    slot_context: _ManagedWorkerSlotContext,
+) -> _ManagedWarmBinding | None:
+    """Prove one conservative per-slot ceiling for a complete known run."""
+
+    try:
+        if not (0 <= start < end <= len(parts)):
+            return None
+        worker_memory_ceiling = max(
+            slot_context.worker_memory_bytes_by_part[index]
+            for index in range(start, end)
+        )
+        scratch_ceiling = max(
+            parse_performance_document(parts[index].performance).total_samples
+            * 2
+            * 4
+            for index in range(start, end)
+        )
+        binding = _ManagedWarmBinding(
+            owner_id=slot_context.owner_id,
+            scratch_directory=slot_context.scratch_directory,
+            scratch_volume_id=scratch_volume_identity(
+                slot_context.scratch_directory
+            ),
+            worker_memory_ceiling_bytes=worker_memory_ceiling,
+            coordinator_memory_bytes=(
+                slot_context.coordinator_memory_bytes + scratch_ceiling
+            ),
+            memory_budget_bytes=slot_context.memory_budget_bytes,
+            scratch_ceiling_bytes=scratch_ceiling,
+        )
+        return binding
+    except MemoryError:
+        raise
+    except Exception:
+        return None
+
+
+def _automatic_worker_slot_context(
+    plan: PerformancePlan,
+    *,
+    parallelism: _AutomaticStemParallelism,
+    scratch_directory: Path,
+    hall_tail_seconds: float,
+) -> _ManagedWorkerSlotContext | None:
+    """Bind global admission to the same evidence as local parallelism."""
+
+    try:
+        parts = tuple(plan.parts)
+        if (
+            len(parallelism.worker_count_by_part) != len(parts)
+            or len(parallelism.manifest_sha256_by_part) != len(parts)
+        ):
+            return None
+        worker_reserves = parallelism.worker_reserve_bytes_by_part
+        sample_backed = parallelism.sample_backed_by_part
+        if (
+            len(worker_reserves) != len(parts)
+            or len(sample_backed) != len(parts)
+        ):
+            # Compatibility for tests or embedders constructing the private
+            # decision object directly: recover only from independent
+            # per-part probes.  Never use the whole-plan probe because a
+            # serial barrier can leave later entries at an unverified default.
+            recovered_reserves: list[int] = []
+            recovered_sample_backed: list[bool] = []
+            for index, part in enumerate(parts):
+                estimate = derive_worker_resource_estimate(
+                    SimpleNamespace(parts=(part,))
+                )
+                reserve = estimate.worker_reserve_bytes_by_part
+                sample = estimate.sample_backed_by_part
+                manifest = estimate.manifest_sha256_by_part
+                if not (len(reserve) == len(sample) == len(manifest) == 1):
+                    return None
+                if parallelism.worker_count_by_part[index] > 1 and (
+                    not estimate.workers_safe
+                    or estimate.managed_worker_safe_by_part != (True,)
+                    or manifest[0]
+                    != parallelism.manifest_sha256_by_part[index]
+                ):
+                    return None
+                recovered_reserves.append(int(reserve[0]))
+                recovered_sample_backed.append(bool(sample[0]))
+            worker_reserves = tuple(recovered_reserves)
+            sample_backed = tuple(recovered_sample_backed)
+        scratch = scratch_directory.resolve(strict=True)
+        if not scratch.is_dir():
+            return None
+        limits = ProjectLimits.from_environment()
+        decision = select_render_parallelism(
+            plan,
+            hall_tail_seconds=hall_tail_seconds,
+            limits=limits,
+            # This call extracts resource facts only.  Per-part eligibility
+            # and the actual worker count remain bound by the independently
+            # authorised decision above.
+            workers_safe=False,
+            scratch_available_bytes=shutil.disk_usage(scratch).free,
+            worker_reserve_bytes_by_part=worker_reserves,
+            sample_backed_by_part=sample_backed,
+        )
+        worker_memory = tuple(
+            int(value) + _MANAGED_WORKER_CHUNK_BYTES
+            for value in worker_reserves
+        )
+        if (
+            not worker_memory
+            or any(value <= 0 for value in worker_memory)
+            or decision.coordinator_bytes <= 0
+            or decision.memory_budget_bytes <= 0
+        ):
+            return None
+        return _ManagedWorkerSlotContext(
+            pool=WorkerSlotPool(),
+            owner_id=uuid.uuid4().hex,
+            owner_cpu_capacity=automatic_worker_capacity(),
+            worker_memory_bytes_by_part=worker_memory,
+            coordinator_memory_bytes=int(decision.coordinator_bytes),
+            memory_budget_bytes=int(decision.memory_budget_bytes),
+            scratch_directory=scratch,
+        )
+    except MemoryError:
+        raise
+    except Exception:
+        # The ledger is an optional managed-child throttle.  An unavailable
+        # per-user directory, volume identity or host fact keeps the complete
+        # in-process renderer rather than becoming a user-facing failure.
+        return None
+
+
+def _parallel_runtime_is_pristine() -> bool:
+    """Avoid moving monkeypatched or embedded renderer state into children."""
+
+    return (
+        _render_part is _ORIGINAL_RENDER_PART
+        and create_instrument is _ORIGINAL_CREATE_INSTRUMENT
+        and parse_performance_document
+        is _ORIGINAL_PARSE_PERFORMANCE_DOCUMENT
+        and render_document is _ORIGINAL_RENDER_DOCUMENT
+        and render_document_blocks is _ORIGINAL_RENDER_DOCUMENT_BLOCKS
+        and _prefer_dense_synth_frame_path
+        is _ORIGINAL_PREFER_DENSE_SYNTH_FRAME_PATH
+        and _prefer_frame_stream_path
+        is _ORIGINAL_PREFER_FRAME_STREAM_PATH
+        and _renderer_module._exact_builtin_render_block
+        is _ORIGINAL_RENDERER_EXACT_BUILTIN_RENDER_BLOCK
+        and _renderer_module._prefer_dense_synth_frame_path
+        is _ORIGINAL_RENDERER_PREFER_DENSE_SYNTH_FRAME_PATH
+        and _renderer_module._prefer_frame_stream_path
+        is _ORIGINAL_RENDERER_PREFER_FRAME_STREAM_PATH
+        and _renderer_module.render_document
+        is _ORIGINAL_RENDERER_RENDER_DOCUMENT
+        and _renderer_module.render_document_blocks
+        is _ORIGINAL_RENDERER_RENDER_DOCUMENT_BLOCKS
+        and managed_subprocess_workers_available()
+    )
+
+
+def _automatic_stem_worker_count(
+    plan: PerformancePlan,
+    *,
+    scratch_directory: Path,
+    hall_tail_seconds: float,
+    _resources: Any | None = None,
+    adaptive_session: AdaptiveRenderSession | None = None,
+    adaptive_workloads: tuple[AdaptiveWorkload, ...] = (),
+) -> int:
+    """Select an internal worker count; every uncertainty means serial."""
+
+    try:
+        resources = (
+            derive_worker_resource_estimate(plan)
+            if _resources is None
+            else _resources
+        )
+        scratch_free = shutil.disk_usage(scratch_directory).free
+        workers_safe = (
+            resources.workers_safe
+            and all(resources.managed_worker_safe_by_part)
+            and _parallel_runtime_is_pristine()
+            and current_source_tree_matches()
+        )
+        decision = select_render_parallelism(
+            plan,
+            hall_tail_seconds=hall_tail_seconds,
+            workers_safe=workers_safe,
+            scratch_available_bytes=scratch_free,
+            worker_reserve_bytes_by_part=(
+                resources.worker_reserve_bytes_by_part
+            ),
+            sample_backed_by_part=resources.sample_backed_by_part,
+        )
+        if (
+            adaptive_session is not None
+            and len(adaptive_workloads) == len(plan.parts)
+            and adaptive_workloads
+        ):
+            recommendation = adaptive_session.recommend(
+                decision,
+                adaptive_workloads,
+                managed_execution="managed_cold",
+            )
+            worker_limit = getattr(recommendation, "worker_limit", None)
+            allow_short = getattr(
+                recommendation,
+                "allow_short_workload",
+                False,
+            )
+            if (
+                type(worker_limit) is int
+                and 1 <= worker_limit <= automatic_worker_capacity()
+                and type(allow_short) is bool
+            ):
+                decision = select_render_parallelism(
+                    plan,
+                    hall_tail_seconds=hall_tail_seconds,
+                    workers_safe=workers_safe,
+                    scratch_available_bytes=scratch_free,
+                    worker_reserve_bytes_by_part=(
+                        resources.worker_reserve_bytes_by_part
+                    ),
+                    sample_backed_by_part=(
+                        resources.sample_backed_by_part
+                    ),
+                    adaptive_worker_limit=worker_limit,
+                    adaptive_short_workload=allow_short,
+                )
+        return decision.worker_count
+    except MemoryError:
+        raise
+    except Exception:
+        # Parallelism is an optional execution detail.  The established
+        # renderer remains the complete fallback for probes, disk facts or
+        # custom plan objects that cannot prove worker safety.
+        return 1
+
+
+def _balanced_worker_group_sizes(
+    part_count: int,
+    maximum_workers: int,
+) -> tuple[int, ...]:
+    """Split a run without leaving an avoidable one-part serial tail."""
+
+    maximum_workers = min(maximum_workers, part_count)
+    if part_count <= 0 or maximum_workers <= 0:
+        return ()
+    if maximum_workers == 1:
+        return (1,) * part_count
+    sizes: list[int] = []
+    remaining = part_count
+    while remaining:
+        size = min(maximum_workers, remaining)
+        if (
+            maximum_workers > 2
+            and remaining > maximum_workers
+            and remaining % maximum_workers == 1
+        ):
+            size = maximum_workers - 1
+        sizes.append(size)
+        remaining -= size
+    return tuple(sizes)
+
+
+def _automatic_stem_parallelism(
+    plan: PerformancePlan,
+    *,
+    scratch_directory: Path,
+    hall_tail_seconds: float,
+    adaptive_session: AdaptiveRenderSession | None = None,
+) -> _AutomaticStemParallelism:
+    """Bind one worker decision to the manifests it authorised."""
+
+    try:
+        parts = tuple(plan.parts)
+        memory_budget = max(
+            1,
+            int(ProjectLimits.from_environment().max_audio_memory_bytes),
+        )
+        counts = [1] * len(parts)
+        hashes = [""] * len(parts)
+        worker_reserves = [memory_budget] * len(parts)
+        sample_backed = [False] * len(parts)
+        estimates: list[Any | None] = []
+        eligible: list[bool] = []
+        estimate_cache: dict[tuple[str, bytes], Any] = {}
+        for index, part in enumerate(parts):
+            try:
+                estimate_key: tuple[str, bytes] | None = (
+                    os.fspath(part.executor.capability.manifest_path),
+                    _project_canonical_json_bytes(
+                        part.executor.override_map
+                    ),
+                )
+            except (AttributeError, TypeError, ValueError, OverflowError):
+                estimate_key = None
+            estimate = (
+                estimate_cache.get(estimate_key)
+                if estimate_key is not None
+                else None
+            )
+            if estimate is None:
+                estimate = derive_worker_resource_estimate(
+                    SimpleNamespace(parts=(part,))
+                )
+                if estimate_key is not None:
+                    estimate_cache[estimate_key] = estimate
+            estimates.append(estimate)
+            manifest_hash = (
+                estimate.manifest_sha256_by_part[0]
+                if len(estimate.manifest_sha256_by_part) == 1
+                else ""
+            )
+            hashes[index] = manifest_hash
+            worker_reserve = (
+                estimate.worker_reserve_bytes_by_part[0]
+                if len(estimate.worker_reserve_bytes_by_part) == 1
+                else memory_budget
+            )
+            worker_reserves[index] = int(worker_reserve)
+            if len(estimate.sample_backed_by_part) == 1:
+                sample_backed[index] = bool(
+                    estimate.sample_backed_by_part[0]
+                )
+            eligible.append(
+                estimate.workers_safe
+                and estimate.managed_worker_safe_by_part == (True,)
+                and isinstance(manifest_hash, str)
+                and len(manifest_hash) == 64
+                # A worker that consumes more than half the existing audio
+                # memory budget can never safely share a parallel window.
+                # Treat it as a serial barrier so lightweight runs before
+                # and after it retain their automatic speed-up.
+                and worker_reserve <= memory_budget // 2
+            )
+
+        work_frames = derive_parallelism_work_frames(
+            plan,
+            sample_backed_by_part=tuple(sample_backed),
+        )
+        adaptive_work = (
+            tuple(work_frames)
+            if work_frames is not None and len(work_frames) == len(parts)
+            else (0,) * len(parts)
+        )
+        backend_keys: list[str] = []
+        for index, part in enumerate(parts):
+            try:
+                backend_key = make_adaptive_backend_key(
+                    manifest_sha256=hashes[index],
+                    engine_sha256=PROCESS_SOURCE_TREE_SHA256,
+                    overrides_json=_project_canonical_json_bytes(
+                        part.executor.override_map
+                    ),
+                    sample_backed=sample_backed[index],
+                )
+            except MemoryError:
+                raise
+            except Exception:
+                backend_key = None
+            backend_keys.append(backend_key or "")
+
+        def admit_run(start: int, end: int) -> None:
+            run_estimates = estimates[start:end]
+            run_resources = SimpleNamespace(
+                workers_safe=True,
+                managed_worker_safe_by_part=(True,) * (end - start),
+                worker_reserve_bytes_by_part=tuple(
+                    estimate.worker_reserve_bytes_by_part[0]
+                    for estimate in run_estimates
+                ),
+                sample_backed_by_part=tuple(
+                    estimate.sample_backed_by_part[0]
+                    for estimate in run_estimates
+                ),
+                manifest_sha256_by_part=tuple(hashes[start:end]),
+            )
+            run_plan = SimpleNamespace(
+                duration_seconds=plan.duration_seconds,
+                sample_rate=plan.sample_rate,
+                parts=parts[start:end],
+            )
+            run_workloads: tuple[AdaptiveWorkload, ...] = ()
+            if all(
+                backend_keys[index] and adaptive_work[index] > 0
+                for index in range(start, end)
+            ):
+                run_workloads = tuple(
+                    AdaptiveWorkload(
+                        backend_keys[index],
+                        adaptive_work[index],
+                    )
+                    for index in range(start, end)
+                )
+            worker_kwargs: dict[str, Any] = {
+                "scratch_directory": scratch_directory,
+                "hall_tail_seconds": hall_tail_seconds,
+                "_resources": run_resources,
+            }
+            if adaptive_session is not None and run_workloads:
+                worker_kwargs.update(
+                    adaptive_session=adaptive_session,
+                    adaptive_workloads=run_workloads,
+                )
+            worker_count = _automatic_stem_worker_count(
+                run_plan,
+                **worker_kwargs,
+            )
+            if (
+                isinstance(worker_count, bool)
+                or not isinstance(worker_count, int)
+            ):
+                return
+            worker_count = min(worker_count, end - start)
+            if worker_count <= 1:
+                return
+            group_sizes = _balanced_worker_group_sizes(
+                end - start,
+                worker_count,
+            )
+            if len(group_sizes) == 1:
+                counts[start:end] = [worker_count] * (end - start)
+                return
+
+            group_start = start
+            for group_size in group_sizes:
+                group_end = group_start + group_size
+                if group_size > 1:
+                    # Re-run the same zero-configuration policy for each
+                    # balanced subgroup.  This prevents a short/sparse tail
+                    # from paying process startup merely because the larger
+                    # containing run was worthwhile.
+                    admit_run(group_start, group_end)
+                group_start = group_end
+
+        cursor = 0
+        while cursor < len(parts):
+            if not eligible[cursor]:
+                cursor += 1
+                continue
+            end = cursor + 1
+            while end < len(parts) and eligible[end]:
+                end += 1
+            admit_run(cursor, end)
+            cursor = end
+
+        return _AutomaticStemParallelism(
+            max(counts, default=1),
+            tuple(counts),
+            tuple(hashes),
+            tuple(worker_reserves),
+            tuple(sample_backed),
+            tuple(backend_keys),
+            tuple(adaptive_work),
+        )
+    except MemoryError:
+        raise
+    except Exception:
+        part_count = len(getattr(plan, "parts", ()))
+        return _AutomaticStemParallelism(
+            1,
+            (1,) * part_count,
+            ("",) * part_count,
+            adaptive_backend_key_by_part=("",) * part_count,
+            adaptive_work_frames_by_part=(0,) * part_count,
+        )
+
+
+def _stem_worker_job(
+    index: int,
+    part: Any,
+    sample_rate: int,
+    expected_manifest_sha256: str,
+) -> StemRenderJob:
+    return StemRenderJob.create(
+        index=index,
+        executor_id=part.executor.executor_id,
+        manifest_path=part.executor.capability.manifest_path,
+        sample_rate=sample_rate,
+        performance=part.performance,
+        overrides=part.executor.override_map,
+        expected_manifest_sha256=expected_manifest_sha256,
+    )
+
+
+def _iter_managed_stem_batch(
+    jobs: tuple[StemRenderJob, ...],
+    *,
+    scratch_directory: Path,
+    allow_warm_start: bool,
+    slot_context: _ManagedWorkerSlotContext,
+    warm_binding: _ManagedWarmBinding | None = None,
+    adaptive_session: AdaptiveRenderSession | None = None,
+    adaptive_backend_key_by_part: tuple[str, ...] = (),
+    adaptive_work_frames_by_part: tuple[int, ...] = (),
+    disable_warm_for_run: Callable[[], None] | None = None,
+) -> Any:
+    """Collect one bounded batch, then yield its sources in job order."""
+
+    handles: list[Any | None] = []
+    adaptive_observations: list[Any | None] = []
+    reservation: Any | None = None
+    detached_results: list[
+        tuple[int, StemBlockSource, int, str] | None
+    ] = []
+    completed_normally = False
+
+    def close_failed_slot(slot: Any | None) -> None:
+        if slot is None:
+            return
+        try:
+            slot.close()
+        except BaseException as exc:
+            _warn_cleanup(
+                "managed worker slot cleanup did not complete: "
+                f"{type(exc).__name__}"
+            )
+
+    def resource_claims(
+        binding: _ManagedWarmBinding | None,
+    ) -> tuple[WorkerResourceClaim, ...]:
+        parent_stem_bytes = max(
+            job.frame_count * 2 * 4 for job in jobs
+        )
+        coordinator_memory_bytes = (
+            binding.coordinator_memory_bytes
+            if binding is not None
+            else slot_context.coordinator_memory_bytes
+            + parent_stem_bytes
+        )
+        return tuple(
+            WorkerResourceClaim(
+                owner_id=slot_context.owner_id,
+                owner_cpu_capacity=slot_context.owner_cpu_capacity,
+                worker_memory_bytes=(
+                    binding.worker_memory_ceiling_bytes
+                    if binding is not None
+                    else slot_context.worker_memory_bytes_by_part[job.index]
+                ),
+                coordinator_memory_bytes=coordinator_memory_bytes,
+                memory_budget_bytes=slot_context.memory_budget_bytes,
+                scratch_bytes=(
+                    binding.scratch_ceiling_bytes
+                    if binding is not None
+                    else job.frame_count * 2 * 4
+                ),
+                scratch_directory=slot_context.scratch_directory,
+            )
+            for job in jobs
+        )
+
+    def abandon_warm_attempt(
+        binding: _ManagedWarmBinding,
+    ) -> None:
+        """Retire a partial warm batch before exact one-shot retry."""
+
+        nonlocal reservation
+
+        first_error: BaseException | None = None
+        if adaptive_session is not None:
+            for position, observation in enumerate(adaptive_observations):
+                if observation is None:
+                    continue
+                try:
+                    adaptive_session.discard_managed(observation)
+                except BaseException as exc:
+                    _warn_cleanup(
+                        "adaptive warm retry cleanup did not complete: "
+                        f"{type(exc).__name__}"
+                    )
+                adaptive_observations[position] = None
+        for position, handle in enumerate(handles):
+            if handle is None:
+                continue
+            try:
+                terminate_stem_worker(handle)
+            except BaseException as exc:
+                if first_error is None:
+                    first_error = exc
+            else:
+                handles[position] = None
+        if reservation is not None:
+            try:
+                reservation.close()
+            except BaseException as exc:
+                if first_error is None:
+                    first_error = exc
+            else:
+                reservation = None
+        try:
+            # This also removes idle binding siblings which were not checked
+            # out before the missing/stale child made the batch incomplete.
+            _retire_managed_stem_worker_session(
+                binding.owner_id,
+                force=True,
+            )
+        except BaseException as exc:
+            if first_error is None:
+                first_error = exc
+        if first_error is not None:
+            raise first_error
+        handles.clear()
+        adaptive_observations.clear()
+
+    try:
+        try:
+            if warm_binding is None or allow_warm_start:
+                # First remove unrelated legacy/session RSS.  A later batch
+                # in this exact binding deliberately keeps its admitted idle
+                # children for reuse.
+                retire_idle_stem_workers()
+            claims = resource_claims(warm_binding)
+            if warm_binding is None or allow_warm_start:
+                reservation = slot_context.pool.reserve_exact(claims)
+            if (
+                reservation is None
+                and warm_binding is not None
+                and allow_warm_start
+            ):
+                # A whole-run ceiling can be deliberately more conservative
+                # than either exact batch.  If that persistent reservation
+                # does not fit, retain safe batch parallelism: permanently
+                # disable warmth for this run and retry this untouched batch
+                # with its exact one-shot claims.
+                if disable_warm_for_run is not None:
+                    disable_warm_for_run()
+                warm_binding = None
+                allow_warm_start = False
+                claims = resource_claims(None)
+                reservation = slot_context.pool.reserve_exact(claims)
+        except MemoryError:
+            raise
+        except Exception as exc:
+            raise _ManagedStemBatchFailure(0, exc) from exc
+        if (warm_binding is None or allow_warm_start) and reservation is None:
+            raise _ManagedStemBatchFailure(
+                0,
+                StemWorkerError(
+                    "global managed stem worker capacity is unavailable"
+                ),
+            )
+
+        while True:
+            start_failure: Exception | None = None
+            for job in jobs:
+                slot: Any | None = None
+                adaptive_observation: Any | None = None
+                try:
+                    if reservation is not None:
+                        slot = reservation.take()
+                    if (
+                        adaptive_session is not None
+                        and 0 <= job.index
+                        < len(adaptive_backend_key_by_part)
+                        and job.index < len(adaptive_work_frames_by_part)
+                        and adaptive_backend_key_by_part[job.index]
+                        and adaptive_work_frames_by_part[job.index] > 0
+                    ):
+                        adaptive_observation = (
+                            adaptive_session.begin_managed(
+                                backend_key=(
+                                    adaptive_backend_key_by_part[job.index]
+                                ),
+                                work_frames=(
+                                    adaptive_work_frames_by_part[job.index]
+                                ),
+                            )
+                        )
+                    handle = _try_start_stem_worker(
+                        job,
+                        scratch_directory=scratch_directory,
+                        allow_warm_start=(
+                            warm_binding is not None and allow_warm_start
+                        ),
+                        allow_warm_reuse=warm_binding is not None,
+                        reserved_slot=slot,
+                        managed_warm_binding=warm_binding,
+                        managed_worker_memory_bytes=(
+                            None
+                            if warm_binding is None
+                            else slot_context.worker_memory_bytes_by_part[
+                                job.index
+                            ]
+                        ),
+                    )
+                except MemoryError:
+                    if (
+                        adaptive_session is not None
+                        and adaptive_observation is not None
+                    ):
+                        try:
+                            adaptive_session.discard_managed(
+                                adaptive_observation
+                            )
+                        except BaseException:
+                            pass
+                    close_failed_slot(slot)
+                    raise
+                except Exception as exc:
+                    if (
+                        adaptive_session is not None
+                        and adaptive_observation is not None
+                    ):
+                        try:
+                            adaptive_session.discard_managed(
+                                adaptive_observation
+                            )
+                        except BaseException:
+                            pass
+                    close_failed_slot(slot)
+                    start_failure = exc
+                    break
+                if handle is None:
+                    if (
+                        adaptive_session is not None
+                        and adaptive_observation is not None
+                    ):
+                        try:
+                            adaptive_session.discard_managed(
+                                adaptive_observation
+                            )
+                        except BaseException:
+                            pass
+                    close_failed_slot(slot)
+                    start_failure = StemWorkerError(
+                        "managed stem worker capacity is unavailable"
+                    )
+                    break
+                handles.append(handle)
+                adaptive_observations.append(adaptive_observation)
+
+            if start_failure is None:
+                break
+            if warm_binding is None:
+                raise _ManagedStemBatchFailure(0, start_failure) from (
+                    start_failure
+                )
+
+            failed_binding = warm_binding
+            try:
+                if disable_warm_for_run is not None:
+                    disable_warm_for_run()
+                abandon_warm_attempt(failed_binding)
+                warm_binding = None
+                allow_warm_start = False
+                reservation = slot_context.pool.reserve_exact(
+                    resource_claims(None)
+                )
+            except MemoryError:
+                raise
+            except Exception as exc:
+                raise _ManagedStemBatchFailure(0, exc) from exc
+            if reservation is None:
+                raise _ManagedStemBatchFailure(
+                    0,
+                    StemWorkerError(
+                        "global managed stem worker capacity is unavailable"
+                    ),
+                )
+
+        # One child cannot amortise process startup.  This also ensures that a
+        # competing render which obtains the remaining global permit keeps the
+        # whole batch on the serial path instead of slowing both renders down.
+        if len(handles) < 2:
+            raise _ManagedStemBatchFailure(
+                0,
+                StemWorkerError("managed stem batch is too small"),
+            )
+
+        # Collect every child before exposing the first source.  Apart from
+        # keeping this list bounded by the admitted worker count (currently
+        # at most four), this keeps downstream cache/mix/consumption outside
+        # every child timing and gives an all-or-none fallback boundary.  A
+        # later position conservatively includes earlier ordered protocol,
+        # SHA and bounded validation time.  That can only overestimate its
+        # managed cost; retaining the sample also lets heterogeneous backend
+        # plans eventually build complete per-backend evidence.
+        for position, handle in enumerate(handles):
+            assert handle is not None
+            result: Any | None = None
+            transferred_source: StemBlockSource | None = None
+            try:
+                result = collect_stem_worker(handle)
+                handles[position] = None
+                try:
+                    frozen_observation = None
+                    if adaptive_session is not None:
+                        frozen_observation = (
+                            adaptive_session.freeze_managed(
+                                adaptive_observations[position],
+                                warm_used=bool(result._warm_used),
+                                concurrent_workers=len(handles),
+                            )
+                        )
+                    adaptive_observations[position] = None
+                    if frozen_observation is None:
+                        transferred_source = result.detach_source()
+                    else:
+                        transferred_source = result.detach_source(
+                            completion_callback=frozen_observation.resolve
+                        )
+                    detached_results.append(
+                        (
+                            result.index,
+                            transferred_source,
+                            result.peak_voices,
+                            result.manifest_sha256,
+                        )
+                    )
+                except BaseException:
+                    try:
+                        if transferred_source is not None:
+                            transferred_source.close()
+                        else:
+                            result.close()
+                    except BaseException as exc:
+                        _warn_cleanup(
+                            "managed stem result cleanup did not complete: "
+                            f"{type(exc).__name__}"
+                        )
+                    raise
+            except MemoryError:
+                # Resource exhaustion is not a recoverable worker-protocol
+                # failure.  Continuing with the in-process renderer would
+                # usually require at least as much memory and can hide the
+                # host's cancellation/pressure signal.
+                raise
+            except Exception as exc:
+                raise _ManagedStemBatchFailure(0, exc) from exc
+
+        for position, detached in enumerate(detached_results):
+            assert detached is not None
+            transferred_source = detached[1]
+            resumed_normally = False
+            source_was_open = False
+            close_error: BaseException | None = None
+            try:
+                yield detached
+                resumed_normally = True
+            finally:
+                if not transferred_source.closed:
+                    source_was_open = True
+                    try:
+                        transferred_source.close()
+                    except BaseException as exc:
+                        close_error = exc
+                detached_results[position] = None
+                if not resumed_normally and close_error is not None:
+                    _warn_cleanup(
+                        "managed stem source cleanup did not complete: "
+                        f"{type(close_error).__name__}"
+                    )
+            if resumed_normally and source_was_open:
+                cause = close_error or StemWorkerError(
+                    "managed stem source was not explicitly consumed and closed"
+                )
+                raise _ManagedStemBatchFailure(position + 1, cause) from cause
+        completed_normally = True
+    finally:
+        cleanup_error: BaseException | None = None
+        for detached in detached_results:
+            if detached is None:
+                continue
+            transferred_source = detached[1]
+            if transferred_source.closed:
+                continue
+            try:
+                transferred_source.close()
+            except BaseException as exc:
+                if completed_normally and cleanup_error is None:
+                    cleanup_error = exc
+                else:
+                    _warn_cleanup(
+                        "managed stem source cleanup did not complete: "
+                        f"{type(exc).__name__}"
+                    )
+        if reservation is not None:
+            try:
+                reservation.close()
+            except BaseException as exc:
+                if completed_normally and cleanup_error is None:
+                    cleanup_error = exc
+                else:
+                    _warn_cleanup(
+                        "managed stem reservation cleanup did not complete: "
+                        f"{type(exc).__name__}"
+                    )
+        if adaptive_session is not None:
+            for observation in adaptive_observations:
+                if observation is None:
+                    continue
+                try:
+                    adaptive_session.discard_managed(observation)
+                except BaseException as exc:
+                    if completed_normally and cleanup_error is None:
+                        cleanup_error = exc
+                    else:
+                        _warn_cleanup(
+                            "adaptive managed timing cleanup did not "
+                            "complete: "
+                            f"{type(exc).__name__}"
+                        )
+        for handle in handles:
+            if handle is not None:
+                try:
+                    terminate_stem_worker(handle)
+                except BaseException as exc:
+                    if completed_normally and cleanup_error is None:
+                        cleanup_error = exc
+                    else:
+                        _warn_cleanup(
+                            "managed stem worker cleanup did not complete: "
+                            f"{type(exc).__name__}"
+                        )
+        if completed_normally and cleanup_error is not None:
+            raise cleanup_error
+
+
+def _render_part_adaptively(
+    part: Any,
+    sample_rate: int,
+    *,
+    adaptive_session: AdaptiveRenderSession | None = None,
+    adaptive_backend_key: str = "",
+    adaptive_work_frames: int = 0,
+    stream_output: bool = False,
+    scratch_directory: Path | None = None,
+) -> tuple[Any, int, str]:
+    """Time only one real uncached backend render, never its consumers."""
+
+    observation = None
+    if (
+        adaptive_session is not None
+        and adaptive_backend_key
+        and type(adaptive_work_frames) is int
+        and adaptive_work_frames > 0
+    ):
+        observation = adaptive_session.begin_serial(
+            backend_key=adaptive_backend_key,
+            work_frames=adaptive_work_frames,
+        )
+    if stream_output:
+        if scratch_directory is None:
+            raise ValueError("streamed serial render requires scratch")
+        rendered = _render_part_source(
+            part,
+            sample_rate,
+            scratch_directory=scratch_directory,
+        )
+    else:
+        rendered = _render_part(part, sample_rate)
+    if adaptive_session is not None and observation is not None:
+        try:
+            frozen = adaptive_session.freeze_serial(observation)
+            if frozen is not None:
+                # The enclosing render-scoped transaction still withholds
+                # this timing until downstream validation consumes the stem
+                # and the complete raw-stem phase succeeds.
+                frozen.resolve(True)
+        except BaseException:
+            if isinstance(rendered[0], StemBlockSource):
+                try:
+                    rendered[0].close()
+                except BaseException:
+                    pass
+            raise
+    return rendered
+
+
+def _serial_raw_stem(
+    part: Any,
+    sample_rate: int,
+    *,
+    cache: StemCache | None,
+    snapshot_directory: Path,
+    stream_cache_hits: bool = True,
+    refresh: bool,
+    runtime_fingerprints: dict[
+        tuple[str, str, int, str],
+        str,
+    ],
+    summary: dict[str, Any] | None,
+    adaptive_session: AdaptiveRenderSession | None = None,
+    adaptive_backend_key: str = "",
+    adaptive_work_frames: int = 0,
+    direct_cache_fallback: bool = False,
+) -> tuple[Any, int, str]:
+    # A worker_count<=1 part is a separate serial resource phase even when its
+    # raw stem is already cached.  Reap the preceding parallel run's idle RSS
+    # before cache.load or an in-process fallback crosses that budget barrier.
+    # Prepared cache hits inside one admitted parallel run bypass this helper
+    # and intentionally keep warm reuse alive.
+    retire_idle_stem_workers()
+    stream_output = stream_cache_hits and _prefer_streamed_serial_stem(
+        part,
+        sample_rate,
+        snapshot_directory,
+    )
+    if cache is None or summary is None:
+        return _render_part_adaptively(
+            part,
+            sample_rate,
+            adaptive_session=adaptive_session,
+            adaptive_backend_key=adaptive_backend_key,
+            adaptive_work_frames=adaptive_work_frames,
+            stream_output=stream_output,
+            scratch_directory=snapshot_directory,
+        )
+    return _render_part_cached(
+        part,
+        sample_rate,
+        cache=cache,
+        snapshot_directory=snapshot_directory,
+        stream_cache_hits=stream_cache_hits,
+        refresh=refresh,
+        runtime_fingerprints=runtime_fingerprints,
+        summary=summary,
+        adaptive_session=adaptive_session,
+        adaptive_backend_key=adaptive_backend_key,
+        adaptive_work_frames=adaptive_work_frames,
+        stream_output=stream_output,
+        direct_cache_fallback=direct_cache_fallback,
+    )
+
+
+def _wrap_streamed_cache_store(
+    part: Any,
+    sample_rate: int,
+    *,
+    source: StemBlockSource,
+    cache: StemCache,
+    summary: dict[str, Any],
+    identity: _RawStemCacheIdentity,
+    peak_voices: int,
+    manifest_sha256: str,
+) -> StemBlockSource:
+    """Tee one authoritative streamed source into a cache transaction."""
+
+    try:
+        transaction = cache.begin_streaming_store(
+            identity.key,
+            stage=RAW_STEM_CACHE_STAGE,
+            sample_rate=sample_rate,
+            peak_voices=peak_voices,
+            manifest_sha256=manifest_sha256,
+        )
+    except BaseException:
+        try:
+            source.close()
+        except BaseException:
+            pass
+        raise
+
+    def finish_cache() -> None:
+        if not _cache_publication_is_live(
+            part,
+            sample_rate,
+            summary=summary,
+            identity=identity,
+            manifest_sha256=manifest_sha256,
+        ):
+            transaction.abort()
+            return
+        stored = transaction.finish(
+            source.frame_count,
+            source.audio_sha256,
+        )
+        _note_cache_store_result(summary, stored)
+
+    try:
+        return _StreamedRawStem(
+            source,
+            transaction=transaction,
+            finish_cache=finish_cache,
+        )
+    except BaseException:
+        try:
+            transaction.abort()
+        except BaseException:
+            pass
+        try:
+            source.close()
+        except BaseException:
+            pass
+        raise
+
+
+def _consume_prepared_parallel_render(
+    part: Any,
+    sample_rate: int,
+    prepared: _PreparedParallelStemCache,
+    rendered: tuple[Any, int, str],
+    *,
+    cache: StemCache,
+    summary: dict[str, Any],
+) -> tuple[Any, int, str]:
+    buffer, peak_voices, manifest_sha256 = rendered
+    cache_eligible = _activate_prepared_cache_accounting(
+        prepared,
+        summary,
+    )
+    if cache_eligible:
+        assert prepared.identity is not None
+        if isinstance(buffer, StemBlockSource):
+            buffer = _wrap_streamed_cache_store(
+                part,
+                sample_rate,
+                source=buffer,
+                cache=cache,
+                summary=summary,
+                identity=prepared.identity,
+                peak_voices=peak_voices,
+                manifest_sha256=manifest_sha256,
+            )
+        else:
+            _store_parallel_rendered_stem(
+                part,
+                sample_rate,
+                cache=cache,
+                summary=summary,
+                identity=prepared.identity,
+                buffer=buffer,
+                peak_voices=peak_voices,
+                manifest_sha256=manifest_sha256,
+            )
+    return buffer, peak_voices, manifest_sha256
+
+
+def _render_prepared_stem_serially(
+    part: Any,
+    sample_rate: int,
+    prepared: _PreparedParallelStemCache,
+    *,
+    cache: StemCache,
+    summary: dict[str, Any],
+    adaptive_session: AdaptiveRenderSession | None = None,
+    adaptive_backend_key: str = "",
+    adaptive_work_frames: int = 0,
+    stream_output: bool = False,
+    scratch_directory: Path | None = None,
+) -> tuple[Any, int, str]:
+    rendered = _render_part_adaptively(
+        part,
+        sample_rate,
+        adaptive_session=adaptive_session,
+        adaptive_backend_key=adaptive_backend_key,
+        adaptive_work_frames=adaptive_work_frames,
+        stream_output=stream_output,
+        scratch_directory=scratch_directory,
+    )
+    return _consume_prepared_parallel_render(
+        part,
+        sample_rate,
+        prepared,
+        rendered,
+        cache=cache,
+        summary=summary,
+    )
+
+
+def _consume_prepared_cache_hit(
+    part: Any,
+    sample_rate: int,
+    prepared: _PreparedParallelStemCache,
+    *,
+    summary: dict[str, Any],
+    adaptive_session: AdaptiveRenderSession | None = None,
+    adaptive_backend_key: str = "",
+    adaptive_work_frames: int = 0,
+    stream_output: bool = False,
+    scratch_directory: Path | None = None,
+) -> tuple[Any, int, str]:
+    """Use a look-ahead hit only while the ordered cache session is live."""
+
+    lookup = prepared.lookup
+    assert lookup is not None
+    assert prepared.identity is not None
+    if summary["active"] and current_source_tree_matches():
+        _activate_prepared_cache_accounting(prepared, summary)
+        assert lookup.record is not None
+        return (
+            (
+                lookup.source
+                if lookup.source is not None
+                else lookup.audio
+            ),
+            int(lookup.record.metadata["peak_voices"]),
+            prepared.identity.manifest_sha256,
+        )
+
+    _close_cache_lookup(lookup)
+    if summary["active"]:
+        summary["active"] = False
+        _note_cache_result(
+            summary,
+            "bypassed",
+            "producer_source_changed_restart_required",
+        )
+    else:
+        _note_cache_result(summary, "bypassed", "session_disabled")
+    return _render_part_adaptively(
+        part,
+        sample_rate,
+        adaptive_session=adaptive_session,
+        adaptive_backend_key=adaptive_backend_key,
+        adaptive_work_frames=adaptive_work_frames,
+        stream_output=stream_output,
+        scratch_directory=scratch_directory,
+    )
+
+
+def _iter_raw_stems_in_plan_order_body(
+    plan: PerformancePlan,
+    *,
+    scratch_directory: Path,
+    hall_tail_seconds: float,
+    cache: StemCache | None,
+    stream_cache_hits: bool,
+    direct_cache_fallback: bool,
+    refresh: bool,
+    runtime_fingerprints: dict[
+        tuple[str, str, int, str],
+        str,
+    ],
+    summary: dict[str, Any] | None,
+    slot_context_holder: list[_ManagedWorkerSlotContext],
+    adaptive_session: AdaptiveRenderSession,
+) -> Any:
+    """Yield raw stems in plan order with transparent bounded parallelism."""
+
+    parallelism = _automatic_stem_parallelism(
+        plan,
+        scratch_directory=scratch_directory,
+        hall_tail_seconds=hall_tail_seconds,
+        adaptive_session=adaptive_session,
+    )
+    worker_count_by_part = parallelism.worker_count_by_part
+    manifest_sha256_by_part = parallelism.manifest_sha256_by_part
+    adaptive_backend_key_by_part = tuple(
+        getattr(parallelism, "adaptive_backend_key_by_part", ())
+    )
+    adaptive_work_frames_by_part = tuple(
+        getattr(parallelism, "adaptive_work_frames_by_part", ())
+    )
+    parallel_available = parallelism.worker_count > 1
+    slot_context = (
+        _automatic_worker_slot_context(
+            plan,
+            parallelism=parallelism,
+            scratch_directory=scratch_directory,
+            hall_tail_seconds=hall_tail_seconds,
+        )
+        if parallel_available
+        else None
+    )
+    if slot_context is None:
+        parallel_available = False
+    else:
+        slot_context_holder.append(slot_context)
+    parts = plan.parts
+    index = 0
+    previous_worker_count: int | None = None
+    warm_binding: _ManagedWarmBinding | None = None
+    warm_disabled_for_run = False
+
+    def adaptive_fact(part_index: int) -> tuple[str, int]:
+        if (
+            0 <= part_index < len(adaptive_backend_key_by_part)
+            and part_index < len(adaptive_work_frames_by_part)
+        ):
+            return (
+                adaptive_backend_key_by_part[part_index],
+                adaptive_work_frames_by_part[part_index],
+            )
+        return "", 0
+
+    def disable_warm_for_current_run() -> None:
+        nonlocal warm_binding
+        nonlocal warm_disabled_for_run
+
+        warm_binding = None
+        warm_disabled_for_run = True
+
+    while index < len(parts):
+        # A source edit after policy selection means a freshly imported child
+        # could execute different code from this coordinator.  Keep rendering
+        # functional by switching the rest of this generation to serial.
+        if parallel_available and not current_source_tree_matches():
+            parallel_available = False
+
+        worker_count = (
+            worker_count_by_part[index]
+            if parallel_available
+            and index < len(worker_count_by_part)
+            else 1
+        )
+        if (
+            previous_worker_count is not None
+            and worker_count != previous_worker_count
+        ):
+            # Each count is a separately admitted memory-reserve run.  Never
+            # carry the larger run's idle RSS into the next run merely because
+            # both happen to use managed workers.
+            retire_idle_stem_workers()
+            warm_binding = None
+            warm_disabled_for_run = False
+        previous_worker_count = worker_count
+        if worker_count <= 1:
+            part = parts[index]
+            adaptive_backend_key, adaptive_work_frames = adaptive_fact(index)
+            rendered = _serial_raw_stem(
+                part,
+                plan.sample_rate,
+                cache=cache,
+                snapshot_directory=scratch_directory,
+                stream_cache_hits=stream_cache_hits,
+                refresh=refresh,
+                runtime_fingerprints=runtime_fingerprints,
+                summary=summary,
+                adaptive_session=adaptive_session,
+                adaptive_backend_key=adaptive_backend_key,
+                adaptive_work_frames=adaptive_work_frames,
+                direct_cache_fallback=direct_cache_fallback,
+            )
+            yield (index, part, *rendered)
+            rendered = None
+            index += 1
+            continue
+
+        if cache is None or summary is None:
+            run_end = index
+            while (
+                run_end < len(parts)
+                and worker_count_by_part[run_end] == worker_count
+            ):
+                run_end += 1
+            group_end = index
+            while (
+                group_end < len(parts)
+                and group_end < index + worker_count
+                and worker_count_by_part[group_end] == worker_count
+            ):
+                group_end += 1
+            group = tuple(
+                (part_index, parts[part_index])
+                for part_index in range(index, group_end)
+            )
+            if len(group) < 2:
+                part = parts[index]
+                adaptive_backend_key, adaptive_work_frames = adaptive_fact(
+                    index
+                )
+                rendered = _serial_raw_stem(
+                    part,
+                    plan.sample_rate,
+                    cache=cache,
+                    snapshot_directory=scratch_directory,
+                    stream_cache_hits=stream_cache_hits,
+                    refresh=refresh,
+                    runtime_fingerprints=runtime_fingerprints,
+                    summary=summary,
+                    adaptive_session=adaptive_session,
+                    adaptive_backend_key=adaptive_backend_key,
+                    adaptive_work_frames=adaptive_work_frames,
+                    direct_cache_fallback=direct_cache_fallback,
+                )
+                yield (index, part, *rendered)
+                rendered = None
+                index += 1
+                continue
+            try:
+                jobs = tuple(
+                    _stem_worker_job(
+                        part_index,
+                        part,
+                        plan.sample_rate,
+                        manifest_sha256_by_part[part_index],
+                    )
+                    for part_index, part in group
+                )
+            except MemoryError:
+                raise
+            except Exception:
+                parallel_available = False
+                continue
+            try:
+                allow_warm_start = False
+                if (
+                    group_end < run_end
+                    and warm_binding is None
+                    and not warm_disabled_for_run
+                ):
+                    candidate_binding = _managed_warm_binding_for_run(
+                        start=index,
+                        end=run_end,
+                        parts=parts,
+                        slot_context=slot_context,
+                    )
+                    if candidate_binding is not None:
+                        warm_binding = candidate_binding
+                        allow_warm_start = True
+                position = 0
+                for worker_result in _iter_managed_stem_batch(
+                    jobs,
+                    scratch_directory=scratch_directory,
+                    # Only create persistent children when this contiguous
+                    # parallel run has another batch that can reuse them.
+                    # A final batch still checks out existing idle workers.
+                    allow_warm_start=allow_warm_start,
+                    slot_context=slot_context,
+                    warm_binding=warm_binding,
+                    adaptive_session=adaptive_session,
+                    adaptive_backend_key_by_part=(
+                        adaptive_backend_key_by_part
+                    ),
+                    adaptive_work_frames_by_part=(
+                        adaptive_work_frames_by_part
+                    ),
+                    disable_warm_for_run=disable_warm_for_current_run,
+                ):
+                    part_index, buffer, peak_voices, manifest_sha256 = (
+                        worker_result
+                    )
+                    expected_index, part = group[position]
+                    if part_index != expected_index:
+                        raise _ManagedStemBatchFailure(
+                            position,
+                            StemWorkerError(
+                                "managed stem results changed plan order"
+                            ),
+                        )
+                    yield (
+                        part_index,
+                        part,
+                        buffer,
+                        peak_voices,
+                        manifest_sha256,
+                    )
+                    worker_result = None
+                    buffer = None
+                    position += 1
+                index += len(group)
+            except _ManagedStemBatchFailure as failure:
+                index += failure.position
+                parallel_available = False
+            continue
+
+        prepared_group: list[
+            tuple[int, Any, _PreparedParallelStemCache]
+        ] = []
+        cached_head: tuple[
+            int, Any, _PreparedParallelStemCache
+        ] | None = None
+        cursor = index
+        source_became_unsafe = False
+        while (
+            cursor < len(parts)
+            and len(prepared_group) < worker_count
+            and worker_count_by_part[cursor] == worker_count
+        ):
+            part = parts[cursor]
+            prepared = _prepare_parallel_stem_cache(
+                part,
+                plan.sample_rate,
+                cache=cache,
+                snapshot_directory=scratch_directory,
+                stream_cache_hits=stream_cache_hits,
+                direct_cache_fallback=direct_cache_fallback,
+                refresh=refresh,
+                runtime_fingerprints=runtime_fingerprints,
+                summary=summary,
+            )
+            if prepared.disable_session:
+                source_became_unsafe = True
+                break
+            if prepared.lookup is not None:
+                if not prepared_group:
+                    cached_head = (cursor, part, prepared)
+                else:
+                    # This boundary hit is reloaded only after the preceding
+                    # misses are consumed.  Close its verified descriptor
+                    # before any worker result enters coordinator memory.
+                    _close_cache_lookup(prepared.lookup)
+                    prepared = None
+                # The next ordered iteration reopens and verifies this
+                # boundary hit after the batch has been consumed.
+                break
+            prepared_group.append((cursor, part, prepared))
+            cursor += 1
+
+        if source_became_unsafe:
+            parallel_available = False
+            continue
+        if cached_head is not None:
+            part_index, part, prepared = cached_head
+            stream_output = (
+                stream_cache_hits
+                and _prefer_streamed_serial_stem(
+                    part,
+                    plan.sample_rate,
+                    scratch_directory,
+                )
+            )
+            rendered = _consume_prepared_cache_hit(
+                part,
+                plan.sample_rate,
+                prepared,
+                summary=summary,
+                adaptive_session=adaptive_session,
+                adaptive_backend_key=adaptive_fact(part_index)[0],
+                adaptive_work_frames=adaptive_fact(part_index)[1],
+                stream_output=stream_output,
+                scratch_directory=scratch_directory,
+            )
+            yield (part_index, part, *rendered)
+            rendered = None
+            prepared = None
+            cached_head = None
+            index += 1
+            continue
+        if len(prepared_group) < 2:
+            if not prepared_group:
+                part = parts[index]
+                adaptive_backend_key, adaptive_work_frames = adaptive_fact(
+                    index
+                )
+                rendered = _serial_raw_stem(
+                    part,
+                    plan.sample_rate,
+                    cache=cache,
+                    snapshot_directory=scratch_directory,
+                    stream_cache_hits=stream_cache_hits,
+                    refresh=refresh,
+                    runtime_fingerprints=runtime_fingerprints,
+                    summary=summary,
+                    adaptive_session=adaptive_session,
+                    adaptive_backend_key=adaptive_backend_key,
+                    adaptive_work_frames=adaptive_work_frames,
+                    direct_cache_fallback=direct_cache_fallback,
+                )
+                yield (index, part, *rendered)
+                rendered = None
+                index += 1
+                continue
+            part_index, part, prepared = prepared_group[0]
+            stream_output = (
+                stream_cache_hits
+                and _prefer_streamed_serial_stem(
+                    part,
+                    plan.sample_rate,
+                    scratch_directory,
+                )
+            )
+            rendered = _render_prepared_stem_serially(
+                part,
+                plan.sample_rate,
+                prepared,
+                cache=cache,
+                summary=summary,
+                adaptive_session=adaptive_session,
+                adaptive_backend_key=adaptive_fact(part_index)[0],
+                adaptive_work_frames=adaptive_fact(part_index)[1],
+                stream_output=stream_output,
+                scratch_directory=scratch_directory,
+            )
+            yield (part_index, part, *rendered)
+            rendered = None
+            index += 1
+            continue
+
+        try:
+            jobs = tuple(
+                _stem_worker_job(
+                    part_index,
+                    part,
+                    plan.sample_rate,
+                    manifest_sha256_by_part[part_index],
+                )
+                for part_index, part, _prepared in prepared_group
+            )
+        except MemoryError:
+            raise
+        except Exception:
+            parallel_available = False
+            continue
+        try:
+            allow_warm_start = False
+            if refresh:
+                run_end = index
+                while (
+                    run_end < len(parts)
+                    and worker_count_by_part[run_end] == worker_count
+                ):
+                    run_end += 1
+                if (
+                    cursor < run_end
+                    and warm_binding is None
+                    and not warm_disabled_for_run
+                ):
+                    candidate_binding = _managed_warm_binding_for_run(
+                        start=index,
+                        end=run_end,
+                        parts=parts,
+                        slot_context=slot_context,
+                    )
+                    if candidate_binding is not None:
+                        warm_binding = candidate_binding
+                        allow_warm_start = True
+            position = 0
+            for worker_result in _iter_managed_stem_batch(
+                jobs,
+                scratch_directory=scratch_directory,
+                # Cache look-ahead deliberately retains no full future hit or
+                # miss payload, so ordinary lookup cannot prove a later miss
+                # batch without reintroducing coordinator memory pressure.
+                # Refresh mode is the exception: every later prepared entry is
+                # a known miss, so it can safely use the no-cache run policy.
+                allow_warm_start=allow_warm_start,
+                slot_context=slot_context,
+                warm_binding=warm_binding,
+                adaptive_session=adaptive_session,
+                adaptive_backend_key_by_part=(
+                    adaptive_backend_key_by_part
+                ),
+                adaptive_work_frames_by_part=(
+                    adaptive_work_frames_by_part
+                ),
+                disable_warm_for_run=disable_warm_for_current_run,
+            ):
+                part_index, buffer, peak_voices, manifest_sha256 = (
+                    worker_result
+                )
+                expected_index, part, prepared = prepared_group[position]
+                if part_index != expected_index:
+                    raise _ManagedStemBatchFailure(
+                        position,
+                        StemWorkerError(
+                            "managed stem results changed plan order"
+                        ),
+                    )
+                rendered = _consume_prepared_parallel_render(
+                    part,
+                    plan.sample_rate,
+                    prepared,
+                    (buffer, peak_voices, manifest_sha256),
+                    cache=cache,
+                    summary=summary,
+                )
+                yield (part_index, part, *rendered)
+                worker_result = None
+                rendered = None
+                buffer = None
+                position += 1
+            index += len(prepared_group)
+        except _ManagedStemBatchFailure as failure:
+            index += failure.position
+            parallel_available = False
+
+
+def _iter_raw_stems_in_plan_order(
+    plan: PerformancePlan,
+    *,
+    scratch_directory: Path,
+    hall_tail_seconds: float,
+    cache: StemCache | None,
+    stream_cache_hits: bool,
+    refresh: bool,
+    runtime_fingerprints: dict[
+        tuple[str, str, int, str],
+        str,
+    ],
+    summary: dict[str, Any] | None,
+    direct_cache_fallback: bool = False,
+) -> Any:
+    """Own and deterministically retire one render session's warm workers."""
+
+    slot_context_holder: list[_ManagedWorkerSlotContext] = []
+    adaptive_session = AdaptiveRenderSession()
+    try:
+        yield from _iter_raw_stems_in_plan_order_body(
+            plan,
+            scratch_directory=scratch_directory,
+            hall_tail_seconds=hall_tail_seconds,
+            cache=cache,
+            stream_cache_hits=stream_cache_hits,
+            direct_cache_fallback=direct_cache_fallback,
+            refresh=refresh,
+            runtime_fingerprints=runtime_fingerprints,
+            summary=summary,
+            slot_context_holder=slot_context_holder,
+            adaptive_session=adaptive_session,
+        )
+    except BaseException:
+        if slot_context_holder:
+            try:
+                _retire_managed_stem_worker_session(
+                    slot_context_holder[0].owner_id,
+                    force=True,
+                )
+            except BaseException as exc:
+                _warn_cleanup(
+                    "managed stem session cleanup did not complete: "
+                    f"{type(exc).__name__}"
+                )
+        try:
+            adaptive_session.cancel()
+        except BaseException as exc:
+            _warn_cleanup(
+                "adaptive render timing cleanup did not complete: "
+                f"{type(exc).__name__}"
+            )
+        raise
+    else:
+        try:
+            if slot_context_holder:
+                _retire_managed_stem_worker_session(
+                    slot_context_holder[0].owner_id,
+                    force=False,
+                )
+            adaptive_session.complete()
+        except BaseException:
+            try:
+                adaptive_session.cancel()
+            except BaseException as exc:
+                _warn_cleanup(
+                    "adaptive render timing cleanup did not complete: "
+                    f"{type(exc).__name__}"
+                )
+            raise
+
+
+def _absolute_peak(samples: Any) -> float:
+    """Return an ndarray peak without allocating a full-size ``abs`` copy."""
+
+    import numpy as np
+
+    if samples.size == 0:
+        return 0.0
+    minimum = float(np.min(samples))
+    maximum = float(np.max(samples))
+    return max(abs(minimum), abs(maximum))
+
+
+def _validate_stem_peak(executor: Any, stem_peak: float) -> None:
+    """Apply one user-visible finite/overload contract to every stem path."""
+
+    if not math.isfinite(stem_peak):
+        raise ValueError(
+            f"分轨 {executor.executor_id!r} 产生了非有限样本"
+        )
+    if stem_peak > 1.0:
+        headroom = 20.0 * math.log10(stem_peak)
+        raise ValueError(
+            f"分轨 {executor.executor_id!r} "
+            f"过载:峰值 {stem_peak:.4f}"
+            f"(超出 {headroom:+.2f} dB)。"
+            "写盘会被静默削平,因此拒绝输出。"
+            f"请把该声部的 gain_db 从 "
+            f"{executor.gain_db:.1f} 降到 "
+            f"{executor.gain_db - headroom:.1f} 或更低"
+        )
+
+
+def _accumulate_stem(
+    bus: Any,
+    send_bus: Any | None,
+    buffer: Any,
+    length: int,
+    left_gain: float,
+    right_gain: float,
+    send_scale: float | None,
+) -> None:
+    """Mix one stem with bounded multiplication scratch arrays."""
+
+    chunk_frames = 65_536
+    for start in range(0, length, chunk_frames):
+        end = min(length, start + chunk_frames)
+        bus[start:end, 0] += buffer[start:end, 0] * left_gain
+        bus[start:end, 1] += buffer[start:end, 1] * right_gain
+        if send_bus is not None:
+            assert send_scale is not None
+            send_bus[start:end] += buffer[start:end] * send_scale
+
+
+def _try_begin_streamed_analysis_transaction(
+    builder: CollaborationReportBuilder,
+    executor: Any,
+    source: StemBlockSource,
+    *,
+    staging_identity: PlainDirectoryIdentity,
+    write_stems: bool,
+) -> Any | None:
+    """Choose the long-stem transaction before consuming any source byte."""
+
+    raw_bytes = source.frame_count * 2 * 4
+    if raw_bytes <= _DIRECT_ANALYSIS_STEM_LOAD_BYTES:
+        return None
+    staging = revalidate_plain_directory(staging_identity)
+    required = _analysis_transaction_scratch_requirement(
+        source.frame_count,
+        write_stems=write_stems,
+    )
+    try:
+        free_bytes = shutil.disk_usage(staging).free
+    except MemoryError:
+        raise
+    except Exception:
+        # Probe failure is a performance-path failure only, but an identity
+        # failure is a safety boundary and must remain fail-closed.
+        revalidate_plain_directory(staging_identity)
+        return None
+
+    # Revalidate even on an insufficient-space result: otherwise a directory
+    # replacement racing the probe could be hidden by the normal fallback.
+    revalidate_plain_directory(staging_identity)
+    if free_bytes < required:
+        return None
+    try:
+        return builder._begin_stem_transaction(
+            executor,
+            frame_count=source.frame_count,
+        )
+    except MemoryError:
+        raise
+    except OSError as exc:
+        if exc.errno in {
+            errno.ELOOP,
+            errno.ENOENT,
+            errno.ENOTDIR,
+            errno.ESTALE,
+        }:
+            raise
+        revalidate_plain_directory(staging_identity)
+        return None
+    except Exception:
+        # The source has not been iterated yet.  A non-identity mapping failure
+        # can therefore retain the established materialisation path without
+        # rerendering or weakening source validation.
+        revalidate_plain_directory(staging_identity)
+        return None
+
+
+def _consume_streamed_analysis_stem(
+    source: StemBlockSource,
+    transaction: Any,
+    *,
+    sample_rate: int,
+    executor: Any,
+    gain_envelope: Any,
+) -> tuple[Any, float]:
+    """Validate a raw source, then diagnose its post-gain scratch mapping."""
+
+    import numpy as np
+
+    frame_offset = 0
+    stem_peak = 0.0
+    post_gain_nonfinite = False
+    compiled_gain_envelope: tuple[Any, Any] | None = None
+    raw_blocks: Any | None = None
+    try:
+        raw_blocks = source.iter_blocks(65_536)
+        for raw_block in raw_blocks:
+            block = np.array(
+                raw_block,
+                dtype=np.float32,
+                order="C",
+                copy=True,
+            )
+            if gain_envelope and compiled_gain_envelope is None:
+                compiled_gain_envelope = _compile_gain_envelope_points(
+                    gain_envelope
+                )
+            _apply_gain_envelope_block(
+                block,
+                sample_rate,
+                executor.gain_db,
+                gain_envelope,
+                frame_offset=frame_offset,
+                compiled_points=compiled_gain_envelope,
+            )
+            stop = frame_offset + int(block.shape[0])
+            if stop > source.frame_count:
+                raise RuntimeError("streamed analysis stem produced excess frames")
+            if not post_gain_nonfinite:
+                try:
+                    transaction.append(block)
+                except ValueError as exc:
+                    if str(exc) != "stem analysis block is not finite":
+                        raise
+                    # Preserve the established user-facing peak error, while
+                    # still draining the raw source through its SHA/finite/
+                    # identity gates before accepting that failure.
+                    post_gain_nonfinite = True
+            if post_gain_nonfinite:
+                stem_peak = math.nan
+            else:
+                stem_peak = max(stem_peak, _absolute_peak(block))
+            frame_offset = stop
+
+        # Iterator exhaustion closes every source verification gate.  An
+        # explicit close must also succeed before peak acceptance, diagnostics,
+        # WAV output or either mix bus can observe the stem.
+        source.close()
+        if frame_offset != source.frame_count:
+            raise RuntimeError("streamed analysis stem changed frame count")
+        _validate_stem_peak(executor, stem_peak)
+        view = transaction.finish_view()
+        return view, stem_peak
+    except BaseException:
+        close_blocks = getattr(raw_blocks, "close", None)
+        if callable(close_blocks):
+            try:
+                close_blocks()
+            except BaseException:
+                pass
+        try:
+            source.close()
+        except BaseException:
+            pass
+        try:
+            transaction.close()
+        except BaseException:
+            pass
+        raise
+
+
+def _consume_streamed_raw_stem(
+    source: StemBlockSource,
+    *,
+    sample_rate: int,
+    base_gain_db: float,
+    gain_envelope: Any,
+    bus: Any,
+    send_bus: Any | None,
+    total_frames: int,
+    left_gain: float,
+    right_gain: float,
+    send_scale: float | None,
+    stem_target: Path | None,
+) -> float:
+    """Tee, gain, write and mix one verified raw source in one bounded pass."""
+
+    import numpy as np
+
+    frame_offset = 0
+    stem_peak = 0.0
+    compiled_gain_envelope: tuple[Any, Any] | None = None
+
+    raw_blocks: Any | None = None
+
+    def processed_blocks() -> Any:
+        nonlocal frame_offset, stem_peak, compiled_gain_envelope
+        assert raw_blocks is not None
+        for raw_block in raw_blocks:
+            # Sources deliberately expose immutable raw bytes.  This is the
+            # sole bounded writable copy used by gain, WAV encoding and both
+            # mix buses; no track-sized ndarray is materialised.
+            block = np.array(
+                raw_block,
+                dtype=np.float32,
+                order="C",
+                copy=True,
+            )
+            if gain_envelope and compiled_gain_envelope is None:
+                compiled_gain_envelope = _compile_gain_envelope_points(
+                    gain_envelope
+                )
+            _apply_gain_envelope_block(
+                block,
+                sample_rate,
+                base_gain_db,
+                gain_envelope,
+                frame_offset=frame_offset,
+                compiled_points=compiled_gain_envelope,
+            )
+            block_peak = _absolute_peak(block)
+            if not math.isfinite(block_peak):
+                raise ValueError("streamed stem produced non-finite samples")
+            stem_peak = max(stem_peak, block_peak)
+
+            mix_frames = min(
+                int(block.shape[0]),
+                max(0, total_frames - frame_offset),
+            )
+            if mix_frames:
+                _accumulate_stem(
+                    bus[frame_offset : frame_offset + mix_frames],
+                    (
+                        None
+                        if send_bus is None
+                        else send_bus[
+                            frame_offset : frame_offset + mix_frames
+                        ]
+                    ),
+                    block,
+                    mix_frames,
+                    left_gain,
+                    right_gain,
+                    send_scale,
+                )
+            frame_offset += int(block.shape[0])
+            yield block
+
+    blocks: Any | None = None
+    try:
+        raw_blocks = source.iter_blocks(65_536)
+        blocks = processed_blocks()
+        if stem_target is None:
+            for _block in blocks:
+                pass
+        else:
+            written = write_wav_pcm24_blocks(
+                stem_target,
+                blocks,
+                sample_rate,
+            )
+            if written != source.frame_count:
+                raise RuntimeError(
+                    "streamed stem writer changed frame count"
+                )
+        if frame_offset != source.frame_count:
+            raise RuntimeError("streamed stem changed frame count")
+    except BaseException:
+        for iterator in (blocks, raw_blocks):
+            close_iterator = getattr(iterator, "close", None)
+            if callable(close_iterator):
+                try:
+                    close_iterator()
+                except BaseException:
+                    pass
+        try:
+            source.close()
+        except BaseException:
+            pass
+        raise
+    else:
+        source.close()
+        return stem_peak
+
+
+# Private compatibility seam retained for focused cache-failure tests and
+# embedders; the implementation now accepts every StemBlockSource.
+_consume_verified_cache_stem = _consume_streamed_raw_stem
 
 
 def _render_plan_generation(
@@ -1579,6 +4577,11 @@ def _render_plan_generation(
 
     directory = Path(output_directory)
     directory.mkdir(parents=True, exist_ok=True)
+    staging_identity = (
+        capture_plain_directory(directory)
+        if collaboration.mode in ("analyze", "suggest")
+        else None
+    )
     plan_path = directory / PERFORMANCE_PLAN_NAME
     _write_json_atomic(plan_path, plan_document)
     stem_directory = directory / "分轨"
@@ -1623,11 +4626,11 @@ def _render_plan_generation(
         CollaborationReportBuilder(
             collaboration,
             plan.sample_rate,
-            # Keep scratch beside, not inside, the private render generation.
-            # The render-loop finally block closes Windows memmaps immediately
-            # on failure; keeping the unique scratch beside staging also lets
-            # staging cleanup proceed independently.
-            scratch_parent=directory.parent,
+            # The private staging identity is revalidated both by the runtime
+            # transaction gate and by the builder itself.  Keeping analysis
+            # scratch here binds its free-space claim to cache/WAV staging on
+            # the same volume; every mapping is closed before publication.
+            scratch_parent=directory,
             cache_directory=analysis_cache_directory,
             expected_stem_count=len(plan.parts),
         )
@@ -1642,56 +4645,196 @@ def _render_plan_generation(
     render_part_total = max(1, len(plan.parts))
     if _progress_callback is not None:
         _progress_callback("render_parts", 0, render_part_total)
+    buffer: Any | None = None
+    analysis_view: Any | None = None
+    raw_stems = _iter_raw_stems_in_plan_order(
+        plan,
+        scratch_directory=directory,
+        hall_tail_seconds=(effective_tail_seconds or 0.0),
+        cache=stem_cache,
+        stream_cache_hits=True,
+        direct_cache_fallback=mix_report_builder is not None,
+        refresh=bool(refresh_stem_cache),
+        runtime_fingerprints=runtime_fingerprints,
+        summary=stem_cache_summary,
+    )
+
+    def close_raw_phase(*, suppress_errors: bool) -> None:
+        nonlocal analysis_view, buffer
+
+        errors: list[BaseException] = []
+        close_raw_stems = getattr(raw_stems, "close", None)
+        if callable(close_raw_stems):
+            try:
+                close_raw_stems()
+            except BaseException as exc:
+                errors.append(exc)
+        try:
+            # The phase-max resource model assumes stem children have exited
+            # before analysis/reverb/final mix.
+            retire_idle_stem_workers()
+        except BaseException as exc:
+            errors.append(exc)
+        if isinstance(buffer, StemBlockSource):
+            try:
+                buffer.close()
+            except BaseException as exc:
+                errors.append(exc)
+        buffer = None
+        if analysis_view is not None:
+            try:
+                analysis_view.close()
+            except BaseException as exc:
+                errors.append(exc)
+            analysis_view = None
+        if (
+            (not render_loop_completed or errors)
+            and mix_report_builder is not None
+        ):
+            try:
+                mix_report_builder.close()
+            except BaseException as exc:
+                errors.append(exc)
+        if not errors:
+            return
+        if suppress_errors:
+            for error in errors:
+                _warn_cleanup(
+                    "raw stem phase cleanup did not complete: "
+                    f"{type(error).__name__}"
+                )
+            return
+        raise errors[0]
+
     try:
-        for part_index, part in enumerate(plan.parts):
-            if stem_cache is None or stem_cache_summary is None:
-                buffer, peak_voices, manifest_sha256 = _render_part(
-                    part,
-                    plan.sample_rate,
-                )
-            else:
-                buffer, peak_voices, manifest_sha256 = (
-                    _render_part_cached(
-                        part,
-                        plan.sample_rate,
-                        cache=stem_cache,
-                        refresh=bool(refresh_stem_cache),
-                        runtime_fingerprints=runtime_fingerprints,
-                        summary=stem_cache_summary,
-                    )
-                )
+        for (
+            part_index,
+            part,
+            buffer,
+            peak_voices,
+            manifest_sha256,
+        ) in raw_stems:
             manifest_sha256_by_executor[
                 part.executor.executor_id
             ] = manifest_sha256
+            streamed_analysis = False
+            if isinstance(buffer, StemBlockSource):
+                if mix_report_builder is not None:
+                    assert staging_identity is not None
+                    streamed_source = buffer
+                    transaction = _try_begin_streamed_analysis_transaction(
+                        mix_report_builder,
+                        part.executor,
+                        streamed_source,
+                        staging_identity=staging_identity,
+                        write_stems=write_stems,
+                    )
+                    if transaction is None:
+                        # Short sources and insufficient/unavailable scratch
+                        # retain the established full-array path.  The gate ran
+                        # before consumption, so this never rerenders a stem.
+                        try:
+                            buffer = streamed_source.materialise()
+                        except BaseException:
+                            try:
+                                streamed_source.close()
+                            except BaseException:
+                                pass
+                            raise
+                        else:
+                            streamed_source.close()
+                    else:
+                        analysis_view, stem_peak = (
+                            _consume_streamed_analysis_stem(
+                                streamed_source,
+                                transaction,
+                                sample_rate=plan.sample_rate,
+                                executor=part.executor,
+                                gain_envelope=part.gain_envelope,
+                            )
+                        )
+                        buffer = analysis_view.audio
+                        streamed_analysis = True
+                else:
+                    stem_path: str | None = None
+                    target: Path | None = None
+                    if write_stems:
+                        target = stem_directory / portable_stem_filename(
+                            part.executor.executor_id
+                        )
+                        stem_path = str(target)
+                    left_gain, right_gain = balance_gains(
+                        part.executor.pan
+                    )
+                    send_scale: float | None = None
+                    if send_bus is not None:
+                        send_scale = space.send_scale(
+                            part.executor.seat.distance_m
+                        )
+                    stem_peak = _consume_verified_cache_stem(
+                        buffer,
+                        sample_rate=plan.sample_rate,
+                        base_gain_db=part.executor.gain_db,
+                        gain_envelope=part.gain_envelope,
+                        bus=bus,
+                        send_bus=send_bus,
+                        total_frames=total_frames,
+                        left_gain=left_gain,
+                        right_gain=right_gain,
+                        send_scale=send_scale,
+                        stem_target=target,
+                    )
+                    _validate_stem_peak(part.executor, stem_peak)
+                    stems.append(
+                        StemResult(
+                            executor_id=part.executor.executor_id,
+                            part_id=part.executor.part_id,
+                            instrument=(
+                                part.executor.capability.relative_path
+                            ),
+                            path=stem_path,
+                            peak=stem_peak,
+                            gain_db=part.executor.gain_db,
+                            pan=part.executor.pan,
+                            peak_voices=peak_voices,
+                            gain_envelope=tuple(
+                                {
+                                    "time_seconds": round(
+                                        point.time_seconds,
+                                        6,
+                                    ),
+                                    "offset_db": point.offset_db,
+                                    "effective_gain_db": (
+                                        part.executor.gain_db
+                                        + point.offset_db
+                                    ),
+                                }
+                                for point in part.gain_envelope
+                            ),
+                        )
+                    )
+                    if _progress_callback is not None:
+                        _progress_callback(
+                            "render_parts",
+                            part_index + 1,
+                            render_part_total,
+                        )
+                    buffer = None
+                    continue
             # 增益在写盘之前施加。分轨是后置增益、前置声像的信号:这样它反映的
             # 就是它在合奏里的电平,让总线不过载的那个增益同样让分轨不过载,而
             # 分轨自己的立体声像仍然完整,方便拿去重新混。
-            apply_gain_envelope(
-                buffer,
-                plan.sample_rate,
-                part.executor.gain_db,
-                part.gain_envelope,
-            )
-            stem_peak = (
-                float(np.max(np.abs(buffer))) if buffer.size else 0.0
-            )
-            if not math.isfinite(stem_peak):
-                raise ValueError(
-                    f"分轨 {part.executor.executor_id!r} 产生了非有限样本"
+            if not streamed_analysis:
+                apply_gain_envelope(
+                    buffer,
+                    plan.sample_rate,
+                    part.executor.gain_db,
+                    part.gain_envelope,
                 )
-            if stem_peak > 1.0:
-                headroom = 20.0 * np.log10(stem_peak)
-                raise ValueError(
-                    f"分轨 {part.executor.executor_id!r} "
-                    f"过载:峰值 {stem_peak:.4f}"
-                    f"(超出 {headroom:+.2f} dB)。"
-                    "写盘会被静默削平,因此拒绝输出。"
-                    f"请把该声部的 gain_db 从 "
-                    f"{part.executor.gain_db:.1f} 降到 "
-                    f"{part.executor.gain_db - headroom:.1f} 或更低"
-                )
-            if mix_report_builder is not None:
-                mix_report_builder.add_stem(part.executor, buffer)
+                stem_peak = _absolute_peak(buffer)
+                _validate_stem_peak(part.executor, stem_peak)
+                if mix_report_builder is not None:
+                    mix_report_builder.add_stem(part.executor, buffer)
             stem_path: str | None = None
             if write_stems:
                 target = stem_directory / portable_stem_filename(
@@ -1699,18 +4842,14 @@ def _render_plan_generation(
                 )
                 write_wav_pcm24(
                     target,
-                    (
-                        (float(row[0]), float(row[1]))
-                        for row in buffer
-                    ),
+                    buffer,
                     plan.sample_rate,
                 )
                 stem_path = str(target)
 
             left_gain, right_gain = balance_gains(part.executor.pan)
             length = min(total_frames, buffer.shape[0])
-            bus[:length, 0] += buffer[:length, 0] * left_gain
-            bus[:length, 1] += buffer[:length, 1] * right_gain
+            send_scale: float | None = None
             if send_bus is not None:
                 # 送入厅堂用后置增益的干声(声像之前),越远的座位送得越湿,
                 # 让远处乐器听起来更靠里——直达声电平仍由 gain_db 决定,
@@ -1718,7 +4857,15 @@ def _render_plan_generation(
                 send_scale = space.send_scale(
                     part.executor.seat.distance_m
                 )
-                send_bus[:length] += buffer[:length] * send_scale
+            _accumulate_stem(
+                bus,
+                send_bus,
+                buffer,
+                length,
+                left_gain,
+                right_gain,
+                send_scale,
+            )
             stems.append(
                 StemResult(
                     executor_id=part.executor.executor_id,
@@ -1745,19 +4892,27 @@ def _render_plan_generation(
                     ),
                 )
             )
+            if analysis_view is not None:
+                completed_view = analysis_view
+                analysis_view = None
+                completed_view.close()
+                buffer = None
             if _progress_callback is not None:
                 _progress_callback(
                     "render_parts",
                     part_index + 1,
                     render_part_total,
                 )
+            # The raw-stem iterator is resumed only after this assignment;
+            # otherwise the for-loop target would keep the previous ndarray
+            # alive while the next worker result is loaded.
+            buffer = None
         render_loop_completed = True
-    finally:
-        if (
-            not render_loop_completed
-            and mix_report_builder is not None
-        ):
-            mix_report_builder.close()
+    except BaseException:
+        close_raw_phase(suppress_errors=True)
+        raise
+    else:
+        close_raw_phase(suppress_errors=False)
     if stem_cache_summary is not None:
         _finalize_stem_cache_summary(stem_cache_summary)
 
@@ -1789,7 +4944,7 @@ def _render_plan_generation(
     if (
         space is not None
         and send_bus is not None
-        and float(np.max(np.abs(send_bus))) > 0.0
+        and _absolute_peak(send_bus) > 0.0
     ):
         from .space import render_reverb_stereo
 
@@ -1802,21 +4957,34 @@ def _render_plan_generation(
         )
         bus[:, 0] += wet_left
         bus[:, 1] += wet_right
+        wet_left = None
+        wet_right = None
+    # The dry send is never consulted after the optional hall render.
+    send_bus = None
 
-    post_space_stage_metrics = (
-        analyze_stereo_stage(
+    if mix_report is None:
+        post_space_stage_metrics = None
+    elif space is None:
+        # No hall also means no tail extension, so this stage is the exact
+        # same buffer measured above.  Keep independent report objects without
+        # rescanning every sample.
+        assert dry_stage_metrics is not None
+        post_space_stage_metrics = deepcopy(dry_stage_metrics)
+    else:
+        post_space_stage_metrics = analyze_stereo_stage(
             bus,
             plan.sample_rate,
-            tail_window_seconds=(
-                TAIL_ANALYSIS_SECONDS if space is not None else None
-            ),
+            tail_window_seconds=TAIL_ANALYSIS_SECONDS,
         ).to_dict()
-        if mix_report is not None
-        else None
-    )
 
-    bus *= 10.0 ** (master_gain_db / 20.0)
-    mix_peak = float(np.max(np.abs(bus))) if bus.size else 0.0
+    master_scale = 10.0 ** (master_gain_db / 20.0)
+    if master_scale != 1.0:
+        bus *= master_scale
+    mix_peak = (
+        float(post_space_stage_metrics["sample_peak"])
+        if master_scale == 1.0 and post_space_stage_metrics is not None
+        else _absolute_peak(bus)
+    )
     if not math.isfinite(mix_peak):
         raise ValueError("合奏总线产生了非有限样本")
     measured_pre_normalize_peak = mix_peak
@@ -1834,7 +5002,7 @@ def _render_plan_generation(
                 raise ValueError("归一化增益不是有限数值")
             bus *= scale
             normalize_gain_db = float(20.0 * np.log10(scale))
-            mix_peak = float(np.max(np.abs(bus)))
+            mix_peak = _absolute_peak(bus)
             if not math.isfinite(normalize_gain_db) or not math.isfinite(mix_peak):
                 raise ValueError("归一化结果包含非有限数值")
     elif mix_peak > 1.0:
@@ -1847,13 +5015,17 @@ def _render_plan_generation(
         )
 
     if mix_report is not None:
-        final_stage_metrics = analyze_stereo_stage(
-            bus,
-            plan.sample_rate,
-            tail_window_seconds=(
-                TAIL_ANALYSIS_SECONDS if space is not None else None
-            ),
-        ).to_dict()
+        if master_scale == 1.0 and normalize_peak_db is None:
+            assert post_space_stage_metrics is not None
+            final_stage_metrics = deepcopy(post_space_stage_metrics)
+        else:
+            final_stage_metrics = analyze_stereo_stage(
+                bus,
+                plan.sample_rate,
+                tail_window_seconds=(
+                    TAIL_ANALYSIS_SECONDS if space is not None else None
+                ),
+            ).to_dict()
         if (
             dry_stage_metrics is None
             or post_space_stage_metrics is None
@@ -1872,7 +5044,7 @@ def _render_plan_generation(
     mix_path = directory / "合奏.wav"
     frame_count = write_wav_pcm24(
         mix_path,
-        ((float(row[0]), float(row[1])) for row in bus),
+        bus,
         plan.sample_rate,
     )
     if _progress_callback is not None:

@@ -39,6 +39,30 @@ class _ConstantInstrument(Instrument):
         return 0
 
 
+class _OrderedFailureInstrument(Instrument):
+    """Custom frame stream whose first semantic error must remain observable."""
+
+    def __init__(self, sample_rate: int = 8_000) -> None:
+        super().__init__(sample_rate)
+        self._frame_index = 0
+
+    def handle_event(self, event, tuning) -> None:
+        del event, tuning
+
+    def render_frame(self):
+        frames = ((1.1, 0.0), ("bad", 0.0))
+        if self._frame_index < len(frames):
+            frame = frames[self._frame_index]
+        else:
+            frame = (0.0, 0.0)
+        self._frame_index += 1
+        return frame
+
+    @property
+    def active_voice_count(self) -> int:
+        return 0
+
+
 def _render_quartet(target: Path) -> tuple[Path, Path, Path, Path]:
     return (
         target,
@@ -113,12 +137,78 @@ def _assert_only_recoverable_private_files(
         test.assertTrue(path.is_file())
         test.assertTrue(
             ".cleanup-preserved-" in path.name
-            or ".rollback-preserved-" in path.name,
+            or ".rollback-preserved-" in path.name
+            or (
+                path.name.startswith(".tianlai-render-")
+                and path.name.endswith(".lock")
+            ),
             path.name,
         )
 
 
 class RendererTests(unittest.TestCase):
+    def test_custom_frame_stream_preserves_first_render_error(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            directory = Path(temporary_directory)
+            target = directory / "ordered-error.wav"
+            performance = _write_tiny_performance(directory)
+
+            with patch(
+                "tianlai.renderer.create_instrument",
+                return_value=_OrderedFailureInstrument(),
+            ):
+                with self.assertRaisesRegex(ValueError, "第 0 帧"):
+                    render_to_wav(
+                        ROOT / "乐器/测试工具/参考振荡器/乐器.json",
+                        performance,
+                        target,
+                    )
+
+            self.assertFalse(target.exists())
+            self.assertEqual(
+                list(directory.glob(f".{target.name}.*.tianlai-part")),
+                [],
+            )
+
+    def test_atomic_render_requires_a_wav_output_name(self) -> None:
+        with self.assertRaisesRegex(ValueError, r"\.wav"):
+            render_to_wav_atomic(
+                "instrument.json",
+                "performance.json",
+                "render.许可与署名.json",
+            )
+
+    def test_atomic_render_holds_the_output_file_lock(self) -> None:
+        expected = renderer_module.RenderResult(
+            sample_rate=8_000,
+            frame_count=8,
+            duration_seconds=0.001,
+            peak_active_voices=0,
+        )
+        with (
+            patch("tianlai.renderer.acquire_render_lock") as acquire,
+            patch(
+                "tianlai.renderer._render_to_wav_atomic_locked",
+                return_value=expected,
+            ) as render_locked,
+        ):
+            observed = render_to_wav_atomic(
+                "instrument.json",
+                "performance.json",
+                "render.wav",
+            )
+
+        self.assertIs(observed, expected)
+        acquire.assert_called_once_with(
+            "render.wav",
+            existing_target_kind="file",
+        )
+        render_locked.assert_called_once_with(
+            "instrument.json",
+            "performance.json",
+            "render.wav",
+        )
+
     def test_transaction_cleanup_preserves_a_racing_replacement(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             directory = Path(temporary_directory)
@@ -276,13 +366,9 @@ class RendererTests(unittest.TestCase):
                 self.assertEqual(audio.getsampwidth(), 3)
                 self.assertEqual(audio.getframerate(), 48000)
                 self.assertEqual(audio.getnframes(), result.frame_count)
-            self.assertEqual(
-                sorted(
-                    path.name
-                    for path in Path(temporary_directory).iterdir()
-                    if path.name.startswith(".")
-                ),
-                [],
+            _assert_only_recoverable_private_files(
+                self,
+                Path(temporary_directory),
             )
 
     def test_post_render_check_reads_staged_pcm_and_binds_unicode_final_name(

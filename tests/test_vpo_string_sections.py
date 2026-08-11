@@ -62,9 +62,21 @@ class VpoStringSectionAndHarpTests(unittest.TestCase):
             self.assertEqual(
                 manifest["collaboration_review_status"], "untested"
             )
-            self.assertEqual(manifest["implementation"], "乐器.py")
+            self.assertNotIn("implementation", manifest)
+            self.assertTrue(MANIFESTS[name].with_name("乐器.py").is_file())
             self.assertEqual(manifest["fallback_policy"], "explicit_only_no_silent_gm")
             self.assertNotIn("soundfont", manifest)
+            instrument = create_instrument(
+                manifest,
+                48_000,
+                base_directory=str(MANIFESTS[name].parent),
+            )
+            self.assertEqual(
+                instrument._tianlai_factory_provenance["factory_route"],
+                "builtin_manifest_dispatch_no_implementation",
+            )
+            del instrument
+            gc.collect()
             if articulations is not None:
                 self.assertEqual(manifest["allowed_articulations"], articulations)
 

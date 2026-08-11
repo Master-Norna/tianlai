@@ -175,6 +175,25 @@ class MusicXMLImportTest(unittest.TestCase):
         path.write_text(content, encoding="utf-8")
         return path
 
+    def test_path_import_uses_one_descriptor_instead_of_path_reopen(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = self._write(directory, "single-open.musicxml", MINIMAL)
+            with (
+                mock.patch.object(
+                    Path,
+                    "stat",
+                    side_effect=AssertionError("pathname stat is forbidden"),
+                ),
+                mock.patch.object(
+                    Path,
+                    "read_bytes",
+                    side_effect=AssertionError("pathname reopen is forbidden"),
+                ),
+            ):
+                document, _report = read_musicxml(path)
+
+        self.assertEqual(document["schema_version"], 1)
+
     def test_imports_concert_pitch_meter_dynamics_chord_tie_and_articulation(self):
         with tempfile.TemporaryDirectory() as directory:
             path = self._write(directory, "clarinet.musicxml", PARTWISE_COMPLEX)

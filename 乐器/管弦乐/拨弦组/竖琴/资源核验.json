@@ -13,6 +13,8 @@
   },
   "sample_count": 45,
   "sample_bytes": 76694972,
+  "decoded_float32_stereo_bytes": 153375704,
+  "decoded_float32_stereo_algorithm": "sum unique runtime sample frame_count * 2 output channels * 4-byte float32; mono sources are expanded to stereo by read_audio_float",
   "sample_sha256": {
     "Chordophones/Composite Chordophones/Concert Harp/KSHarp_A2_f1.wav": "c58aae0c0eec982c4cb45034d63b00567266fdbb9351354f916703ac4bc51b4e",
     "Chordophones/Composite Chordophones/Concert Harp/KSHarp_A2_mf1.wav": "1df9f4d138ca3931fcb458bcdf01304cadf2e5f4eef67bbc17b0e42c0e60fce6",

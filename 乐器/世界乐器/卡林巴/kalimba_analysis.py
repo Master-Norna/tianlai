@@ -41,6 +41,10 @@ _EXPECTED_SHAPE = {
         )
     },
 }
+_DECODED_FLOAT32_STEREO_ALGORITHM = (
+    "sum unique runtime sample frame_count * 2 output channels * 4-byte "
+    "float32; mono sources are expanded to stereo by read_audio_float"
+)
 _D_SHARP_K13 = (
     "Idiophones/Plucked Idiophones/Kalimba, Kenya/"
     "Mbira6_Normal_MainSpirit_D#4_k13_vl3_rr2.wav"
@@ -401,11 +405,18 @@ def generate_kalimba_resource_verification(
     peaks: dict[Path, float] = {}
     durations: list[float] = []
     tail_rms_dbfs: list[float] = []
+    decoded_float32_stereo_bytes = 0
     clipped = 0
     silent = 0
     embedded_loops = 0
     for path in sample_paths:
         info = sf.info(path)
+        if info.channels not in (1, 2):
+            raise ValueError(
+                f"kalimba sample has unsupported channel count "
+                f"{info.channels}: {path}"
+            )
+        decoded_float32_stereo_bytes += int(info.frames) * 2 * 4
         format_key = (
             f"{path.suffix.lower()}:{info.samplerate}Hz:"
             f"{info.channels}ch:{info.subtype}"
@@ -484,6 +495,10 @@ def generate_kalimba_resource_verification(
         "evidence_sha256": base["evidence_sha256"],
         "sample_count": len(sample_paths),
         "sample_bytes": base["sample_bytes"],
+        "decoded_float32_stereo_bytes": decoded_float32_stereo_bytes,
+        "decoded_float32_stereo_algorithm": (
+            _DECODED_FLOAT32_STEREO_ALGORITHM
+        ),
         "sample_sha256": sample_hashes,
         "sample_set_sha256": base["sample_set_sha256"],
         "sample_set_hash_algorithm": base["sample_set_hash_algorithm"],

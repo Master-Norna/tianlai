@@ -4,12 +4,12 @@
   "engine_version": "1.0.0",
   "patch": "sweep_pad",
   "seed": 3678794411,
-  "engine_sha256": "16FA5D989EF5E4B73E931CCA479023FA3EAFF6341E7FAEE58906233991EF95B0",
+  "engine_sha256": "5A95757608C4D0F6EEF9DF7CD0382570300C9C56B28C11B570C8FF692BAB219C",
   "external_assets": [],
   "provenance_kind": "project_authored_dsp",
   "implementation_license": "Apache-2.0",
   "external_audio_assets": [],
   "audio_asset_license": "not_applicable",
   "license_status": "approved",
-  "generated_at": "2026-07-27"
+  "generated_at": "2026-08-11"
 }

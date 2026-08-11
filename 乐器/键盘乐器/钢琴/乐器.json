@@ -1,7 +1,6 @@
 {
   "name": "Salamander Yamaha C5 三角钢琴",
   "type": "piano",
-  "implementation": "乐器.py",
   "asset_root": "../../../音源/钢琴/SalamanderGrandPiano",
   "note_min": 21,
   "note_max": 108,

@@ -28,6 +28,7 @@ from typing import Any
 
 from .audio import audio_file_info
 from .events import PerformanceEvent
+from ._event_free_blocks import audited_event_free_blocks
 from .instrument import Instrument, StereoFrame
 from .sampler import SampleInstrument
 from .tuning import EqualTemperament
@@ -73,6 +74,7 @@ def _load_calibration(manifest: dict[str, Any], manifest_dir: Path) -> dict[str,
     return json.loads(calibration_path.read_text(encoding="utf-8"))
 
 
+@audited_event_free_blocks(silence_safe=False)
 class MelodicTomsInstrument(Instrument):
     def __init__(self, sample_rate: int, manifest: dict[str, Any], base_directory: str) -> None:
         super().__init__(sample_rate)

@@ -270,6 +270,7 @@ def _attach_hints(
 def import_midi_project(
     path: str | Path,
     *,
+    source_bytes: bytes | None = None,
     capabilities: Mapping[str, InstrumentCapability] | None = None,
     trusted_only: bool = False,
     trusted_instruments: Collection[str] | None = None,
@@ -278,7 +279,10 @@ def import_midi_project(
     """Import MIDI without assigning any Tianlai instrument."""
 
     source_path = Path(path)
-    score, parser_report = read_midi(source_path)
+    score, parser_report = read_midi(
+        source_path,
+        source_bytes=source_bytes,
+    )
     _score_v1(score)
     parser_document = parser_report.to_dict()
     report = _generic_report(
@@ -320,6 +324,7 @@ def import_midi_project(
 def import_musicxml_project(
     path: str | Path,
     *,
+    source_bytes: bytes | None = None,
     capabilities: Mapping[str, InstrumentCapability] | None = None,
     trusted_only: bool = False,
     trusted_instruments: Collection[str] | None = None,
@@ -328,11 +333,21 @@ def import_musicxml_project(
     """Import MusicXML and bind the result to the original XML/MXL bytes."""
 
     source_path = Path(path)
-    before_sha256, before_size = _source_sha256(source_path)
-    score, parser_report = read_musicxml(source_path)
-    after_sha256, after_size = _source_sha256(source_path)
-    if (before_sha256, before_size) != (after_sha256, after_size):
-        raise ValueError("MusicXML source changed while it was being imported")
+    if source_bytes is None:
+        before_sha256, before_size = _source_sha256(source_path)
+        score, parser_report = read_musicxml(source_path)
+        after_sha256, after_size = _source_sha256(source_path)
+        if (before_sha256, before_size) != (after_sha256, after_size):
+            raise ValueError("MusicXML source changed while it was being imported")
+    else:
+        if not isinstance(source_bytes, bytes):
+            raise TypeError("source_bytes must be bytes")
+        before_sha256 = hashlib.sha256(source_bytes).hexdigest()
+        before_size = len(source_bytes)
+        score, parser_report = read_musicxml(
+            source_path,
+            source_bytes=source_bytes,
+        )
     _score_v1(score)
     report = _generic_report(
         source_kind="musicxml",
@@ -369,6 +384,7 @@ def import_project(
     path: str | Path,
     *,
     source_kind: str | None = None,
+    source_bytes: bytes | None = None,
     capabilities: Mapping[str, InstrumentCapability] | None = None,
     trusted_only: bool = False,
     trusted_instruments: Collection[str] | None = None,
@@ -389,6 +405,7 @@ def import_project(
                 "cannot infer source kind; expected .mid/.midi/.xml/.musicxml/.mxl"
             )
     arguments = {
+        "source_bytes": source_bytes,
         "capabilities": capabilities,
         "trusted_only": trusted_only,
         "trusted_instruments": trusted_instruments,

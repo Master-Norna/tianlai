@@ -14,6 +14,52 @@ from .tuning import EqualTemperament
 
 StereoFrame = tuple[float, float]
 
+# Private contract shared by the built-in renderers and ``renderer``.  A
+# class must declare this value in its *own* namespace; inherited declarations
+# are deliberately ignored so local subclasses keep the ordinary per-frame
+# path.
+_EVENT_FREE_RENDER_BLOCK_CONTRACT = (
+    "tianlai-event-free-render-block-v2"
+)
+
+
+def _render_frame_block(
+    render_frame: Any,
+    frame_count: int,
+    *,
+    sample_dtype: Any,
+) -> Any:
+    """Call one established frame renderer exactly ``frame_count`` times.
+
+    The helper only removes the surrounding Python tuple/list materialisation.
+    It intentionally does not vectorise DSP arithmetic, so state transitions
+    and every emitted Python float remain identical to repeated
+    ``render_frame()`` calls.
+    """
+
+    if isinstance(frame_count, bool) or not isinstance(frame_count, int):
+        raise ValueError("render block frame_count must be an integer")
+    if frame_count < 0:
+        raise ValueError("render block frame_count must not be negative")
+
+    import numpy as np
+
+    dtype = np.dtype(sample_dtype)
+    if dtype not in (np.dtype(np.float32), np.dtype(np.float64)):
+        raise ValueError("render block sample_dtype must be float32 or float64")
+
+    def scalars() -> Any:
+        for _ in range(frame_count):
+            left, right = render_frame()
+            yield left
+            yield right
+
+    return np.fromiter(
+        scalars(),
+        dtype=dtype,
+        count=frame_count * 2,
+    ).reshape(frame_count, 2)
+
 
 def factory_manifest_sha256(manifest: dict[str, Any]) -> str:
     """Hash the exact manifest document used to construct an instrument."""
@@ -159,6 +205,142 @@ def create_instrument(
         from .modeled_instruments import ModeledInstrument
 
         instrument = ModeledInstrument(sample_rate, manifest, base_directory)
+    elif instrument_type == "modeled_bianzhong":
+        from .bianzhong import create as create_bianzhong
+
+        instrument = create_bianzhong(
+            manifest=manifest,
+            sample_rate=sample_rate,
+            base_directory=base_directory,
+        )
+    elif instrument_type == "vsco2_viola_section":
+        from .vsco2_viola import create as create_vsco2_viola
+
+        instrument = create_vsco2_viola(
+            manifest=manifest,
+            sample_rate=sample_rate,
+            base_directory=base_directory,
+        )
+    elif instrument_type == "cello":
+        from .cello import create as create_cello
+
+        instrument = create_cello(
+            manifest=manifest,
+            sample_rate=sample_rate,
+            base_directory=base_directory,
+        )
+    elif instrument_type == "violin":
+        from .violin import create as create_violin
+
+        instrument = create_violin(
+            manifest=manifest,
+            sample_rate=sample_rate,
+            base_directory=base_directory,
+        )
+    elif instrument_type == "flute":
+        from .flute import create as create_flute
+
+        instrument = create_flute(
+            manifest=manifest,
+            sample_rate=sample_rate,
+            base_directory=base_directory,
+        )
+    elif instrument_type == "piano":
+        from .piano import create as create_piano
+
+        instrument = create_piano(
+            manifest=manifest,
+            sample_rate=sample_rate,
+            base_directory=base_directory,
+        )
+    elif instrument_type == "mtg_solo_sax":
+        from .mtg_sax import create_mtg_sax
+
+        instrument = create_mtg_sax(
+            manifest=manifest,
+            sample_rate=sample_rate,
+            base_directory=base_directory,
+        )
+    elif instrument_type == "vpo_brass":
+        from .vpo_brass import create_vpo_brass
+
+        instrument = create_vpo_brass(
+            manifest=manifest,
+            sample_rate=sample_rate,
+            base_directory=base_directory,
+        )
+    elif instrument_type == "vpo_woodwind":
+        from .vpo_woodwinds import create_vpo_solo_woodwind
+
+        instrument = create_vpo_solo_woodwind(
+            manifest=manifest,
+            sample_rate=sample_rate,
+            base_directory=base_directory,
+        )
+    elif instrument_type == "vpo_percussion":
+        from .vpo_percussion import create_vpo_percussion
+
+        instrument = create_vpo_percussion(
+            manifest=manifest,
+            sample_rate=sample_rate,
+            base_directory=base_directory,
+        )
+    elif instrument_type == "vpo_solo_string":
+        from .vpo_strings import create_vpo_solo_string
+
+        instrument = create_vpo_solo_string(
+            manifest=manifest,
+            sample_rate=sample_rate,
+            base_directory=base_directory,
+        )
+    elif instrument_type == "vpo_string_section":
+        from .vpo_strings import create_vpo_string_section
+
+        instrument = create_vpo_string_section(
+            manifest=manifest,
+            sample_rate=sample_rate,
+            base_directory=base_directory,
+        )
+    elif instrument_type == "vpo_harp":
+        from .vpo_strings import create_vpo_harp
+
+        instrument = create_vpo_harp(
+            manifest=manifest,
+            sample_rate=sample_rate,
+            base_directory=base_directory,
+        )
+    elif instrument_type == "vpo_celesta":
+        from .vpo_specials import create_vpo_celesta
+
+        instrument = create_vpo_celesta(
+            manifest=manifest,
+            sample_rate=sample_rate,
+            base_directory=base_directory,
+        )
+    elif instrument_type == "vpo_mixed_choir":
+        from .vpo_specials import create_vpo_mixed_choir
+
+        instrument = create_vpo_mixed_choir(
+            manifest=manifest,
+            sample_rate=sample_rate,
+            base_directory=base_directory,
+        )
+    elif instrument_type == "vpo_cowbell":
+        from .vpo_specials import create_vpo_cowbell
+
+        instrument = create_vpo_cowbell(
+            manifest=manifest,
+            sample_rate=sample_rate,
+            base_directory=base_directory,
+        )
+    elif instrument_type == "vpo_orchestral_hit":
+        from .vpo_specials import create_vpo_orchestral_hit
+
+        instrument = create_vpo_orchestral_hit(
+            manifest=manifest,
+            sample_rate=sample_rate,
+            base_directory=base_directory,
+        )
     elif instrument_type == "sample":
         from .sampler import SampleInstrument
 

@@ -14,12 +14,12 @@ Keep these support layers distinct:
 
 | Layer | Support | Meaning |
 | --- | --- | --- |
-| Source and portable self-checks | Ubuntu 22.04+, WSL2 x86_64, and 64-bit CPython 3.11–3.14 | Does not mean every third-party sample is installed |
+| Source and portable self-checks | Ubuntu 22.04+ x86_64, WSL2 x86_64, and 64-bit CPython 3.11–3.14 | Does not mean every third-party sample is installed |
 | Minimal CLI and MCP path | Environment creation, diagnostics, first sound with a programmatic instrument, and the stdio MCP editing loop | The package has no Windows-host-to-WSL forwarding bridge |
 | 29 project-authored programmatic instruments | Require no third-party audio assets and are directly usable | Other sound entries need separate resource restoration |
 | 74 external resources | Diagnostics expose a cross-platform Python restorer; `plan` resolves all 15 resource families | Download size, upstream availability, license conditions, and system unpacking dependencies vary; CI does not download large resources |
 
-Windows 10/11 x64 remains the complete reference platform for `0.7.0rc1`.
+Windows 10/11 x64 remains the complete reference platform for `0.8.0rc1`.
 Linux covers core programmatic instruments, portable self-checks, CLI, and MCP;
 large third-party resource coverage is not identical to Windows.
 
@@ -31,12 +31,14 @@ dependencies are incompatible. Running under a Windows-mounted path such as
 
 ## 1. Prepare system dependencies
 
-Tianlai requires 64-bit CPython 3.11–3.14. Ubuntu 24.04's Python 3.12 is
-supported. If the distribution's `python3` is still 3.10, install a supported
-interpreter and pass its absolute path to the bootstrap script.
+On Linux, Tianlai requires an x86_64 host and 64-bit CPython 3.11–3.14. The
+Python 3.12 included with Ubuntu 24.04 x86_64 is supported. If the
+distribution's `python3` is still 3.10, install a supported interpreter and
+pass its absolute path to the bootstrap script.
 
-An unsupported interpreter is rejected before environment creation. Do not
-replace the distribution's system Python for Tianlai; install a parallel
+An unsupported operating system, architecture, or interpreter is rejected
+before environment creation. Do not replace the distribution's system Python
+for Tianlai; install a parallel
 version, use a version manager, or use a newer distribution.
 
 On Ubuntu 24.04, or a Debian-family distribution whose default `python3` is

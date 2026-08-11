@@ -6,6 +6,7 @@
 """
 
 from pathlib import Path
+import hashlib
 import json
 import sys
 import tempfile
@@ -16,6 +17,9 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from tianlai.instrument_audit import generate_sampled_resource_verification
+from tools.update_decoded_sample_evidence import (
+    _trusted_runtime_variant_evidence,
+)
 
 _LICENSE = (
     "混合公开许可:SSO Sampling Plus 1.0(SEC 声部采样)、"
@@ -23,6 +27,18 @@ _LICENSE = (
     "见 Documentation/license.htm"
 )
 _UPSTREAM = "Virtual Playing Orchestra 3(Standard 3.3 / Wave 3.2)"
+_IMPLEMENTATION_SOURCE = ROOT / "tianlai" / "violin.py"
+_DECODED_FIELD = "decoded_float32_stereo_bytes"
+_VARIANT_SAMPLE_BYTES_ALGORITHM = (
+    "max over trusted runtime variants {SOLO, SEC} of sum unique runtime "
+    "sample file byte sizes; variants are mutually exclusive at run time"
+)
+_VARIANT_DECODED_ALGORITHM = (
+    "max over trusted runtime variants {SOLO, SEC} of sum unique runtime "
+    "sample frame_count * 2 output channels * 4-byte float32; mono sources "
+    "are expanded to stereo by read_audio_float; variants are mutually "
+    "exclusive at run time"
+)
 
 
 def _report_for(here: Path, variant: str, temp_dir: Path) -> dict:
@@ -56,28 +72,72 @@ def main() -> None:
         variants = {name: _report_for(here, name, temp_dir) for name in ("SOLO", "SEC")}
 
     shared = variants["SOLO"]
+    managed_evidence = _trusted_runtime_variant_evidence(
+        here / "乐器.json",
+        json.loads((here / "乐器.json").read_text(encoding="utf-8")),
+    )
+    for name, report in variants.items():
+        expected = managed_evidence[name]
+        for field in (
+            "sample_count",
+            "sample_bytes",
+            _DECODED_FIELD,
+            "sample_set_sha256",
+            "sample_set_hash_algorithm",
+        ):
+            if report.get(field) != expected[field]:
+                raise ValueError(
+                    f"{name} formal resource report disagrees on {field}"
+                )
+    managed_bounds = {
+        name: {
+            key: report[key]
+            for key in ("sample_count", "sample_bytes", _DECODED_FIELD)
+        }
+        for name, report in variants.items()
+    }
     merged = {
         "upstream": shared.get("upstream"),
         "origin": shared.get("origin"),
         "upstream_version": shared.get("upstream_version"),
         "license": shared.get("license"),
         "evidence_sha256": shared.get("evidence_sha256"),
+        "implementation_source": "tianlai/violin.py",
+        "implementation_sha256": hashlib.sha256(
+            _IMPLEMENTATION_SOURCE.read_bytes()
+        ).hexdigest(),
+        "sample_bytes": max(
+            report["sample_bytes"] for report in variants.values()
+        ),
+        "sample_bytes_upper_bound_algorithm": _VARIANT_SAMPLE_BYTES_ALGORITHM,
+        _DECODED_FIELD: max(
+            report[_DECODED_FIELD] for report in variants.values()
+        ),
+        "decoded_float32_stereo_algorithm": _VARIANT_DECODED_ALGORITHM,
+        "managed_runtime_variant_bounds": managed_bounds,
         "说明": (
             "一件乐器两种编制变体,各用不同采样库:SOLO=No Budget Orchestra 独奏,"
             "SEC=SSO 第一小提琴声部。下面按变体分别冻结其真实加载的采样。"
         ),
         "variants": {
             name: {
-                key: report[key]
+                key: (
+                    managed_evidence[name][key]
+                    if key == "source_sfz_sha256"
+                    else report[key]
+                )
                 for key in (
+                    "source_sfz_sha256",
                     "sample_count",
                     "sample_bytes",
+                    "decoded_float32_stereo_bytes",
+                    "decoded_float32_stereo_algorithm",
                     "sample_formats",
                     "sample_enumeration",
                     "sample_set_sha256",
                     "sample_set_hash_algorithm",
                 )
-                if key in report
+                if key == "source_sfz_sha256" or key in report
             }
             for name, report in variants.items()
         },

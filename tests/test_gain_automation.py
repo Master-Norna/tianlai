@@ -144,6 +144,35 @@ class GainEnvelopeDspTests(unittest.TestCase):
         apply_gain_envelope(buffer, 48_000, -6.0, ())
         np.testing.assert_allclose(buffer, 10.0 ** (-6.0 / 20.0))
 
+    def test_in_place_curve_scratch_is_bit_identical_across_chunks(self) -> None:
+        sample_rate = 48_000
+        frames = 150_123
+        points = (
+            GainEnvelopePoint(1, 1.0, 0.0, 0.0),
+            GainEnvelopePoint(1, 2.0, 1.25, -3.0),
+            GainEnvelopePoint(1, 3.0, 3.0, 2.0),
+        )
+        rng = np.random.default_rng(20260811)
+        buffer = rng.uniform(-0.5, 0.5, size=(frames, 2)).astype(np.float64)
+        expected = buffer.copy()
+        times = np.asarray([point.time_seconds for point in points])
+        offsets = np.asarray([point.offset_db for point in points])
+        for start in range(0, frames, 65_536):
+            end = min(frames, start + 65_536)
+            frame_times = np.arange(start, end, dtype=np.float64) / sample_rate
+            db = -1.5 + np.interp(
+                frame_times,
+                times,
+                offsets,
+                left=offsets[0],
+                right=offsets[-1],
+            )
+            expected[start:end] *= np.power(10.0, db / 20.0)[:, np.newaxis]
+
+        apply_gain_envelope(buffer, sample_rate, -1.5, points)
+
+        np.testing.assert_array_equal(buffer, expected)
+
 
 class OverrideBoundaryTests(unittest.TestCase):
     @classmethod

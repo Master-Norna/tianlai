@@ -1,6 +1,8 @@
 """复算长笛实际加载采样的 SHA-256 与许可证据。"""
 
 from pathlib import Path
+import hashlib
+import json
 import sys
 
 
@@ -11,6 +13,9 @@ if str(ROOT) not in sys.path:
 from tianlai.instrument_audit import generate_sampled_resource_verification
 
 
+IMPLEMENTATION_SOURCE = ROOT / "tianlai" / "flute.py"
+
+
 def main() -> None:
     here = Path(__file__).resolve().parent
     report = generate_sampled_resource_verification(here / "乐器.json",
@@ -19,6 +24,14 @@ def main() -> None:
         origin="http://virtualplaying.com",
         upstream_version="Standard 3.3 / Wave 3.2",
         evidence_files=('Documentation/license.htm',),
+    )
+    report["implementation_source"] = "tianlai/flute.py"
+    report["implementation_sha256"] = hashlib.sha256(
+        IMPLEMENTATION_SOURCE.read_bytes()
+    ).hexdigest()
+    (here / "资源核验.json").write_text(
+        json.dumps(report, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
     )
     print("完成:", report.get("sample_count", report.get("engine_sha256", "记录已写出")))
 

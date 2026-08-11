@@ -42,8 +42,20 @@ class VpoBrassTests(unittest.TestCase):
             self.assertEqual(
                 manifest["collaboration_review_status"], "untested"
             )
-            self.assertEqual(manifest["implementation"], "乐器.py")
+            self.assertNotIn("implementation", manifest)
+            self.assertTrue(path.with_name("乐器.py").is_file())
             self.assertNotIn("soundfont", manifest)
+            instrument = create_instrument(
+                manifest,
+                48_000,
+                base_directory=str(path.parent),
+            )
+            self.assertEqual(
+                instrument._tianlai_factory_provenance["factory_route"],
+                "builtin_manifest_dispatch_no_implementation",
+            )
+            del instrument
+            gc.collect()
 
         # 弱音小号已升级为"VPO 独奏小号采样 + 确定性弱音器滤波建模"的
         # dedicated_fx candidate;这里守住它不再是通用 SoundFont,且

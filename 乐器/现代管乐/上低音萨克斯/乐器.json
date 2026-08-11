@@ -5,7 +5,6 @@
   "collaboration_review_status": "untested",
   "upgrade_status": "mtg_dedicated_multisample",
   "fallback_policy": "explicit_only_no_silent_gm",
-  "implementation": "乐器.py",
   "instrument_name": "baritone_saxophone",
   "display_name": "上低音萨克斯",
   "asset_root": "../../../音源/MTG-Solo-Sax",

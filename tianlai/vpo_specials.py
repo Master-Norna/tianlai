@@ -9,6 +9,7 @@ import statistics
 from typing import Any
 
 from .events import PerformanceEvent, event_pitch_hz
+from ._event_free_blocks import audited_event_free_blocks
 from .instrument import Instrument, StereoFrame
 from .sampler import SampleInstrument
 from .tuning import EqualTemperament
@@ -99,6 +100,7 @@ class _ChoirContour:
     age_samples: int = 0
 
 
+@audited_event_free_blocks(silence_safe=False)
 class VpoCelestaInstrument(Instrument):
     """Real VPO celesta with its two recorded velocity layers crossfaded."""
 
@@ -207,6 +209,7 @@ class VpoCelestaInstrument(Instrument):
         return sum(engine.active_voice_count for engine in self.engines.values())
 
 
+@audited_event_free_blocks(silence_safe=False)
 class VpoMixedChoirInstrument(Instrument):
     """VPO SSO male/female mixed Ah choir with real looped samples."""
 
@@ -376,6 +379,7 @@ class VpoMixedChoirInstrument(Instrument):
         return sum(engine.active_voice_count for engine in self.engines.values())
 
 
+@audited_event_free_blocks(silence_safe=False)
 class VpoCowbellInstrument(Instrument):
     """The four real VPO cowbell samples: two RR by two velocity layers."""
 
@@ -772,6 +776,7 @@ class _ScheduledHitRelease:
     tuning: EqualTemperament
 
 
+@audited_event_free_blocks(silence_safe=False)
 class VpoOrchestralHitInstrument(Instrument):
     """A real one-shot orchestral tutti: strings, brass, bass drum and cymbal."""
 

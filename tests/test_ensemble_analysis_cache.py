@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
+import gc
 import hashlib
 import json
+import math
 from pathlib import Path
 from types import SimpleNamespace
 import tempfile
@@ -11,6 +13,8 @@ from unittest.mock import patch
 
 import numpy as np
 
+from tianlai import analysis_cache as analysis_cache_module
+from tianlai import ensemble as ensemble_module
 from tianlai.analysis_cache import CollaborationAnalysisCache
 from tianlai import collaboration_report as report_module
 from tianlai.collaboration_report import MIX_REPORT_NAME
@@ -146,6 +150,71 @@ class _Plan:
 
 
 class EnsembleAnalysisCacheTests(unittest.TestCase):
+    def test_absolute_peak_avoids_abs_copy_and_preserves_special_values(
+        self,
+    ) -> None:
+        self.assertEqual(
+            ensemble_module._absolute_peak(
+                np.array([[-0.25, 0.75], [-0.5, 0.1]], dtype=np.float32)
+            ),
+            0.75,
+        )
+        self.assertEqual(
+            ensemble_module._absolute_peak(np.empty((0, 2))),
+            0.0,
+        )
+        self.assertTrue(
+            math.isnan(
+                ensemble_module._absolute_peak(
+                    np.array([[0.0, np.nan]], dtype=np.float64)
+                )
+            )
+        )
+        self.assertEqual(
+            ensemble_module._absolute_peak(
+                np.array([[0.0, np.inf]], dtype=np.float64)
+            ),
+            math.inf,
+        )
+
+    def test_chunked_stem_accumulation_is_sample_identical(self) -> None:
+        rng = np.random.default_rng(20260811)
+        frames = 150_123
+        stem = rng.uniform(-0.5, 0.5, size=(frames, 2)).astype(np.float32)
+        bus = rng.uniform(-0.1, 0.1, size=(frames, 2)).astype(np.float64)
+        send = rng.uniform(-0.1, 0.1, size=(frames, 2)).astype(np.float32)
+        expected_bus = bus.copy()
+        expected_send = send.copy()
+        expected_bus[:, 0] += stem[:, 0] * 0.625
+        expected_bus[:, 1] += stem[:, 1] * 0.875
+        expected_send += stem * 0.375
+
+        ensemble_module._accumulate_stem(
+            bus,
+            send,
+            stem,
+            frames,
+            0.625,
+            0.875,
+            0.375,
+        )
+
+        np.testing.assert_array_equal(bus, expected_bus)
+        np.testing.assert_array_equal(send, expected_send)
+
+    def test_process_lock_registry_releases_unused_keys(self) -> None:
+        key = "f" * 64
+        first = analysis_cache_module._process_key_lock(key)
+        second = analysis_cache_module._process_key_lock(key)
+        self.assertIs(first, second)
+        self.assertIs(analysis_cache_module._PROCESS_LOCKS.get(key), first)
+
+        del second
+        del first
+        gc.collect()
+
+        self.assertNotIn(key, analysis_cache_module._PROCESS_LOCKS)
+
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
         self.root = Path(self.temporary.name)

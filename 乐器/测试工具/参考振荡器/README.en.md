@@ -16,7 +16,7 @@ Every formal instrument uses the same directory convention:
 ```text
 乐器/分类/声部组/乐器名/
 ├─ 乐器.json       # metadata, parameters, and asset mappings
-├─ 乐器.py         # optional behavior unique to this instrument
+├─ 乐器.py         # optional compatibility entry; builtin dispatch remains the default
 ├─ 测试/
 └─ README.md
 ```

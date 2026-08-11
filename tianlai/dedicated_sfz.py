@@ -22,6 +22,7 @@ from typing import Any
 import zlib
 
 from .events import PerformanceEvent, event_pitch_hz
+from ._event_free_blocks import audited_event_free_blocks
 from .instrument import Instrument, StereoFrame
 from .runtime_variants import (
     RuntimeVariantError,
@@ -1228,6 +1229,7 @@ def _apply_sample_region_exclusions(
         metadata.pop(stable_key, None)
 
 
+@audited_event_free_blocks(silence_safe=False)
 class DedicatedSfzInstrument(Instrument):
     """Reusable, deterministic adapter for audited dedicated SFZ libraries.
 

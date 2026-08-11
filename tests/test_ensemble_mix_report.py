@@ -10,6 +10,7 @@ from unittest.mock import patch
 
 import numpy as np
 
+from tianlai import ensemble as ensemble_module
 from tianlai.collaboration_report import (
     MIX_REPORT_NAME,
     CollaborationReportBuilder,
@@ -210,6 +211,38 @@ class EnsembleMixReportIntegrationTests(unittest.TestCase):
             receipt["mix_report"]["sha256"],
             _sha256(report_path),
         )
+
+    def test_identity_mix_reuses_stage_scan_without_aliasing_reports(self) -> None:
+        plan = _Plan(self.root, _settings("analyze"))
+
+        def render_part(part, _sample_rate):
+            manifest = Path(part.executor.capability.manifest_path)
+            return (
+                self.buffers[part.executor.executor_id].copy(),
+                1,
+                _sha256(manifest),
+            )
+
+        with (
+            patch("tianlai.ensemble._render_part", side_effect=render_part),
+            patch.object(
+                ensemble_module,
+                "analyze_stereo_stage",
+                wraps=ensemble_module.analyze_stereo_stage,
+            ) as analyze_stage,
+        ):
+            result = render_plan(
+                plan,
+                self.root / "identity-stage-scan",
+                write_stems=False,
+            )
+
+        self.assertEqual(analyze_stage.call_count, 1)
+        stages = result.mix_report["stage_metrics"]
+        self.assertEqual(stages["post_pan_pre_space"], stages["post_space_pre_master"])
+        self.assertEqual(stages["post_space_pre_master"], stages["final"])
+        self.assertIsNot(stages["post_pan_pre_space"], stages["post_space_pre_master"])
+        self.assertIsNot(stages["post_space_pre_master"], stages["final"])
 
     def test_explicit_part_group_is_an_analysis_view_not_an_audio_bus(
         self,

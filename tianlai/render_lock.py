@@ -145,6 +145,51 @@ def _plain_directory_status(path: Path) -> os.stat_result:
     return status
 
 
+def _plain_file_target(path: Path, parent: Path) -> Path:
+    """Return one existing ordinary file's canonical pathname.
+
+    File renders use the same lock machinery as directory renders.  Resolve an
+    existing file only after proving that neither the lexical entry nor its
+    canonical entry is a link/reparse point and that both still name the same
+    object inside the verified parent directory.
+    """
+
+    try:
+        before = os.lstat(path)
+        resolved = path.resolve(strict=True)
+        after = os.lstat(resolved)
+    except OSError as exc:
+        raise OSError(
+            exc.errno or errno.ENOENT,
+            "render output file is unavailable",
+            str(path),
+        ) from exc
+    for status_value in (before, after):
+        if (
+            not stat.S_ISREG(status_value.st_mode)
+            or stat.S_ISLNK(status_value.st_mode)
+            or _is_reparse_point(status_value)
+        ):
+            raise OSError(
+                errno.ELOOP,
+                "render output file must be an ordinary non-reparse file",
+                str(path),
+            )
+    if not os.path.samestat(before, after):
+        raise OSError(
+            errno.ESTALE,
+            "render output file changed while its lock identity was captured",
+            str(path),
+        )
+    if _path_comparison_key(resolved.parent) != _path_comparison_key(parent):
+        raise OSError(
+            errno.EPERM,
+            "render output file escaped its verified parent directory",
+            str(path),
+        )
+    return resolved
+
+
 def _capture_plain_directory_ancestry(
     directory: Path,
 ) -> tuple[tuple[Path, os.stat_result], ...]:
@@ -787,14 +832,19 @@ def acquire_render_lock(
     output_directory: str | os.PathLike[str],
     *,
     parent_identity: PlainDirectoryIdentity | None = None,
+    existing_target_kind: str = "directory",
 ) -> Iterator[RenderLock]:
-    """Own one render target until the context exits.
+    """Own one directory or file render target until the context exits.
 
     Acquisition is non-blocking.  A concurrent owner raises
     :class:`RenderLockError` immediately; normal exit, an exception in the
     context, or process termination releases the operating-system lock.
+    ``existing_target_kind`` controls how an already-existing target is
+    validated; a missing target is always bound inside its verified parent.
     """
 
+    if existing_target_kind not in {"directory", "file"}:
+        raise ValueError("existing_target_kind must be 'directory' or 'file'")
     requested = Path(output_directory)
     if not requested.is_absolute():
         requested = requested.absolute()
@@ -816,16 +866,19 @@ def acquire_render_lock(
     )
     resolved = parent / requested.name
     if os.path.lexists(requested):
-        target_identity = capture_plain_directory(requested)
-        if _path_comparison_key(target_identity.path.parent) != (
-            _path_comparison_key(parent)
-        ):
-            raise OSError(
-                errno.EPERM,
-                "render target is not inside its verified parent directory",
-                str(requested),
-            )
-        resolved = target_identity.path
+        if existing_target_kind == "file":
+            resolved = _plain_file_target(requested, parent)
+        else:
+            target_identity = capture_plain_directory(requested)
+            if _path_comparison_key(target_identity.path.parent) != (
+                _path_comparison_key(parent)
+            ):
+                raise OSError(
+                    errno.EPERM,
+                    "render target is not inside its verified parent directory",
+                    str(requested),
+                )
+            resolved = target_identity.path
     identity = _lock_identity(resolved).encode(
         "utf-8", errors="surrogatepass"
     )

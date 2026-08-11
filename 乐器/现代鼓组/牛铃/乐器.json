@@ -6,7 +6,6 @@
   "collaboration_review_status": "untested",
   "upgrade_status": "vpo_dedicated_cowbell_2rr_2layer",
   "fallback_policy": "explicit_only_no_silent_gm",
-  "implementation": "乐器.py",
   "asset_root": "../../../音源/VirtualPlayingOrchestra/Virtual-Playing-Orchestra3",
   "pitch_calibration": "音准校准.json",
   "percussion": true,

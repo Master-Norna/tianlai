@@ -60,6 +60,18 @@ function Get-PythonLauncher {
             $observations.Add("$($candidate.Label)：不可用")
             continue
         }
+        if ($facts.System -ne "Windows") {
+            $observations.Add(
+                "$($candidate.Label)：$($facts.System)，不是 Windows 解释器"
+            )
+            continue
+        }
+        if ($facts.NormalizedMachine -ne "x86_64") {
+            $observations.Add(
+                "$($candidate.Label)：$($facts.Machine)，不是 Windows x86_64 解释器"
+            )
+            continue
+        }
         if ($facts.Implementation -ne "cpython") {
             $observations.Add(
                 "$($candidate.Label)：$($facts.Implementation)，不是 CPython"
@@ -91,9 +103,21 @@ function Get-PythonLauncher {
         "PATH 中没有 py.exe 或 python.exe。"
     }
     throw (
-        "未找到可用的 64 位 CPython 3.11–3.14。$detail" +
+        "未找到可用的 Windows x86_64 64 位 CPython 3.11–3.14。$detail" +
         "安装或修复 Python 后，请重新双击安装运行环境.cmd。"
     )
+}
+
+function Get-NormalizedMachine {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $Machine
+    )
+    $value = $Machine.Trim().ToLowerInvariant().Replace("-", "_")
+    if ($value -in @("amd64", "x64", "x86_64")) {
+        return "x86_64"
+    }
+    return $value
 }
 
 function Get-PythonFacts {
@@ -102,18 +126,21 @@ function Get-PythonFacts {
         [string] $Program,
         [string[]] $Prefix = @()
     )
-    $facts = & $Program @Prefix -c "import struct,sys; print(sys.implementation.name+'|'+str(sys.version_info.major)+'.'+str(sys.version_info.minor)+'|'+str(struct.calcsize('P')*8))" 2>$null
+    $facts = & $Program @Prefix -c "import platform,struct,sys; print(sys.implementation.name+'|'+str(sys.version_info.major)+'.'+str(sys.version_info.minor)+'|'+str(struct.calcsize('P')*8)+'|'+platform.system()+'|'+platform.machine())" 2>$null
     if ($LASTEXITCODE -ne 0 -or $null -eq $facts) {
         throw "无法读取 Python 版本与架构。"
     }
     $parts = "$facts".Trim().Split("|")
-    if ($parts.Count -ne 3) {
+    if ($parts.Count -ne 5) {
         throw "Python 返回了无法识别的版本信息：$facts"
     }
     return @{
         Implementation = $parts[0]
         Version = [version]$parts[1]
         Bits = [int]$parts[2]
+        System = $parts[3]
+        Machine = $parts[4]
+        NormalizedMachine = Get-NormalizedMachine -Machine $parts[4]
     }
 }
 
@@ -144,6 +171,18 @@ if (-not (Test-Path -LiteralPath $venvPython)) {
 }
 
 $venvFacts = Get-PythonFacts -Program $venvPython
+if ($venvFacts.System -ne "Windows") {
+    throw (
+        "现有 .venv 使用 $($venvFacts.System) 解释器，不是 Windows。" +
+        "请移走可重建的 .venv 后重新运行。"
+    )
+}
+if ($venvFacts.NormalizedMachine -ne "x86_64") {
+    throw (
+        "现有 .venv 使用 $($venvFacts.Machine) 架构，不是 Windows x86_64。" +
+        "请移走可重建的 .venv 后重新运行。"
+    )
+}
 if ($venvFacts.Implementation -ne "cpython") {
     throw (
         "现有 .venv 使用 $($venvFacts.Implementation)，不是 CPython。" +

@@ -1,7 +1,6 @@
 {
   "name": "Virtual Playing Orchestra 独奏大提琴",
   "type": "cello",
-  "implementation": "乐器.py",
   "asset_root": "../../../../音源/VirtualPlayingOrchestra/Virtual-Playing-Orchestra3",
   "pitch_calibration": "音准校准.json",
   "note_min": 36,
