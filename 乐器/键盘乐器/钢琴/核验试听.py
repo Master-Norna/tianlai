@@ -16,7 +16,7 @@ def main() -> None:
     report = generate_dedicated_audition_verification(
         here / "乐器.json",
         ROOT / "examples" / "钢琴_C大调.events.json",
-        ROOT / "output" / "钢琴_candidate.wav",
+        ROOT / "output" / "表现力试听" / "键盘乐器" / "钢琴_candidate.wav",
         # 表现力谱例与正式全音域门是两套互补证据，不得再共用文件。
         # 否则重跑本脚本会覆盖全音域 Hash，并丢失其历史许可迁移记录。
         output_path=here / "表现力试听核验.json",

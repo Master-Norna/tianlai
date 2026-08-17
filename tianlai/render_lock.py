@@ -480,6 +480,44 @@ def _bind_plain_directory_path(
     return authorised
 
 
+def bind_plain_sibling_path(
+    path: str | os.PathLike[str],
+    parent_identity: PlainDirectoryIdentity,
+    *,
+    message: str = "path is not inside its captured parent directory",
+) -> Path:
+    """Bind one caller-spelled child name to an authorised plain parent.
+
+    Windows callers can inherit an ordinary 8.3 spelling such as
+    ``RUNNER~1`` while :func:`capture_plain_directory` records the same
+    directory under its long name.  A string comparison cannot distinguish
+    that harmless alias from a path which escaped its authorised parent.
+    Re-capturing the caller's parent retains every ancestry/reparse and
+    filesystem-identity check, then returns the child below the already
+    authorised canonical parent.  The final component is deliberately not
+    resolved or followed; its caller remains responsible for the appropriate
+    file-kind and no-replace checks.
+    """
+
+    if not isinstance(parent_identity, PlainDirectoryIdentity):
+        raise TypeError("directory identity is required")
+    requested = Path(path)
+    if not requested.is_absolute():
+        requested = requested.absolute()
+    if (
+        requested.parent == requested
+        or requested.name in {"", ".", ".."}
+        or Path(requested.name).name != requested.name
+    ):
+        raise OSError(errno.EPERM, message, str(requested))
+    parent = _bind_plain_directory_path(
+        requested.parent,
+        parent_identity,
+        message=message,
+    )
+    return parent / requested.name
+
+
 def ensure_authorized_child_directory(
     authorized_root: PlainDirectoryIdentity,
     child_name: str,
@@ -918,6 +956,7 @@ __all__ = (
     "RenderLockError",
     "PlainDirectoryIdentity",
     "acquire_render_lock",
+    "bind_plain_sibling_path",
     "capture_plain_directory",
     "ensure_authorized_child_directory",
     "ensure_plain_directory_tree",

@@ -5,12 +5,17 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
+import numpy as np
+
+from tianlai.audio import write_wav_pcm24_with_evidence
 from tianlai.license_sidecar import (
     AudioArtifact,
     InstrumentUse,
     build_license_sidecar_document,
     render_human_attribution,
+    sha256_file,
     write_license_sidecars,
 )
 
@@ -110,6 +115,158 @@ class LicenseSidecarTests(unittest.TestCase):
             document["instruments"][0]["used_by"],
             ["piano_1", "piano_2"],
         )
+
+    def test_snapshot_bytes_do_not_resolve_the_live_manifest_path(self) -> None:
+        payload = b"\xef\xbb\xbf" + self.manifest.read_bytes()
+        expected_sha256 = hashlib.sha256(payload).hexdigest()
+
+        with patch.object(
+            Path,
+            "resolve",
+            side_effect=AssertionError("snapshot path must not be resolved"),
+        ):
+            document = build_license_sidecar_document(
+                (
+                    InstrumentUse(
+                        self.manifest,
+                        used_by=("piano",),
+                        expected_sha256=expected_sha256,
+                        manifest_bytes=payload,
+                    ),
+                ),
+                (),
+            )
+
+        record = document["instruments"][0]
+        self.assertEqual(record["instrument"], "测试琴")
+        self.assertEqual(record["manifest"]["sha256"], expected_sha256)
+        self.assertEqual(
+            record["manifest"]["path"],
+            "键盘乐器/测试琴/乐器.json",
+        )
+
+    def test_writer_evidence_avoids_reopening_audio_for_a_second_hash(self) -> None:
+        result = write_wav_pcm24_with_evidence(
+            self.audio,
+            np.zeros((32, 2), dtype=np.float32),
+            8_000,
+            expected_frame_count=32,
+        )
+        self.assertIsNotNone(result.evidence)
+
+        with patch(
+            "tianlai.license_sidecar.sha256_file",
+            side_effect=AssertionError("audio must not be scanned again"),
+        ):
+            document = build_license_sidecar_document(
+                (InstrumentUse(self.manifest, used_by=("piano",)),),
+                (
+                    AudioArtifact(
+                        "mix",
+                        self.audio,
+                        "合奏.wav",
+                        write_evidence=result.evidence,
+                    ),
+                ),
+            )
+
+        self.assertEqual(
+            document["audio_artifacts"][0]["sha256"],
+            result.evidence.sha256,
+        )
+
+    def test_unavailable_token_hashes_bound_evidence_descriptor(self) -> None:
+        result = write_wav_pcm24_with_evidence(
+            self.audio,
+            np.zeros((32, 2), dtype=np.float32),
+            8_000,
+            expected_frame_count=32,
+        )
+        self.assertIsNotNone(result.evidence)
+
+        with patch(
+            "tianlai.audio._descriptor_change_token",
+            return_value=None,
+        ), patch(
+            "tianlai.license_sidecar.sha256_file",
+            side_effect=AssertionError("fallback must retain the bound handle"),
+        ):
+            document = build_license_sidecar_document(
+                (InstrumentUse(self.manifest, used_by=("piano",)),),
+                (
+                    AudioArtifact(
+                        "mix",
+                        self.audio,
+                        "合奏.wav",
+                        write_evidence=result.evidence,
+                    ),
+                ),
+            )
+
+        self.assertEqual(
+            document["audio_artifacts"][0]["sha256"],
+            hashlib.sha256(self.audio.read_bytes()).hexdigest(),
+        )
+
+    def test_writer_without_evidence_falls_back_to_established_hash(self) -> None:
+        with patch(
+            "tianlai.audio._descriptor_change_token",
+            return_value=None,
+        ):
+            result = write_wav_pcm24_with_evidence(
+                self.audio,
+                np.zeros((32, 2), dtype=np.float32),
+                8_000,
+                expected_frame_count=32,
+            )
+        self.assertIsNone(result.evidence)
+
+        with patch(
+            "tianlai.license_sidecar.sha256_file",
+            wraps=sha256_file,
+        ) as full_hash:
+            document = build_license_sidecar_document(
+                (InstrumentUse(self.manifest, used_by=("piano",)),),
+                (
+                    AudioArtifact(
+                        "mix",
+                        self.audio,
+                        "合奏.wav",
+                        write_evidence=result.evidence,
+                    ),
+                ),
+            )
+
+        full_hash.assert_called_once_with(self.audio)
+        self.assertEqual(
+            document["audio_artifacts"][0]["sha256"],
+            hashlib.sha256(self.audio.read_bytes()).hexdigest(),
+        )
+
+    def test_writer_evidence_rejects_audio_path_replacement(self) -> None:
+        result = write_wav_pcm24_with_evidence(
+            self.audio,
+            np.zeros((32, 2), dtype=np.float32),
+            8_000,
+            expected_frame_count=32,
+        )
+        self.assertIsNotNone(result.evidence)
+        previous = self.root / "previous.wav"
+        self.audio.replace(previous)
+        self.audio.write_bytes(b"x" * result.evidence.size_bytes)
+
+        with self.assertRaises(OSError):
+            build_license_sidecar_document(
+                (InstrumentUse(self.manifest, used_by=("piano",)),),
+                (
+                    AudioArtifact(
+                        "mix",
+                        self.audio,
+                        "合奏.wav",
+                        write_evidence=result.evidence,
+                    ),
+                ),
+            )
 
     def test_released_attribution_records_keep_first_party_credit(self) -> None:
         cases = (

@@ -451,6 +451,16 @@ def test_managed_batch_freezes_all_routes_before_yield_and_source_resolves(
             adaptive_work_frames_by_part=(10_000, 20_000),
         )
         first = next(batch)
+        # Every heterogeneous route owns the same batch timing boundary: no
+        # child may start (or check out a warm worker) until all observations
+        # have begun.  The worker starts are deliberately separate events so
+        # a staggered start loop cannot silently move later timing origins.
+        assert events[:4] == [
+            ("begin", 0, "backend-0", 10_000),
+            ("begin", 1, "backend-1", 20_000),
+            ("start", 0),
+            ("start", 1),
+        ]
         # Collection and conservative route binding for the entire batch
         # happen before ordered downstream source consumption.
         assert [event for event in events if event[0] == "collect"] == [
@@ -460,6 +470,14 @@ def test_managed_batch_freezes_all_routes_before_yield_and_source_resolves(
         assert [event for event in events if event[0] == "freeze"] == [
             ("freeze", 0, False, 2),
             ("freeze", 1, True, 2),
+        ]
+        assert events[4:10] == [
+            ("collect", 0),
+            ("freeze", 0, False, 2),
+            ("detach", 0),
+            ("collect", 1),
+            ("freeze", 1, True, 2),
+            ("detach", 1),
         ]
         assert not any(event[0] == "resolve" for event in events)
 
@@ -472,6 +490,295 @@ def test_managed_batch_freezes_all_routes_before_yield_and_source_resolves(
     assert ("resolve", 0, True) in events
     assert ("resolve", 1, False) in events
     assert not any(event[0] == "discard" for event in events)
+
+
+def test_managed_batch_start_failure_discards_every_prestarted_observation(
+    tmp_path: Path,
+) -> None:
+    events: list[object] = []
+    session = _ManagedSession(events)
+
+    class _Reservation:
+        def take(self) -> object:
+            return SimpleNamespace(close=lambda: None)
+
+        def close(self) -> None:
+            events.append("reservation-close")
+
+    context = ensemble_module._ManagedWorkerSlotContext(
+        pool=SimpleNamespace(reserve_exact=lambda claims: _Reservation()),
+        owner_id="2" * 32,
+        owner_cpu_capacity=3,
+        worker_memory_bytes_by_part=(64, 64, 64),
+        coordinator_memory_bytes=64,
+        memory_budget_bytes=1_024,
+        scratch_directory=tmp_path,
+    )
+    jobs = tuple(
+        SimpleNamespace(index=index, frame_count=8) for index in range(3)
+    )
+    terminated: list[object] = []
+
+    def start(job, **kwargs):
+        del kwargs
+        events.append(("start", job.index))
+        if job.index == 1:
+            raise ensemble_module.StemWorkerError("injected start failure")
+        return job.index
+
+    with (
+        patch("tianlai.ensemble.retire_idle_stem_workers"),
+        patch("tianlai.ensemble._try_start_stem_worker", side_effect=start),
+        patch(
+            "tianlai.ensemble.terminate_stem_worker",
+            side_effect=terminated.append,
+        ),
+    ):
+        batch = ensemble_module._iter_managed_stem_batch(
+            jobs,
+            scratch_directory=tmp_path,
+            allow_warm_start=False,
+            slot_context=context,
+            adaptive_session=session,
+            adaptive_backend_key_by_part=(
+                "backend-0",
+                "backend-1",
+                "backend-2",
+            ),
+            adaptive_work_frames_by_part=(10_000, 20_000, 30_000),
+        )
+        with pytest.raises(
+            ensemble_module._ManagedStemBatchFailure,
+            match="injected start failure",
+        ):
+            next(batch)
+
+    assert events[:5] == [
+        ("begin", 0, "backend-0", 10_000),
+        ("begin", 1, "backend-1", 20_000),
+        ("begin", 2, "backend-2", 30_000),
+        ("start", 0),
+        ("start", 1),
+    ]
+    assert sorted(
+        event for event in events if event[0] == "discard"
+    ) == [
+        ("discard", 0),
+        ("discard", 1),
+        ("discard", 2),
+    ]
+    assert not any(event[0] in {"freeze", "resolve"} for event in events)
+    assert terminated == [0]
+
+
+def test_managed_warm_retry_discards_first_batch_and_restarts_one_cold_clock(
+    tmp_path: Path,
+) -> None:
+    events: list[object] = []
+    session = _ManagedSession(events)
+
+    class _Result:
+        peak_voices = 1
+        manifest_sha256 = "e" * 64
+        _warm_used = False
+
+        def __init__(self, index: int) -> None:
+            self.index = index
+
+        def detach_source(self, *, completion_callback=None):
+            events.append(("detach", self.index))
+            return _ManagedSource(
+                self.index,
+                completion_callback,
+                events,
+            )
+
+        def close(self) -> None:
+            events.append(("result-close", self.index))
+
+    class _Reservation:
+        def take(self) -> object:
+            return SimpleNamespace(close=lambda: None)
+
+        def close(self) -> None:
+            events.append("reservation-close")
+
+    context = ensemble_module._ManagedWorkerSlotContext(
+        pool=SimpleNamespace(reserve_exact=lambda claims: _Reservation()),
+        owner_id="4" * 32,
+        owner_cpu_capacity=2,
+        worker_memory_bytes_by_part=(64, 64),
+        coordinator_memory_bytes=64,
+        memory_budget_bytes=1_024,
+        scratch_directory=tmp_path,
+    )
+    binding = ensemble_module._ManagedWarmBinding(
+        owner_id=context.owner_id,
+        scratch_directory=tmp_path,
+        scratch_volume_id="test-volume",
+        worker_memory_ceiling_bytes=64,
+        coordinator_memory_bytes=64,
+        memory_budget_bytes=1_024,
+        scratch_ceiling_bytes=64,
+    )
+    jobs = tuple(
+        SimpleNamespace(index=index, frame_count=8) for index in range(2)
+    )
+    start_calls = 0
+
+    def start(job, **kwargs):
+        nonlocal start_calls
+        start_calls += 1
+        route = "warm" if kwargs["managed_warm_binding"] else "cold"
+        events.append(("start", route, job.index))
+        if start_calls == 2:
+            raise ensemble_module.StemWorkerError("stale warm sibling")
+        return f"{route}-{job.index}"
+
+    def collect(handle: str) -> _Result:
+        index = int(handle.rsplit("-", 1)[1])
+        events.append(("collect", index))
+        return _Result(index)
+
+    with (
+        patch("tianlai.ensemble.retire_idle_stem_workers"),
+        patch("tianlai.ensemble._try_start_stem_worker", side_effect=start),
+        patch("tianlai.ensemble.collect_stem_worker", side_effect=collect),
+        patch("tianlai.ensemble.terminate_stem_worker"),
+        patch("tianlai.ensemble._retire_managed_stem_worker_session"),
+    ):
+        batch = ensemble_module._iter_managed_stem_batch(
+            jobs,
+            scratch_directory=tmp_path,
+            allow_warm_start=False,
+            slot_context=context,
+            warm_binding=binding,
+            adaptive_session=session,
+            adaptive_backend_key_by_part=("backend-0", "backend-1"),
+            adaptive_work_frames_by_part=(10_000, 20_000),
+        )
+        first = next(batch)
+        first[1].finish()
+        second = next(batch)
+        second[1].finish()
+        with pytest.raises(StopIteration):
+            next(batch)
+
+    assert events[:4] == [
+        ("begin", 0, "backend-0", 10_000),
+        ("begin", 1, "backend-1", 20_000),
+        ("start", "warm", 0),
+        ("start", "warm", 1),
+    ]
+    assert ("discard", 0) in events
+    assert ("discard", 1) in events
+    second_begin = events.index(("begin", 2, "backend-0", 10_000))
+    assert events[second_begin : second_begin + 4] == [
+        ("begin", 2, "backend-0", 10_000),
+        ("begin", 3, "backend-1", 20_000),
+        ("start", "cold", 0),
+        ("start", "cold", 1),
+    ]
+    assert ("freeze", 2, False, 2) in events
+    assert ("freeze", 3, False, 2) in events
+    assert ("resolve", 2, True) in events
+    assert ("resolve", 3, True) in events
+
+
+def test_managed_batch_late_validation_failure_never_adopts_a_timing(
+    tmp_path: Path,
+) -> None:
+    events: list[object] = []
+    session = _ManagedSession(events)
+
+    class _Result:
+        index = 0
+        peak_voices = 1
+        manifest_sha256 = "d" * 64
+        _warm_used = False
+
+        def __init__(self) -> None:
+            self.source: _ManagedSource | None = None
+
+        def detach_source(self, *, completion_callback=None):
+            events.append(("detach", self.index))
+            self.source = _ManagedSource(
+                self.index,
+                completion_callback,
+                events,
+            )
+            return self.source
+
+        def close(self) -> None:
+            events.append(("result-close", self.index))
+
+    class _Reservation:
+        def take(self) -> object:
+            return SimpleNamespace(close=lambda: None)
+
+        def close(self) -> None:
+            events.append("reservation-close")
+
+    context = ensemble_module._ManagedWorkerSlotContext(
+        pool=SimpleNamespace(reserve_exact=lambda claims: _Reservation()),
+        owner_id="3" * 32,
+        owner_cpu_capacity=3,
+        worker_memory_bytes_by_part=(64, 64, 64),
+        coordinator_memory_bytes=64,
+        memory_budget_bytes=1_024,
+        scratch_directory=tmp_path,
+    )
+    jobs = tuple(
+        SimpleNamespace(index=index, frame_count=8) for index in range(3)
+    )
+
+    def collect(handle: int) -> _Result:
+        events.append(("collect", handle))
+        if handle == 1:
+            raise ensemble_module.StemWorkerError(
+                "injected ordered validation failure"
+            )
+        return _Result()
+
+    with (
+        patch("tianlai.ensemble.retire_idle_stem_workers"),
+        patch(
+            "tianlai.ensemble._try_start_stem_worker",
+            side_effect=(0, 1, 2),
+        ),
+        patch("tianlai.ensemble.collect_stem_worker", side_effect=collect),
+        patch("tianlai.ensemble.terminate_stem_worker"),
+    ):
+        batch = ensemble_module._iter_managed_stem_batch(
+            jobs,
+            scratch_directory=tmp_path,
+            allow_warm_start=False,
+            slot_context=context,
+            adaptive_session=session,
+            adaptive_backend_key_by_part=(
+                "backend-0",
+                "backend-1",
+                "backend-2",
+            ),
+            adaptive_work_frames_by_part=(10_000, 20_000, 30_000),
+        )
+        with pytest.raises(
+            ensemble_module._ManagedStemBatchFailure,
+            match="injected ordered validation failure",
+        ):
+            next(batch)
+
+    assert [event for event in events if event[0] == "collect"] == [
+        ("collect", 0),
+        ("collect", 1),
+    ]
+    assert ("freeze", 0, False, 3) in events
+    assert ("resolve", 0, False) in events
+    assert ("discard", 1) in events
+    assert ("discard", 2) in events
+    assert not any(
+        event[0] == "resolve" and event[2] is True for event in events
+    )
 
 
 class _FaultingAdvisor:

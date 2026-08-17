@@ -269,7 +269,12 @@ class AdaptiveRenderSession:
         backend_key: str,
         work_frames: int,
     ) -> _LiveObservation | None:
-        """Begin before checkout/spawn, while cold versus warm is unknown."""
+        """Begin at the batch boundary, while cold versus warm is unknown.
+
+        The ensemble coordinator opens every member before the batch's first
+        checkout or spawn.  This method deliberately leaves the eventual
+        per-result cold/warm route unresolved until collection.
+        """
 
         return self._begin(
             kind="managed",

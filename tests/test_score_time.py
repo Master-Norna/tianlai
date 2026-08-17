@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import replace
 import math
 import unittest
+from unittest.mock import patch
 
 from tianlai.score import Phrase, TempoEntry, TempoMap, parse_score_document
 from tianlai.score_time import (
@@ -87,6 +88,41 @@ def _document():
 
 
 class ScoreTimeValidationTests(unittest.TestCase):
+    def test_dense_tempo_lookup_uses_the_prebuilt_boundary_index(self):
+        entries = [
+            TempoEntry(
+                bar=1,
+                beat=1.0,
+                bpm=60.0,
+                beats_per_bar=4,
+                beat_unit=4,
+            )
+        ]
+        for bar in range(1, 251):
+            for beat in (1.5, 2.0, 2.5, 3.0):
+                entries.append(
+                    TempoEntry(
+                        bar=bar,
+                        beat=beat,
+                        bpm=60.0 + (bar % 7),
+                        beats_per_bar=4,
+                        beat_unit=4,
+                    )
+                )
+        tempo_map = TempoMap(entries=tuple(entries))
+
+        # Before the immutable index existed, one seconds lookup rebuilt every
+        # boundary by calling quarter_at for every tempo entry (and each call
+        # scanned the tempo map again).  The query must now be independent of
+        # that public conversion loop.
+        with patch.object(
+            TempoMap,
+            "quarter_at",
+            side_effect=AssertionError("tempo boundaries were rebuilt"),
+        ):
+            seconds = tempo_map.seconds_at_quarter(800.25)
+        self.assertGreater(seconds, 0.0)
+
     def test_mixed_meters_accept_only_their_own_half_open_beat_ranges(self):
         score = _document()
         validate_score_time_coordinates(score)

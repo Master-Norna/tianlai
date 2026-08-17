@@ -4,12 +4,20 @@ import argparse
 import json
 from pathlib import Path
 import sys
-import uuid
 
 from . import __version__
-from .events import parse_performance_document
+from ._console_encoding import configure_utf8_standard_streams
+from .atomic_publish import (
+    _pretty_json_bytes,
+    _publish_bytes_atomic,
+)
 from .instrument import create_instrument
-from .renderer import load_json_object, render_to_wav_atomic
+from .plan_only_publish import _write_plan_only_transaction
+from .renderer import (
+    _capture_single_render_inputs,
+    load_json_object,
+    render_to_wav_atomic,
+)
 from .runtime_layout import discover_runtime_layout
 
 
@@ -29,28 +37,31 @@ def _write_json_atomic(
     *,
     overwrite: bool = False,
 ) -> None:
-    if path.exists() and not overwrite:
+    _write_bytes_atomic(
+        path,
+        _pretty_json_bytes(value),
+        overwrite=overwrite,
+    )
+
+
+def _write_bytes_atomic(
+    path: Path,
+    payload: bytes,
+    *,
+    overwrite: bool = False,
+) -> None:
+    try:
+        _publish_bytes_atomic(
+            path,
+            payload,
+            overwrite=overwrite,
+        )
+    except FileExistsError as exc:
+        if overwrite:
+            raise
         raise ValueError(
             f"输出已存在，默认拒绝覆盖: {path};确认后传 --overwrite"
-        )
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(
-        f".{path.name}.{uuid.uuid4().hex}.tmp"
-    )
-    try:
-        temporary.write_text(
-            json.dumps(
-                value,
-                ensure_ascii=False,
-                allow_nan=False,
-                indent=2,
-            )
-            + "\n",
-            encoding="utf-8",
-        )
-        temporary.replace(path)
-    finally:
-        temporary.unlink(missing_ok=True)
+        ) from exc
 
 
 def _catalog_path(value: str | None) -> Path:
@@ -59,8 +70,96 @@ def _catalog_path(value: str | None) -> Path:
     return discover_runtime_layout(require_catalog=True).catalog
 
 
+def _extended_windows_operation_path(path: Path) -> Path:
+    """Use the Win32 extended namespace for private nested render paths.
+
+    Candidate publication and ensemble rendering each add a private sibling
+    directory. Their safe random names can push an otherwise ordinary public
+    candidate beyond the legacy ``MAX_PATH`` boundary. Keep the extended
+    spelling internal; CLI results are rebuilt from the caller-facing output
+    root below.
+    """
+
+    absolute = path.absolute()
+    if sys.platform != "win32":
+        return absolute
+    text = str(absolute)
+    if text.startswith("\\\\?\\"):
+        return absolute
+    if text.startswith("\\\\"):
+        return Path("\\\\?\\UNC\\" + text[2:])
+    return Path("\\\\?\\" + text)
+
+
 def _load_json_value(path: str | Path) -> object:
     return json.loads(Path(path).read_text(encoding="utf-8-sig"))
+
+
+def _load_realization_json_object(
+    path: str | Path,
+    *,
+    maximum_bytes: int | None = None,
+    label: str = "realization",
+) -> dict[str, object]:
+    """Capture one untrusted realization through a bounded plain-file read."""
+
+    from .authoring_json import (
+        AuthoringJsonError,
+        AuthoringJsonLimits,
+        strict_json_loads,
+    )
+    from .plain_file import read_plain_file_bytes
+    from .realization import (
+        MAX_CONTROL_POINTS_PER_LANE,
+        MAX_NOTE_OVERRIDES,
+        MAX_REALIZATION_JSON_BYTES,
+        MAX_TOTAL_CONTROL_POINTS,
+    )
+
+    byte_limit = (
+        MAX_REALIZATION_JSON_BYTES
+        if maximum_bytes is None
+        else min(MAX_REALIZATION_JSON_BYTES, maximum_bytes)
+    )
+    limits = AuthoringJsonLimits(
+        max_document_bytes=byte_limit,
+        max_depth=128,
+        max_nodes=max(
+            2_000_000,
+            MAX_NOTE_OVERRIDES * 10 + MAX_TOTAL_CONTROL_POINTS * 5,
+        ),
+        max_string_bytes=4 * 1024 * 1024,
+        max_array_items=max(
+            MAX_NOTE_OVERRIDES,
+            MAX_CONTROL_POINTS_PER_LANE,
+            MAX_TOTAL_CONTROL_POINTS,
+        ),
+        max_object_members=65_536,
+    )
+    try:
+        _identity, payload = read_plain_file_bytes(
+            path,
+            maximum_bytes=byte_limit,
+        )
+    except OSError as exc:
+        raise ValueError(
+            f"{label} must be a readable plain file no larger than "
+            f"{byte_limit} bytes"
+        ) from exc
+    try:
+        document = strict_json_loads(
+            payload,
+            limits=limits,
+            require_object=True,
+            require_js_safe_integers=False,
+        )
+    except AuthoringJsonError as exc:
+        raise ValueError(
+            f"{label} must be a strict bounded UTF-8 JSON object "
+            f"({exc.code})"
+        ) from exc
+    assert isinstance(document, dict)
+    return document
 
 
 def _enforce_cli_manifest_availability(
@@ -183,6 +282,13 @@ def _parser() -> argparse.ArgumentParser:
     )
     ensemble.add_argument("--score", required=True, help="score document JSON")
     ensemble.add_argument("--roster", required=True, help="roster document JSON")
+    ensemble.add_argument(
+        "--realization",
+        help=(
+            "optional score-bound tianlai.realization JSON with explicit "
+            "note timing/dynamics and semantic control lanes"
+        ),
+    )
     ensemble.add_argument("--output", required=True, help="output directory")
     ensemble.add_argument(
         "--root",
@@ -295,6 +401,13 @@ def _parser() -> argparse.ArgumentParser:
     project_render.add_argument("--score", required=True, help="score-v1 JSON")
     project_render.add_argument("--roster", required=True, help="formal roster JSON")
     project_render.add_argument(
+        "--realization",
+        help=(
+            "optional score-bound tianlai.realization JSON; the exact source "
+            "document is preserved in the immutable candidate"
+        ),
+    )
+    project_render.add_argument(
         "--title",
         help="work title; default: score title or score filename",
     )
@@ -329,6 +442,65 @@ def _parser() -> argparse.ArgumentParser:
         help="required with --overwrite when the candidate directory exists",
     )
 
+    project_render_v2 = subcommands.add_parser(
+        "project-render-v2",
+        help=(
+            "formally render a direct Score-v2 document through the "
+            "descriptor-bound single-oscillator pipeline"
+        ),
+    )
+    project_render_v2.add_argument(
+        "--score",
+        required=True,
+        help="direct tianlai.score schema-version 2 JSON",
+    )
+    project_render_v2.add_argument(
+        "--roster",
+        required=True,
+        help="formal roster JSON with exactly one oscillator executor",
+    )
+    project_render_v2.add_argument(
+        "--execution-profile",
+        required=True,
+        help="Score-v2 execution consent profile JSON",
+    )
+    project_render_v2.add_argument(
+        "--sample-rate",
+        required=True,
+        type=int,
+        help="authoritative sample rate, 8000..384000 Hz",
+    )
+    project_render_v2.add_argument(
+        "--title",
+        help="work title; default: Score-v2 title or score filename",
+    )
+    project_render_v2.add_argument(
+        "--output-root",
+        help="candidate root; default: TIANLAI_OUTPUT_DIR/候选",
+    )
+    project_render_v2.add_argument(
+        "--output-id",
+        help="explicit candidate ID; default: performance-bundle-derived ID",
+    )
+    project_render_v2.add_argument(
+        "--parent-candidate",
+        help="optional parent Candidate-v3 ID for revision lineage",
+    )
+    project_render_v2.add_argument(
+        "--root",
+        default=None,
+        help="instrument catalog root; default: TIANLAI_HOME/乐器",
+    )
+    project_render_v2.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="replace one Candidate-v3 only with old receipt Hash confirmation",
+    )
+    project_render_v2.add_argument(
+        "--expected-receipt-sha256",
+        help="required with --overwrite when the Candidate-v3 directory exists",
+    )
+
     candidate_locate = subcommands.add_parser(
         "candidate-locate",
         help="locate a heard timestamp from a saved candidate receipt and plan",
@@ -354,6 +526,23 @@ def _parser() -> argparse.ArgumentParser:
     candidate_locate.add_argument("--max-events", type=int, default=128)
     candidate_locate.add_argument("--output", help="optional result JSON")
     candidate_locate.add_argument("--overwrite", action="store_true")
+
+    candidate_verify = subcommands.add_parser(
+        "candidate-verify",
+        help=(
+            "verify one descriptor-bound, closed candidate generation"
+        ),
+    )
+    candidate_verify.add_argument(
+        "--candidate",
+        required=True,
+        help="candidate directory or 候选.json",
+    )
+    candidate_verify.add_argument(
+        "--output",
+        help="optional integrity report JSON outside the candidate directory",
+    )
+    candidate_verify.add_argument("--overwrite", action="store_true")
 
     candidate_compare = subcommands.add_parser(
         "candidate-compare",
@@ -512,6 +701,31 @@ def _parser() -> argparse.ArgumentParser:
         help="replace an existing output only after explicit confirmation",
     )
 
+    migrate_score_v2_help = (
+        "migrate an explicit score-v1 source into a hash-bound score-v2 "
+        "migration bundle (does not render score-v2)"
+    )
+    migrate_score_v2 = subcommands.add_parser(
+        "migrate-score-v2",
+        help=migrate_score_v2_help,
+        description=migrate_score_v2_help,
+    )
+    migrate_score_v2.add_argument(
+        "--score",
+        required=True,
+        help="input score-v1 JSON with stable event IDs",
+    )
+    migrate_score_v2.add_argument(
+        "--output",
+        required=True,
+        help="score-v2 migration bundle JSON to write",
+    )
+    migrate_score_v2.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="replace an existing output only after explicit confirmation",
+    )
+
     score_slice = subcommands.add_parser(
         "score-slice",
         help="read a bounded score-v1 fragment by part, event ID or bar range",
@@ -567,6 +781,7 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    configure_utf8_standard_streams()
     args = _parser().parse_args(argv)
     try:
         if args.command == "doctor":
@@ -620,6 +835,53 @@ def main(argv: list[str] | None = None) -> int:
             _write_json_atomic(
                 output,
                 upgraded,
+                overwrite=args.overwrite,
+            )
+            print(output.resolve())
+            return 0
+
+        if args.command == "migrate-score-v2":
+            from .plain_file import revalidate_plain_file
+            from .resource_limits import ProjectLimits
+            from .score_source import read_score_snapshot
+            from .score_v2_migration import (
+                migrate_score_v1_snapshot,
+                score_v2_migration_json_bytes,
+            )
+
+            limits = ProjectLimits.from_environment()
+            source = read_score_snapshot(args.score, limits=limits)
+            output = Path(args.output)
+            if (
+                source.file_identity is not None
+                and output.resolve(strict=False) == source.file_identity.path
+            ):
+                raise ValueError(
+                    "migrate-score-v2 output must not replace its bound "
+                    "score-v1 source; keep the source so the migration receipt "
+                    "can be independently verified"
+                )
+            migration = migrate_score_v1_snapshot(source)
+            # Use the migration bundle's public bounded serializer.  It shares
+            # the parser's whole-document budget, and completes before the
+            # atomic publisher is allowed to touch the destination.
+            payload = score_v2_migration_json_bytes(
+                migration,
+                limits=limits,
+            )
+            # The receipt deliberately depends on the captured v1 generation
+            # remaining available for an independent replay.  Recheck that
+            # exact single-link file after every potentially expensive
+            # migration/serialization step and immediately before publication.
+            # This also rejects a hard-link alias introduced after the read.
+            if source.file_identity is None:
+                raise RuntimeError(
+                    "migrate-score-v2 lost its file-backed source identity"
+                )
+            revalidate_plain_file(source.file_identity)
+            _write_bytes_atomic(
+                output,
+                payload,
                 overwrite=args.overwrite,
             )
             print(output.resolve())
@@ -736,6 +998,35 @@ def main(argv: list[str] | None = None) -> int:
                 print(json.dumps(result, ensure_ascii=False, indent=2))
             return 0
 
+        if args.command == "candidate-verify":
+            from .candidate_integrity import (
+                candidate_directory,
+                verify_candidate_integrity,
+            )
+
+            directory = candidate_directory(args.candidate)
+            output = Path(args.output) if args.output else None
+            if output is not None:
+                resolved_output = output.expanduser().resolve()
+                resolved_directory = directory.expanduser().resolve()
+                if resolved_output.is_relative_to(resolved_directory):
+                    raise ValueError(
+                        "candidate integrity report must be written outside "
+                        f"the candidate directory: {directory}"
+                    )
+
+            result = verify_candidate_integrity(directory)
+            if output is not None:
+                _write_json_atomic(
+                    output,
+                    result,
+                    overwrite=args.overwrite,
+                )
+                print(output.resolve())
+            else:
+                print(json.dumps(result, ensure_ascii=False, indent=2))
+            return 0
+
         if args.command == "candidate-compare":
             from .candidate import compare_candidates
 
@@ -756,12 +1047,122 @@ def main(argv: list[str] | None = None) -> int:
                 print(json.dumps(result, ensure_ascii=False, indent=2))
             return 0
 
+        if args.command == "project-render-v2":
+            from .candidate import (
+                candidate_publication,
+                prepare_candidate_target,
+            )
+            from .resource_limits import ProjectLimits
+            from .score_v2_candidate import (
+                preflight_score_v2_candidate_compilation,
+                publish_score_v2_candidate_metadata,
+            )
+            from .score_v2_formal_render import (
+                render_score_v2_formal_pcm24_generation,
+            )
+            from .score_v2_project_render import (
+                compile_score_v2_project_render_files,
+            )
+            from .score_v2_runtime_authority import (
+                open_score_v2_oscillator_runtime_authority,
+            )
+
+            if args.expected_receipt_sha256 and not args.overwrite:
+                raise ValueError(
+                    "--expected-receipt-sha256 is valid only with --overwrite"
+                )
+            active_limits = ProjectLimits.from_environment()
+            catalogue_root = _catalog_path(args.root).expanduser().resolve()
+            compilation = compile_score_v2_project_render_files(
+                args.score,
+                args.roster,
+                args.execution_profile,
+                sample_rate=args.sample_rate,
+                catalogue_root=catalogue_root,
+                project_root=catalogue_root.parent,
+                limits=active_limits,
+            )
+            # Candidate-v3 has a deliberately tighter portable JSON ceiling
+            # than the score compiler.  Reject before target preparation,
+            # runtime-authority acquisition, or audio rendering.
+            preflight_score_v2_candidate_compilation(compilation)
+            score_document = compilation.inputs.score_document_copy()
+            title = (
+                args.title
+                or str(score_document.get("title", "")).strip()
+                or Path(args.score).stem
+            )
+            output_root = (
+                Path(args.output_root)
+                if args.output_root
+                else discover_runtime_layout().output / "候选"
+            )
+            target = prepare_candidate_target(
+                output_root,
+                title,
+                plan_sha256=compilation.performance_bundle.artifact_sha256,
+                output_id=args.output_id,
+                overwrite=args.overwrite,
+                expected_receipt_sha256=args.expected_receipt_sha256,
+            )
+            manifest: dict[str, object] | None = None
+            generation = None
+            with candidate_publication(target) as staging:
+                compilation.revalidate_inputs()
+                with open_score_v2_oscillator_runtime_authority(
+                    compilation.performance_bundle,
+                    compilation.executor_id,
+                ) as authority:
+                    generation = render_score_v2_formal_pcm24_generation(
+                        compilation.performance_bundle,
+                        authority,
+                        output_directory=staging.directory,
+                        limits=active_limits,
+                    )
+                    manifest = publish_score_v2_candidate_metadata(
+                        staging,
+                        title=title,
+                        compilation=compilation,
+                        generation=generation,
+                        parent_candidate_id=args.parent_candidate,
+                    )
+                # The authority's final full checkpoint has now succeeded.
+                # Revalidate creator/catalogue/runtime inputs once more before
+                # candidate_publication performs its closed-world verify+swap.
+                compilation.revalidate_inputs()
+                generation.revalidate_mix()
+            if manifest is None or generation is None:
+                raise RuntimeError("Score-v2 candidate publication did not complete")
+            print(
+                json.dumps(
+                    {
+                        "candidate_directory": str(target.directory.resolve()),
+                        "work_id": target.work_id,
+                        "candidate_id": target.candidate_id,
+                        "candidate_version": manifest.get("version"),
+                        "performance_bundle_sha256": (
+                            compilation.performance_bundle.artifact_sha256
+                        ),
+                        "runtime_authority_sha256": (
+                            generation.runtime_authority_sha256
+                        ),
+                        "mix_sha256": generation.mix_sha256,
+                        "scope": compilation.scope,
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
+            return 0
+
         if args.command == "project-render":
             from .candidate import (
+                MAX_CANDIDATE_JSON_BYTES,
                 candidate_publication,
                 canonical_json_sha256,
                 prepare_candidate_target,
                 publish_candidate_metadata,
+                validate_candidate_json_size,
             )
             from .capability import load_capabilities
             from .conductor import ExpressionSettings, build_plan
@@ -769,6 +1170,7 @@ def main(argv: list[str] | None = None) -> int:
             from .preflight import enforce_roster_availability
             from .project_review import build_project_review_safely
             from .render_profile import parse_render_profile
+            from .realization import parse_realization_document
             from .resource_limits import (
                 validate_render_request_resource_limits,
                 validate_score_resource_limits,
@@ -795,7 +1197,44 @@ def main(argv: list[str] | None = None) -> int:
                     "humanize": {"seed": profile.seed},
                 }
             )
-            plan = build_plan(score, roster, settings)
+            raw_realization = (
+                _load_realization_json_object(
+                    args.realization,
+                    maximum_bytes=MAX_CANDIDATE_JSON_BYTES,
+                    label="candidate realization",
+                )
+                if args.realization
+                else None
+            )
+            if raw_realization is not None:
+                validate_candidate_json_size(
+                    raw_realization,
+                    label="candidate realization",
+                )
+            realization = (
+                parse_realization_document(
+                    raw_realization,
+                    score_document=raw_score,
+                    score=score,
+                )
+                if raw_realization is not None
+                else None
+            )
+            plan = build_plan(
+                score,
+                roster,
+                settings,
+                realization,
+                score_document=(
+                    raw_score if realization is not None else None
+                ),
+                realization_document=raw_realization,
+            )
+            plan_document = plan.to_dict()
+            validate_candidate_json_size(
+                plan_document,
+                label="candidate performance plan",
+            )
             resource_preflight = validate_render_request_resource_limits(
                 plan,
                 write_stems=profile.write_stems,
@@ -803,15 +1242,20 @@ def main(argv: list[str] | None = None) -> int:
                 collaboration_mode=profile.collaboration_mode,
                 stem_cache_enabled=profile.use_stem_cache,
             )
-            plan_sha256 = canonical_json_sha256(plan.to_dict())
+            plan_sha256 = canonical_json_sha256(plan_document)
+            review_binding = {
+                "score_sha256": canonical_json_sha256(raw_score),
+                "roster_sha256": canonical_json_sha256(raw_roster),
+                "performance_plan_sha256": plan_sha256,
+            }
+            if raw_realization is not None:
+                review_binding["realization_sha256"] = (
+                    canonical_json_sha256(raw_realization)
+                )
             project_review = build_project_review_safely(
                 plan,
                 roster,
-                binding={
-                    "score_sha256": canonical_json_sha256(raw_score),
-                    "roster_sha256": canonical_json_sha256(raw_roster),
-                    "performance_plan_sha256": plan_sha256,
-                },
+                binding=review_binding,
             )
             title = (
                 args.title
@@ -840,9 +1284,12 @@ def main(argv: list[str] | None = None) -> int:
                         file=sys.stderr,
                     )
             with candidate_publication(target) as staging:
+                operation_staging = _extended_windows_operation_path(
+                    staging.directory
+                )
                 result = render_plan(
                     plan,
-                    staging.directory,
+                    operation_staging,
                     write_stems=profile.write_stems,
                     master_gain_db=profile.master_gain_db,
                     normalize_peak_db=profile.normalize_peak_db,
@@ -871,7 +1318,7 @@ def main(argv: list[str] | None = None) -> int:
                     raise ValueError(
                         "渲染成功但没有生成可绑定的渲染后自检"
                     )
-                staging_root = staging.directory.resolve()
+                staging_root = operation_staging.resolve()
                 mix_relative = Path(result.mix_path).resolve().relative_to(
                     staging_root
                 )
@@ -887,7 +1334,10 @@ def main(argv: list[str] | None = None) -> int:
                     score=raw_score,
                     roster=raw_roster,
                     render_profile=profile.to_dict(),
-                    receipt_path=result.receipt_path,
+                    realization=raw_realization,
+                    receipt_path=(
+                        staging.directory / receipt_relative
+                    ),
                     plan_sha256=plan_sha256,
                     parent_candidate_id=args.parent_candidate,
                 )
@@ -935,6 +1385,15 @@ def main(argv: list[str] | None = None) -> int:
                         "render_profile_sha256": manifest["project"][
                             "render_profile"
                         ]["canonical_sha256"],
+                        **(
+                            {
+                                "realization_sha256": manifest["project"][
+                                    "realization"
+                                ]["canonical_sha256"]
+                            }
+                            if "realization" in manifest["project"]
+                            else {}
+                        ),
                         "performance_plan_sha256": plan_sha256,
                         "render_preflight": resource_preflight,
                         "project_review": project_review,
@@ -1288,6 +1747,7 @@ def main(argv: list[str] | None = None) -> int:
                 parse_render_profile,
                 profile_with_overrides,
             )
+            from .realization import parse_realization_document
             from .resource_limits import (
                 validate_render_request_resource_limits,
                 validate_score_resource_limits,
@@ -1347,7 +1807,30 @@ def main(argv: list[str] | None = None) -> int:
                     "humanize": {"seed": profile.seed},
                 }
             )
-            plan = build_plan(score, roster, settings)
+            raw_realization = (
+                _load_realization_json_object(args.realization)
+                if args.realization
+                else None
+            )
+            realization = (
+                parse_realization_document(
+                    raw_realization,
+                    score_document=raw_score,
+                    score=score,
+                )
+                if raw_realization is not None
+                else None
+            )
+            plan = build_plan(
+                score,
+                roster,
+                settings,
+                realization,
+                score_document=(
+                    raw_score if realization is not None else None
+                ),
+                realization_document=raw_realization,
+            )
             resource_preflight = validate_render_request_resource_limits(
                 plan,
                 write_stems=profile.write_stems,
@@ -1356,14 +1839,19 @@ def main(argv: list[str] | None = None) -> int:
                 stem_cache_enabled=profile.use_stem_cache,
             )
             plan_sha256 = canonical_json_sha256(plan.to_dict())
+            review_binding = {
+                "score_sha256": canonical_json_sha256(raw_score),
+                "roster_sha256": canonical_json_sha256(raw_roster),
+                "performance_plan_sha256": plan_sha256,
+            }
+            if raw_realization is not None:
+                review_binding["realization_sha256"] = (
+                    canonical_json_sha256(raw_realization)
+                )
             project_review = build_project_review_safely(
                 plan,
                 roster,
-                binding={
-                    "score_sha256": canonical_json_sha256(raw_score),
-                    "roster_sha256": canonical_json_sha256(raw_roster),
-                    "performance_plan_sha256": plan_sha256,
-                },
+                binding=review_binding,
             )
             directory = Path(args.output)
             for item in project_review["items"]:
@@ -1377,43 +1865,31 @@ def main(argv: list[str] | None = None) -> int:
                 f"{plan.duration_seconds:.2f}s"
             )
             if args.plan_only:
-                directory.mkdir(parents=True, exist_ok=True)
-                plan_path = directory / "演奏计划.json"
-                plan_path.write_text(
-                    json.dumps(plan.to_dict(), ensure_ascii=False, indent=2),
-                    encoding="utf-8",
+                plan_only_documents = {
+                    "演奏计划.json": plan.to_dict(),
+                    "渲染配置.json": profile.to_dict(),
+                    "资源预检.json": resource_preflight,
+                    "创作自检.json": project_review,
+                }
+                if raw_realization is not None:
+                    plan_only_documents["演奏实现.json"] = raw_realization
+                published = _write_plan_only_transaction(
+                    directory,
+                    plan_only_documents,
                 )
-                profile_path = directory / "渲染配置.json"
-                profile_path.write_text(
-                    json.dumps(
-                        profile.to_dict(),
-                        ensure_ascii=False,
-                        indent=2,
-                    ),
-                    encoding="utf-8",
-                )
-                preflight_path = directory / "资源预检.json"
-                preflight_path.write_text(
-                    json.dumps(
-                        resource_preflight,
-                        ensure_ascii=False,
-                        indent=2,
-                    ),
-                    encoding="utf-8",
-                )
-                review_path = directory / "创作自检.json"
-                review_path.write_text(
-                    json.dumps(
-                        project_review,
-                        ensure_ascii=False,
-                        indent=2,
-                    ),
-                    encoding="utf-8",
-                )
+                plan_path = published["演奏计划.json"]
+                profile_path = published["渲染配置.json"]
+                preflight_path = published["资源预检.json"]
+                review_path = published["创作自检.json"]
                 print(f"演奏计划: {plan_path.resolve()}")
                 print(f"渲染配置: {profile_path.resolve()}")
                 print(f"资源预检: {preflight_path.resolve()}")
                 print(f"创作自检: {review_path.resolve()}")
+                if raw_realization is not None:
+                    print(
+                        "演奏实现: "
+                        f"{published['演奏实现.json'].resolve()}"
+                    )
                 return 0
             result = render_plan(
                 plan,
@@ -1462,8 +1938,18 @@ def main(argv: list[str] | None = None) -> int:
                 project_review,
                 overwrite=True,
             )
+            realization_path: Path | None = None
+            if raw_realization is not None:
+                realization_path = directory / "演奏实现.json"
+                _write_json_atomic(
+                    realization_path,
+                    raw_realization,
+                    overwrite=True,
+                )
             print(f"渲染配置: {profile_path.resolve()}")
             print(f"创作自检: {review_path.resolve()}")
+            if realization_path is not None:
+                print(f"演奏实现: {realization_path.resolve()}")
             if result.plan_path:
                 print(f"演奏计划: {Path(result.plan_path).resolve()}")
             for stem in result.stems:
@@ -1601,19 +2087,20 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Detune: {measurement.detune_cents:+.3f} cents")
             return 0
 
-        if args.command == "render":
-            manifest_path = Path(args.instrument).resolve()
-            manifest = load_json_object(manifest_path)
+        def validate_render_manifest(manifest: dict[str, object]) -> None:
             _enforce_cli_manifest_availability(
                 manifest,
                 allow_local_compatibility_soundfont=(
                     args.allow_local_compatibility_soundfont
                 ),
             )
+
+        if args.command == "render":
             result = render_to_wav_atomic(
                 args.instrument,
                 args.events,
                 args.output,
+                _manifest_validator=validate_render_manifest,
             )
             print(
                 f"Rendered {result.duration_seconds:.3f}s at {result.sample_rate} Hz "
@@ -1661,15 +2148,14 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"渲染后自检状态: {status}{suffix}")
             return 0
 
-        manifest_path = Path(args.instrument).resolve()
-        manifest = load_json_object(manifest_path)
-        _enforce_cli_manifest_availability(
-            manifest,
-            allow_local_compatibility_soundfont=(
-                args.allow_local_compatibility_soundfont
-            ),
+        inputs = _capture_single_render_inputs(
+            args.instrument,
+            args.events,
+            manifest_validator=validate_render_manifest,
         )
-        performance = parse_performance_document(load_json_object(args.events))
+        manifest_path = inputs.manifest.path
+        manifest = inputs.manifest.document
+        performance = inputs.parsed_performance
         instrument = create_instrument(
             manifest,
             performance.sample_rate,

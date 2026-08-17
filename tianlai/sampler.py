@@ -142,6 +142,9 @@ class _SampleVoice:
     looped: bool = False
     resampler_table: Any | None = None
     resampler_cutoff_index: int | None = None
+    resampler_validated_increment: float | None = None
+    resampler_native_increment: bool = False
+    resampler_validated_cutoff_index: int | None = None
     mono_pan_cosine: float = 1.0
     mono_pan_sine: float = 1.0
 
@@ -918,16 +921,27 @@ class SampleInstrument(Instrument):
                 raise ValueError("sample playback increment must be finite and positive")
             resampler_table = None
             resampler_cutoff_index = None
-            if self.resampling_quality == "bandlimited" and not math.isclose(
-                increment,
-                1.0,
-                rel_tol=0.0,
-                abs_tol=1e-12,
-            ):
-                resampler_cutoff_index = _bandlimited_cutoff_index(increment)
-                resampler_table = _bandlimited_kernel_table(
-                    resampler_cutoff_index
+            resampler_validated_increment = None
+            resampler_native_increment = False
+            resampler_validated_cutoff_index = None
+            if self.resampling_quality == "bandlimited":
+                resampler_validated_increment = increment
+                resampler_native_increment = math.isclose(
+                    increment,
+                    1.0,
+                    rel_tol=0.0,
+                    abs_tol=1e-12,
                 )
+                if not resampler_native_increment:
+                    resampler_cutoff_index = _bandlimited_cutoff_index(
+                        increment
+                    )
+                    resampler_validated_cutoff_index = (
+                        resampler_cutoff_index
+                    )
+                    resampler_table = _bandlimited_kernel_table(
+                        resampler_cutoff_index
+                    )
             self.voices[note_id] = _SampleVoice(
                 region=region,
                 position=float(region.offset_frames),
@@ -955,6 +969,13 @@ class SampleInstrument(Instrument):
                 envelope=initial_envelope,
                 resampler_table=resampler_table,
                 resampler_cutoff_index=resampler_cutoff_index,
+                resampler_validated_increment=(
+                    resampler_validated_increment
+                ),
+                resampler_native_increment=resampler_native_increment,
+                resampler_validated_cutoff_index=(
+                    resampler_validated_cutoff_index
+                ),
                 mono_pan_cosine=math.cos(
                     (region.pan + 1.0) * math.pi / 4.0
                 ),
@@ -1069,25 +1090,53 @@ class SampleInstrument(Instrument):
 
         if not math.isfinite(voice.increment) or voice.increment <= 0.0:
             raise ValueError("sample playback increment must be finite and positive")
-        native_rate_at_integer_position = math.isclose(
-            voice.increment,
-            1.0,
-            rel_tol=0.0,
-            abs_tol=1e-12,
-        ) and math.isclose(
-            voice.position,
-            round(voice.position),
-            rel_tol=0.0,
-            abs_tol=1e-12,
-        )
-        if (
-            self.resampling_quality != "bandlimited"
-            or native_rate_at_integer_position
-        ):
+        if self.resampling_quality != "bandlimited":
             voice.resampler_cutoff_index = None
             voice.resampler_table = None
             return
-        cutoff_index = _bandlimited_cutoff_index(voice.increment)
+
+        if voice.increment != voice.resampler_validated_increment:
+            native_increment = math.isclose(
+                voice.increment,
+                1.0,
+                rel_tol=0.0,
+                abs_tol=1e-12,
+            )
+            validated_cutoff_index = (
+                None
+                if native_increment
+                else _bandlimited_cutoff_index(voice.increment)
+            )
+            # Publish the cached derivation only after every operation above
+            # succeeds.  An unsupported or otherwise invalid runtime change
+            # therefore raises on every attempted frame exactly as before.
+            voice.resampler_validated_increment = voice.increment
+            voice.resampler_native_increment = native_increment
+            voice.resampler_validated_cutoff_index = (
+                validated_cutoff_index
+            )
+
+        native_rate_at_integer_position = (
+            voice.resampler_native_increment
+            and math.isclose(
+                voice.position,
+                round(voice.position),
+                rel_tol=0.0,
+                abs_tol=1e-12,
+            )
+        )
+        if native_rate_at_integer_position:
+            voice.resampler_cutoff_index = None
+            voice.resampler_table = None
+            return
+
+        cutoff_index = voice.resampler_validated_cutoff_index
+        if cutoff_index is None:
+            # A native-rate increment can move away from an integer position
+            # after runtime position or pitch mutation.  The established path
+            # then uses the full-band kernel until it becomes integer again.
+            cutoff_index = _bandlimited_cutoff_index(voice.increment)
+            voice.resampler_validated_cutoff_index = cutoff_index
         if cutoff_index != voice.resampler_cutoff_index:
             voice.resampler_cutoff_index = cutoff_index
             voice.resampler_table = _bandlimited_kernel_table(cutoff_index)

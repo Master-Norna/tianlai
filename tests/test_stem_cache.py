@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import multiprocessing
 import os
 from pathlib import Path
 from types import SimpleNamespace
@@ -12,26 +13,75 @@ from unittest.mock import patch
 import numpy as np
 
 from tianlai import stem_cache as stem_cache_module
+from tianlai import worker_slots as worker_slots_module
 from tianlai.render_lock import acquire_render_lock
 from tianlai.stem_cache import (
     PROCESS_SOURCE_TREE_SHA256,
     StemCache,
+    StemCacheRecord,
+    VerifiedStemSource,
     build_cache_key,
     current_source_tree_matches,
     source_tree_digest,
 )
+from tianlai.worker_slots import SessionScratchClaim, WorkerSlotPool
+
+
+def _hold_verified_snapshot_until_crash(
+    cache_root: str,
+    key: str,
+    snapshot_directory: str,
+    pool_directory: str,
+    free_bytes: int,
+    ready: object,
+    crash: object,
+) -> None:
+    """Child helper that exits without closing a verified snapshot."""
+
+    from types import SimpleNamespace as _SimpleNamespace
+
+    from tianlai import stem_cache as _stem_cache_module
+    from tianlai import worker_slots as _worker_slots_module
+    from tianlai.stem_cache import StemCache as _StemCache
+    from tianlai.worker_slots import WorkerSlotPool as _WorkerSlotPool
+
+    _worker_slots_module.shutil.disk_usage = lambda _path: _SimpleNamespace(
+        free=free_bytes
+    )
+    pool = _WorkerSlotPool(Path(pool_directory))
+    _stem_cache_module._verified_snapshot_pool_factory = lambda: pool
+    lookup = _StemCache(Path(cache_root)).open_verified(
+        key,
+        snapshot_directory=Path(snapshot_directory),
+    )
+    if lookup.source is None:
+        raise RuntimeError(f"verified snapshot child failed: {lookup.status}")
+    ready.set()
+    if not crash.wait(20):
+        raise RuntimeError("verified snapshot crash signal timed out")
+    os._exit(23)
 
 
 class StemCacheTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
         self.root = Path(self.temporary.name) / "cache"
+        self.snapshot_pool = WorkerSlotPool(
+            Path(self.temporary.name) / "snapshot-slots"
+        )
+        self.snapshot_pool_patch = patch.object(
+            stem_cache_module,
+            "_verified_snapshot_pool_factory",
+            return_value=self.snapshot_pool,
+        )
+        self.snapshot_pool_patch.start()
         self.cache = StemCache(self.root)
         self.key = build_cache_key({"part": "violin", "notes": [60, 62]})
         self.manifest = hashlib.sha256(b"manifest").hexdigest()
         self.audio = np.array([[0.0, 0.25], [-0.5, 1.0]], dtype=np.float32)
 
     def tearDown(self) -> None:
+        self.snapshot_pool_patch.stop()
         self.temporary.cleanup()
 
     def _store(self):
@@ -64,6 +114,34 @@ class StemCacheTests(unittest.TestCase):
         self.assertTrue(loaded.audio.flags.writeable)
         self.assertTrue(loaded.audio.flags.owndata)
         np.testing.assert_array_equal(loaded.audio, self.audio)
+
+    def test_verified_source_legacy_three_argument_constructor_still_works(
+        self,
+    ) -> None:
+        payload = self.audio.astype("<f4").tobytes()
+        source = tempfile.TemporaryFile(mode="w+b")
+        source.write(payload)
+        source.flush()
+        source.seek(0)
+        opened_status = os.fstat(source.fileno())
+        record = StemCacheRecord(
+            self.key,
+            self.root / "legacy.f32le",
+            self.root / "legacy.json",
+            {
+                "frame_count": len(self.audio),
+                "byte_length": len(payload),
+                "audio_sha256": hashlib.sha256(payload).hexdigest(),
+            },
+        )
+
+        verified = VerifiedStemSource(record, source, opened_status)
+        self.assertIsNone(verified._lease)
+        np.testing.assert_array_equal(verified.materialise(), self.audio)
+        verified.close()
+
+        self.assertTrue(verified.closed)
+        self.assertTrue(source.closed)
 
     def test_bounded_load_skips_track_allocation_above_limit(self) -> None:
         self.assertEqual(self._store().status, "stored")
@@ -423,7 +501,7 @@ class StemCacheTests(unittest.TestCase):
         self._store()
         with (
             patch(
-                "tianlai.stem_cache.shutil.disk_usage",
+                "tianlai.worker_slots.shutil.disk_usage",
                 return_value=SimpleNamespace(free=0),
             ),
             patch("tianlai.stem_cache.tempfile.TemporaryFile") as temporary,
@@ -434,8 +512,375 @@ class StemCacheTests(unittest.TestCase):
             )
 
         self.assertEqual(lookup.status, "unavailable")
-        self.assertIn("insufficient free space", lookup.reason or "")
+        self.assertIn("scratch admission is unavailable", lookup.reason or "")
         temporary.assert_not_called()
+
+    def test_verified_snapshot_exact_claim_blocks_same_volume_competitor(
+        self,
+    ) -> None:
+        self._store()
+        usable_bytes = self.audio.nbytes
+        free_bytes = (
+            worker_slots_module._SCRATCH_FREE_RESERVE_BYTES + usable_bytes
+        )
+        with patch(
+            "tianlai.worker_slots.shutil.disk_usage",
+            return_value=SimpleNamespace(free=free_bytes),
+        ):
+            lookup = self.cache.open_verified(
+                self.key,
+                snapshot_directory=self.root,
+            )
+            self.assertTrue(lookup.hit)
+            assert lookup.source is not None
+            self.assertEqual(
+                lookup.source._lease.claim.scratch_bytes,
+                self.audio.nbytes,
+            )
+            competing_pool = WorkerSlotPool(self.snapshot_pool.directory)
+            self.assertIsNone(
+                competing_pool.reserve_session_scratch(
+                    SessionScratchClaim(1, self.root)
+                )
+            )
+
+            lookup.source.close()
+            replacement = competing_pool.reserve_session_scratch(
+                SessionScratchClaim(1, self.root)
+            )
+            self.assertIsNotNone(replacement)
+            assert replacement is not None
+            replacement.close()
+
+    def test_verified_snapshot_file_closes_before_lease_and_first_error_wins(
+        self,
+    ) -> None:
+        self._store()
+        events: list[str] = []
+        real_temporary_file = tempfile.TemporaryFile
+        volume_id = worker_slots_module.scratch_volume_identity(
+            self.root.resolve()
+        )
+
+        class FailingSnapshot:
+            def __init__(self, *args: object, **kwargs: object) -> None:
+                self._file = real_temporary_file(*args, **kwargs)
+
+            def close(self) -> None:
+                events.append("snapshot")
+                self._file.close()
+                raise OSError("snapshot close failed")
+
+            def __getattr__(self, name: str) -> object:
+                return getattr(self._file, name)
+
+        class FailingLease:
+            scratch_directory = self.root.resolve()
+            claim = SimpleNamespace(
+                scratch_bytes=self.audio.nbytes,
+                scratch_volume_id=volume_id,
+            )
+            closed = False
+
+            def close(lease_self) -> None:
+                events.append("lease")
+                lease_self.closed = True
+                raise RuntimeError("lease close failed")
+
+        lease = FailingLease()
+        pool = SimpleNamespace(
+            reserve_session_scratch=lambda _claim: lease,
+        )
+        with (
+            patch.object(
+                stem_cache_module,
+                "_verified_snapshot_pool_factory",
+                return_value=pool,
+            ),
+            patch(
+                "tianlai.stem_cache.tempfile.TemporaryFile",
+                side_effect=FailingSnapshot,
+            ),
+        ):
+            lookup = self.cache.open_verified(
+                self.key,
+                snapshot_directory=self.root,
+            )
+
+        self.assertTrue(lookup.hit)
+        assert lookup.source is not None
+        with self.assertRaisesRegex(OSError, "snapshot close failed"):
+            lookup.source.close()
+        self.assertEqual(events, ["snapshot", "lease"])
+
+    def test_verified_snapshot_body_error_stays_primary_during_cleanup(
+        self,
+    ) -> None:
+        self._store()
+        events: list[str] = []
+        real_temporary_file = tempfile.TemporaryFile
+        volume_id = worker_slots_module.scratch_volume_identity(
+            self.root.resolve()
+        )
+
+        class FailingSnapshot:
+            def __init__(self, *args: object, **kwargs: object) -> None:
+                self._file = real_temporary_file(*args, **kwargs)
+
+            def close(self) -> None:
+                events.append("snapshot")
+                self._file.close()
+                raise OSError("snapshot close failed")
+
+            def __getattr__(self, name: str) -> object:
+                return getattr(self._file, name)
+
+        class FailingLease:
+            scratch_directory = self.root.resolve()
+            claim = SimpleNamespace(
+                scratch_bytes=self.audio.nbytes,
+                scratch_volume_id=volume_id,
+            )
+            closed = False
+
+            def close(lease_self) -> None:
+                events.append("lease")
+                lease_self.closed = True
+                raise RuntimeError("lease close failed")
+
+        lease = FailingLease()
+        pool = SimpleNamespace(reserve_session_scratch=lambda _claim: lease)
+        with (
+            patch.object(
+                stem_cache_module,
+                "_verified_snapshot_pool_factory",
+                return_value=pool,
+            ),
+            patch(
+                "tianlai.stem_cache.tempfile.TemporaryFile",
+                side_effect=FailingSnapshot,
+            ),
+        ):
+            lookup = self.cache.open_verified(
+                self.key,
+                snapshot_directory=self.root,
+            )
+
+        assert lookup.source is not None
+        with self.assertRaisesRegex(ValueError, "body failed") as raised:
+            with lookup.source:
+                raise ValueError("body failed")
+        self.assertEqual(events, ["snapshot", "lease"])
+        self.assertTrue(
+            any("snapshot close failed" in note for note in raised.exception.__notes__)
+        )
+
+    def test_verified_snapshot_ledger_memory_error_propagates(self) -> None:
+        self._store()
+        with patch.object(
+            stem_cache_module,
+            "_verified_snapshot_pool_factory",
+            side_effect=MemoryError("ledger allocation failed"),
+        ):
+            with self.assertRaisesRegex(MemoryError, "ledger allocation failed"):
+                self.cache.open_verified(
+                    self.key,
+                    snapshot_directory=self.root,
+                )
+
+    def test_verified_snapshot_ordinary_ledger_failure_is_unavailable(
+        self,
+    ) -> None:
+        self._store()
+        with patch.object(
+            stem_cache_module,
+            "_verified_snapshot_pool_factory",
+            side_effect=worker_slots_module.WorkerSlotError(
+                "ledger unavailable"
+            ),
+        ):
+            lookup = self.cache.open_verified(
+                self.key,
+                snapshot_directory=self.root,
+            )
+
+        self.assertEqual(lookup.status, "unavailable")
+        self.assertIn("scratch admission is unavailable", lookup.reason or "")
+
+    def test_verified_snapshot_wrong_volume_lease_fails_closed_and_releases(
+        self,
+    ) -> None:
+        self._store()
+
+        class WrongVolumeLease:
+            scratch_directory = self.root.resolve()
+            claim = SimpleNamespace(
+                scratch_bytes=self.audio.nbytes,
+                scratch_volume_id="not-the-admitted-volume",
+            )
+            closed = False
+
+            def close(lease_self) -> None:
+                lease_self.closed = True
+
+        lease = WrongVolumeLease()
+        pool = SimpleNamespace(reserve_session_scratch=lambda _claim: lease)
+        with (
+            patch.object(
+                stem_cache_module,
+                "_verified_snapshot_pool_factory",
+                return_value=pool,
+            ),
+            patch("tianlai.stem_cache.tempfile.TemporaryFile") as temporary,
+            self.assertRaisesRegex(
+                worker_slots_module.WorkerSlotError,
+                "wrong claim",
+            ),
+        ):
+            self.cache.open_verified(
+                self.key,
+                snapshot_directory=self.root,
+            )
+
+        self.assertTrue(lease.closed)
+        temporary.assert_not_called()
+
+    def test_verified_snapshot_constructor_failure_releases_exact_claim(
+        self,
+    ) -> None:
+        self._store()
+        free_bytes = (
+            worker_slots_module._SCRATCH_FREE_RESERVE_BYTES
+            + self.audio.nbytes
+        )
+        with (
+            patch(
+                "tianlai.worker_slots.shutil.disk_usage",
+                return_value=SimpleNamespace(free=free_bytes),
+            ),
+            patch(
+                "tianlai.stem_cache.VerifiedStemSource",
+                side_effect=MemoryError("source constructor failed"),
+            ),
+        ):
+            with self.assertRaisesRegex(MemoryError, "source constructor failed"):
+                self.cache.open_verified(
+                    self.key,
+                    snapshot_directory=self.root,
+                )
+            recovered = self.snapshot_pool.reserve_session_scratch(
+                SessionScratchClaim(1, self.root)
+            )
+            self.assertIsNotNone(recovered)
+            assert recovered is not None
+            recovered.close()
+
+    def test_verified_snapshot_process_crash_releases_ledger_claim(
+        self,
+    ) -> None:
+        self._store()
+        context = multiprocessing.get_context("spawn")
+        ready = context.Event()
+        crash = context.Event()
+        free_bytes = (
+            worker_slots_module._SCRATCH_FREE_RESERVE_BYTES
+            + self.audio.nbytes
+        )
+        process = context.Process(
+            target=_hold_verified_snapshot_until_crash,
+            args=(
+                str(self.root),
+                self.key,
+                str(self.root),
+                str(self.snapshot_pool.directory),
+                free_bytes,
+                ready,
+                crash,
+            ),
+        )
+        process.start()
+        try:
+            self.assertTrue(
+                ready.wait(20),
+                "verified snapshot child did not acquire its lease",
+            )
+            with patch(
+                "tianlai.worker_slots.shutil.disk_usage",
+                return_value=SimpleNamespace(free=free_bytes),
+            ):
+                competing_pool = WorkerSlotPool(self.snapshot_pool.directory)
+                self.assertIsNone(
+                    competing_pool.reserve_session_scratch(
+                        SessionScratchClaim(1, self.root)
+                    )
+                )
+                crash.set()
+                process.join(20)
+                self.assertFalse(process.is_alive())
+                self.assertEqual(process.exitcode, 23)
+                recovered = competing_pool.reserve_session_scratch(
+                    SessionScratchClaim(1, self.root)
+                )
+                self.assertIsNotNone(recovered)
+                assert recovered is not None
+                recovered.close()
+        finally:
+            crash.set()
+            if process.is_alive():
+                process.terminate()
+            process.join(5)
+
+    @unittest.skipUnless(
+        os.name != "nt" and hasattr(os, "fork"),
+        "requires POSIX fork descriptor inheritance",
+    )
+    def test_fork_child_cannot_consume_or_release_parent_snapshot(self) -> None:
+        self._store()
+        free_bytes = (
+            worker_slots_module._SCRATCH_FREE_RESERVE_BYTES
+            + self.audio.nbytes
+        )
+        with patch(
+            "tianlai.worker_slots.shutil.disk_usage",
+            return_value=SimpleNamespace(free=free_bytes),
+        ):
+            lookup = self.cache.open_verified(
+                self.key,
+                snapshot_directory=self.root,
+            )
+            assert lookup.source is not None
+            child_pid = os.fork()
+            if child_pid == 0:
+                try:
+                    if not lookup.source.closed:
+                        os._exit(91)
+                    try:
+                        tuple(lookup.source.iter_blocks(1))
+                    except ValueError:
+                        pass
+                    else:
+                        os._exit(92)
+                    lookup.source.close()
+                except BaseException:
+                    os._exit(93)
+                os._exit(0)
+
+            waited_pid, wait_status = os.waitpid(child_pid, 0)
+            self.assertEqual(waited_pid, child_pid)
+            self.assertEqual(os.waitstatus_to_exitcode(wait_status), 0)
+            competing_pool = WorkerSlotPool(self.snapshot_pool.directory)
+            self.assertIsNone(
+                competing_pool.reserve_session_scratch(
+                    SessionScratchClaim(1, self.root)
+                )
+            )
+            lookup.source.close()
+            recovered = competing_pool.reserve_session_scratch(
+                SessionScratchClaim(1, self.root)
+            )
+            self.assertIsNotNone(recovered)
+            assert recovered is not None
+            recovered.close()
 
     def test_verified_snapshot_rejects_linked_directory(self) -> None:
         self._store()
@@ -447,14 +892,18 @@ class StemCacheTests(unittest.TestCase):
         except OSError:
             self.skipTest("platform does not permit directory symlinks")
 
-        with patch("tianlai.stem_cache.tempfile.TemporaryFile") as temporary:
-            lookup = self.cache.open_verified(
+        with (
+            patch("tianlai.stem_cache.tempfile.TemporaryFile") as temporary,
+            self.assertRaisesRegex(
+                worker_slots_module.WorkerSlotError,
+                "directory identity is unavailable",
+            ),
+        ):
+            self.cache.open_verified(
                 self.key,
                 snapshot_directory=linked_directory,
             )
 
-        self.assertEqual(lookup.status, "unavailable")
-        self.assertIn("cache read failed", lookup.reason or "")
         temporary.assert_not_called()
 
     def test_missing_invalid_and_nonfinite_input_are_structured(self) -> None:

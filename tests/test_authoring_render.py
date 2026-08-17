@@ -10,6 +10,7 @@ import threading
 import pytest
 
 import tianlai.authoring_render as authoring_render_module
+import tianlai.candidate_integrity as candidate_integrity_module
 import tianlai.creative_workflow as creative_workflow_module
 from tianlai.authoring_project import (
     create_authoring_project,
@@ -28,6 +29,10 @@ from tianlai.candidate import (
     canonical_json_sha256,
     load_candidate,
     sha256_file,
+)
+from tianlai.candidate_integrity import (
+    CandidateIntegrityError,
+    verify_candidate_integrity,
 )
 from tianlai.creative_workflow import (
     CreativeWorkflowError,
@@ -98,6 +103,31 @@ def _candidate_directory(root: Path, result: dict[str, object]) -> Path:
     candidate = result["candidate"]
     assert isinstance(candidate, dict)
     return root / "renders" / candidate["work_id"] / candidate["candidate_id"]
+
+
+def test_candidate_integrity_normalizes_authoring_semantic_type_error(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root, state = _renderable_project(tmp_path)
+    rendered = render_project_candidate(
+        root,
+        expected_revision=state.revision,
+    )
+    candidate = _candidate_directory(root, rendered)
+
+    def fail_semantic_shape(*_args: object, **_kwargs: object) -> None:
+        raise TypeError("malformed authoring seat")
+
+    monkeypatch.setattr(
+        candidate_integrity_module,
+        "_verify_formal_roster_plan",
+        fail_semantic_shape,
+    )
+    with pytest.raises(CandidateIntegrityError) as caught:
+        verify_candidate_integrity(candidate)
+
+    assert caught.value.code == "identity_mismatch"
 
 
 def _work_charter() -> dict[str, object]:

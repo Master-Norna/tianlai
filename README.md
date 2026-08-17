@@ -38,7 +38,7 @@ MIDI / MusicXML / 可编辑 score
 “导入—明确配器—首次出声—定位—补丁—二次渲染—比较”，不需要先下载数 GB
 音源。
 
-> 当前候选版本：`0.8.0rc1`
+> 当前正式版本：`0.9.0`
 >
 > **发行边界：** 正式产品是项目提供的轻量源码 ZIP。若未来发布 PyPI 的
 > sdist/wheel，`tianlai-audio` 只提供可复用的 Python 引擎，不包含完整乐器目录、
@@ -48,7 +48,7 @@ MIDI / MusicXML / 可编辑 score
 
 | 环境 | 最短入口 | 当前边界 |
 | --- | --- | --- |
-| Windows 10/11 x64 | [Windows 三步上手](#windows-三步上手) | `0.8.0rc1` 完整参考平台 |
+| Windows 10/11 x64 | [Windows 三步上手](#windows-三步上手) | `0.9.0` 完整参考平台 |
 | Linux / WSL x86_64 | [Linux / WSL 快速开始](docs/Linux快速开始.md) | 已提供 Bash、程序音色与 MCP 入口；成功链和真实采样按层验收 |
 | macOS Apple Silicon / Intel | [macOS 快速开始](docs/macOS快速开始.md) | 原生 64 位 CPython 3.11–3.14；已纳入干净源码 ZIP portable CI，真实采样另行验收 |
 
@@ -78,7 +78,7 @@ bash ./bootstrap_macos.sh
 
 ## Windows 三步上手
 
-Windows 10/11 x64 与 64 位 CPython 3.11–3.14 是 `0.8.0rc1` 的参考环境。
+Windows 10/11 x64 与 64 位 CPython 3.11–3.14 是 `0.9.0` 的参考环境。
 以下 `cmd` 代码块都在源码包根目录的“命令提示符（cmd.exe）”执行；多行续写符
 是 `^`。
 
@@ -122,7 +122,7 @@ Windows 10/11 x64 与 64 位 CPython 3.11–3.14 是 `0.8.0rc1` 的参考环境�
 
 ## 推荐创作闭环
 
-`0.8.0rc1` 推荐使用下面这一条主链，而不是分别调用早期导入和合奏命令后手工拼接
+`0.9.0` 推荐使用下面这一条主链，而不是分别调用早期导入和合奏命令后手工拼接
 产物：
 
 | 阶段 | CLI | 结果 |
@@ -130,6 +130,7 @@ Windows 10/11 x64 与 64 位 CPython 3.11–3.14 是 `0.8.0rc1` 的参考环境�
 | 统一导入 | `project-import` | score v1、导入报告、不可执行 roster 草稿 |
 | 明确配器 | `roster-promote` | 每个声部恰好一次显式路由的正式 roster |
 | 首次执行 | `project-render` | 唯一目录中的候选 1、音频、分轨、回执与绑定清单 |
+| 代际核验 | `candidate-verify` | 证明本次通过描述符读取的字节构成封闭、自洽的一代候选 |
 | 听感定位 | `candidate-locate` | 从候选实际秒数回到事件、小节、拍位和执行器 |
 | 有界读取 | `score-slice` | 带 score Hash 的局部乐谱 |
 | 原子修改 | `score-patch` | 冲突即整批拒绝的新 score 修订 |
@@ -158,6 +159,14 @@ score、roster、render profile、演奏计划和渲染回执绑定起来。候�
 Hash。引擎还会在准备阶段冻结旧候选清单 Hash，并在目录交换前后递归复验计划、
 合奏、分轨和许可旁车；并发修改或不完整一代不会被发布成可见候选。
 
+需要独立核验已保存候选时，运行
+`天籁.cmd candidate-verify --candidate "候选目录"`。复制或解压时必须保留清单绑定的
+`<work_id>/<candidate_id>` 两级目录名。命令拒绝额外文件、目录、
+链接或重解析点、硬链接以及检测到的绑定工件漂移；用 `--output` 保存报告时，报告必须位于
+候选目录外。成功结果中的 `integrity_verified=true` 只证明本次通过描述符读取的
+字节构成封闭、自洽的本地代际；不证明作者身份、来源或内容质量，也不保证不合作的
+并发写者不会在命令返回后再修改现场目录。
+
 ## 可编辑中间态
 
 score v1 是天籁的权威可编辑乐谱，不是一次性导入缓存。每个音符都有全谱唯一、
@@ -169,6 +178,41 @@ score v1 是天籁的权威可编辑乐谱，不是一次性导入缓存。每�
 MusicXML 导入会保留这两个谱内身份，使同一内部 part 中、相同音高但属于不同谱表
 或声部的连音不会被错误合并。它们不是 roster 的 part，也不负责乐器路由；编辑
 MusicXML 派生 score 时，除非确实要改变谱内归属，否则应与 `event_id` 一起保留。
+
+更精细的作品语义见 [Score v2：精确、可迁移的作品语义](docs/score-v2.md)。当前底层
+实现已经支持精确有理时间、书写音高与实音分离、显式稳定关系、可信
+`ScoreSourceSnapshot` 和显式 v1 → v2 迁移。首版正式切片现已提供独立的
+`project-render-v2`：它直接读取 score v2、正式 roster 与 execution profile，在活跃的
+runtime lease 内生成 PCM24，并发布 Candidate v3。四项必填参数是 `--score`、`--roster`、
+`--execution-profile` 和 `--sample-rate`：
+
+```cmd
+天籁.cmd project-render-v2 ^
+  --score "乐谱\作品.score-v2.json" ^
+  --roster "乐谱\作品.roster.json" ^
+  --execution-profile "乐谱\作品.execution-profile.json" ^
+  --sample-rate 48000
+```
+
+这个入口目前只支持源码工作区布局、单 executor、内置 oscillator、显式零外部音频资产和
+`tail=0`。迁移 bundle、performance facts、realization、采样音源、自定义实现、lazy
+asset 与多 executor 都会 fail closed；迁移产物不能直接冒充 `--score` 输入。原有
+`project-render`、score v1 与 Candidate v1/v2 的行为保持不变，Candidate v3 只属于这条
+受限的 direct-v2 正式链。运行时代、PCM24 和候选封闭边界详见上面的 Score v2 文档。
+
+显式迁移命令会写出完整 bundle，不会就地改写源谱：
+
+```cmd
+tianlai migrate-score-v2 --score 乐谱\作品.score.json --output output\作品.score-v2-migration.json
+```
+
+需要比谱面记号更细的演奏控制时，可以附加一份与 score 精确 Hash 绑定的
+`realization v1`：逐音 timing、gate、velocity、release velocity，以及有明确音乐
+语义的 expression、breath、踏板等稀疏控制曲线。不提供它时旧工程逐字节保持原行为；
+提供后，创作者必须分别声明是否接受数值量化、语义近似和时间栅格适配，执行器不能
+把“技术上能响应”冒充成“音乐上原生实现”。CLI 的 `ensemble` 与 `project-render`
+可通过 `--realization` 使用该层，候选会把原文、score Hash、计划 Hash 和 resolved
+证据一起封闭验证。完整合同见 [Realization v1](docs/realization-v1.md)。
 
 MIDI 与 MusicXML 都可能包含当前 score 无法无损表达的语义。统一导入默认
 `--loss-policy reject`，需要接受降级时必须显式选择 `warn` 或 `allow`，并保存
@@ -221,7 +265,7 @@ readiness 授权继续渲染，已转译或无法核验都会令 readiness 保�
   通过 `manual`、`analyze`、`suggest` 工作流继续吸收创作者与社区反馈。
 - `manual`、`analyze`、`suggest` 把分析与修改分层；`suggest` 生成有界、可复核的
   诊断草稿，由创作者确认后进入下一版候选。
-- 离线渲染生成 24-bit WAV、可选分轨、共享厅堂与完整回执；`0.8.0rc1` 会按
+- 离线渲染生成 24-bit WAV、可选分轨、共享厅堂与完整回执；`0.9.0` 会按
   CPU、内存、临时磁盘、工作量和已核验资源自动选择串行或最多四个受管 worker，
   并以有界块流式交接长分轨。它不新增 `render profile` 参数，必需的 worker 安全
   或资源证据不足时回退到完整串行路径，串行与并行保持相同的正式音频字节合同。

@@ -65,6 +65,38 @@ class CliAvailabilityPolicyTests(unittest.TestCase):
         self.assertEqual(result, 2)
         self.assertIn("license_status=quarantined", stderr)
 
+    def test_render_and_validate_share_the_duration_budget(self) -> None:
+        self.manifest.write_text(
+            json.dumps(
+                {
+                    "id": "budget-test",
+                    "name": "预算测试乐器",
+                    "license_status": "approved",
+                },
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
+        self.events.write_text(
+            json.dumps(
+                {
+                    "sample_rate": 8_000,
+                    "channels": 2,
+                    "tail_seconds": 0.0,
+                    "duration_seconds": 7_201.0,
+                    "events": [],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        for command in ("render", "validate"):
+            with self.subTest(command=command):
+                result, stderr = self._run(command)
+                self.assertEqual(result, 2)
+                self.assertIn("exceeds limit", stderr)
+        self.assertFalse(self.output.exists())
+
     def test_single_render_prints_its_license_sidecars(self) -> None:
         manifest = json.loads(self.manifest.read_text(encoding="utf-8"))
         manifest["license_status"] = "approved"

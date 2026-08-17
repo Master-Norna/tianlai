@@ -25,6 +25,7 @@ from typing import Any
 
 import numpy as np
 
+from .atomic_publish import _PrivateFileClaim, _write_private_file_bytes
 from .canonical_json import canonical_json_bytes
 from .self_check import ISSUE_SCHEMA_VERSION, build_issue, summarize_issues
 
@@ -2102,11 +2103,11 @@ def require_post_render_check_pass(report: dict[str, Any]) -> None:
         )
 
 
-def write_post_render_check(path: str | Path, report: dict[str, Any]) -> None:
-    """Atomically write one deterministic, finite JSON report."""
+def _encode_post_render_check(report: dict[str, Any]) -> bytes:
+    """Validate and encode one deterministic, finite JSON report."""
 
     validate_post_render_check(report)
-    encoded = (
+    return (
         json.dumps(
             report,
             ensure_ascii=False,
@@ -2116,7 +2117,23 @@ def write_post_render_check(path: str | Path, report: dict[str, Any]) -> None:
         )
         + "\n"
     ).encode("utf-8")
+
+
+def write_post_render_check(
+    path: str | Path,
+    report: dict[str, Any],
+    *,
+    _claim: _PrivateFileClaim | None = None,
+) -> None:
+    """Atomically write one deterministic, finite JSON report."""
+
+    encoded = _encode_post_render_check(report)
     destination = Path(path)
+    if _claim is not None:
+        if _claim.path != destination:
+            raise ValueError("private post-render claim path mismatch")
+        _write_private_file_bytes(_claim, encoded)
+        return
     destination.parent.mkdir(parents=True, exist_ok=True)
     descriptor, temporary_name = tempfile.mkstemp(
         dir=destination.parent,

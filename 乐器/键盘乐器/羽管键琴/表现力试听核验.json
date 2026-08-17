@@ -11,7 +11,7 @@
   "peak": 0.242997,
   "rms": 0.025927,
   "clipped_samples": 0,
-  "wav": "output/羽管键琴_candidate.wav",
+  "wav": "output/表现力试听/键盘乐器/羽管键琴_candidate.wav",
   "wav_persistence": "temporary",
   "wav_sha256": "8967a05f817917b16364fc7d3b9bd9af18d5662cf01da48a631728995d27cf73",
   "hash_algorithm": "SHA-256",

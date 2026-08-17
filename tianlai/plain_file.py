@@ -267,6 +267,57 @@ def sha256_plain_file(
         os.close(descriptor)
 
 
+def sha256_plain_file_prefix(
+    value: str | os.PathLike[str],
+    *,
+    prefix_bytes: int,
+    maximum_bytes: int | None = None,
+) -> tuple[PlainFileIdentity, str, bytes]:
+    """Hash one plain file and retain a bounded prefix from the same handle."""
+
+    if (
+        isinstance(prefix_bytes, bool)
+        or not isinstance(prefix_bytes, int)
+        or prefix_bytes < 1
+        or prefix_bytes > _READ_CHUNK_BYTES
+    ):
+        raise ValueError("prefix_bytes must be between 1 and 1048576")
+    if maximum_bytes is not None and (
+        isinstance(maximum_bytes, bool)
+        or not isinstance(maximum_bytes, int)
+        or maximum_bytes < 1
+    ):
+        raise ValueError("maximum_bytes must be a positive integer or None")
+    path, descriptor, opened, parent_identity = _open_plain_file(value)
+    try:
+        if maximum_bytes is not None and opened.st_size > maximum_bytes:
+            raise OSError("file exceeds the configured byte limit")
+        digest = hashlib.sha256()
+        retained = bytearray()
+        observed = 0
+        while True:
+            chunk = os.read(descriptor, _READ_CHUNK_BYTES)
+            if not chunk:
+                break
+            observed += len(chunk)
+            if maximum_bytes is not None and observed > maximum_bytes:
+                raise OSError("file exceeds the configured byte limit")
+            digest.update(chunk)
+            if len(retained) < prefix_bytes:
+                retained.extend(chunk[: prefix_bytes - len(retained)])
+        identity = _finish_read(
+            path,
+            descriptor,
+            opened,
+            parent_identity,
+        )
+        if observed != identity.size:
+            raise OSError("file size changed while hashing")
+        return identity, digest.hexdigest(), bytes(retained)
+    finally:
+        os.close(descriptor)
+
+
 def revalidate_plain_file(identity: PlainFileIdentity) -> Path:
     """Fail if a previously captured path no longer names the same file."""
 
@@ -306,4 +357,5 @@ __all__ = [
     "read_plain_file_bytes",
     "revalidate_plain_file",
     "sha256_plain_file",
+    "sha256_plain_file_prefix",
 ]

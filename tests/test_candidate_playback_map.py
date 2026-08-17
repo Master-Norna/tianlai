@@ -364,6 +364,12 @@ class CandidatePlaybackMapTests(unittest.TestCase):
                 self.assertNotIn("..", PurePosixPath(path).parts)
 
             event = result["events"][0]
+            self.assertEqual(result["summary"]["score_schema_version"], 1)
+            self.assertEqual(result["summary"]["stable_identity_count"], 1)
+            self.assertEqual(
+                result["summary"]["legacy_unstable_identity_count"],
+                0,
+            )
             self.assertEqual(event["source_event_id"], "event-000001")
             self.assertTrue(event["stable_identity"])
             self.assertEqual(event["note_on"]["seconds"], 0.12345649)

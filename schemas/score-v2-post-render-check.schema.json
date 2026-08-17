@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tianlai.local/schemas/score-v2-post-render-check.schema.json",
+  "title": "Tianlai Score-v2 PCM24 Stream Post-render Check",
+  "type": "object",
+  "required": ["kind", "schema_version", "contract", "status", "bindings", "artifact", "audio_format", "observations", "summary", "limitations"],
+  "properties": {
+    "kind": { "const": "tianlai.score_v2_post_render_check" },
+    "schema_version": { "const": 1 },
+    "contract": { "const": "score-v2-post-render-check-pcm24-stream-v1" },
+    "status": { "const": "pass" },
+    "bindings": {
+      "type": "object",
+      "required": ["performance_bundle_sha256", "runtime_authority_sha256"],
+      "properties": {
+        "performance_bundle_sha256": { "$ref": "#/$defs/sha256" },
+        "runtime_authority_sha256": { "$ref": "#/$defs/sha256" }
+      },
+      "additionalProperties": false
+    },
+    "artifact": {
+      "type": "object",
+      "required": ["path", "sha256", "size_bytes"],
+      "properties": {
+        "path": { "const": "合奏.wav" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "size_bytes": { "type": "integer", "minimum": 50 }
+      },
+      "additionalProperties": false
+    },
+    "audio_format": {
+      "type": "object",
+      "required": ["container", "encoding", "bits_per_sample", "channels", "sample_rate", "frame_count"],
+      "properties": {
+        "container": { "const": "WAV" },
+        "encoding": { "const": "PCM" },
+        "bits_per_sample": { "const": 24 },
+        "channels": { "const": 2 },
+        "sample_rate": { "type": "integer", "minimum": 8000, "maximum": 384000 },
+        "frame_count": { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": false
+    },
+    "observations": {
+      "type": "object",
+      "required": ["peak", "active_sample_count", "event_count", "endpoint_event_count"],
+      "properties": {
+        "peak": { "type": "number", "minimum": 0, "maximum": 1 },
+        "active_sample_count": { "type": "integer", "minimum": 0 },
+        "event_count": { "type": "integer", "minimum": 0 },
+        "endpoint_event_count": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "summary": {
+      "type": "object",
+      "required": ["can_proceed", "expected_activity", "observed_activity"],
+      "properties": {
+        "can_proceed": { "const": true },
+        "expected_activity": { "type": "boolean" },
+        "observed_activity": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "limitations": {
+      "type": "object",
+      "required": ["loudness_standard_measurement", "true_peak_measurement", "release_tail", "source"],
+      "properties": {
+        "loudness_standard_measurement": { "const": "not_performed" },
+        "true_peak_measurement": { "const": "not_performed" },
+        "release_tail": { "const": "not_present" },
+        "source": { "const": "same_descriptor_stream_evidence" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  }
+}

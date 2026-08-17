@@ -38,25 +38,47 @@ note.
 
 from __future__ import annotations
 
+from bisect import bisect_right
 from dataclasses import dataclass, field
 import hashlib
+import json
 import math
 import struct
 from typing import Any
 
+from .canonical_json import canonical_json_bytes, canonical_json_sha256
 from .capability import (
     RANGE_VALIDATION_MODES,
     InstrumentCapability,
     RangeProfileEvaluation,
 )
 from .preflight import enforce_roster_availability
+from .realization import (
+    RealizationDocument,
+    parse_realization_document,
+    realization_note_time_bounds,
+)
+from .realization_compile import (
+    CompiledControlEvent,
+    active_note_overrides,
+    compile_control_lanes,
+    require_release_velocity_support,
+    resolve_numeric_override,
+)
+from .resource_limits import (
+    PlanDocumentBudgetTracker,
+    ProjectLimits,
+    ResourceLimitError,
+    performance_event_limit,
+    validate_performance_document_resource_limits,
+)
 from .roster import (
     CollaborationSettings,
     Executor,
     Roster,
     check_roster_covers_score,
 )
-from .score import ScoreDocument, ScoreNote, pitch_name
+from .score import ScoreDocument, ScoreNote, parse_score_document, pitch_name
 from .score_time import validate_score_time_coordinates
 
 
@@ -242,6 +264,7 @@ class PlanPart:
     performance: dict[str, Any]
     trace: tuple[dict[str, Any], ...]
     gain_envelope: tuple[GainEnvelopePoint, ...] = ()
+    control_trace: tuple[dict[str, Any], ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
         data = self.executor.to_dict()
@@ -252,6 +275,8 @@ class PlanPart:
                 point.to_dict(self.executor.gain_db)
                 for point in self.gain_envelope
             ]
+        if self.control_trace:
+            data["control_trace"] = list(self.control_trace)
         return data
 
 
@@ -283,6 +308,7 @@ class PerformancePlan:
         default_factory=CollaborationSettings
     )
     warnings: tuple[str, ...] = field(default=())
+    realization: dict[str, Any] | None = None
     # Review metadata deliberately stays outside ``to_dict`` so improving a
     # diagnosis never changes the performance-plan hash or rendered audio.
     advisories: tuple[PerformanceAdvisory, ...] = field(
@@ -303,6 +329,8 @@ class PerformancePlan:
         }
         if self.collaboration.declared:
             data["collaboration"] = self.collaboration.to_dict()
+        if self.realization is not None:
+            data["realization"] = dict(self.realization)
         return data
 
 
@@ -617,14 +645,383 @@ def _onset_context_for_overlap(policy: str, *, overlaps_earlier: bool) -> str:
     raise ValueError(f"unsupported onset overlap policy: {policy!r}")
 
 
+def _merge_compiled_control_events(
+    performance_events: list[dict[str, Any]],
+    controls: tuple[CompiledControlEvent, ...],
+    *,
+    sample_rate: int,
+    logical_note_onsets: tuple[tuple[float, float], ...] = (),
+    logical_note_releases: tuple[tuple[float, float], ...] = (),
+    control_event_limit: int | None = None,
+    plan_budget: PlanDocumentBudgetTracker | None = None,
+) -> tuple[list[dict[str, Any]], tuple[dict[str, Any], ...], float]:
+    """Merge controls with sample-accurate, scoped note-boundary state.
+
+    Authored controls establish the ordinary clock-time state.  A latched or
+    release-gate backend may additionally need the value that was in force at
+    the note's *logical* boundary after humanisation or gate processing moved
+    its physical event.  Such a correction is a one-event transaction: apply
+    the logical value immediately before the note event, then restore the
+    ordinary clock-time value immediately afterwards.  Without the restore, a
+    delayed release could turn the pedal back on permanently.
+    """
+
+    if not controls:
+        latest = max(
+            (float(item["time"]) for item in performance_events),
+            default=0.0,
+        )
+        return performance_events, (), latest
+    rows: list[tuple[int, int, int, dict[str, Any]]] = []
+    for index, item in enumerate(performance_events):
+        sample = max(0, round(float(item["time"]) * sample_rate))
+        normalized = dict(item)
+        normalized["time"] = round(sample / sample_rate, 9)
+        rows.append((sample, 2, index, normalized))
+    trace: list[dict[str, Any]] = []
+    for index, control in enumerate(controls):
+        sample = max(0, round(control.time_seconds * sample_rate))
+        resolved_time = sample / sample_rate
+        time_adapted = not math.isclose(
+            control.time_seconds,
+            resolved_time,
+            rel_tol=0.0,
+            abs_tol=1.0e-12,
+        )
+        if time_adapted and control.time_policy == "exact":
+            raise ValueError(
+                f"realization control lane {control.lane_id!r} requested "
+                f"exact time {control.time_seconds:.12g}s, but the "
+                f"{sample_rate} Hz grid resolves it to {resolved_time:.12g}s"
+            )
+        event = control.performance_event()
+        event["time"] = round(resolved_time, 9)
+        rows.append((sample, 0, index, event))
+        evidence = control.trace_entry()
+        evidence["resolved_sample"] = sample
+        evidence["resolved_time_seconds"] = round(resolved_time, 9)
+        evidence["time_adapted"] = time_adapted
+        trace.append(evidence)
+    sampled_groups: dict[
+        tuple[str, str], list[CompiledControlEvent]
+    ] = {}
+    for control in controls:
+        if control.application in {"note_on_latched", "release_gate"}:
+            sampled_groups.setdefault(
+                (control.lane_id, control.name),
+                [],
+            ).append(control)
+    insertion_specs: list[
+        tuple[
+            int,
+            CompiledControlEvent,
+            CompiledControlEvent,
+            str,
+        ]
+    ] = []
+    for (_lane_id, _name), lane_events in sorted(sampled_groups.items()):
+        lane_events.sort(key=lambda item: item.time_seconds)
+        logical_times = [item.time_seconds for item in lane_events]
+        application = lane_events[0].application
+        queries = (
+            logical_note_onsets
+            if application == "note_on_latched"
+            else logical_note_releases
+        )
+        desired_by_sample: dict[int, CompiledControlEvent] = {}
+        for logical_time, scheduled_time in queries:
+            position = bisect_right(logical_times, logical_time + 1.0e-12) - 1
+            if position < 0:
+                raise ValueError(
+                    f"sampled control lane {lane_events[0].lane_id!r} has no "
+                    f"value at a routed note {application} boundary"
+                )
+            selected = lane_events[position]
+            sample = max(0, round(scheduled_time * sample_rate))
+            previous = desired_by_sample.get(sample)
+            if previous is not None and not math.isclose(
+                previous.value,
+                selected.value,
+                rel_tol=0.0,
+                abs_tol=1.0e-12,
+            ):
+                raise ValueError(
+                    f"sampled control lane {selected.lane_id!r} requires "
+                    "different values for note boundaries on the same sample"
+                )
+            desired_by_sample[sample] = selected
+
+        # Resolve the ordinary clock-time state at each physical boundary.
+        # Any temporary logical-time correction is restored after the note
+        # event, so it cannot leak into a later note or leave a release gate
+        # permanently active.  A constant lane therefore stays O(points), not
+        # O(notes), because its logical and physical values are identical.
+        base_by_sample: dict[int, CompiledControlEvent] = {}
+        for item in lane_events:
+            base_by_sample[
+                max(0, round(item.time_seconds * sample_rate))
+            ] = item
+        base_samples = sorted(base_by_sample)
+        for sample, selected in sorted(desired_by_sample.items()):
+            base_position = bisect_right(base_samples, sample) - 1
+            if base_position < 0:
+                raise ValueError(
+                    f"sampled control lane {selected.lane_id!r} has no "
+                    "clock-time state at a routed note boundary"
+                )
+            ordinary = base_by_sample[base_samples[base_position]]
+            if not math.isclose(
+                ordinary.value,
+                selected.value,
+                rel_tol=0.0,
+                abs_tol=1.0e-12,
+            ):
+                insertion_specs.append(
+                    (sample, selected, ordinary, application)
+                )
+
+    if (
+        control_event_limit is not None
+        and len(controls) + 2 * len(insertion_specs) > control_event_limit
+    ):
+        materialized_count = len(controls) + 2 * len(insertion_specs)
+        raise ResourceLimitError(
+            "realization.too_many_control_events",
+            "realization scheduling would materialize "
+            f"{materialized_count} control events, "
+            f"exceeding limit {control_event_limit}",
+            actual=materialized_count,
+            limit=control_event_limit,
+        )
+    sampled_index = len(controls)
+    for sample, selected, ordinary, application in insertion_specs:
+        resolved_time = sample / sample_rate
+        event = selected.performance_event()
+        event["time"] = round(resolved_time, 9)
+        if plan_budget is not None:
+            plan_budget.charge_fragment(event, framing_bytes=32)
+        rows.append((sample, 1, sampled_index, event))
+        sampled_index += 1
+        evidence = selected.trace_entry()
+        evidence.update(
+            {
+                "materialized_for_note_boundary": application,
+                "logical_control_time_seconds": round(
+                    selected.time_seconds,
+                    9,
+                ),
+                "resolved_sample": sample,
+                "resolved_time_seconds": round(resolved_time, 9),
+            }
+        )
+        if plan_budget is not None:
+            plan_budget.charge_fragment(evidence, framing_bytes=64)
+        trace.append(evidence)
+        restore = ordinary.performance_event()
+        restore["time"] = round(resolved_time, 9)
+        if plan_budget is not None:
+            plan_budget.charge_fragment(restore, framing_bytes=32)
+        rows.append((sample, 3, sampled_index, restore))
+        sampled_index += 1
+        restore_evidence = ordinary.trace_entry()
+        restore_evidence.update(
+            {
+                "restored_after_note_boundary": application,
+                "resolved_sample": sample,
+                "resolved_time_seconds": round(resolved_time, 9),
+            }
+        )
+        if plan_budget is not None:
+            plan_budget.charge_fragment(
+                restore_evidence,
+                framing_bytes=64,
+            )
+        trace.append(restore_evidence)
+    rows.sort(key=lambda item: (item[0], item[1], item[2]))
+    merged = [item[3] for item in rows]
+    return merged, tuple(trace), max(item[0] for item in rows) / sample_rate
+
+
+def _validate_control_articulation_applicability(
+    compiled_controls: dict[str, tuple[CompiledControlEvent, ...]],
+    executors: dict[str, Executor],
+    resolved_articulations: dict[str, set[str | None]],
+) -> None:
+    """Prove each part-wide lane applies to every note it will encounter.
+
+    Some backends expose a control only for selected sample articulations (for
+    example a percussion roll, but not a one-shot hit).  Capability discovery
+    alone is therefore insufficient: the conductor must check the *final*
+    roster-mapped/automatic articulation selected for every routed note.
+    """
+
+    for executor_id, controls in compiled_controls.items():
+        executor = executors[executor_id]
+        signatures = {
+            (
+                control.lane_id,
+                control.name,
+                control.interpolation,
+                control.semantic_policy,
+                "per_note" if control.voice is not None else "part",
+            )
+            for control in controls
+        }
+        for lane_id, name, interpolation, semantic_policy, scope in sorted(
+            signatures
+        ):
+            declared = executor.capability.require_control(
+                name,
+                scope=scope,
+                interpolation=interpolation,
+                semantic_policy=semantic_policy,
+            )
+            for articulation in sorted(
+                resolved_articulations.get(executor_id, ()),
+                key=lambda value: "" if value is None else value,
+            ):
+                if articulation is None:
+                    if declared.applicable_articulations is not None:
+                        raise ValueError(
+                            f"realization control lane {lane_id!r} cannot "
+                            f"prove articulation applicability for executor "
+                            f"{executor_id!r} with no named articulation"
+                        )
+                    continue
+                try:
+                    executor.capability.require_control(
+                        name,
+                        scope=scope,
+                        interpolation=interpolation,
+                        articulation=articulation,
+                        semantic_policy=semantic_policy,
+                    )
+                except ValueError as exc:
+                    raise ValueError(
+                        f"realization control lane {lane_id!r} cannot apply "
+                        f"to executor {executor_id!r} articulation "
+                        f"{articulation!r}: {exc}"
+                    ) from exc
+
+
+def _enforce_sample_value_policy(
+    override: Any,
+    requested_seconds: float,
+    resolved_seconds: float,
+    *,
+    path: str,
+) -> dict[str, Any] | None:
+    if override is None or override.is_noop:
+        return None
+    adapted = not math.isclose(
+        requested_seconds,
+        resolved_seconds,
+        rel_tol=0.0,
+        abs_tol=1.0e-12,
+    )
+    if adapted and override.value_policy == "exact":
+        raise ValueError(
+            f"{path} requested exact sample timing, but {requested_seconds:.12g}s "
+            f"resolves to {resolved_seconds:.12g}s"
+        )
+    return {
+        "value_policy": override.value_policy,
+        "requested_seconds": requested_seconds,
+        "resolved_seconds": resolved_seconds,
+        "adapted": adapted,
+    }
+
+
 def build_plan(
     score: ScoreDocument,
     roster: Roster,
     expression: ExpressionSettings | None = None,
+    realization: RealizationDocument | None = None,
+    *,
+    score_document: dict[str, Any] | None = None,
+    realization_document: dict[str, Any] | None = None,
 ) -> PerformancePlan:
-    """Resolve a score plus a roster into one renderable plan per executor."""
+    """Resolve score, roster and optional realization into renderable plans.
+
+    A realization is bound to the canonical source score rather than merely to
+    overlapping event IDs.  Callers must therefore provide the raw
+    ``score_document`` whenever they provide one.  Re-parsing both documents at
+    this trust boundary also prevents manually constructed frozen dataclasses
+    from bypassing the public validation contract.
+    """
 
     settings = expression or ExpressionSettings()
+    realization_canonical_sha256: str | None = None
+    if realization is not None:
+        if not isinstance(realization, RealizationDocument):
+            raise TypeError("realization must be a RealizationDocument")
+        if score_document is None:
+            raise ValueError(
+                "build_plan requires score_document when realization is provided"
+            )
+        source_realization_input = (
+            realization.to_dict()
+            if realization_document is None
+            else realization_document
+        )
+        if not isinstance(source_realization_input, dict):
+            raise TypeError("realization_document must be an object")
+        try:
+            frozen_score_document = json.loads(
+                canonical_json_bytes(score_document)
+            )
+            source_realization = json.loads(
+                canonical_json_bytes(source_realization_input)
+            )
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                "score_document and realization_document must be finite "
+                "portable JSON"
+            ) from exc
+        trusted_score = parse_score_document(frozen_score_document)
+        if trusted_score != score:
+            raise ValueError("score does not match score_document")
+        parsed_realization = parse_realization_document(
+            source_realization,
+            score_document=frozen_score_document,
+            score=trusted_score,
+        )
+        if parsed_realization != realization:
+            raise ValueError(
+                "realization does not match realization_document"
+            )
+        realization = parsed_realization
+        score = trusted_score
+        realization_canonical_sha256 = canonical_json_sha256(
+            source_realization
+        )
+    elif realization_document is not None:
+        raise ValueError(
+            "realization_document requires a parsed realization"
+        )
+    elif score_document is not None and not isinstance(score_document, dict):
+        raise TypeError("score_document must be an object")
+    active_realization = (
+        realization
+        if realization is not None and not realization.is_noop
+        else None
+    )
+    project_limits = ProjectLimits.from_environment()
+    plan_budget = PlanDocumentBudgetTracker(project_limits)
+    plan_budget.charge_fragment(
+        {
+            "title": score.title,
+            "sample_rate": score.sample_rate,
+            "roster": roster.name,
+            "expression": settings.to_dict(),
+            "collaboration": (
+                roster.collaboration.to_dict()
+                if roster.collaboration.declared
+                else None
+            ),
+        },
+        framing_bytes=1024,
+    )
     # A bar uses a half-open beat interval: in 4/4, beat 5 is the next
     # downbeat and must be written as the following bar's beat 1.  Enforce the
     # same coordinate contract for every CLI/MCP/batch caller before any
@@ -634,6 +1031,58 @@ def build_plan(
     # 所有批量工具最终都经过 build_plan，因此在这里统一拒绝 quarantined。
     enforce_roster_availability(roster)
     check_roster_covers_score(roster, score)
+
+    note_realizations = active_note_overrides(active_realization)
+    unapplied_note_realizations = set(note_realizations)
+    realization_limits = (
+        project_limits if active_realization is not None else None
+    )
+    if realization_limits is not None:
+        for part_id, note_index, start_time, end_time in (
+            realization_note_time_bounds(score)
+        ):
+            effective_end = end_time + score.tail_seconds
+            if effective_end > realization_limits.max_plan_seconds:
+                raise ResourceLimitError(
+                    "realization.note_time_too_late",
+                    f"score part {part_id!r} note {note_index} reaches "
+                    f"{effective_end:g}s, exceeding plan limit "
+                    f"{realization_limits.max_plan_seconds}s; raise "
+                    "TIANLAI_MAX_PLAN_SECONDS deliberately if trusted",
+                    actual=effective_end,
+                    limit=realization_limits.max_plan_seconds,
+                )
+            for label, seconds in (
+                ("start", start_time),
+                ("end", end_time),
+            ):
+                frame = seconds * score.sample_rate
+                if not math.isfinite(frame):
+                    raise ValueError(
+                        f"score part {part_id!r} note {note_index} {label} "
+                        "exceeds the finite sample timeline"
+                    )
+    compiled_controls = compile_control_lanes(
+        active_realization,
+        score,
+        roster,
+        event_limit=(
+            performance_event_limit(realization_limits)
+            if realization_limits is not None
+            else None
+        ),
+        max_time_seconds=(
+            realization_limits.max_plan_seconds
+            if realization_limits is not None
+            else None
+        ),
+        control_trace_event_limit=(
+            max(1, project_limits.max_plan_json_bytes // 1024)
+            if realization_limits is not None
+            else None
+        ),
+        plan_budget=plan_budget,
+    )
 
     resolved_onsets: dict[str, tuple[Any, ...]] = {}
     onset_configuration_mismatches: dict[str, tuple[str, ...]] = {}
@@ -670,6 +1119,15 @@ def build_plan(
     }
     traces: dict[str, list[dict[str, Any]]] = {
         executor.executor_id: [] for executor in roster.executors
+    }
+    logical_note_onsets: dict[str, list[tuple[float, float]]] = {
+        executor.executor_id: [] for executor in roster.executors
+    }
+    logical_note_releases: dict[str, list[tuple[float, float]]] = {
+        executor.executor_id: [] for executor in roster.executors
+    }
+    resolved_articulations: dict[str, set[str | None]] = {
+        executor.executor_id: set() for executor in roster.executors
     }
     by_id = {executor.executor_id: executor for executor in roster.executors}
     warnings: list[str] = []
@@ -735,6 +1193,22 @@ def build_plan(
         for order, note in enumerate(notes):
             executor = roster.route(part.id, note.midi)
             capability = executor.capability
+            note_realization = (
+                note_realizations.get(note.source_event_id)
+                if note.source_event_id is not None
+                else None
+            )
+            if note_realization is not None:
+                unapplied_note_realizations.discard(note_realization.event_id)
+                release_override = note_realization.release_velocity
+                if (
+                    release_override is not None
+                    and not release_override.is_noop
+                ):
+                    require_release_velocity_support(
+                        capability,
+                        event_id=note_realization.event_id,
+                    )
             executor_note_counts[executor.executor_id] += 1
             span_state = logical_span_state[executor.executor_id]
             group_start = span_state["group_start"]
@@ -785,6 +1259,7 @@ def build_plan(
                     articulation, articulation_reason = chosen
                     automatic_articulation_counts[executor.executor_id] += 1
             _check_playable(executor, note, capability, articulation)
+            resolved_articulations[executor.executor_id].add(articulation)
             played_midi = note.midi + executor.transpose
             if capability.ignores_pitch and capability.fixed_midi_note is not None:
                 played_midi = capability.fixed_midi_note
@@ -843,15 +1318,21 @@ def build_plan(
                         f"{marking} {articulation_velocity:+.3f}"
                     )
 
+            notated_start_seconds = score.tempo_map.seconds_at_quarter(
+                note.start_quarter
+            )
             start_seconds = score.tempo_map.seconds_at_quarter(
                 note.start_quarter + timing_offset
             )
-            end_seconds = score.tempo_map.seconds_at_quarter(
+            notated_end_seconds = score.tempo_map.seconds_at_quarter(
                 note.start_quarter + note.duration_quarters
+            )
+            notated_duration_seconds = (
+                notated_end_seconds - notated_start_seconds
             )
             sounding = max(
                 0.02,
-                (end_seconds - start_seconds)
+                (notated_end_seconds - start_seconds)
                 * duration_scale
                 * executor.duration_scale,
             )
@@ -899,6 +1380,42 @@ def build_plan(
                     f"时值 {jitter * 1000.0:+.1f}ms / 力度 {velocity_jitter:+.3f}"
                 )
 
+            realization_evidence: dict[str, Any] = {}
+            if note_realization is not None:
+                timing_resolution = resolve_numeric_override(
+                    "timing_offset_ms",
+                    (start_seconds - notated_start_seconds) * 1000.0,
+                    note_realization.timing_offset_ms,
+                    path=(
+                        "realization.note_overrides"
+                        f"[{note_realization.event_id!r}].timing_offset_ms"
+                    ),
+                )
+                if timing_resolution.evidence is not None:
+                    assert timing_resolution.value is not None
+                    start_seconds = notated_start_seconds + (
+                        timing_resolution.value / 1000.0
+                    )
+                    realization_evidence["timing_offset_ms"] = (
+                        timing_resolution.evidence
+                    )
+
+                automatic_gate_ratio = sounding / notated_duration_seconds
+                gate_resolution = resolve_numeric_override(
+                    "gate_ratio",
+                    automatic_gate_ratio,
+                    note_realization.gate_ratio,
+                    path=(
+                        "realization.note_overrides"
+                        f"[{note_realization.event_id!r}].gate_ratio"
+                    ),
+                )
+                if gate_resolution.evidence is not None:
+                    assert gate_resolution.value is not None
+                    sounding = notated_duration_seconds * gate_resolution.value
+                    realization_evidence["gate_ratio"] = gate_resolution.evidence
+
+            requested_logical_start_seconds = start_seconds
             if start_seconds < 0.0:
                 # Timeline zero is a hard boundary for both expression jitter
                 # and physical compensation.  Clamp before freezing note_off;
@@ -909,10 +1426,17 @@ def build_plan(
                 )
                 start_seconds = 0.0
 
+            boundary_resolved_start_seconds = start_seconds
+            logical_gate_start_seconds = start_seconds
+            requested_gate_seconds = sounding
+
             # 发音补偿只提前音头,不提前音尾。业界实践与这里的道理一致:补偿
             # 要解决的是"音头没落在拍上",而不是"这个音该早点结束";两端一起
             # 前移会连时值一起改掉,时值是谱面已经写明的东西。
-            release_at = start_seconds + sounding
+            requested_release_seconds = (
+                logical_gate_start_seconds + requested_gate_seconds
+            )
+            release_at = requested_release_seconds
 
             onset = (
                 capability.onset_for(
@@ -932,6 +1456,7 @@ def build_plan(
                         f"{capability.name} 的发音补偿把第 {note.bar} 小节的音推到了"
                         "负时间,已截断到 0;可给总谱开头留一个空小节"
                     )
+                    plan_budget.charge_fragment(warning, framing_bytes=8)
                     warnings.append(warning)
                     scope: dict[str, Any] = {
                         "executor_id": executor.executor_id,
@@ -1050,15 +1575,166 @@ def build_plan(
 
             start_seconds = max(0.0, start_seconds)
             velocity = min(1.0, max(0.01, velocity))
+            release_velocity: float | None = None
+            if note_realization is not None:
+                velocity_resolution = resolve_numeric_override(
+                    "velocity",
+                    velocity,
+                    note_realization.velocity,
+                    path=(
+                        "realization.note_overrides"
+                        f"[{note_realization.event_id!r}].velocity"
+                    ),
+                )
+                if velocity_resolution.evidence is not None:
+                    assert velocity_resolution.value is not None
+                    velocity_override = note_realization.velocity
+                    assert velocity_override is not None
+                    if velocity_override.value_policy == "exact":
+                        backend_velocity = capability.require_note_velocity(
+                            velocity_resolution.value
+                        )
+                    elif velocity_override.value_policy == "adapt":
+                        backend_velocity = capability.adapt_note_velocity(
+                            velocity_resolution.value
+                        )
+                    else:
+                        raise AssertionError(
+                            "unsupported note velocity value policy"
+                        )
+                    if (
+                        backend_velocity.semantic_fidelity
+                        in {"approximated", "ignored"}
+                        and velocity_override.semantic_policy
+                        != "approximate"
+                    ):
+                        raise ValueError(
+                            "realization note "
+                            f"{note_realization.event_id!r} requires "
+                            "semantic_policy='approximate' for note velocity "
+                            f"on {capability.name}: "
+                            f"{backend_velocity.approximation_reason}"
+                        )
+                    velocity = backend_velocity.resolved_value
+                    velocity_evidence = dict(
+                        velocity_resolution.evidence
+                    )
+                    velocity_evidence["execution_resolution"] = (
+                        backend_velocity.to_dict()
+                    )
+                    realization_evidence["velocity"] = velocity_evidence
+                release_resolution = resolve_numeric_override(
+                    "release_velocity",
+                    None,
+                    note_realization.release_velocity,
+                    path=(
+                        "realization.note_overrides"
+                        f"[{note_realization.event_id!r}].release_velocity"
+                    ),
+                )
+                release_velocity = release_resolution.value
+                if release_resolution.evidence is not None:
+                    release_evidence = dict(release_resolution.evidence)
+                    release_evidence["capability_source"] = (
+                        capability.release_velocity_source
+                    )
+                    release_evidence.update(
+                        {
+                            "requested_value": release_resolution.value,
+                            "execution_resolved_value": (
+                                release_resolution.value
+                            ),
+                            "fidelity": "native",
+                            "semantic_fidelity": "native",
+                            "adapted": False,
+                        }
+                    )
+                    realization_evidence["release_velocity"] = release_evidence
+
+            if realization_evidence:
+                scheduled_start_before_grid_seconds = start_seconds
+                requested_start_frame = start_seconds * score.sample_rate
+                if not math.isfinite(requested_start_frame):
+                    raise ResourceLimitError(
+                        "plan.note_time_not_finite",
+                        "resolved note onset exceeds the finite sample "
+                        "timeline",
+                    )
+                start_sample = max(0, round(requested_start_frame))
+                start_seconds = start_sample / score.sample_rate
+                scheduler_evidence: dict[str, Any] = {
+                    "sample_rate": score.sample_rate,
+                    "requested_start_seconds": (
+                        scheduled_start_before_grid_seconds
+                    ),
+                    "resolved_start_sample": start_sample,
+                    "resolved_start_seconds": start_seconds,
+                }
+                timing_override = (
+                    note_realization.timing_offset_ms
+                    if note_realization is not None
+                    else None
+                )
+                if timing_override is not None and not timing_override.is_noop:
+                    boundary_adapted = not math.isclose(
+                        requested_logical_start_seconds,
+                        boundary_resolved_start_seconds,
+                        rel_tol=0.0,
+                        abs_tol=1.0e-12,
+                    )
+                    grid_adapted = not math.isclose(
+                        scheduled_start_before_grid_seconds,
+                        start_seconds,
+                        rel_tol=0.0,
+                        abs_tol=1.0e-12,
+                    )
+                    if (
+                        boundary_adapted or grid_adapted
+                    ) and timing_override.value_policy == "exact":
+                        raise ValueError(
+                            "realization.note_overrides"
+                            f"[{note.source_event_id!r}].timing_offset_ms "
+                            "requested exact sample timing, but the timeline "
+                            "boundary or sample grid requires adaptation"
+                        )
+                    scheduler_evidence["timing_resolution"] = {
+                        "value_policy": timing_override.value_policy,
+                        "requested_seconds": requested_logical_start_seconds,
+                        "boundary_resolved_seconds": (
+                            boundary_resolved_start_seconds
+                        ),
+                        "scheduled_before_grid_seconds": (
+                            scheduled_start_before_grid_seconds
+                        ),
+                        "resolved_seconds": start_seconds,
+                        "boundary_adapted": boundary_adapted,
+                        "grid_adapted": grid_adapted,
+                        "adapted": boundary_adapted or grid_adapted,
+                    }
+                realization_evidence["scheduler"] = scheduler_evidence
 
             events = buckets[executor.executor_id]
+            logical_note_onsets[executor.executor_id].append(
+                (notated_start_seconds, start_seconds)
+            )
+            articulation_event = (
+                {"type": "articulation", "name": articulation}
+                if articulation
+                else None
+            )
+            if articulation_event is not None:
+                plan_budget.charge_fragment(
+                    {
+                        "time": round(start_seconds, 9),
+                        **articulation_event,
+                    },
+                    framing_bytes=32,
+                )
             events.append(
                 {
                     "time": start_seconds,
                     "kind": 0,
-                    "event": {"type": "articulation", "name": articulation}
-                    if articulation
-                    else None,
+                    "event": articulation_event,
                 }
             )
             note_on_event: dict[str, Any] = {
@@ -1068,14 +1744,119 @@ def build_plan(
             }
             if note.source_event_id is not None:
                 note_on_event["source_event_id"] = note.source_event_id
+            plan_budget.charge_fragment(
+                {
+                    "time": round(start_seconds, 9),
+                    **note_on_event,
+                    "note_id": 0,
+                },
+                framing_bytes=32,
+            )
             events.append(
                 {"time": start_seconds, "kind": 1, "event": note_on_event}
             )
             # 音尾用补偿前的时刻,保证谱面时值不被发音补偿一起挪走。
             release_at = max(release_at, start_seconds + 0.02)
+            # A release-gate lane is sampled at the interpreted key-up, not at
+            # the score's unshaped note end.  Gate ratio, articulation length
+            # and timing realization all define when that musical release
+            # occurs; onset compensation and sample-grid freezing are the
+            # later physical scheduling stages.
+            logical_release_seconds = requested_release_seconds
+            if realization_evidence:
+                requested_release_frame = release_at * score.sample_rate
+                if not math.isfinite(requested_release_frame):
+                    raise ResourceLimitError(
+                        "plan.note_time_not_finite",
+                        "resolved note release exceeds the finite sample "
+                        "timeline",
+                    )
+                release_sample = max(
+                    round(requested_release_frame),
+                    round(start_seconds * score.sample_rate) + 1,
+                )
+                release_at = release_sample / score.sample_rate
+                logical_gate_start_sample = max(
+                    0,
+                    round(
+                        logical_gate_start_seconds * score.sample_rate
+                    ),
+                )
+                resolved_logical_gate_start = (
+                    logical_gate_start_sample / score.sample_rate
+                )
+                resolved_gate_seconds = max(
+                    0.0,
+                    release_at - resolved_logical_gate_start,
+                )
+                gate_grid = _enforce_sample_value_policy(
+                    (
+                        note_realization.gate_ratio
+                        if note_realization is not None
+                        else None
+                    ),
+                    requested_gate_seconds,
+                    resolved_gate_seconds,
+                    path=(
+                        "realization.note_overrides"
+                        f"[{note.source_event_id!r}].gate_ratio"
+                    ),
+                )
+                realization_evidence["scheduler"].update(
+                    {
+                        "requested_release_seconds": requested_release_seconds,
+                        "resolved_release_sample": release_sample,
+                        "resolved_release_seconds": release_at,
+                        "resolved_logical_gate_start_sample": (
+                            logical_gate_start_sample
+                        ),
+                        "resolved_logical_gate_start_seconds": (
+                            resolved_logical_gate_start
+                        ),
+                        "requested_gate_seconds": requested_gate_seconds,
+                        "resolved_gate_seconds": resolved_gate_seconds,
+                        "effective_gate_ratio": (
+                            resolved_gate_seconds
+                            / notated_duration_seconds
+                        ),
+                    }
+                )
+                if gate_grid is not None:
+                    realization_evidence["scheduler"][
+                        "gate_resolution"
+                    ] = gate_grid
+                derivation["realization"] = realization_evidence
+            effective_note_end = release_at + score.tail_seconds
+            if (
+                not math.isfinite(effective_note_end)
+                or effective_note_end > project_limits.max_plan_seconds
+            ):
+                raise ResourceLimitError(
+                    "plan.note_time_too_late",
+                    f"resolved score part {executor.part_id!r} note "
+                    f"{(note.source_event_id if note.source_event_id is not None else order)!r} reaches "
+                    f"{effective_note_end:g}s including tail, exceeding "
+                    f"plan limit {project_limits.max_plan_seconds}s; raise "
+                    "TIANLAI_MAX_PLAN_SECONDS deliberately if trusted",
+                    actual=effective_note_end,
+                    limit=project_limits.max_plan_seconds,
+                )
             note_off_event: dict[str, Any] = {"type": "note_off"}
+            logical_note_releases[executor.executor_id].append(
+                (logical_release_seconds, release_at)
+            )
+            if release_velocity is not None:
+                note_off_event["release_velocity"] = release_velocity
             if note.source_event_id is not None:
                 note_off_event["source_event_id"] = note.source_event_id
+            plan_budget.charge_fragment(
+                {
+                    "time": round(release_at, 9),
+                    **note_off_event,
+                    "note_id": 0,
+                },
+                framing_bytes=32,
+            )
             events.append(
                 {"time": release_at, "kind": 2, "event": note_off_event}
             )
@@ -1094,19 +1875,29 @@ def build_plan(
             }
             if note.source_event_id is not None:
                 trace_entry["source_event_id"] = note.source_event_id
+            plan_budget.charge_fragment(trace_entry, framing_bytes=32)
             traces[executor.executor_id].append(trace_entry)
+
+    if unapplied_note_realizations:
+        unresolved = ", ".join(sorted(unapplied_note_realizations))
+        raise ValueError(
+            "realization note overrides were not routed into the performance "
+            f"plan (the score part may be dropped): {unresolved}"
+        )
 
     for executor_id, automatic_count in automatic_articulation_counts.items():
         total = executor_note_counts[executor_id]
         if total < 8 or automatic_count / total < 0.8:
             continue
         executor = by_id[executor_id]
-        warnings.append(
+        warning = (
             f"{executor.executor_id}({executor.capability.name}) 的显式时值奏法合同"
             f"覆盖 {automatic_count}/{total} 个音符"
             f"({automatic_count / total:.1%});这是诊断提示，请确认该轨确实需要"
             "近全程自动换奏法，创作者可在 roster 设 articulation_auto=false"
         )
+        plan_budget.charge_fragment(warning, framing_bytes=8)
+        warnings.append(warning)
         advisories.append(
             PerformanceAdvisory(
                 code="articulation.auto_dominant",
@@ -1135,26 +1926,134 @@ def build_plan(
             )
         )
 
-    duration = last_time + score.tail_seconds
+    part_event_documents: dict[str, list[dict[str, Any]]] = {}
+    part_control_traces: dict[str, tuple[dict[str, Any], ...]] = {}
+    latest_performance_time = last_time
+    _validate_control_articulation_applicability(
+        compiled_controls,
+        by_id,
+        resolved_articulations,
+    )
+    for executor in roster.executors:
+        note_events = _pair_note_ids(buckets[executor.executor_id])
+        performance_events, control_trace, control_last_time = (
+            _merge_compiled_control_events(
+                note_events,
+                compiled_controls.get(executor.executor_id, ()),
+                sample_rate=score.sample_rate,
+                logical_note_onsets=tuple(
+                    logical_note_onsets[executor.executor_id]
+                ),
+                logical_note_releases=tuple(
+                    logical_note_releases[executor.executor_id]
+                ),
+                control_event_limit=(
+                    max(
+                        1,
+                        realization_limits.max_score_json_bytes // 512,
+                    )
+                    if realization_limits is not None
+                    else None
+                ),
+                plan_budget=plan_budget,
+            )
+        )
+        part_event_documents[executor.executor_id] = performance_events
+        part_control_traces[executor.executor_id] = control_trace
+        latest_performance_time = max(
+            latest_performance_time,
+            control_last_time,
+        )
+
+    duration = latest_performance_time + score.tail_seconds
+    if (
+        not math.isfinite(duration)
+        or duration > project_limits.max_plan_seconds
+    ):
+        raise ResourceLimitError(
+            "plan.duration_too_long",
+            f"resolved performance plan reaches {duration:g}s including "
+            f"tail, exceeding plan limit {project_limits.max_plan_seconds}s; "
+            "raise TIANLAI_MAX_PLAN_SECONDS deliberately if trusted",
+            actual=duration,
+            limit=project_limits.max_plan_seconds,
+        )
+    if realization_limits is not None:
+        aggregate_event_count = sum(
+            len(events) for events in part_event_documents.values()
+        )
+        aggregate_event_limit = performance_event_limit(
+            realization_limits
+        )
+        if aggregate_event_count > aggregate_event_limit:
+            raise ResourceLimitError(
+                "realization.too_many_compiled_events",
+                "compiled performance plan contains "
+                f"{aggregate_event_count} events, exceeding aggregate limit "
+                f"{aggregate_event_limit}; raise TIANLAI_MAX_NOTES "
+                "deliberately if this project is trusted",
+                actual=aggregate_event_count,
+                limit=aggregate_event_limit,
+            )
     parts: list[PlanPart] = []
     for executor in roster.executors:
-        performance_events = _pair_note_ids(buckets[executor.executor_id])
+        performance_document = {
+            "sample_rate": score.sample_rate,
+            "channels": 2,
+            "duration_seconds": round(duration, 6),
+            "tuning": score.tuning,
+            "events": part_event_documents[executor.executor_id],
+        }
+        if realization_limits is not None:
+            validate_performance_document_resource_limits(
+                performance_document,
+                realization_limits,
+            )
+        gain_envelope = _compile_gain_envelope(executor, score)
+        plan_budget.charge_fragment(
+            executor.to_dict(),
+            framing_bytes=128,
+        )
+        plan_budget.charge_fragment(
+            {
+                "sample_rate": score.sample_rate,
+                "channels": 2,
+                "duration_seconds": round(duration, 6),
+                "tuning": score.tuning,
+            },
+            framing_bytes=128,
+        )
+        for point in gain_envelope:
+            plan_budget.charge_fragment(
+                point.to_dict(executor.gain_db),
+                framing_bytes=16,
+            )
         parts.append(
             PlanPart(
                 executor=executor,
-                performance={
-                    "sample_rate": score.sample_rate,
-                    "channels": 2,
-                    "duration_seconds": round(duration, 6),
-                    "tuning": score.tuning,
-                    "events": performance_events,
-                },
+                performance=performance_document,
                 trace=tuple(traces[executor.executor_id]),
-                gain_envelope=_compile_gain_envelope(executor, score),
+                gain_envelope=gain_envelope,
+                control_trace=part_control_traces[executor.executor_id],
             )
         )
 
-    return PerformancePlan(
+    realization_binding: dict[str, Any] | None = None
+    if active_realization is not None:
+        realization_binding = {
+            "kind": active_realization.kind,
+            "schema_version": active_realization.schema_version,
+            "score_sha256": active_realization.score_sha256,
+            "canonical_sha256": realization_canonical_sha256,
+            "defaults_profile": active_realization.defaults_profile,
+            "mode": active_realization.mode,
+        }
+        plan_budget.charge_fragment(
+            realization_binding,
+            framing_bytes=32,
+        )
+
+    plan = PerformancePlan(
         title=score.title,
         sample_rate=score.sample_rate,
         duration_seconds=duration,
@@ -1163,8 +2062,11 @@ def build_plan(
         parts=tuple(parts),
         collaboration=roster.collaboration,
         warnings=tuple(dict.fromkeys(warnings)),
+        realization=realization_binding,
         advisories=tuple(advisories),
     )
+    plan_budget.validate_final(plan.to_dict())
+    return plan
 
 
 def _pair_note_ids(raw_events: list[dict[str, Any]]) -> list[dict[str, Any]]:

@@ -807,10 +807,12 @@ class AdaptiveParallelismAdvisor:
     ) -> AdaptiveTimingToken | None:
         """Start a managed timing before cold/warm routing is known.
 
-        Process startup is part of a cold task's cost, so the timer must begin
-        before checkout/spawn.  ``freeze_task`` binds the actual route and
-        actual batch width after the handle has reported whether it reused a
-        session worker.
+        Process startup is part of a cold batch's cost, so its coordinator
+        must begin every member before the first checkout/spawn.  The common
+        boundary prevents sequential child startup from shifting later
+        routes' origins.  ``freeze_task`` binds the actual route and actual
+        batch width after each handle reports whether it reused a session
+        worker.
         """
 
         if os.getpid() != self._owner_pid:

@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
 from pathlib import Path
 from types import SimpleNamespace
 import tempfile
@@ -344,7 +345,138 @@ class RenderReceiptTests(unittest.TestCase):
             },
         )
         self.assertEqual(stem["gain_automation"][1]["offset_db"], -2.0)
-        self.assertEqual(stem["gain_automation"][1]["effective_gain_db"], -5.0)
+        self.assertEqual(
+            stem["gain_automation"][1]["effective_gain_db"],
+            -5.0,
+        )
+
+    def test_writer_evidence_feeds_receipt_and_license_without_wav_rescans(
+        self,
+    ) -> None:
+        directory = self.root / "evidence-no-rescan"
+        scanned_wavs: list[Path] = []
+        real_scan = ensemble_module._sha256_file
+
+        def counting_scan(path: Path) -> str:
+            resolved = Path(path)
+            if resolved.suffix.lower() == ".wav":
+                scanned_wavs.append(resolved)
+            return real_scan(resolved)
+
+        with patch(
+            "tianlai.ensemble._sha256_file",
+            side_effect=counting_scan,
+        ), patch(
+            "tianlai.license_sidecar.sha256_file",
+            side_effect=AssertionError("licence must consume WAV evidence"),
+        ), patch(
+            "tianlai.ensemble._verify_render_generation",
+        ):
+            self._render(directory, write_stems=True)
+
+        # The one remaining mix scan is the intentionally retained
+        # post-check tamper boundary.  Receipt, stem receipt and licence
+        # metadata consume the descriptor-bound writer evidence.
+        self.assertEqual(
+            [path.name for path in scanned_wavs],
+            ["合奏.wav"],
+        )
+        receipt = json.loads(
+            (directory / "渲染回执.json").read_text(encoding="utf-8")
+        )
+        sidecar = json.loads(
+            (directory / "许可与署名.json").read_text(encoding="utf-8")
+        )
+        receipt_hashes = {
+            receipt["mix"]["path"]: receipt["mix"]["sha256"],
+            receipt["stems"][0]["wav"]["path"]: (
+                receipt["stems"][0]["wav"]["sha256"]
+            ),
+        }
+        self.assertEqual(
+            {
+                artifact["path"]: artifact["sha256"]
+                for artifact in sidecar["audio_artifacts"]
+            },
+            receipt_hashes,
+        )
+
+    def test_evidence_rejects_tamper_before_license_or_receipt(self) -> None:
+        directory = self.root / "evidence-tamper"
+        real_revalidate = ensemble_module.revalidate_wav_file_evidence
+        calls = 0
+
+        def tamper_before_second_use(path, evidence):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                target = Path(path)
+                status = target.stat()
+                payload = bytearray(target.read_bytes())
+                payload[60] ^= 1
+                target.write_bytes(payload)
+                os.utime(
+                    target,
+                    ns=(status.st_atime_ns, evidence.identity.modified_ns),
+                )
+            return real_revalidate(path, evidence)
+
+        fake_result = (
+            self.buffer.copy(),
+            2,
+            _sha256(self.manifest),
+        )
+        with (
+            patch("tianlai.ensemble._render_part", return_value=fake_result),
+            patch(
+                "tianlai.ensemble.revalidate_wav_file_evidence",
+                side_effect=tamper_before_second_use,
+            ),
+        ):
+            with self.assertRaisesRegex(OSError, "changed"):
+                render_plan(self.plan, directory, write_stems=True)
+
+        self.assertFalse((directory / "渲染回执.json").exists())
+
+    def test_license_evidence_rejects_tamper_after_receipt_digest(self) -> None:
+        directory = self.root / "license-evidence-tamper"
+        from tianlai import license_sidecar as license_module
+
+        real_revalidate = license_module.verify_wav_file_evidence_bytes
+        tampered = False
+
+        def tamper_before_license_use(path, evidence):
+            nonlocal tampered
+            if not tampered:
+                tampered = True
+                target = Path(path)
+                status = target.stat()
+                payload = bytearray(target.read_bytes())
+                payload[60] ^= 1
+                target.write_bytes(payload)
+                os.utime(
+                    target,
+                    ns=(status.st_atime_ns, evidence.identity.modified_ns),
+                )
+            return real_revalidate(path, evidence)
+
+        fake_result = (
+            self.buffer.copy(),
+            2,
+            _sha256(self.manifest),
+        )
+        with (
+            patch("tianlai.ensemble._render_part", return_value=fake_result),
+            patch(
+                "tianlai.license_sidecar.verify_wav_file_evidence_bytes",
+                side_effect=tamper_before_license_use,
+            ),
+        ):
+            with self.assertRaisesRegex(OSError, "changed"):
+                render_plan(self.plan, directory, write_stems=True)
+
+        self.assertTrue(tampered)
+        self.assertFalse((directory / "渲染回执.json").exists())
 
     def test_antiphase_stem_reaches_the_shared_hall(self) -> None:
         directory = self.root / "antiphase-hall"

@@ -6,6 +6,8 @@ import importlib
 import sys
 from typing import Any
 
+from ._console_encoding import configure_utf8_standard_streams
+
 
 _INSTALL_HINT = (
     '天籁 MCP 依赖未安装；请运行: python -m pip install "tianlai-audio[mcp]"'
@@ -19,6 +21,9 @@ def _load_server() -> Any:
 def main() -> int:
     """Start the real service, or explain how to install its optional extra."""
 
+    # stdout belongs to the MCP stdio transport.  Only the human-facing
+    # installation diagnostic on stderr is configured here.
+    configure_utf8_standard_streams(stdout=False)
     try:
         server = _load_server()
     except ModuleNotFoundError as exc:

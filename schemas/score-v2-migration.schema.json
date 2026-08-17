@@ -1,0 +1,373 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tianlai.local/schemas/score-v2-migration.schema.json",
+  "title": "Tianlai Score v1 to v2 Migration Bundle",
+  "$comment": "Cross-document digests, unique event IDs, velocity <= 1, and source replay are semantic checks performed by the migration parser/verifier.",
+  "type": "object",
+  "required": [
+    "kind",
+    "schema_version",
+    "score",
+    "render_settings",
+    "performance_facts",
+    "receipt",
+    "receipt_sha256"
+  ],
+  "properties": {
+    "kind": {
+      "const": "tianlai.score_v2_migration"
+    },
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "score": {
+      "$ref": "https://tianlai.local/schemas/score-v2.schema.json"
+    },
+    "render_settings": {
+      "$ref": "#/$defs/renderSettings"
+    },
+    "performance_facts": {
+      "$ref": "#/$defs/performanceFacts"
+    },
+    "receipt": {
+      "$ref": "#/$defs/receipt"
+    },
+    "receipt_sha256": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "identifier": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^(?=[\\s\\S]*\\S)[^\\uD800-\\uDFFF]*$"
+    },
+    "auditText": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16384,
+      "pattern": "^(?=[\\s\\S]*\\S)[^\\uD800-\\uDFFF]*$"
+    },
+    "rational": {
+      "type": "object",
+      "required": [
+        "numerator",
+        "denominator"
+      ],
+      "properties": {
+        "numerator": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "denominator": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        }
+      },
+      "additionalProperties": false
+    },
+    "nonnegativeRational": {
+      "type": "object",
+      "required": [
+        "numerator",
+        "denominator"
+      ],
+      "properties": {
+        "numerator": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "denominator": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        }
+      },
+      "additionalProperties": false
+    },
+    "positiveRational": {
+      "type": "object",
+      "required": [
+        "numerator",
+        "denominator"
+      ],
+      "properties": {
+        "numerator": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "denominator": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        }
+      },
+      "additionalProperties": false
+    },
+    "renderSettings": {
+      "type": "object",
+      "required": [
+        "kind",
+        "schema_version",
+        "sample_rate",
+        "tail_seconds"
+      ],
+      "properties": {
+        "kind": {
+          "const": "tianlai.render_settings"
+        },
+        "schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "sample_rate": {
+          "type": "integer",
+          "minimum": 8000,
+          "maximum": 384000
+        },
+        "tail_seconds": {
+          "$ref": "#/$defs/nonnegativeRational"
+        }
+      },
+      "additionalProperties": false
+    },
+    "performanceFact": {
+      "type": "object",
+      "required": [
+        "part_id",
+        "event_id",
+        "velocity"
+      ],
+      "properties": {
+        "part_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "event_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "velocity": {
+          "$ref": "#/$defs/positiveRational"
+        }
+      },
+      "additionalProperties": false
+    },
+    "performanceFacts": {
+      "type": "object",
+      "required": [
+        "kind",
+        "schema_version",
+        "score_document_sha256",
+        "events"
+      ],
+      "properties": {
+        "kind": {
+          "const": "tianlai.score_performance_facts"
+        },
+        "schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "score_document_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "events": {
+          "type": "array",
+          "maxItems": 250000,
+          "items": {
+            "$ref": "#/$defs/performanceFact"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "issue": {
+      "type": "object",
+      "required": [
+        "code",
+        "severity",
+        "category",
+        "location",
+        "message",
+        "audible"
+      ],
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/auditText"
+        },
+        "severity": {
+          "enum": [
+            "info",
+            "warning"
+          ]
+        },
+        "category": {
+          "enum": [
+            "notation_default",
+            "derived_notation",
+            "author_intent"
+          ]
+        },
+        "location": {
+          "$ref": "#/$defs/auditText"
+        },
+        "message": {
+          "$ref": "#/$defs/auditText"
+        },
+        "audible": {
+          "const": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "sourceBinding": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "identity_contract",
+        "document_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "identity_contract": {
+          "const": "stable-event-v1"
+        },
+        "document_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "additionalProperties": false
+    },
+    "targetBinding": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "identity_contract",
+        "document_sha256",
+        "render_projection_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "type": "integer",
+          "const": 2
+        },
+        "identity_contract": {
+          "const": "stable-event-v2"
+        },
+        "document_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "render_projection_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "additionalProperties": false
+    },
+    "separatedArtifacts": {
+      "type": "object",
+      "required": [
+        "render_settings_sha256",
+        "performance_facts_sha256"
+      ],
+      "properties": {
+        "render_settings_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "performance_facts_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "additionalProperties": false
+    },
+    "policies": {
+      "type": "object",
+      "required": [
+        "number_conversion",
+        "meter_grouping",
+        "tie_pairing",
+        "form",
+        "velocity",
+        "timing",
+        "implicit_defaults"
+      ],
+      "properties": {
+        "number_conversion": {
+          "const": "v1-parsed-number-decimal-text-exact-no-limiting"
+        },
+        "meter_grouping": {
+          "const": "single-group-from-v1-numerator"
+        },
+        "tie_pairing": {
+          "const": "next-same-part-pitch-staff-voice-exact-contiguous"
+        },
+        "form": {
+          "const": "explicit-linear"
+        },
+        "velocity": {
+          "const": "separated-as-score-bound-performance-fact"
+        },
+        "timing": {
+          "const": "v1-score-coordinates-preserved-no-provenance-inference"
+        },
+        "implicit_defaults": {
+          "const": "materialized-and-summarized-in-receipt"
+        }
+      },
+      "additionalProperties": false
+    },
+    "receipt": {
+      "type": "object",
+      "required": [
+        "kind",
+        "schema_version",
+        "source",
+        "target",
+        "separated_artifacts",
+        "policies",
+        "issues"
+      ],
+      "properties": {
+        "kind": {
+          "const": "tianlai.score_v2_migration_receipt"
+        },
+        "schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "source": {
+          "$ref": "#/$defs/sourceBinding"
+        },
+        "target": {
+          "$ref": "#/$defs/targetBinding"
+        },
+        "separated_artifacts": {
+          "$ref": "#/$defs/separatedArtifacts"
+        },
+        "policies": {
+          "$ref": "#/$defs/policies"
+        },
+        "issues": {
+          "type": "array",
+          "maxItems": 4096,
+          "items": {
+            "$ref": "#/$defs/issue"
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

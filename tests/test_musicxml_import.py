@@ -333,6 +333,64 @@ class MusicXMLImportTest(unittest.TestCase):
         self.assertEqual(note.midi, 35.0)
         self.assertTrue(report.parts[0]["percussion"])
 
+    def test_preserves_unmapped_midi_playback_evidence_and_warns(self):
+        source = MINIMAL.replace(
+            "<score-part id=\"P1\"><part-name>Piano</part-name></score-part>",
+            """<score-part id="P1">
+              <part-name>Piano</part-name>
+              <midi-instrument id="P1-I1">
+                <midi-channel>1</midi-channel>
+                <midi-bank>257</midi-bank>
+                <midi-program>15</midi-program>
+                <midi-name>Audition patch</midi-name>
+                <volume>80</volume><pan>-30</pan><elevation>12</elevation>
+              </midi-instrument>
+            </score-part>""",
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = self._write(directory, "midi-evidence.musicxml", source)
+            _document, report = read_musicxml(path)
+
+        evidence = report.parts[0]["midi_playback"]
+        self.assertEqual(
+            evidence,
+            [
+                {
+                    "instrument_id": "P1-I1",
+                    "midi_channel_1based": 1,
+                    "midi_bank_1based": 257,
+                    "midi_program_1based": 15,
+                    "midi_name": "Audition patch",
+                    "volume_percent": 80.0,
+                    "pan_degrees": -30.0,
+                    "elevation_degrees": 12.0,
+                }
+            ],
+        )
+        warning_text = "\n".join(report.warnings)
+        self.assertIn("midi_program_1based", warning_text)
+        self.assertIn("未自动映射", warning_text)
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = self._write(root, "strict.musicxml", source)
+            output = root / "imported"
+            status = cli_main(
+                [
+                    "project-import",
+                    "--input",
+                    str(path),
+                    "--output",
+                    str(output),
+                    "--root",
+                    str(Path(__file__).resolve().parents[1] / "乐器"),
+                    "--loss-policy",
+                    "reject",
+                ]
+            )
+            self.assertEqual(status, 2)
+            self.assertFalse(output.exists())
+
     def test_encodes_anacrusis_as_a_short_first_bar(self):
         with tempfile.TemporaryDirectory() as directory:
             path = self._write(directory, "pickup.musicxml", PICKUP)
@@ -372,6 +430,139 @@ class MusicXMLImportTest(unittest.TestCase):
         self.assertIn("grace", warnings)
         self.assertTrue("repeat" in warnings or "重复" in warnings)
 
+    def test_reports_unrepresented_core_note_features_once(self):
+        notation = """
+          <time-modification>
+            <actual-notes>3</actual-notes><normal-notes>2</normal-notes>
+          </time-modification>
+          <notations>
+            <tuplet type="start" number="1"/>
+            <articulations><breath-mark/><caesura/></articulations>
+            <other-notation type="single">future-extension</other-notation>
+          </notations>
+        """
+        xml = f"""\
+<score-partwise version="4.0">
+  <part-list><score-part id="P1"><part-name>Flute</part-name></score-part></part-list>
+  <part id="P1"><measure number="1">
+    <attributes><divisions>3</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
+    <sound damper-pedal="yes"/>
+    <note><pitch><step>C</step><octave>5</octave></pitch><duration>2</duration>{notation}</note>
+    <note><pitch><step>D</step><octave>5</octave></pitch><duration>2</duration>{notation}</note>
+    <sound damper-pedal="no"/>
+  </measure></part>
+</score-partwise>
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            path = self._write(directory, "core-losses.musicxml", xml)
+            document, report = read_musicxml(path)
+
+        notes = parse_score_document(document).parts[0].notes
+        self.assertEqual([note.midi for note in notes], [72.0, 74.0])
+        self.assertEqual(
+            [note.duration_beats for note in notes],
+            [0.666667, 0.666667],
+        )
+        for marker in (
+            "time-modification",
+            "notations/tuplet",
+            "breath-mark",
+            "caesura",
+            "other-notation",
+            "sound/damper-pedal",
+        ):
+            matching = [
+                warning for warning in report.warnings if marker in warning
+            ]
+            self.assertEqual(
+                len(matching),
+                1,
+                f"{marker} warning should be document-level and deduplicated",
+            )
+
+    def test_project_import_rejects_a_newly_audited_core_loss(self):
+        xml = MINIMAL.replace(
+            "<note><pitch><step>C</step>",
+            '<sound damper-pedal="yes"/><note><pitch><step>C</step>',
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = self._write(root, "pedal-loss.musicxml", xml)
+            output = root / "imported"
+            status = cli_main(
+                [
+                    "project-import",
+                    "--input",
+                    str(path),
+                    "--output",
+                    str(output),
+                    "--root",
+                    str(Path(__file__).resolve().parents[1] / "乐器"),
+                    "--loss-policy",
+                    "reject",
+                ]
+            )
+            self.assertEqual(status, 2)
+            self.assertFalse(output.exists())
+
+    def test_reports_notation_only_ties_and_let_ring_without_changing_output(self):
+        xml = """\
+<score-partwise version="4.0">
+  <part-list><score-part id="P1"><part-name>Guitar</part-name></score-part></part-list>
+  <part id="P1"><measure number="1">
+    <attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
+    <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration>
+      <notations><tied type="start"/></notations></note>
+    <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration>
+      <notations><tied type="stop"/></notations></note>
+    <note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration>
+      <notations><tied type="let-ring"/></notations></note>
+  </measure></part>
+</score-partwise>
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            path = self._write(directory, "notation-ties.musicxml", xml)
+            document, report = read_musicxml(path)
+
+        score = parse_score_document(document)
+        self.assertEqual(
+            [note.tie for note in score.parts[0].notes],
+            [True, False, False],
+        )
+        # Keep v1's existing audible approximation for warn/allow imports.
+        self.assertEqual(len(_merge_ties(score.parts[0].notes, score)), 2)
+        warning_text = "\n".join(report.warnings)
+        self.assertIn("notation tied", warning_text)
+        self.assertIn("let-ring", warning_text)
+
+    def test_reports_each_unpaired_sound_tie_class_once(self):
+        xml = """\
+<score-partwise version="4.0">
+  <part-list><score-part id="P1"><part-name>Strings</part-name></score-part></part-list>
+  <part id="P1"><measure number="1">
+    <attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
+    <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><tie type="start"/></note>
+    <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><tie type="stop"/></note>
+    <note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><tie type="start"/></note>
+    <note><pitch><step>F</step><octave>4</octave></pitch><duration>1</duration><tie type="stop"/></note>
+  </measure></part>
+</score-partwise>
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            path = self._write(directory, "orphan-ties.musicxml", xml)
+            document, report = read_musicxml(path)
+
+        notes = parse_score_document(document).parts[0].notes
+        self.assertEqual([note.tie for note in notes], [True, False, True, False])
+        start_warnings = [
+            warning for warning in report.warnings if "孤立 tie start" in warning
+        ]
+        stop_warnings = [
+            warning for warning in report.warnings if "孤立 tie stop" in warning
+        ]
+        self.assertEqual(len(start_warnings), 1)
+        self.assertEqual(len(stop_warnings), 1)
+
     def test_accepts_namespace_and_standard_external_doctype(self):
         xml = """\
 <?xml version="1.0"?>
@@ -390,6 +581,43 @@ class MusicXMLImportTest(unittest.TestCase):
             path = self._write(directory, "doctype.musicxml", xml)
             document, _ = read_musicxml(path)
         self.assertEqual(parse_score_document(document).parts[0].notes[0].midi, 60.0)
+
+    def test_foreign_namespace_elements_cannot_execute_as_musicxml(self):
+        xml = """\
+<score-partwise xmlns:x="urn:not-musicxml" version="4.0">
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1"><measure number="1">
+    <attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
+    <x:note>
+      <x:pitch><x:step>D</x:step><x:octave>6</x:octave></x:pitch>
+      <x:duration>1</x:duration>
+    </x:note>
+    <note x:playback="extension-value">
+      <pitch><step>C</step><octave>4</octave></pitch><duration>1</duration>
+    </note>
+  </measure></part>
+</score-partwise>
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            path = self._write(directory, "foreign-extension.musicxml", xml)
+            document, report = read_musicxml(path)
+
+        notes = parse_score_document(document).parts[0].notes
+        self.assertEqual([note.midi for note in notes], [60.0])
+        warning_text = "\n".join(report.warnings)
+        self.assertIn("{urn:not-musicxml}note", warning_text)
+        self.assertIn("@{urn:not-musicxml}playback", warning_text)
+        self.assertIn("未作为 MusicXML 核心语义执行", warning_text)
+
+    def test_rejects_a_non_musicxml_root_namespace(self):
+        xml = MINIMAL.replace(
+            "<score-partwise version=\"4.0\">",
+            '<score-partwise xmlns="urn:not-musicxml" version="4.0">',
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = self._write(directory, "foreign-root.musicxml", xml)
+            with self.assertRaisesRegex(ValueError, "不支持的根命名空间"):
+                read_musicxml(path)
 
     def test_cli_writes_a_score_document(self):
         with tempfile.TemporaryDirectory() as directory:

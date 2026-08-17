@@ -31,6 +31,7 @@ import uuid
 from typing import Any, Iterable
 
 from . import __version__
+from ._console_encoding import configure_utf8_standard_streams
 from .catalog import CatalogEntry, discover_instruments
 from .resource_restore import (
     ResourceRestoreError,
@@ -1496,20 +1497,9 @@ def doctor_report_json(
 
 
 def _print_json_utf8(payload: str) -> None:
-    """Emit machine-readable CLI JSON with deterministic UTF-8 bytes.
+    """Emit the already-serialised machine-readable JSON payload."""
 
-    Windows uses the active legacy code page for redirected stdout unless the
-    stream is reconfigured explicitly.  That makes otherwise valid JSON fail
-    as soon as a path or diagnostic contains non-ASCII text.  Real text
-    streams support ``reconfigure``; in-process tests commonly redirect stdout
-    to ``StringIO``, where writing the Unicode string directly is sufficient.
-    """
-
-    stream = sys.stdout
-    reconfigure = getattr(stream, "reconfigure", None)
-    if callable(reconfigure):
-        reconfigure(encoding="utf-8", errors="strict")
-    print(payload, file=stream)
+    print(payload, file=sys.stdout)
 
 
 def _human_summary(report: dict[str, Any]) -> str:
@@ -1685,6 +1675,7 @@ def _human_summary(report: dict[str, Any]) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
+    configure_utf8_standard_streams()
     parser = argparse.ArgumentParser(description="检查天籁运行布局和乐器资源")
     parser.add_argument("--json", action="store_true", help="输出机器可读 JSON")
     parser.add_argument(

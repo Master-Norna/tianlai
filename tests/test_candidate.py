@@ -85,6 +85,21 @@ def _write_json(path: Path, document: object) -> None:
     )
 
 
+def _json_with_duplicate_first_member(path: Path) -> bytes:
+    payload = path.read_bytes()
+    document = json.loads(payload)
+    if not isinstance(document, dict) or not document:
+        raise AssertionError("test fixture must be a non-empty JSON object")
+    key = next(iter(document))
+    duplicate = json.dumps(
+        {key: document[key]},
+        ensure_ascii=False,
+        allow_nan=False,
+    ).encode("utf-8")[1:-1]
+    opening = payload.index(b"{")
+    return payload[: opening + 1] + duplicate + b"," + payload[opening + 1 :]
+
+
 def _plan(pitch: str = "C4") -> dict:
     return {
         "title": "候选合同测试",
@@ -404,7 +419,13 @@ class CandidateTests(unittest.TestCase):
                 nonlocal observed_temporary
                 source_path = Path(source)
                 destination_path = Path(destination)
-                if destination_path == target:
+                if (
+                    destination_path.name == target.name
+                    and os.path.samefile(
+                        destination_path.parent,
+                        target.parent,
+                    )
+                ):
                     observed_temporary = source_path
                     os.rename(source_path, parked_payload)
                     source_path.write_bytes(sentinel)
@@ -770,6 +791,158 @@ class CandidateTests(unittest.TestCase):
                     with self.assertRaisesRegex(ValueError, "canonical UTC"):
                         load_candidate(directory, verify=False)
 
+    def test_load_bounds_candidate_manifest_before_parsing(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = _publish(
+                Path(temporary),
+                output_id="bounded-manifest",
+            )
+            manifest_path = directory / CANDIDATE_MANIFEST_NAME
+            payload = manifest_path.read_bytes()
+
+            with mock.patch.object(
+                candidate_module,
+                "_MAX_CANDIDATE_JSON_BYTES",
+                len(payload) - 1,
+            ):
+                with self.assertRaisesRegex(OSError, "configured byte limit"):
+                    load_candidate(directory, verify=False)
+
+    def test_load_rejects_non_strict_candidate_manifest_json(self) -> None:
+        mutations = {
+            "duplicate member": lambda path: _json_with_duplicate_first_member(
+                path
+            ),
+            "non-finite number": lambda path: (
+                path.read_bytes()[:1]
+                + b'"ignored_non_finite":NaN,'
+                + path.read_bytes()[1:]
+            ),
+        }
+        for label, mutate in mutations.items():
+            with self.subTest(label=label), tempfile.TemporaryDirectory() as temporary:
+                directory = _publish(
+                    Path(temporary),
+                    output_id=f"strict-manifest-{label.replace(' ', '-')}",
+                )
+                manifest_path = directory / CANDIDATE_MANIFEST_NAME
+                manifest_path.write_bytes(mutate(manifest_path))
+
+                with self.assertRaisesRegex(
+                    ValueError,
+                    "candidate manifest is invalid JSON",
+                ):
+                    load_candidate(directory, verify=False)
+
+    def test_load_strictly_parses_hash_bound_project_and_receipt_json(
+        self,
+    ) -> None:
+        cases = (
+            ("score", "file_sha256", "candidate score is invalid JSON"),
+            ("roster", "file_sha256", "candidate roster is invalid JSON"),
+            (
+                "render_profile",
+                "file_sha256",
+                "candidate render_profile is invalid JSON",
+            ),
+            (
+                "render_receipt",
+                "sha256",
+                "candidate render receipt is invalid JSON",
+            ),
+        )
+        for binding_name, hash_field, message in cases:
+            with (
+                self.subTest(binding=binding_name),
+                tempfile.TemporaryDirectory() as temporary,
+            ):
+                directory = _publish(
+                    Path(temporary),
+                    output_id=f"strict-{binding_name}",
+                )
+                manifest_path = directory / CANDIDATE_MANIFEST_NAME
+                manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                if binding_name == "render_receipt":
+                    binding = manifest["render_receipt"]
+                else:
+                    binding = manifest["project"][binding_name]
+                artifact_path = directory / binding["path"]
+                duplicate_payload = _json_with_duplicate_first_member(
+                    artifact_path
+                )
+                artifact_path.write_bytes(duplicate_payload)
+                binding[hash_field] = hashlib.sha256(
+                    duplicate_payload
+                ).hexdigest()
+                _write_json(manifest_path, manifest)
+
+                with self.assertRaisesRegex(ValueError, message):
+                    load_candidate(directory, verify=True)
+
+    def test_candidate_json_snapshot_hashes_captured_payload_during_race(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "snapshot.json"
+            captured_payload = b'{"state":"captured"}'
+            replacement_payload = b'{"state":"replacement"}'
+            path.write_bytes(captured_payload)
+            real_read = candidate_module.read_plain_file_bytes
+
+            def replace_path_after_read(*args, **kwargs):
+                identity, payload = real_read(*args, **kwargs)
+                path.write_bytes(replacement_payload)
+                return identity, payload
+
+            with mock.patch.object(
+                candidate_module,
+                "read_plain_file_bytes",
+                side_effect=replace_path_after_read,
+            ):
+                document, digest = candidate_module._candidate_json_snapshot(
+                    path,
+                    invalid_json_message="invalid test JSON",
+                    expected_file_sha256=hashlib.sha256(
+                        captured_payload
+                    ).hexdigest(),
+                    hash_mismatch_message="captured payload hash mismatch",
+                )
+
+            self.assertEqual(document, {"state": "captured"})
+            self.assertEqual(digest, hashlib.sha256(captured_payload).hexdigest())
+            self.assertNotEqual(
+                digest,
+                hashlib.sha256(replacement_payload).hexdigest(),
+            )
+
+    def test_locate_strictly_parses_receipt_bound_performance_plan(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = _publish(
+                Path(temporary),
+                output_id="strict-locate-plan",
+            )
+            manifest_path = directory / CANDIDATE_MANIFEST_NAME
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            receipt_path = directory / manifest["render_receipt"]["path"]
+            receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+            plan_path = directory / receipt["performance_plan"]["path"]
+            duplicate_payload = _json_with_duplicate_first_member(plan_path)
+            plan_path.write_bytes(duplicate_payload)
+            receipt["performance_plan"]["file_sha256"] = hashlib.sha256(
+                duplicate_payload
+            ).hexdigest()
+            _write_json(receipt_path, receipt)
+            manifest["render_receipt"]["sha256"] = sha256_file(receipt_path)
+            _write_json(manifest_path, manifest)
+
+            with self.assertRaisesRegex(
+                ValueError,
+                "performance plan is not valid UTF-8 JSON",
+            ):
+                locate_candidate(directory, at_seconds=0.75)
+
     def test_manifest_binds_every_source_and_receipt(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             directory = _publish(
@@ -1102,7 +1275,7 @@ class CandidateTests(unittest.TestCase):
             )
             preserved = list(
                 directory.parent.glob(
-                    f"{replacement.name}.cleanup-preserved-*"
+                    ".cleanup-preserved-*"
                 )
             )
             self.assertEqual(len(preserved), 1)
@@ -1171,7 +1344,7 @@ class CandidateTests(unittest.TestCase):
 
             preserved = list(
                 parent.glob(
-                    ".race.token.staging.cleanup-preserved-*"
+                    ".cleanup-preserved-*"
                 )
             )
             self.assertEqual(len(preserved), 1)
@@ -1355,7 +1528,7 @@ class CandidateTests(unittest.TestCase):
                 len(
                     list(
                         directory.parent.glob(
-                            f".{directory.name}.*.previous.cleanup-preserved-*"
+                            ".cleanup-preserved-*"
                         )
                     )
                 ),
@@ -1370,6 +1543,41 @@ class CandidateTests(unittest.TestCase):
                 ),
             )
             self.assertTrue(follow_up.replacing)
+
+    def test_cleanup_uses_short_quarantine_name_for_long_transaction_entry(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            parent = Path(temporary).resolve()
+            # The old cleanup spelling appended another UUID-bearing suffix
+            # to this name and exceeded Windows' 255-character component
+            # limit.  A quarantine name must not inherit the source length.
+            cleanup = parent / ("." + "x" * 150 + ".previous")
+            cleanup.mkdir()
+            (cleanup / "marker.bin").write_bytes(b"recoverable")
+            parent_identity = capture_plain_directory(parent)
+            cleanup_identity = capture_plain_directory(cleanup)
+
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always", RuntimeWarning)
+                candidate_module._safe_cleanup_private_directory(
+                    cleanup,
+                    parent=parent,
+                    prefix=".",
+                    label="long cleanup",
+                    parent_identity=parent_identity,
+                    directory_identity=cleanup_identity,
+                )
+
+            preserved = list(parent.glob(".cleanup-preserved-*"))
+            self.assertEqual(len(preserved), 1)
+            self.assertLess(len(preserved[0].name), 64)
+            self.assertEqual(
+                (preserved[0] / "marker.bin").read_bytes(),
+                b"recoverable",
+            )
+            self.assertFalse(cleanup.exists())
+            self.assertEqual(caught, [])
 
     def test_prepare_recovers_one_self_identifying_previous_generation(
         self,
@@ -1450,6 +1658,90 @@ class CandidateTests(unittest.TestCase):
             self.assertTrue(result["parent_relationship"])
             self.assertEqual(result["score"]["counts"]["updated"], 1)
             self.assertTrue(result["performance_plan_changed"])
+
+    def test_compare_rejects_score_replacement_after_candidate_load(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            before = _publish(root, output_id="compare-race-before")
+            after = _publish(root, output_id="compare-race-after", pitch="D4")
+            real_load = candidate_module.load_candidate
+            load_count = 0
+
+            def load_then_replace_score(*args, **kwargs):
+                nonlocal load_count
+                loaded = real_load(*args, **kwargs)
+                load_count += 1
+                if load_count == 2:
+                    score_path = before / "score.json"
+                    score_path.write_bytes(score_path.read_bytes() + b" ")
+                return loaded
+
+            with mock.patch.object(
+                candidate_module,
+                "load_candidate",
+                side_effect=load_then_replace_score,
+            ):
+                with self.assertRaisesRegex(
+                    ValueError,
+                    "candidate score file hash mismatch",
+                ):
+                    compare_candidates(before, after)
+
+    def test_compare_strictly_reloads_manifest_bound_json(self) -> None:
+        cases = (
+            (
+                "score",
+                "candidate score is invalid JSON",
+            ),
+            (
+                "render receipt",
+                "candidate render receipt is invalid JSON",
+            ),
+        )
+        for artifact, message in cases:
+            with (
+                self.subTest(artifact=artifact),
+                tempfile.TemporaryDirectory() as temporary,
+            ):
+                root = Path(temporary)
+                before = _publish(
+                    root,
+                    output_id=f"compare-strict-before-{artifact.replace(' ', '-')}",
+                )
+                after = _publish(
+                    root,
+                    output_id=f"compare-strict-after-{artifact.replace(' ', '-')}",
+                    pitch="D4",
+                )
+                before_directory, before_manifest = load_candidate(before)
+                after_directory, after_manifest = load_candidate(after)
+                if artifact == "score":
+                    binding = before_manifest["project"]["score"]
+                    hash_key = "file_sha256"
+                else:
+                    binding = before_manifest["render_receipt"]
+                    hash_key = "sha256"
+                artifact_path = before_directory / binding["path"]
+                duplicate_payload = _json_with_duplicate_first_member(
+                    artifact_path
+                )
+                artifact_path.write_bytes(duplicate_payload)
+                binding[hash_key] = hashlib.sha256(
+                    duplicate_payload
+                ).hexdigest()
+
+                with mock.patch.object(
+                    candidate_module,
+                    "load_candidate",
+                    side_effect=(
+                        (before_directory, before_manifest),
+                        (after_directory, after_manifest),
+                    ),
+                ):
+                    with self.assertRaisesRegex(ValueError, message):
+                        compare_candidates(before, after)
 
     def test_project_render_cli_publishes_a_verified_candidate(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

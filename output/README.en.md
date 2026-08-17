@@ -13,6 +13,8 @@ default and are not part of the lightweight source release.
 | `作品/<title>/<version>/` | Creator-approved ensembles, stems, plans, receipts, and license sidecars |
 | `mcp/<work ID>/<candidate ID>/` | Immutable candidates produced by MCP `render` |
 | `mcp-workspaces/<session or title>/` | Unconfirmed scores, rosters, patch results, and client state |
+| `全音域试音/<instrument category>/` | Regenerable full-range scans and their license sidecars |
+| `表现力试听/<instrument category>/` | Fixed examples, refinement A/B renders, and matching license sidecars |
 | `诊断/` | One-off environment checks, protocol checks, and troubleshooting evidence |
 | `.tianlai-cache/stems/` | Raw stem cache used to accelerate re-rendering |
 

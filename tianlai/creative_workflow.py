@@ -439,7 +439,10 @@ def _json_detach(value: Mapping[str, Any], *, field: str) -> dict[str, Any]:
     if not isinstance(value, Mapping):
         raise CreativeWorkflowError("object_required", location_segments=(field,))
     try:
-        payload = json_document_bytes(dict(value), limits=_WORKFLOW_LIMITS)
+        # Workflow snapshots use recursively immutable dict/list subclasses.
+        # Convert the complete graph, not only the top-level mapping, before
+        # the strict authoring JSON boundary rejects arbitrary subclasses.
+        payload = json_document_bytes(_thaw(value), limits=_WORKFLOW_LIMITS)
         detached = strict_json_loads(payload, limits=_WORKFLOW_LIMITS)
     except AuthoringJsonError as exc:
         raise CreativeWorkflowError(
@@ -815,8 +818,13 @@ def _read_manifest(layout: _WorkflowLayout) -> dict[str, Any]:
 
 
 def _replace_manifest(layout: _WorkflowLayout, manifest: dict[str, Any]) -> None:
-    target = layout.workflow.path / WORKFLOW_MANIFEST_NAME
-    stage = layout.workflow.path / f".{WORKFLOW_MANIFEST_NAME}.stage-{secrets.token_hex(16)}"
+    target = _extended_windows_path(
+        layout.workflow.path / WORKFLOW_MANIFEST_NAME
+    )
+    stage = _extended_windows_path(
+        layout.workflow.path
+        / f".{WORKFLOW_MANIFEST_NAME}.stage-{secrets.token_hex(16)}"
+    )
     try:
         if os.path.lexists(target):
             _plain_file_status(target, code="unsafe_workflow_manifest")

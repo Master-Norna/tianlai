@@ -20,6 +20,7 @@ misreads later:
 
 from __future__ import annotations
 
+from bisect import bisect_right
 import copy
 from dataclasses import dataclass, field
 import math
@@ -74,13 +75,28 @@ def _reject_unknown_keys(
 ) -> None:
     """Reject misspelled document fields with their complete JSON path."""
 
-    unknown = sorted(
-        (str(key) for key in mapping if key not in allowed),
-        key=str,
-    )
-    if unknown:
-        locations = ", ".join(f"{path}.{key}" for key in unknown)
-        raise ValueError(f"{path} 包含未知字段: {locations}")
+    locations: list[str] = []
+    unknown_count = 0
+    for key in mapping:
+        if key in allowed:
+            continue
+        unknown_count += 1
+        if len(locations) >= 8:
+            continue
+        if type(key) is str:
+            preview = key if len(key) <= 80 else f"{key[:77]}..."
+        else:
+            preview = f"<{type(key).__name__}>"
+        locations.append(f"{path}.{preview}")
+    if unknown_count:
+        suffix = (
+            ""
+            if unknown_count == len(locations)
+            else f"，另有 {unknown_count - len(locations)} 项"
+        )
+        raise ValueError(
+            f"{path} 包含未知字段: {', '.join(locations)}{suffix}"
+        )
 
 
 def parse_pitch(value: object) -> float:
@@ -150,15 +166,132 @@ class TempoEntry:
 @dataclass(frozen=True, slots=True)
 class TempoMap:
     entries: tuple[TempoEntry, ...]
+    _entry_bars: tuple[int, ...] = field(
+        init=False, repr=False, compare=False
+    )
+    _meter_bars: tuple[int, ...] = field(
+        init=False, repr=False, compare=False
+    )
+    _meter_entries: tuple[TempoEntry, ...] = field(
+        init=False, repr=False, compare=False
+    )
+    _meter_quarters: tuple[float, ...] = field(
+        init=False, repr=False, compare=False
+    )
+    _tempo_quarters: tuple[float, ...] = field(
+        init=False, repr=False, compare=False
+    )
+    _tempo_seconds: tuple[float, ...] = field(
+        init=False, repr=False, compare=False
+    )
+
+    def __post_init__(self) -> None:
+        """Build the immutable time index once, not once per note query.
+
+        A dense imported tempo curve can contain thousands of mid-bar tempo
+        changes.  Rebuilding every boundary through ``quarter_at`` made one
+        seconds lookup quadratic in that curve.  These parallel arrays keep
+        public lookup semantics while making bar, quarter and seconds queries
+        logarithmic after one linear construction pass.
+        """
+
+        object.__setattr__(
+            self,
+            "_entry_bars",
+            tuple(entry.bar for entry in self.entries),
+        )
+        if not self.entries:
+            object.__setattr__(self, "_meter_bars", ())
+            object.__setattr__(self, "_meter_entries", ())
+            object.__setattr__(self, "_meter_quarters", ())
+            object.__setattr__(self, "_tempo_quarters", ())
+            object.__setattr__(self, "_tempo_seconds", ())
+            return
+
+        # ``quarter_at`` historically treats the first entry as the meter at
+        # bar 1.  The parser separately requires that entry to be bar 1 beat 1;
+        # retaining the convention here keeps manually constructed invalid
+        # maps inspectable by the dedicated score-time validator.
+        meter_bars = [1]
+        meter_entries = [self.entries[0]]
+        meter_quarters = [0.0]
+        for entry in self.entries[1:]:
+            if not entry.changes_meter:
+                continue
+            previous = meter_entries[-1]
+            try:
+                quarter = meter_quarters[-1] + (
+                    entry.bar - meter_bars[-1]
+                ) * previous.quarters_per_bar
+            except OverflowError as exc:
+                raise ValueError(
+                    "tempo map exceeds the finite score-time range"
+                ) from exc
+            if not math.isfinite(quarter):
+                raise ValueError(
+                    "tempo map exceeds the finite score-time range"
+                )
+            meter_bars.append(entry.bar)
+            meter_entries.append(entry)
+            meter_quarters.append(quarter)
+
+        tempo_quarters: list[float] = []
+        meter_position = 0
+        for entry in self.entries:
+            while (
+                meter_position + 1 < len(meter_bars)
+                and meter_bars[meter_position + 1] <= entry.bar
+            ):
+                meter_position += 1
+            meter = meter_entries[meter_position]
+            try:
+                quarter = (
+                    meter_quarters[meter_position]
+                    + (entry.bar - meter_bars[meter_position])
+                    * meter.quarters_per_bar
+                    + (entry.beat - 1.0) * meter.quarters_per_beat
+                )
+            except OverflowError as exc:
+                raise ValueError(
+                    "tempo map exceeds the finite score-time range"
+                ) from exc
+            if not math.isfinite(quarter):
+                raise ValueError(
+                    "tempo map exceeds the finite score-time range"
+                )
+            tempo_quarters.append(quarter)
+        tempo_seconds = [0.0]
+        for position in range(1, len(self.entries)):
+            span = tempo_quarters[position] - tempo_quarters[position - 1]
+            seconds = (
+                tempo_seconds[-1]
+                + span * 60.0 / self.entries[position - 1].bpm
+            )
+            if not math.isfinite(seconds):
+                raise ValueError(
+                    "tempo map exceeds the finite score-time range"
+                )
+            tempo_seconds.append(seconds)
+
+        object.__setattr__(self, "_meter_bars", tuple(meter_bars))
+        object.__setattr__(self, "_meter_entries", tuple(meter_entries))
+        object.__setattr__(self, "_meter_quarters", tuple(meter_quarters))
+        object.__setattr__(self, "_tempo_quarters", tuple(tempo_quarters))
+        object.__setattr__(self, "_tempo_seconds", tuple(tempo_seconds))
 
     def entry_at_bar(self, bar: int) -> TempoEntry:
-        chosen = self.entries[0]
-        for entry in self.entries:
-            if entry.bar <= bar:
-                chosen = entry
-            else:
-                break
-        return chosen
+        if not self.entries:
+            raise IndexError("tempo map has no entries")
+        position = bisect_right(self._entry_bars, bar) - 1
+        return self.entries[max(0, position)]
+
+    def meter_entry_at_bar(self, bar: int) -> TempoEntry:
+        """Return the latest downbeat meter declaration governing ``bar``."""
+
+        if not self.entries:
+            raise IndexError("tempo map has no entries")
+        position = bisect_right(self._meter_bars, bar) - 1
+        return self._meter_entries[max(0, position)]
 
     def quarter_at(self, bar: int, beat: float) -> float:
         """Absolute position in quarter notes from the start of the piece."""
@@ -167,19 +300,14 @@ class TempoMap:
             raise ValueError("bar numbers start at 1")
         if beat < 1.0:
             raise ValueError("beat numbers start at 1")
-        quarters = 0.0
-        current = self.entries[0]
-        cursor = 1
-        for entry in self.entries[1:]:
-            if entry.bar > bar:
-                break
-            # 小节内的速度变化不改变拍号,因此不参与小节长度的累加。
-            if not entry.changes_meter:
-                continue
-            quarters += (entry.bar - cursor) * current.quarters_per_bar
-            cursor = entry.bar
-            current = entry
-        quarters += (bar - cursor) * current.quarters_per_bar
+        if not self.entries:
+            raise IndexError("tempo map has no entries")
+        position = bisect_right(self._meter_bars, bar) - 1
+        position = max(0, position)
+        current = self._meter_entries[position]
+        quarters = self._meter_quarters[position] + (
+            bar - self._meter_bars[position]
+        ) * current.quarters_per_bar
         return quarters + (beat - 1.0) * current.quarters_per_beat
 
     def seconds_at_quarter(self, quarter: float) -> float:
@@ -187,18 +315,14 @@ class TempoMap:
 
         if quarter < 0.0:
             raise ValueError("quarter position must not be negative")
-        seconds = 0.0
-        boundaries: list[tuple[float, float]] = []
-        for entry in self.entries:
-            boundaries.append((self.quarter_at(entry.bar, entry.beat), entry.bpm))
-        for index, (start, bpm) in enumerate(boundaries):
-            if start >= quarter:
-                break
-            end = boundaries[index + 1][0] if index + 1 < len(boundaries) else math.inf
-            span = min(end, quarter) - start
-            if span > 0.0:
-                seconds += span * 60.0 / bpm
-        return seconds
+        if not self.entries:
+            return 0.0
+        position = bisect_right(self._tempo_quarters, quarter) - 1
+        if position < 0:
+            return 0.0
+        return self._tempo_seconds[position] + (
+            quarter - self._tempo_quarters[position]
+        ) * 60.0 / self.entries[position].bpm
 
     def seconds_at(self, bar: int, beat: float) -> float:
         return self.seconds_at_quarter(self.quarter_at(bar, beat))
@@ -248,11 +372,18 @@ class ScoreNote:
     source_event_id: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
+        # Keep conventional integer pitches readable, but never use the
+        # diagnostic ``pitch_name`` rounding for a microtonal score value.
+        # A score note is an editable source object, so even a very small
+        # fractional offset must survive parse -> serialise -> parse.
+        pitch: str | float = (
+            pitch_name(self.midi) if self.midi.is_integer() else self.midi
+        )
         data: dict[str, Any] = {
             "bar": self.bar,
             "beat": self.beat,
             "duration_beats": self.duration_beats,
-            "pitch": pitch_name(self.midi),
+            "pitch": pitch,
         }
         if self.source_event_id is not None:
             data["event_id"] = self.source_event_id
@@ -298,6 +429,45 @@ class ScoreDocument:
     tuning: dict[str, Any]
     tail_seconds: float
     schema_version: int | None = None
+
+    @property
+    def identity_contract(self) -> str:
+        """Return the score's source-event identity contract.
+
+        Consumers must branch on this capability rather than inferring it
+        from a schema version.  Keeping the legacy and v1 values explicit
+        also makes a future score version choose its identity semantics at
+        the parser boundary instead of accidentally falling back to legacy
+        positional identity.
+        """
+
+        if self.schema_version is None:
+            return "legacy-position-v0"
+        if self.schema_version == 1:
+            return "stable-event-v1"
+        raise ValueError(
+            "score identity contract is undefined for schema_version "
+            f"{self.schema_version!r}"
+        )
+
+    @property
+    def has_stable_event_identity(self) -> bool:
+        """Whether score events carry stable document-local identities."""
+
+        return self.identity_contract == "stable-event-v1"
+
+    @property
+    def time_contract(self) -> str:
+        """Return the logical score-time contract used by this document."""
+
+        if self.schema_version is None:
+            return "legacy-float-bar-beat-v0"
+        if self.schema_version == 1:
+            return "float-bar-beat-v1"
+        raise ValueError(
+            "score time contract is undefined for schema_version "
+            f"{self.schema_version!r}"
+        )
 
     def part(self, part_id: str) -> ScorePart:
         for candidate in self.parts:
@@ -658,22 +828,29 @@ def upgrade_legacy_score_to_v1(data: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("score must be an object")
     from .score_time import validate_score_time_coordinates
 
-    if "schema_version" in data:
-        parsed = parse_score_document(data)
-        validate_score_time_coordinates(parsed)
-        if parsed.schema_version != 1:
-            raise ValueError("only legacy or score v1 documents can be upgraded")
-        return copy.deepcopy(data)
+    versioned = "schema_version" in data
+    parsed = parse_score_document(data)
+    validate_score_time_coordinates(parsed)
+    if versioned and parsed.schema_version != 1:
+        raise ValueError("only legacy or score v1 documents can be upgraded")
 
     # Validate before allocating identities so callers never receive a
-    # superficially migrated but otherwise invalid score.
-    validate_score_time_coordinates(parse_score_document(data))
+    # superficially migrated but otherwise invalid score.  The semantic parser
+    # intentionally accepts three legacy note shorthands, but score-v1's public
+    # JSON Schema requires those fields to be materialised.  Do that for both a
+    # legacy input and a parser-valid v1 input so the upgrader is idempotent and
+    # never emits a document that only the more permissive internal parser can
+    # read.
     upgraded = copy.deepcopy(data)
     upgraded["schema_version"] = 1
     sequence = 1
     for part in upgraded["parts"]:
         for note in part["notes"]:
-            note["event_id"] = f"event-{sequence:06d}"
+            note.setdefault("bar", 1)
+            note.setdefault("beat", 1.0)
+            note.setdefault("duration_beats", 1.0)
+            if not versioned:
+                note["event_id"] = f"event-{sequence:06d}"
             sequence += 1
     validate_score_time_coordinates(parse_score_document(upgraded))
     return upgraded

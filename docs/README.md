@@ -2,7 +2,7 @@
 
 # 文档
 
-这里汇总天籁 `0.8.0rc1` 随源码包提供的用户与集成说明。运行环境、乐器与资源
+这里汇总天籁 `0.9.0` 随源码包提供的用户与集成说明。运行环境、乐器与资源
 状态以环境诊断命令 `tianlai-doctor` 的当次结果为准。
 
 ## 快速开始
@@ -19,6 +19,10 @@
   配器、首次渲染、按秒定位、修改到 A/B 比较的完整流程。
 - [渲染后自检](渲染后自检.md)：最终 PCM 的严格完整性门、True Peak/LUFS
   测量、风险复核与人工听审边界。
+- [Score v2：精确、可迁移的作品语义](score-v2.md)：有理时间、稳定身份、
+  v1 迁移 bundle，以及受限 direct-v2 正式渲染与 Candidate v3 边界。
+- [Realization v1](realization-v1.md)：与 score Hash 绑定的可选逐音及连续
+  演奏控制，以及量化、近似和 resolved evidence 合同。
 
 Windows 最短入口：
 

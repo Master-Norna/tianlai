@@ -783,7 +783,12 @@ def _validate_document_set(
         try:
             # Serialization also performs all depth/node/string/safe-number
             # gates and returns a detached on-wire-equivalent representation.
-            payload = json_document_bytes(value)
+            # A reopened project exposes recursively immutable dict/list
+            # subclasses.  Thaw them to exact JSON built-ins before crossing
+            # the hostile in-memory value boundary; that boundary deliberately
+            # rejects arbitrary container subclasses with overridable length
+            # and iteration methods.
+            payload = json_document_bytes(_thaw_json_value(value))
             loaded = strict_json_loads(payload)
         except AuthoringJsonError as exc:
             raise AuthoringProjectError(

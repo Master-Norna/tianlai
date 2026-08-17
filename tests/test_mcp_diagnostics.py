@@ -33,10 +33,10 @@ def _layout(root: Path) -> RuntimeLayout:
 def _doctor_report() -> dict[str, object]:
     sentinel = r"C:\Users\Private Person\secret-token"
     return {
-        "version": "0.8.0rc1",
+        "version": "0.9.0",
         "distribution": {
             "name": "tianlai-audio",
-            "version": "0.8.0rc1",
+            "version": "0.9.0",
             "matches_imported_code": True,
         },
         "python": {

@@ -17,15 +17,20 @@ from __future__ import annotations
 
 from collections.abc import Collection, Mapping, Sequence
 import copy
+from dataclasses import dataclass
 import hashlib
 import json
 import os
 from pathlib import Path
 import re
+import secrets
 import shutil
+import stat
 import tempfile
 from typing import Any
+import warnings
 
+from .atomic_publish import _pretty_json_bytes, _rename_noreplace
 from .capability import InstrumentCapability
 from .canonical_json import CANONICALIZATION, canonical_json_sha256
 from .midi_import import (
@@ -33,7 +38,18 @@ from .midi_import import (
     read_midi,
 )
 from .musicxml_import import read_musicxml
+from .plain_file import (
+    PlainFileIdentity,
+    read_plain_file_bytes,
+    revalidate_plain_file,
+)
 from .preflight import enforce_roster_availability
+from .render_lock import (
+    PlainDirectoryIdentity,
+    capture_plain_directory,
+    ensure_plain_directory_tree,
+    revalidate_plain_directory,
+)
 from .resource_limits import validate_score_resource_limits
 from .roster import check_roster_covers_score, parse_roster_document
 from .score import parse_score_document
@@ -52,6 +68,8 @@ _DEFAULT_FILENAMES = {
     "import_report": "import-report.json",
     "roster_draft": "roster-draft.json",
 }
+_MAX_IMPORT_DOCUMENT_BYTES = 64 * 1024 * 1024
+_PRIVATE_CLEANUP_ATTEMPTS = 16
 
 
 def _source_sha256(path: Path) -> tuple[str, int]:
@@ -179,6 +197,9 @@ def _musicxml_roster_draft(
                     "part_name": str(part.get("name", part_id)),
                     "midi_channel": part.get("channel"),
                     "percussion": percussion,
+                    "midi_playback": copy.deepcopy(
+                        part.get("midi_playback", [])
+                    ),
                 },
                 "note_count": int(part.get("note_count", 0)),
                 "range": part.get("range"),
@@ -879,16 +900,7 @@ def build_routing_hints(
 
 
 def _json_file_bytes(document: Any) -> bytes:
-    return (
-        json.dumps(
-            document,
-            ensure_ascii=False,
-            allow_nan=False,
-            sort_keys=True,
-            indent=2,
-        )
-        + "\n"
-    ).encode("utf-8")
+    return _pretty_json_bytes(document)
 
 
 def _remove_path(path: Path) -> None:
@@ -898,44 +910,719 @@ def _remove_path(path: Path) -> None:
         path.unlink(missing_ok=True)
 
 
-def _validate_replaceable_import_generation(
+@dataclass(frozen=True, slots=True)
+class _VerifiedImportGeneration:
+    directory: PlainDirectoryIdentity
+    files: tuple[tuple[str, PlainFileIdentity, bytes], ...]
+
+
+def _same_directory_identity(
+    left: PlainDirectoryIdentity,
+    right: PlainDirectoryIdentity,
+) -> bool:
+    return left.device == right.device and left.inode == right.inode
+
+
+_ImportEntryIdentity = tuple[int, int, int]
+
+
+def _import_entry_identity(path: Path) -> _ImportEntryIdentity:
+    value = os.lstat(path)
+    return int(value.st_dev), int(value.st_ino), stat.S_IFMT(value.st_mode)
+
+
+def _directory_entry_identity(
+    identity: PlainDirectoryIdentity,
+) -> _ImportEntryIdentity:
+    return identity.device, identity.inode, stat.S_IFDIR
+
+
+def _same_file_identity(
+    left: PlainFileIdentity,
+    right: PlainFileIdentity,
+) -> bool:
+    return (
+        left.device == right.device
+        and left.inode == right.inode
+        and left.size == right.size
+        and left.modified_ns == right.modified_ns
+        and left.changed_ns == right.changed_ns
+    )
+
+
+def _same_import_generation(
+    left: _VerifiedImportGeneration,
+    right: _VerifiedImportGeneration,
+) -> bool:
+    if not _same_directory_identity(left.directory, right.directory):
+        return False
+    left_files = {key: (identity, payload) for key, identity, payload in left.files}
+    right_files = {
+        key: (identity, payload) for key, identity, payload in right.files
+    }
+    if left_files.keys() != right_files.keys():
+        return False
+    return all(
+        _same_file_identity(left_files[key][0], right_files[key][0])
+        and left_files[key][1] == right_files[key][1]
+        for key in left_files
+    )
+
+
+def _capture_private_import_directory(
+    target: Path,
+    entry_names: Collection[str],
+    *,
+    require_all: bool,
+) -> _VerifiedImportGeneration:
+    """Bind the exact ordinary files currently inside a private directory."""
+
+    directory_identity = capture_plain_directory(target)
+    directory = revalidate_plain_directory(directory_identity)
+    allowed = set(entry_names)
+    actual = {entry.name for entry in directory.iterdir()}
+    if (require_all and actual != allowed) or not actual.issubset(allowed):
+        raise OSError("import transaction directory layout changed")
+    captured: list[tuple[str, PlainFileIdentity, bytes]] = []
+    for name in sorted(actual):
+        identity, payload = read_plain_file_bytes(
+            directory / name,
+            maximum_bytes=_MAX_IMPORT_DOCUMENT_BYTES,
+        )
+        if not _same_directory_identity(
+            identity.parent_identity,
+            directory_identity,
+        ):
+            raise OSError(
+                "import document escaped its verified generation directory"
+            )
+        captured.append((name, identity, payload))
+    for _name, identity, _payload in captured:
+        revalidate_plain_file(identity)
+    revalidate_plain_directory(directory_identity)
+    if {entry.name for entry in directory.iterdir()} != actual:
+        raise OSError("import transaction changed while it was captured")
+    revalidate_plain_directory(directory_identity)
+    return _VerifiedImportGeneration(directory_identity, tuple(captured))
+
+
+def _capture_import_generation(
     target: Path,
     names: Mapping[str, str],
-) -> None:
-    """Refuse to move an arbitrary user directory under ``--overwrite``."""
+) -> _VerifiedImportGeneration:
+    """Read and bind one exact, ordinary three-document generation."""
 
-    if target.is_symlink() or not target.is_dir():
-        raise ValueError(
-            "existing import destination is not a regular Tianlai generation"
-        )
     expected = set(names.values())
-    actual = {entry.name for entry in target.iterdir()}
-    if actual != expected:
+    try:
+        snapshot = _capture_private_import_directory(
+            target,
+            expected,
+            require_all=True,
+        )
+    except OSError as exc:
         raise ValueError(
             "existing import destination contains files outside the bound "
             "three-document generation; refusing overwrite"
-        )
-    try:
-        existing = {
-            key: json.loads(
-                (target / filename).read_text(encoding="utf-8")
-            )
-            for key, filename in names.items()
+        ) from exc
+    payload_by_name = {
+        name: payload for name, _identity, payload in snapshot.files
+    }
+    documents = {
+        key: json.loads(payload_by_name[names[key]].decode("utf-8"))
+        for key in ("score", "import_report", "roster_draft")
+    }
+
+    validate_import_bundle(
+        {
+            "format": IMPORT_FORMAT,
+            "version": IMPORT_VERSION,
+            "score": documents["score"],
+            "import_report": documents["import_report"],
+            "roster_draft": documents["roster_draft"],
         }
-        validate_import_bundle(
-            {
-                "format": IMPORT_FORMAT,
-                "version": IMPORT_VERSION,
-                "score": existing["score"],
-                "import_report": existing["import_report"],
-                "roster_draft": existing["roster_draft"],
-            }
+    )
+    for _name, identity, _payload in snapshot.files:
+        revalidate_plain_file(identity)
+    revalidate_plain_directory(snapshot.directory)
+    if {
+        entry.name for entry in snapshot.directory.path.iterdir()
+    } != expected:
+        raise OSError("import generation changed while it was being verified")
+    revalidate_plain_directory(snapshot.directory)
+    return snapshot
+
+
+def _require_unchanged_import_generation(
+    expected: _VerifiedImportGeneration,
+    path: Path,
+    names: Mapping[str, str],
+    *,
+    message: str,
+) -> _VerifiedImportGeneration:
+    try:
+        current = _capture_import_generation(path, names)
+    except (OSError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        raise RuntimeError(message) from exc
+    if not _same_import_generation(expected, current):
+        raise RuntimeError(message)
+    return current
+
+
+def _private_sibling_path(parent: Path, prefix: str) -> Path:
+    for _ in range(_PRIVATE_CLEANUP_ATTEMPTS):
+        candidate = parent / f"{prefix}{secrets.token_hex(16)}"
+        if not os.path.lexists(candidate):
+            return candidate
+    raise RuntimeError("could not allocate a private import transaction path")
+
+
+def _require_unchanged_private_directory(
+    expected: _VerifiedImportGeneration,
+    path: Path,
+    *,
+    message: str,
+) -> _VerifiedImportGeneration:
+    try:
+        current = _capture_private_import_directory(
+            path,
+            {name for name, _identity, _payload in expected.files},
+            require_all=True,
         )
+    except (OSError, TypeError, ValueError) as exc:
+        raise RuntimeError(message) from exc
+    if not _same_import_generation(expected, current):
+        raise RuntimeError(message)
+    return current
+
+
+def _cleanup_verified_import_generation(
+    generation: _VerifiedImportGeneration,
+    *,
+    parent_identity: PlainDirectoryIdentity,
+    prefix: str,
+) -> None:
+    """Remove only the exact private generation captured by this call.
+
+    The directory is first moved into an unpredictable mode-0700 quarantine.
+    A replacement installed at the source just before that rename is detected
+    after the move and retained rather than recursively deleted.  Recursive
+    removal begins only after the moved identity is rebound inside that private
+    directory.  The remaining same-user adversarial window after this final
+    check is the documented boundary on platforms without descriptor-relative
+    tree removal (notably Windows); ordinary writers cannot predict or enter
+    the quarantine before removal.
+    """
+
+    parent = revalidate_plain_directory(parent_identity)
+    path = generation.directory.path
+    if not os.path.lexists(path):
+        return
+    if (
+        path.parent != parent
+        or path != parent / path.name
+        or not path.name.startswith(prefix)
+    ):
+        raise RuntimeError("refusing to clean an unowned import transaction path")
+    _require_unchanged_private_directory(
+        generation,
+        path,
+        message="import transaction identity changed before cleanup",
+    )
+    quarantine_root = Path(
+        tempfile.mkdtemp(
+            dir=parent,
+            prefix=".tianlai-import-cleanup.",
+        )
+    )
+    moved_to_quarantine = False
+    try:
+        quarantine_root_identity = capture_plain_directory(quarantine_root)
+        revalidate_plain_directory(parent_identity)
+        quarantine = quarantine_root / "generation"
+        revalidate_plain_directory(parent_identity)
+        _rename_noreplace(path, quarantine)
+        moved_to_quarantine = True
+        moved = _require_unchanged_private_directory(
+            generation,
+            quarantine,
+            message=(
+                "import transaction identity changed during cleanup; the "
+                f"replacement was preserved at {quarantine}"
+            ),
+        )
+        revalidate_plain_directory(parent_identity)
+        revalidate_plain_directory(quarantine_root_identity)
+        revalidate_plain_directory(moved.directory)
+        _remove_path(quarantine_root)
+    except BaseException:
+        if not moved_to_quarantine:
+            try:
+                if not any(quarantine_root.iterdir()):
+                    quarantine_root.rmdir()
+            except BaseException:
+                pass
+        raise
+
+
+def _report_cleanup_failure(
+    primary_error: BaseException | None,
+    label: str,
+    cleanup_error: BaseException,
+) -> None:
+    message = f"{label} cleanup was not completed: {cleanup_error}"
+    if primary_error is not None:
+        try:
+            primary_error.add_note(message)
+        except BaseException:
+            pass
+        return
+    try:
+        warnings.warn(message, RuntimeWarning, stacklevel=3)
+    except BaseException:
+        # Warning filters must not turn post-commit cleanup into failure.
+        pass
+
+
+def _validate_replaceable_import_generation(
+    target: Path,
+    names: Mapping[str, str],
+) -> _VerifiedImportGeneration:
+    """Refuse to move an arbitrary user directory under ``--overwrite``."""
+
+    try:
+        return _capture_import_generation(target, names)
     except (OSError, TypeError, ValueError, json.JSONDecodeError) as exc:
         raise ValueError(
             "existing import destination is not a verified Tianlai "
             "import generation; refusing overwrite"
         ) from exc
+
+
+def _withdraw_failed_stage_generation(
+    *,
+    target: Path,
+    stage_identity: PlainDirectoryIdentity,
+    parent_identity: PlainDirectoryIdentity,
+) -> tuple[Path | None, str | None]:
+    """Withdraw a failed publication using directory identity alone.
+
+    A post-publish content check can fail precisely because a file inside the
+    moved stage was modified.  Requiring the full generation snapshot again
+    would strand those failed bytes at the public target.  Directory identity
+    is sufficient to prove ownership of the entry being withdrawn; its
+    untrusted contents are retained at the returned recovery path and are
+    deliberately never passed to normal cleanup.
+    """
+
+    parent = revalidate_plain_directory(parent_identity)
+    original_stage = stage_identity.path
+    recovery_prefix = f".{target.name or 'import'}.import-recovery."
+
+    def restore_concurrent_entry(candidate: Path, reason: str) -> str:
+        if os.path.lexists(target):
+            return f"{reason}; concurrent entry retained at {candidate}"
+        try:
+            revalidate_plain_directory(parent_identity)
+            _rename_noreplace(candidate, target)
+        except BaseException as restore_error:
+            return (
+                f"{reason}; concurrent entry retained at {candidate}; "
+                f"restore error: {restore_error}"
+            )
+        return f"{reason}; concurrent entry restored to {target}"
+
+    candidate = original_stage
+    for _ in range(_PRIVATE_CLEANUP_ATTEMPTS + 1):
+        try:
+            observed_target = capture_plain_directory(target)
+        except BaseException as exc:
+            return None, f"failed generation could not be rebound: {exc}"
+        if not _same_directory_identity(stage_identity, observed_target):
+            return None, (
+                "publication target no longer names the moved staging "
+                "directory; the concurrent entry was left untouched"
+            )
+        if os.path.lexists(candidate):
+            candidate = _private_sibling_path(parent, recovery_prefix)
+        revalidate_plain_directory(parent_identity)
+        try:
+            _rename_noreplace(target, candidate)
+        except FileExistsError:
+            candidate = _private_sibling_path(parent, recovery_prefix)
+            continue
+        except BaseException as exc:
+            # A fault-injection seam may report failure after the native move
+            # completed.  Rebind the candidate before deciding it was lost.
+            try:
+                moved_after_error = capture_plain_directory(candidate)
+            except BaseException:
+                return None, f"failed generation withdrawal failed: {exc}"
+            if _same_directory_identity(stage_identity, moved_after_error):
+                return candidate, (
+                    "withdrawal reported an error after moving the failed "
+                    f"generation: {exc}"
+                )
+            return None, restore_concurrent_entry(
+                candidate,
+                "withdrawal moved a concurrent destination entry after "
+                f"reporting an error: {exc}",
+            )
+        try:
+            moved_identity = capture_plain_directory(candidate)
+            revalidate_plain_directory(parent_identity)
+        except BaseException as exc:
+            return candidate, (
+                "failed generation was withdrawn but its recovery identity "
+                f"could not be rebound: {exc}"
+            )
+        if not _same_directory_identity(stage_identity, moved_identity):
+            return None, restore_concurrent_entry(
+                candidate,
+                "withdrawal moved a concurrent destination entry",
+            )
+        return candidate, None
+    return None, "could not allocate an exclusive failed-generation recovery path"
+
+
+def _restore_import_directory_entry(
+    source: Path,
+    target: Path,
+    identity: _ImportEntryIdentity,
+) -> tuple[bool, str | None]:
+    """Restore one moved directory and recognize move-then-error results."""
+
+    if os.path.lexists(target):
+        return False, f"restore target is occupied: {target}"
+    restore_error: BaseException | None = None
+    try:
+        _rename_noreplace(source, target)
+    except BaseException as exc:
+        restore_error = exc
+    try:
+        restored = _import_entry_identity(target)
+    except BaseException as inspect_error:
+        return False, (
+            f"restored directory could not be rebound: {inspect_error}; "
+            f"rename error: {restore_error}"
+        )
+    if (
+        identity == restored
+        and not os.path.lexists(source)
+    ):
+        return True, str(restore_error) if restore_error is not None else None
+    return False, (
+        "restored directory identity changed; "
+        f"rename error: {restore_error}"
+    )
+
+
+def _isolate_existing_import_generation(
+    *,
+    target: Path,
+    backup: Path,
+    expected: _VerifiedImportGeneration,
+    names: Mapping[str, str],
+) -> _VerifiedImportGeneration:
+    """Move the expected old generation without hiding a source-swap racer."""
+
+    move_error: BaseException | None = None
+    try:
+        _rename_noreplace(target, backup)
+    except BaseException as exc:
+        move_error = exc
+
+    try:
+        moved_identity = _import_entry_identity(backup)
+    except BaseException as inspect_error:
+        if not os.path.lexists(target) and os.path.lexists(backup):
+            restore_error: BaseException | None = None
+            try:
+                _rename_noreplace(backup, target)
+            except BaseException as exc:
+                restore_error = exc
+            if os.path.lexists(target) and not os.path.lexists(backup):
+                primary = move_error or inspect_error
+                try:
+                    primary.add_note(
+                        "unverified import backup entry was conservatively "
+                        f"restored to {target}"
+                    )
+                except BaseException:
+                    pass
+                raise primary
+            primary = move_error or inspect_error
+            try:
+                primary.add_note(
+                    f"unverified import backup retained at {backup}; "
+                    f"restore error: {restore_error}"
+                )
+            except BaseException:
+                pass
+            raise primary
+        if move_error is not None:
+            try:
+                move_error.add_note(
+                    f"unverified import backup retained at {backup}: "
+                    f"{inspect_error}"
+                )
+            except BaseException:
+                pass
+            raise move_error
+        raise RuntimeError(
+            "existing import generation could not be inspected after backup"
+        ) from inspect_error
+
+    target_identity: _ImportEntryIdentity | None = None
+    if os.path.lexists(target):
+        try:
+            target_identity = _import_entry_identity(target)
+        except BaseException:
+            target_identity = None
+    target_occupied = target_identity is not None or os.path.lexists(target)
+    if (
+        move_error is not None
+        and target_identity is not None
+        and _directory_entry_identity(expected.directory) == target_identity
+    ):
+        # The exclusive destination was occupied before any move; the expected
+        # public generation never left its path.
+        raise move_error
+    if _directory_entry_identity(expected.directory) == moved_identity:
+        if target_occupied:
+            failure = RuntimeError(
+                "import destination was occupied after its previous generation "
+                "was isolated"
+            )
+            try:
+                failure.add_note(
+                    f"previous import generation retained at {backup}"
+                )
+            except BaseException:
+                pass
+            raise failure from move_error
+        if move_error is not None:
+            restored, restore_note = _restore_import_directory_entry(
+                backup,
+                target,
+                moved_identity,
+            )
+            if restored:
+                _require_unchanged_import_generation(
+                    expected,
+                    target,
+                    names,
+                    message=(
+                        "previous import generation changed while recovering "
+                        "from a reported backup error"
+                    ),
+                )
+                if restore_note is not None:
+                    try:
+                        move_error.add_note(
+                            "previous import generation was restored despite "
+                            f"a recovery rename diagnostic: {restore_note}"
+                        )
+                    except BaseException:
+                        pass
+                raise move_error
+            try:
+                move_error.add_note(
+                    "previous import generation could not be restored; "
+                    f"retained at {backup}: {restore_note}"
+                )
+            except BaseException:
+                pass
+            raise move_error
+        try:
+            return _require_unchanged_import_generation(
+                expected,
+                backup,
+                names,
+                message="existing import generation changed during backup",
+            )
+        except BaseException as verification_error:
+            try:
+                current_backup_identity = _import_entry_identity(backup)
+            except BaseException as identity_error:
+                failure = RuntimeError(
+                    "changed import backup could not be rebound for recovery"
+                )
+                try:
+                    failure.add_note(
+                        f"unverified changed import entry retained at {backup}: "
+                        f"{identity_error}"
+                    )
+                except BaseException:
+                    pass
+                raise failure from verification_error
+            restored, restore_note = _restore_import_directory_entry(
+                backup,
+                target,
+                current_backup_identity,
+            )
+            failure = RuntimeError(
+                "existing import generation changed during backup"
+            )
+            if restored:
+                try:
+                    failure.add_note(
+                        f"changed import destination was restored to {target}"
+                    )
+                except BaseException:
+                    pass
+            else:
+                try:
+                    failure.add_note(
+                        f"changed import destination retained at {backup}: "
+                        f"{restore_note}"
+                    )
+                except BaseException:
+                    pass
+            raise failure from verification_error
+
+    failure = RuntimeError(
+        "existing import destination was replaced concurrently during backup"
+    )
+    if not target_occupied:
+        restored, restore_note = _restore_import_directory_entry(
+            backup,
+            target,
+            moved_identity,
+        )
+        if restored:
+            try:
+                failure.add_note(
+                    f"concurrent import destination was restored to {target}"
+                )
+            except BaseException:
+                pass
+            raise failure from move_error
+        try:
+            failure.add_note(
+                f"concurrent import destination retained at {backup}: "
+                f"{restore_note}"
+            )
+        except BaseException:
+            pass
+        raise failure from move_error
+    try:
+        failure.add_note(
+            "concurrent import destination backup retained at "
+            f"{backup}; public path is occupied and was not overwritten"
+        )
+    except BaseException:
+        pass
+    raise failure from move_error
+
+
+def _rollback_import_replacement(
+    *,
+    target: Path,
+    stage: _VerifiedImportGeneration,
+    backup: _VerifiedImportGeneration,
+    names: Mapping[str, str],
+    publish_error: BaseException,
+) -> None:
+    """Restore an exact old generation without overwriting a racer."""
+
+    try:
+        if os.path.lexists(target):
+            stage_path = stage.directory.path
+            if os.path.lexists(stage_path):
+                raise RuntimeError(
+                    "import staging path was occupied during rollback"
+                )
+            current_identity = capture_plain_directory(target)
+            if not _same_directory_identity(
+                stage.directory,
+                current_identity,
+            ):
+                raise RuntimeError(
+                    "import publish failed after another writer occupied "
+                    "the destination"
+                )
+            move_error: BaseException | None = None
+            try:
+                _rename_noreplace(target, stage_path)
+            except BaseException as exc:
+                move_error = exc
+            moved_entry_identity = _import_entry_identity(stage_path)
+            if (
+                _directory_entry_identity(stage.directory)
+                != moved_entry_identity
+            ):
+                restored, restore_note = _restore_import_directory_entry(
+                    stage_path,
+                    target,
+                    moved_entry_identity,
+                )
+                if restored:
+                    raise RuntimeError(
+                        "new import generation was replaced during rollback; "
+                        "the racing destination was restored"
+                    ) from move_error
+                raise RuntimeError(
+                    "new import generation was replaced during rollback; "
+                    f"the racing destination remains at {stage_path}: "
+                    f"{restore_note}"
+                ) from move_error
+            if move_error is not None:
+                # The expected new generation moved successfully.  Preserve it
+                # at stage_path and continue restoring the old backup; the
+                # original publication error remains the public exception.
+                try:
+                    publish_error.add_note(
+                        "new generation withdrawal reported an error after "
+                        f"moving it to {stage_path}: {move_error}"
+                    )
+                except BaseException:
+                    pass
+        if os.path.lexists(target):
+            raise RuntimeError(
+                "import destination remained occupied during rollback"
+            )
+        _require_unchanged_import_generation(
+            backup,
+            backup.directory.path,
+            names,
+            message="previous import generation changed before rollback",
+        )
+        try:
+            _rename_noreplace(backup.directory.path, target)
+        except BaseException as restore_error:
+            try:
+                _require_unchanged_import_generation(
+                    backup,
+                    target,
+                    names,
+                    message=(
+                        "previous import generation was not restored after "
+                        "the rollback rename reported an error"
+                    ),
+                )
+            except BaseException:
+                raise restore_error
+            # The native move completed and restored the exact old generation;
+            # do not attach a false incomplete-rollback note to the primary
+            # publication error merely because a wrapper reported failure.
+            return
+        _require_unchanged_import_generation(
+            backup,
+            target,
+            names,
+            message="previous import generation changed during rollback",
+        )
+    except BaseException as rollback_error:
+        message = (
+            "import publication failed and automatic rollback was incomplete; "
+            "the expected previous-generation backup path is "
+            f"{backup.directory.path}; "
+            f"rollback error: {rollback_error}"
+        )
+        try:
+            publish_error.add_note(message)
+        except BaseException:
+            pass
 
 
 def write_import_bundle(
@@ -978,13 +1665,19 @@ def write_import_bundle(
         "import_report": _json_file_bytes(bundle["import_report"]),
         "roster_draft": _json_file_bytes(bundle["roster_draft"]),
     }
-    target = Path(destination)
-    parent = target.parent
-    parent.mkdir(parents=True, exist_ok=True)
-    if target.exists() and not overwrite:
+    requested_target = Path(destination)
+    requested_parent = requested_target.parent
+    parent_identity = ensure_plain_directory_tree(requested_parent)
+    parent = revalidate_plain_directory(parent_identity)
+    target = parent / requested_target.name
+    existing_generation: _VerifiedImportGeneration | None = None
+    if os.path.lexists(target) and not overwrite:
         raise FileExistsError(f"import destination already exists: {target}")
-    if target.exists() and overwrite:
-        _validate_replaceable_import_generation(target, names)
+    if os.path.lexists(target) and overwrite:
+        existing_generation = _validate_replaceable_import_generation(
+            target,
+            names,
+        )
 
     stage = Path(
         tempfile.mkdtemp(
@@ -992,51 +1685,218 @@ def write_import_bundle(
             prefix=f".{target.name or 'import'}.import-stage.",
         )
     )
+    stage_identity: PlainDirectoryIdentity | None = None
+    stage_generation: _VerifiedImportGeneration | None = None
     backup: Path | None = None
+    backup_generation: _VerifiedImportGeneration | None = None
     published = False
+    stage_moved = False
+    failed_stage_recovery: Path | None = None
+    primary_error: BaseException | None = None
     try:
+        stage_identity = capture_plain_directory(stage)
+        revalidate_plain_directory(parent_identity)
         for key in ("score", "import_report", "roster_draft"):
             path = stage / names[key]
             with path.open("xb") as destination_file:
                 destination_file.write(payloads[key])
                 destination_file.flush()
                 os.fsync(destination_file.fileno())
+        observed_stage_generation = _capture_import_generation(stage, names)
+        if not _same_directory_identity(
+            observed_stage_generation.directory,
+            stage_identity,
+        ):
+            raise RuntimeError("import staging directory identity changed")
+        stage_generation = observed_stage_generation
 
-        if target.exists():
+        if os.path.lexists(target):
             if not overwrite:
                 raise FileExistsError(
                     f"import destination already exists: {target}"
                 )
-            backup = Path(
-                tempfile.mkdtemp(
-                    dir=parent,
-                    prefix=f".{target.name or 'import'}.import-backup.",
+            if existing_generation is None:
+                raise RuntimeError(
+                    "import destination appeared while publication was staged"
                 )
+            backup = _private_sibling_path(
+                parent,
+                f".{target.name or 'import'}.import-backup.",
             )
-            backup.rmdir()
-            os.replace(target, backup)
+            _require_unchanged_import_generation(
+                stage_generation,
+                stage,
+                names,
+                message="import staging generation changed before publication",
+            )
+            revalidate_plain_directory(parent_identity)
+            # This is intentionally the last target-path operation before the
+            # rename.  A replacement in the remaining kernel boundary is
+            # detected by the identity check at ``backup`` below.
+            existing_generation = _require_unchanged_import_generation(
+                existing_generation,
+                target,
+                names,
+                message=(
+                    "existing import generation changed before replacement"
+                ),
+            )
+            # Never assume that the pathname moved by the exclusive rename is
+            # the generation checked immediately above.  The helper restores
+            # an actual source-swap racer to the public path when it is vacant.
+            backup_generation = _isolate_existing_import_generation(
+                target=target,
+                backup=backup,
+                expected=existing_generation,
+                names=names,
+            )
+        elif existing_generation is not None:
+            raise RuntimeError(
+                "existing import destination disappeared before replacement"
+            )
+
+        if os.path.lexists(target):
+            raise RuntimeError(
+                "import destination was occupied before publication"
+            )
+        stage_generation = _require_unchanged_import_generation(
+            stage_generation,
+            stage,
+            names,
+            message="import staging generation changed before publication",
+        )
+        revalidate_plain_directory(parent_identity)
         try:
-            os.replace(stage, target)
-            published = True
-        except Exception:
-            if backup is not None and backup.exists() and not target.exists():
-                os.replace(backup, target)
+            _rename_noreplace(stage, target)
+        except BaseException:
+            # A native/seam error can be reported after the move completed.
+            # Detect ownership by directory identity so the outer handler can
+            # still withdraw a failed first publication.
+            try:
+                moved_after_error = capture_plain_directory(target)
+                stage_moved = _same_directory_identity(
+                    stage_generation.directory,
+                    moved_after_error,
+                )
+            except BaseException:
+                pass
             raise
-        if backup is not None and backup.exists():
-            _remove_path(backup)
+        else:
+            stage_moved = True
+        _require_unchanged_import_generation(
+            stage_generation,
+            target,
+            names,
+            message=(
+                "import staging generation was replaced concurrently during "
+                "publication"
+            ),
+        )
+        published = True
+    except BaseException as exc:
+        primary_error = exc
+        rollback_stage = stage_generation
+        if stage_moved:
+            failed_stage_recovery, withdrawal_note = (
+                _withdraw_failed_stage_generation(
+                target=target,
+                stage_identity=stage_generation.directory,
+                parent_identity=parent_identity,
+            )
+            )
+            if withdrawal_note is not None:
+                try:
+                    exc.add_note(withdrawal_note)
+                except BaseException:
+                    pass
+            if failed_stage_recovery is not None:
+                try:
+                    exc.add_note(
+                        "failed import generation was retained for recovery at "
+                        f"{failed_stage_recovery}"
+                    )
+                except BaseException:
+                    pass
+                # It may have failed content verification, so it must never be
+                # processed by the normal complete-generation cleanup path.
+                stage_generation = None
+        if backup_generation is not None and not published:
+            _rollback_import_replacement(
+                target=target,
+                stage=rollback_stage,
+                backup=backup_generation,
+                names=names,
+                publish_error=exc,
+            )
+        raise
     finally:
-        if stage.exists():
-            _remove_path(stage)
+        if stage_identity is None and os.path.lexists(stage):
+            _report_cleanup_failure(
+                primary_error,
+                "unverified import staging directory",
+                RuntimeError("directory identity was not captured; retained"),
+            )
+        if (
+            failed_stage_recovery is None
+            and
+            stage_generation is None
+            and stage_identity is not None
+            and os.path.lexists(stage)
+        ):
+            try:
+                partial_stage = _capture_private_import_directory(
+                    stage,
+                    set(names.values()),
+                    require_all=False,
+                )
+                if not _same_directory_identity(
+                    partial_stage.directory,
+                    stage_identity,
+                ):
+                    raise RuntimeError(
+                        "import staging directory was replaced before cleanup"
+                    )
+                stage_generation = partial_stage
+            except BaseException as cleanup_error:
+                _report_cleanup_failure(
+                    primary_error,
+                    "partial import staging directory",
+                    cleanup_error,
+                )
+        if failed_stage_recovery is None and stage_generation is not None:
+            try:
+                _cleanup_verified_import_generation(
+                    stage_generation,
+                    parent_identity=parent_identity,
+                    prefix=f".{target.name or 'import'}.import-stage.",
+                )
+            except BaseException as cleanup_error:
+                _report_cleanup_failure(
+                    primary_error,
+                    "import staging directory",
+                    cleanup_error,
+                )
         # A failed replacement either restored the old generation above or
         # leaves its complete backup for recovery; never delete that evidence.
-        if published and backup is not None and backup.exists():
-            _remove_path(backup)
+        if published and backup_generation is not None:
+            try:
+                _cleanup_verified_import_generation(
+                    backup_generation,
+                    parent_identity=parent_identity,
+                    prefix=f".{target.name or 'import'}.import-backup.",
+                )
+            except BaseException as cleanup_error:
+                _report_cleanup_failure(
+                    primary_error,
+                    "previous import generation",
+                    cleanup_error,
+                )
 
     return {
-        "directory": str(target),
-        "score": str(target / names["score"]),
-        "import_report": str(target / names["import_report"]),
-        "roster_draft": str(target / names["roster_draft"]),
+        "directory": str(requested_target),
+        "score": str(requested_target / names["score"]),
+        "import_report": str(requested_target / names["import_report"]),
+        "roster_draft": str(requested_target / names["roster_draft"]),
     }
 
 

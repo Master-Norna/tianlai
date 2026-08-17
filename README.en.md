@@ -45,7 +45,7 @@ directly exercises import, explicit instrumentation, first sound, location,
 patching, second render, and comparison without downloading several gigabytes
 of sound sources first.
 
-> Current release candidate: `0.8.0rc1`
+> Current release: `0.9.0`
 >
 > **Distribution boundary:** the formal product is the lightweight source ZIP
 > published by the project. If PyPI sdists or wheels are published later,
@@ -57,7 +57,7 @@ of sound sources first.
 
 | Environment | Shortest entry point | Current boundary |
 | --- | --- | --- |
-| Windows 10/11 x64 | [Windows in three steps](#windows-in-three-steps) | Complete reference platform for `0.8.0rc1` |
+| Windows 10/11 x64 | [Windows in three steps](#windows-in-three-steps) | Complete reference platform for `0.9.0` |
 | Linux / WSL x86_64 | [Linux / WSL quick start](docs/Linux快速开始.en.md) | Bash, programmatic instruments, and MCP are available; the success path and real-sample coverage are validated in separate layers |
 | macOS Apple Silicon / Intel | [macOS quick start](docs/macOS快速开始.en.md) | Native 64-bit CPython 3.11–3.14; clean-source-ZIP portable CI is included, while real samples are accepted separately |
 
@@ -92,7 +92,7 @@ and every installation must pass complete integrity verification. See the
 ## Windows in three steps
 
 Windows 10/11 x64 with 64-bit CPython 3.11–3.14 is the reference environment
-for `0.8.0rc1`. Run the following `cmd` blocks from Command Prompt (`cmd.exe`)
+for `0.9.0`. Run the following `cmd` blocks from Command Prompt (`cmd.exe`)
 in the source-release root. The multiline continuation character is `^`.
 
 1. Create the project's own virtual environment and skip the automatic smoke
@@ -142,7 +142,7 @@ before using your own score.
 
 ## Recommended creative loop
 
-For `0.8.0rc1`, use this main workflow instead of invoking older import and
+For `0.9.0`, use this main workflow instead of invoking older import and
 ensemble commands separately and assembling their artifacts by hand:
 
 | Stage | CLI | Result |
@@ -150,6 +150,7 @@ ensemble commands separately and assembling their artifacts by hand:
 | Unified import | `project-import` | score v1, import report, and a non-executable roster draft |
 | Explicit instrumentation | `roster-promote` | a formal roster with exactly one explicit route per part |
 | First execution | `project-render` | candidate 1 in a unique directory, with audio, stems, receipt, and binding manifest |
+| Generation verification | `candidate-verify` | proves that the descriptor-bound bytes read as one closed, self-consistent generation |
 | Listening-based location | `candidate-locate` | maps an actual candidate time back to events, bar, beat, and executor |
 | Bounded read | `score-slice` | a local score fragment bound to the score hash |
 | Atomic edit | `score-patch` | a new score revision; any conflict rejects the entire patch |
@@ -184,6 +185,17 @@ revalidates the plan, ensemble, stems, and attribution sidecars before and after
 the directory exchange. Concurrent changes or an incomplete generation are
 never published as a visible candidate.
 
+To verify a saved candidate independently, run
+`天籁.cmd candidate-verify --candidate "candidate-directory"`. The command
+expects the saved `<work_id>/<candidate_id>` directory names bound by the
+manifest to be preserved when a candidate is copied or extracted. It
+rejects extra files, directories, links or reparse points, hard links, and
+detected drift in bound artifacts. A report written with `--output`
+must stay outside the candidate directory. `integrity_verified=true` proves
+only that the descriptor-bound bytes form a closed, self-consistent local
+generation; it does not prove authorship, provenance, content quality, or that
+an uncooperative writer cannot change the live directory after verification.
+
 ## Editable intermediate representation
 
 Score v1 is Tianlai's authoritative editable score, not a disposable import
@@ -199,6 +211,50 @@ same pitch but on different staves or voices are not merged after flattening
 into one internal part. These fields are not roster parts and do not route
 instruments. Preserve them along with `event_id` when editing a MusicXML-derived
 score unless the notation structure is intentionally changing.
+
+For the finer-grained work model, see [Score v2: exact, portable work
+semantics](docs/score-v2.en.md). The foundation now supports exact rational time,
+separate written and sounding pitch, stable explicit relations, trusted
+`ScoreSourceSnapshot` loading, and explicit v1-to-v2 migration. The first formal
+slice now has a separate `project-render-v2` entry point. It reads a direct
+Score-v2 document, a formal roster, and an execution profile, renders PCM24
+under an active runtime lease, and publishes Candidate v3. Its four required
+arguments are `--score`, `--roster`, `--execution-profile`, and `--sample-rate`:
+
+```console
+天籁.cmd project-render-v2 ^
+  --score "scores\work.score-v2.json" ^
+  --roster "scores\work.roster.json" ^
+  --execution-profile "scores\work.execution-profile.json" ^
+  --sample-rate 48000
+```
+
+This entry point currently requires the source-workspace layout, one executor,
+the built-in oscillator, an explicit declaration of zero external audio
+assets, and `tail=0`. Migration bundles, performance facts, realization,
+sampled backends, custom implementations, lazy assets, and multiple executors
+fail closed; a migration bundle cannot masquerade as the direct `--score`
+input. The existing `project-render`, Score-v1, and Candidate-v1/v2 behavior is
+unchanged. Candidate v3 belongs only to this restricted direct-v2 formal path.
+See the Score-v2 document above for its runtime-generation, PCM24, and candidate
+closure boundaries.
+
+The explicit migration command writes a complete bundle and never rewrites the
+source score in place:
+
+```console
+tianlai migrate-score-v2 --score scores/work.score.json --output output/work.score-v2-migration.json
+```
+
+For performance detail beyond notation, an optional `realization v1` document
+is bound to the exact score hash. It can carry per-note timing, gate, velocity,
+release velocity, and sparse semantically named expression, breath, or pedal
+lanes. Omitting it preserves the previous plan byte-for-byte. When present, the
+creator separately chooses whether numeric quantization, semantic approximation,
+and sample-grid timing adaptation are acceptable; backend capability never
+silently grants that consent. `ensemble` and `project-render` accept it through
+`--realization`, and candidates bind the source document to the resolved plan
+evidence. See [Realization v1](docs/realization-v1.en.md).
 
 MIDI and MusicXML can both contain semantics that the current score cannot
 represent losslessly. Unified import defaults to `--loss-policy reject`. To
@@ -269,7 +325,7 @@ boundaries.
   produces a bounded, reviewable diagnostic draft that a creator can carry into
   the next candidate.
 - Offline rendering produces 24-bit WAV audio, optional stems, a shared hall,
-  and complete receipts. `0.8.0rc1` automatically chooses serial execution or
+  and complete receipts. `0.9.0` automatically chooses serial execution or
   up to four managed workers from CPU, memory, scratch-space, work, and verified
   resource evidence, and passes long stems through bounded streaming blocks.
   It adds no render-profile option, falls back to the complete serial path when

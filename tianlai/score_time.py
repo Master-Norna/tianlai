@@ -104,16 +104,15 @@ def _meter_entry_at_bar(tempo_map: TempoMap, bar: int) -> TempoEntry:
 
     if not tempo_map.entries:
         raise ScoreTimeError("score.tempo_map must contain at least one entry")
-    chosen = None
-    for entry in tempo_map.entries:
-        if entry.bar > bar:
-            break
-        if entry.changes_meter:
-            chosen = entry
-    if chosen is None:
+    if tempo_map.entries[0].bar > bar:
         raise ScoreTimeError(
             f"score.tempo_map does not define a meter for bar {bar}"
         )
+    # TempoMap's immutable index resolves this in O(log T) while deliberately
+    # skipping mid-bar tempo-only markers.  That preserves the rule that meter
+    # may change only at a downbeat without rescanning all T markers for every
+    # validation point.
+    chosen = tempo_map.meter_entry_at_bar(bar)
     if chosen.beats_per_bar < 1 or chosen.beat_unit < 1:
         raise ScoreTimeError(
             f"score.tempo_map has an invalid meter at bar {chosen.bar}"

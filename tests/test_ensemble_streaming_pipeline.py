@@ -17,14 +17,36 @@ from tianlai import ensemble as ensemble_module
 from tianlai import space as space_module
 from tianlai import stem_cache as stem_cache_module
 from tianlai import stem_worker as stem_worker_module
+from tianlai import worker_slots as worker_slots_module
 from tianlai.ensemble import render_plan
 from tianlai.roster import CollaborationSettings
+from tianlai.space import SpaceConfig
 from tianlai.stem_cache import StemCache, VerifiedStemSource
 from tianlai.stem_worker import StemWorkerResult
+from tianlai.worker_slots import WorkerSlotPool
 
 
 _LONG_FRAME_COUNT = 65_536 + 257
 _MANIFEST_SHA256 = "b" * 64
+
+
+@pytest.fixture(autouse=True)
+def _isolated_verified_snapshot_pool(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    managed_slot_directory = tmp_path / "managed-worker-slots"
+    monkeypatch.setattr(
+        worker_slots_module,
+        "default_worker_slot_directory",
+        lambda: managed_slot_directory,
+    )
+    pool = WorkerSlotPool(tmp_path / "verified-snapshot-slots")
+    monkeypatch.setattr(
+        stem_cache_module,
+        "_verified_snapshot_pool_factory",
+        lambda: pool,
+    )
 
 
 def _sha256_bytes(payload: bytes) -> str:
@@ -982,6 +1004,7 @@ def test_verified_source_releases_worker_or_slot_before_cache_finish(
         ),
     )
     bus = np.zeros((source.frame_count, 2), dtype=np.float64)
+    write_evidence: list[Any] = []
 
     ensemble_module._consume_streamed_raw_stem(
         wrapped,
@@ -994,7 +1017,8 @@ def test_verified_source_releases_worker_or_slot_before_cache_finish(
         left_gain=0.8,
         right_gain=1.0,
         send_scale=None,
-        stem_target=None,
+        stem_target=tmp_path / f"{lease_kind}.wav",
+        stem_evidence_sink=write_evidence.append,
     )
 
     lease_event = ("warm-return",) if lease_kind == "warm" else ("slot-close",)
@@ -1002,6 +1026,8 @@ def test_verified_source_releases_worker_or_slot_before_cache_finish(
     assert events.index(("completion", True)) < events.index(("cache-finish",))
     assert transaction.committed
     assert not transaction.aborted
+    assert len(write_evidence) == 1
+    assert write_evidence[0] is not None
     assert source.closed
     assert handle.closed
 
@@ -1722,6 +1748,99 @@ def test_analysis_transaction_memory_error_propagates_and_closes_source(
     assert not list(
         tmp_path.rglob(".collaboration-analysis.*.f32")
     )
+
+
+def test_mapped_hall_buses_are_exact_for_array_and_streamed_sources(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    isolated_pipeline_runtime: None,
+) -> None:
+    del isolated_pipeline_runtime
+    plan = _PipelinePlan(
+        tmp_path / "plan",
+        frame_count=_LONG_FRAME_COUNT,
+        part_count=2,
+    )
+    # The production gate accepts only the concrete immutable plan class.  This
+    # focused pipeline fixture has the same renderer contract; bind that type
+    # locally so the test can exercise both array and owned-source consumers.
+    monkeypatch.setattr(ensemble_module, "PerformancePlan", _PipelinePlan)
+    real_pool = WorkerSlotPool
+    monkeypatch.setattr(
+        ensemble_module,
+        "WorkerSlotPool",
+        lambda: real_pool(tmp_path / "hall-bus-slots"),
+    )
+    hall_events: list[tuple[Any, ...]] = []
+    monkeypatch.setattr(
+        space_module,
+        "render_reverb_stereo",
+        _fake_hall_renderer(hall_events),
+    )
+    space = SpaceConfig(room_size=0.0, predelay_ms=0.0)
+
+    _select_workers(monkeypatch, 1)
+    monkeypatch.setattr(ensemble_module, "_render_part", _fake_render(plan))
+    monkeypatch.setattr(
+        ensemble_module,
+        "_MAPPED_HALL_MIX_BUSES_THRESHOLD_BYTES",
+        1 << 60,
+    )
+    baseline = render_plan(
+        plan,
+        tmp_path / "array-ram",
+        space=space,
+    )
+
+    observed: list[Any] = []
+    real_try = ensemble_module._try_mapped_hall_mix_buses
+
+    def observe_transport(*args: Any, **kwargs: Any) -> Any:
+        transport = real_try(*args, **kwargs)
+        observed.append(transport)
+        return transport
+
+    monkeypatch.setattr(
+        ensemble_module,
+        "_MAPPED_HALL_MIX_BUSES_THRESHOLD_BYTES",
+        1,
+    )
+    monkeypatch.setattr(
+        ensemble_module,
+        "_try_mapped_hall_mix_buses",
+        observe_transport,
+    )
+    mapped_array = render_plan(
+        plan,
+        tmp_path / "array-mapped",
+        space=space,
+    )
+
+    _select_workers(monkeypatch, 2)
+    stream_events: list[tuple[Any, ...]] = []
+    sources, batches = _install_fake_managed_batch(
+        monkeypatch,
+        plan,
+        stream_events,
+        forbid_materialise=True,
+    )
+    mapped_stream = render_plan(
+        plan,
+        tmp_path / "stream-mapped",
+        space=space,
+    )
+
+    expected = _public_artifacts(baseline)
+    assert _public_artifacts(mapped_array) == expected
+    assert _public_artifacts(mapped_stream) == expected
+    assert len(hall_events) == 3
+    assert all(event[0] == "hall-render" for event in hall_events)
+    assert len(observed) == 2 and all(item is not None for item in observed)
+    assert all(item._closed for item in observed)
+    assert batches == [(0, 1)]
+    assert sources and all(source.closed for source in sources)
+    assert all(source.materialise_calls == 0 for source in sources)
+    assert not list(tmp_path.rglob(".tianlai-hall-*-bus.*.tmp"))
 
 
 def test_streamed_analysis_post_gain_nonfinite_preserves_peak_error(

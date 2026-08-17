@@ -4,8 +4,11 @@ from pathlib import Path
 import struct
 import tempfile
 import unittest
+from unittest.mock import patch
 import wave
 
+from tianlai import sampler as sampler_module
+from tianlai.audio import write_wav_pcm24
 from tianlai.events import PerformanceEvent
 from tianlai.renderer import render_to_wav
 from tianlai.sampler import SampleInstrument
@@ -619,6 +622,294 @@ class SampleInstrumentTests(unittest.TestCase):
             instrument.render_frame()
             self.assertIsNone(voice.resampler_cutoff_index)
             self.assertIsNone(voice.resampler_table)
+
+    def test_resampler_steady_state_preserves_runtime_validation(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            directory = Path(temporary_directory)
+            write_mono_values(directory / "runtime.wav", [0.25] * 2048)
+
+            def create(quality: str, pitch_hz: float = 660.0) -> SampleInstrument:
+                instrument = SampleInstrument.from_manifest(
+                    {
+                        "resampling_quality": quality,
+                        "regions": [
+                            {
+                                "sample": "runtime.wav",
+                                "root_pitch_hz": 440.0,
+                            }
+                        ],
+                    },
+                    8000,
+                    base_directory=str(directory),
+                )
+                instrument.handle_event(
+                    PerformanceEvent(
+                        0,
+                        0,
+                        "note_on",
+                        {
+                            "note_id": 1,
+                            "pitch_hz": pitch_hz,
+                            "velocity": 1.0,
+                        },
+                    ),
+                    EqualTemperament(),
+                )
+                return instrument
+
+            for quality in ("linear", "bandlimited"):
+                for invalid in (float("nan"), float("inf"), 0.0, -1.0):
+                    with self.subTest(quality=quality, invalid=invalid):
+                        instrument = create(quality)
+                        instrument.voices[1].increment = invalid
+                        with self.assertRaisesRegex(
+                            ValueError,
+                            "increment must be finite and positive",
+                        ):
+                            instrument.render_frame()
+
+            at_boundary = create("bandlimited", 440.0)
+            at_boundary.voices[1].increment = 128.0
+            at_boundary.render_frame()
+            self.assertEqual(
+                at_boundary.voices[1].resampler_cutoff_index,
+                1,
+            )
+
+            above_boundary = create("bandlimited", 440.0)
+            above_boundary.voices[1].increment = math.nextafter(
+                128.0,
+                math.inf,
+            )
+            with self.assertRaisesRegex(ValueError, "supported maximum"):
+                above_boundary.render_frame()
+
+    def test_linear_steady_state_skips_bandlimited_decisions(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            directory = Path(temporary_directory)
+            write_mono_values(directory / "linear.wav", [0.25] * 512)
+            instrument = SampleInstrument.from_manifest(
+                {
+                    "resampling_quality": "linear",
+                    "regions": [
+                        {"sample": "linear.wav", "root_pitch_hz": 440.0}
+                    ],
+                },
+                8000,
+                base_directory=str(directory),
+            )
+            instrument.handle_event(
+                PerformanceEvent(
+                    0,
+                    0,
+                    "note_on",
+                    {"note_id": 1, "pitch_hz": 440.0, "velocity": 1.0},
+                ),
+                EqualTemperament(),
+            )
+            with patch.object(
+                sampler_module.math,
+                "isclose",
+                side_effect=AssertionError(
+                    "linear playback entered a bandlimited decision"
+                ),
+            ):
+                for _ in range(32):
+                    instrument.render_frame()
+
+    def test_bandlimited_steady_state_reuses_validated_increment(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            directory = Path(temporary_directory)
+            write_mono_values(directory / "cached.wav", [0.25] * 4096)
+            instrument = SampleInstrument.from_manifest(
+                {
+                    "resampling_quality": "bandlimited",
+                    "regions": [
+                        {"sample": "cached.wav", "root_pitch_hz": 440.0}
+                    ],
+                },
+                8000,
+                base_directory=str(directory),
+            )
+            instrument.handle_event(
+                PerformanceEvent(
+                    0,
+                    0,
+                    "note_on",
+                    {"note_id": 1, "pitch_hz": 660.0, "velocity": 1.0},
+                ),
+                EqualTemperament(),
+            )
+            voice = instrument.voices[1]
+            original = sampler_module._bandlimited_cutoff_index
+            with patch.object(
+                sampler_module,
+                "_bandlimited_cutoff_index",
+                wraps=original,
+            ) as cutoff:
+                for _ in range(32):
+                    instrument.render_frame()
+                self.assertEqual(cutoff.call_count, 0)
+
+                voice.increment = 1.5001
+                instrument.render_frame()
+                self.assertEqual(cutoff.call_count, 1)
+                for _ in range(32):
+                    instrument.render_frame()
+                self.assertEqual(cutoff.call_count, 1)
+
+                expected = voice.resampler_cutoff_index
+                voice.resampler_cutoff_index = None
+                instrument.render_frame()
+                self.assertEqual(cutoff.call_count, 1)
+                self.assertEqual(voice.resampler_cutoff_index, expected)
+
+    def test_resampler_fast_path_is_float_and_wav_byte_exact(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            directory = Path(temporary_directory)
+            write_stereo_values(
+                directory / "exact.wav",
+                [
+                    (
+                        0.2 * math.sin(index * 0.19),
+                        0.2 * math.cos(index * 0.13),
+                    )
+                    for index in range(512)
+                ],
+            )
+
+            def legacy_refresh(
+                instrument: SampleInstrument,
+                voice: object,
+            ) -> None:
+                increment = voice.increment
+                if not math.isfinite(increment) or increment <= 0.0:
+                    raise ValueError(
+                        "sample playback increment must be finite and positive"
+                    )
+                native = math.isclose(
+                    increment,
+                    1.0,
+                    rel_tol=0.0,
+                    abs_tol=1e-12,
+                ) and math.isclose(
+                    voice.position,
+                    round(voice.position),
+                    rel_tol=0.0,
+                    abs_tol=1e-12,
+                )
+                if instrument.resampling_quality != "bandlimited" or native:
+                    voice.resampler_cutoff_index = None
+                    voice.resampler_table = None
+                    return
+                cutoff_index = sampler_module._bandlimited_cutoff_index(
+                    increment
+                )
+                if cutoff_index != voice.resampler_cutoff_index:
+                    voice.resampler_cutoff_index = cutoff_index
+                    voice.resampler_table = (
+                        sampler_module._bandlimited_kernel_table(cutoff_index)
+                    )
+
+            def render(quality: str) -> list[tuple[float, float]]:
+                instrument = SampleInstrument.from_manifest(
+                    {
+                        "resampling_quality": quality,
+                        "release_seconds": 0.004,
+                        "regions": [
+                            {
+                                "sample": "exact.wav",
+                                "root_pitch_hz": 440.0,
+                                "loop_start": 32,
+                                "loop_end": 192,
+                                "loop_mode": "loop_sustain",
+                            }
+                        ],
+                    },
+                    8000,
+                    base_directory=str(directory),
+                )
+                tuning = EqualTemperament()
+                for note_id, pitch_hz, velocity in (
+                    (1, 660.0, 0.8),
+                    (2, 352.0, 0.6),
+                    (3, 550.0, 0.4),
+                ):
+                    instrument.handle_event(
+                        PerformanceEvent(
+                            0,
+                            note_id,
+                            "note_on",
+                            {
+                                "note_id": note_id,
+                                "pitch_hz": pitch_hz,
+                                "velocity": velocity,
+                            },
+                        ),
+                        tuning,
+                    )
+                result = []
+                for frame_index in range(360):
+                    if frame_index == 73:
+                        instrument.voices[1].increment = 1.5001
+                    elif frame_index == 91:
+                        instrument.voices[2].increment = 1.0
+                    elif frame_index == 110:
+                        instrument.resampling_quality = (
+                            "linear"
+                            if quality == "bandlimited"
+                            else "bandlimited"
+                        )
+                    elif frame_index == 125:
+                        instrument.resampling_quality = quality
+                    elif frame_index == 140:
+                        instrument.handle_event(
+                            PerformanceEvent(
+                                frame_index,
+                                100,
+                                "note_off",
+                                {"note_id": 1},
+                            ),
+                            tuning,
+                        )
+                    elif frame_index == 190:
+                        instrument.handle_event(
+                            PerformanceEvent(
+                                frame_index,
+                                101,
+                                "note_off",
+                                {"note_id": 2},
+                            ),
+                            tuning,
+                        )
+                    result.append(instrument.render_frame())
+                return result
+
+            for quality in ("linear", "bandlimited"):
+                with self.subTest(quality=quality):
+                    optimized = render(quality)
+                    with patch.object(
+                        SampleInstrument,
+                        "_refresh_resampler_table",
+                        legacy_refresh,
+                    ):
+                        reference = render(quality)
+                    optimized_bits = b"".join(
+                        struct.pack("<dd", *frame) for frame in optimized
+                    )
+                    reference_bits = b"".join(
+                        struct.pack("<dd", *frame) for frame in reference
+                    )
+                    self.assertEqual(optimized_bits, reference_bits)
+
+                    optimized_path = directory / f"{quality}-optimized.wav"
+                    reference_path = directory / f"{quality}-reference.wav"
+                    write_wav_pcm24(optimized_path, optimized, 8000)
+                    write_wav_pcm24(reference_path, reference, 8000)
+                    self.assertEqual(
+                        optimized_path.read_bytes(),
+                        reference_path.read_bytes(),
+                    )
 
     def test_bandlimited_rejects_increment_beyond_supported_cutoff(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:

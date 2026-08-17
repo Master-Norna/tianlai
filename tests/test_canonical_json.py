@@ -47,6 +47,16 @@ class CanonicalJsonTests(unittest.TestCase):
             '{"z":1,"啊":2}'.encode("utf-8"),
         )
 
+    def test_identity_is_document_exact_not_cross_schema_semantics(self) -> None:
+        self.assertNotEqual(
+            canonical_json_sha256({"value": 1}),
+            canonical_json_sha256({"value": 1.0}),
+        )
+        self.assertNotEqual(
+            canonical_json_sha256({}),
+            canonical_json_sha256({"defaulted": False}),
+        )
+
     def test_nonfinite_numbers_are_rejected(self) -> None:
         with self.assertRaises(ValueError):
             canonical_json_sha256({"bad": float("nan")})

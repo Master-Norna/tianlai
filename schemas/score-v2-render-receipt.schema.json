@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tianlai.local/schemas/score-v2-render-receipt.schema.json",
+  "title": "Tianlai Score-v2 Formal Render Receipt",
+  "type": "object",
+  "required": ["kind", "schema_version", "contract", "status", "scope", "bindings", "executor", "audio_format", "mix", "post_render_check", "limitations"],
+  "properties": {
+    "kind": { "const": "tianlai.score_v2_render_receipt" },
+    "schema_version": { "const": 1 },
+    "contract": { "const": "score-v2-formal-render-receipt-v1" },
+    "status": { "const": "formal_render_complete_runtime_lease_consumed" },
+    "scope": {
+      "type": "object",
+      "required": ["executor_count", "backend", "external_audio_assets", "tail_samples", "mix_policy", "normalization", "space", "stems"],
+      "properties": {
+        "executor_count": { "const": 1 },
+        "backend": { "const": "builtin_oscillator" },
+        "external_audio_assets": { "const": "none" },
+        "tail_samples": { "const": 0 },
+        "mix_policy": { "const": "single_executor_identity_no_gain" },
+        "normalization": { "const": "disabled" },
+        "space": { "const": "disabled" },
+        "stems": { "const": "not_written" }
+      },
+      "additionalProperties": false
+    },
+    "bindings": {
+      "type": "object",
+      "required": ["score", "roster", "execution_profile", "score_v2_plan", "capability_source", "capability_plan", "runtime_source", "runtime_authority", "runtime_authority_acquisition", "runtime_manifest", "performance_bundle"],
+      "properties": {
+        "score": { "$ref": "#/$defs/scoreBinding" },
+        "roster": { "$ref": "#/$defs/rosterBinding" },
+        "execution_profile": { "$ref": "#/$defs/executionProfileBinding" },
+        "score_v2_plan": { "$ref": "#/$defs/planBinding" },
+        "capability_source": { "$ref": "#/$defs/capabilitySourceBinding" },
+        "capability_plan": { "$ref": "#/$defs/capabilityPlanBinding" },
+        "runtime_source": { "$ref": "#/$defs/runtimeSourceBinding" },
+        "runtime_authority": { "$ref": "#/$defs/runtimeAuthorityBinding" },
+        "runtime_authority_acquisition": { "$ref": "#/$defs/runtimeAuthorityAcquisitionBinding" },
+        "runtime_manifest": { "$ref": "#/$defs/runtimeManifestBinding" },
+        "performance_bundle": { "$ref": "#/$defs/performanceBinding" }
+      },
+      "additionalProperties": false
+    },
+    "executor": {
+      "type": "object",
+      "required": ["executor_id", "part_id", "authority_consumption_status", "backend_scope", "effective_manifest_sha256", "factory_generation_sha256", "performance_sha256", "event_sidecar_sha256", "sample_rate", "frame_count", "block_count", "event_count", "endpoint_event_count", "peak_active_voices", "float_stream_encoding", "float_stream_sha256"],
+      "properties": {
+        "executor_id": { "type": "string", "minLength": 1 },
+        "part_id": { "type": "string", "minLength": 1 },
+        "authority_consumption_status": { "const": "active_single_use_runtime_lease_consumed" },
+        "backend_scope": { "const": "builtin_oscillator_manifest_route_declared_no_external_audio_assets" },
+        "effective_manifest_sha256": { "$ref": "#/$defs/sha256" },
+        "factory_generation_sha256": { "$ref": "#/$defs/sha256" },
+        "performance_sha256": { "$ref": "#/$defs/sha256" },
+        "event_sidecar_sha256": { "$ref": "#/$defs/sha256" },
+        "sample_rate": { "type": "integer", "minimum": 8000, "maximum": 384000 },
+        "frame_count": { "type": "integer", "minimum": 1 },
+        "block_count": { "type": "integer", "minimum": 0 },
+        "event_count": { "type": "integer", "minimum": 0 },
+        "endpoint_event_count": { "type": "integer", "minimum": 0 },
+        "peak_active_voices": { "type": "integer", "minimum": 0 },
+        "float_stream_encoding": { "const": "little_endian_float64_stereo_interleaved" },
+        "float_stream_sha256": { "$ref": "#/$defs/sha256" }
+      },
+      "additionalProperties": false
+    },
+    "audio_format": {
+      "type": "object",
+      "required": ["container", "encoding", "bits_per_sample", "channels", "sample_rate", "pcm24_contract"],
+      "properties": {
+        "container": { "const": "WAV" },
+        "encoding": { "const": "PCM" },
+        "bits_per_sample": { "const": 24 },
+        "channels": { "const": 2 },
+        "sample_rate": { "type": "integer", "minimum": 8000, "maximum": 384000 },
+        "pcm24_contract": { "const": "tianlai-pcm24-stereo-le-v1" }
+      },
+      "additionalProperties": false
+    },
+    "mix": {
+      "type": "object",
+      "required": ["path", "sha256", "size_bytes", "frame_count", "float_stream_sha256", "peak"],
+      "properties": {
+        "path": { "const": "合奏.wav" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "size_bytes": { "type": "integer", "minimum": 50 },
+        "frame_count": { "type": "integer", "minimum": 1 },
+        "float_stream_sha256": { "$ref": "#/$defs/sha256" },
+        "peak": { "type": "number", "minimum": 0, "maximum": 1 }
+      },
+      "additionalProperties": false
+    },
+    "post_render_check": {
+      "type": "object",
+      "required": ["path", "sha256", "format", "version"],
+      "properties": {
+        "path": { "const": "渲染后自检.json" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "format": { "const": "tianlai.score_v2_post_render_check" },
+        "version": { "const": 1 }
+      },
+      "additionalProperties": false
+    },
+    "limitations": {
+      "type": "object",
+      "required": ["authorship_verified", "provenance_verified", "live_tree_immutable_after_return", "runtime_authority_reusable", "external_assets_supported", "executor_count_limit", "release_tail"],
+      "properties": {
+        "authorship_verified": { "const": false },
+        "provenance_verified": { "const": false },
+        "live_tree_immutable_after_return": { "const": false },
+        "runtime_authority_reusable": { "const": false },
+        "external_assets_supported": { "const": false },
+        "executor_count_limit": { "const": 1 },
+        "release_tail": { "const": "transport_frame_count_only_no_implicit_tail" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "binding": {
+      "type": "object",
+      "required": ["path", "canonical_sha256", "file_sha256"],
+      "properties": {
+        "path": { "type": "string" },
+        "canonical_sha256": { "$ref": "#/$defs/sha256" },
+        "file_sha256": { "$ref": "#/$defs/sha256" }
+      },
+      "additionalProperties": false
+    },
+    "scoreBinding": { "allOf": [{ "$ref": "#/$defs/binding" }, { "properties": { "path": { "const": "score-v2.json" } } }] },
+    "rosterBinding": { "allOf": [{ "$ref": "#/$defs/binding" }, { "properties": { "path": { "const": "roster.json" } } }] },
+    "executionProfileBinding": { "allOf": [{ "$ref": "#/$defs/binding" }, { "properties": { "path": { "const": "execution-profile.json" } } }] },
+    "planBinding": { "allOf": [{ "$ref": "#/$defs/binding" }, { "properties": { "path": { "const": "score-v2-plan.json" } } }] },
+    "capabilitySourceBinding": { "allOf": [{ "$ref": "#/$defs/binding" }, { "properties": { "path": { "const": "capability-source.json" } } }] },
+    "capabilityPlanBinding": { "allOf": [{ "$ref": "#/$defs/binding" }, { "properties": { "path": { "const": "capability-plan.json" } } }] },
+    "runtimeSourceBinding": { "allOf": [{ "$ref": "#/$defs/binding" }, { "properties": { "path": { "const": "runtime-source.json" } } }] },
+    "runtimeAuthorityBinding": { "allOf": [{ "$ref": "#/$defs/binding" }, { "properties": { "path": { "const": "runtime-authority.json" } } }] },
+    "runtimeAuthorityAcquisitionBinding": { "allOf": [{ "$ref": "#/$defs/binding" }, { "properties": { "path": { "const": "runtime-authority-acquisition.json" } } }] },
+    "runtimeManifestBinding": { "allOf": [{ "$ref": "#/$defs/binding" }, { "properties": { "path": { "const": "runtime-manifest.json" } } }] },
+    "performanceBinding": { "allOf": [{ "$ref": "#/$defs/binding" }, { "properties": { "path": { "const": "performance-bundle.json" } } }] }
+  }
+}

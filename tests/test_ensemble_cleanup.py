@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import errno
 import os
 from pathlib import Path
 import warnings
@@ -167,3 +168,68 @@ def test_cleanup_race_preserves_post_validation_replacement(
         replacement_marker
     )
     assert any("身份替换" in str(item.message) for item in caught)
+
+
+@pytest.mark.parametrize("rename_error", (FileNotFoundError, OSError))
+def test_cleanup_accepts_source_disappearance_during_the_rename_window(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    rename_error: type[OSError],
+) -> None:
+    parent, path, parent_identity, path_identity = _private_directory(
+        tmp_path, ".mix.render-stage.committed"
+    )
+    real_rename = os.rename
+
+    def disappear_before_rename(source, destination):
+        if Path(source) == path:
+            os.rmdir(path)
+            raise rename_error("private parent generation was committed")
+        return real_rename(source, destination)
+
+    monkeypatch.setattr(ensemble_module.os, "rename", disappear_before_rename)
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always", RuntimeWarning)
+        preserved = ensemble_module._remove_private_render_directory(
+            path,
+            parent,
+            ".mix.render-stage.",
+            parent_identity=parent_identity,
+            directory_identity=path_identity,
+        )
+
+    assert preserved is None
+    assert not path.exists()
+    assert caught == []
+
+
+def test_cleanup_uses_compact_recovery_name_when_descriptive_name_is_too_long(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    parent, path, parent_identity, path_identity = _private_directory(
+        tmp_path, ".mix.render-stage.path-limit"
+    )
+    real_rename = os.rename
+
+    def reject_descriptive_recovery_name(source, destination):
+        if Path(destination).name.startswith(path.name):
+            raise OSError(errno.ENAMETOOLONG, "simulated path-length limit")
+        return real_rename(source, destination)
+
+    monkeypatch.setattr(
+        ensemble_module.os,
+        "rename",
+        reject_descriptive_recovery_name,
+    )
+    preserved = ensemble_module._remove_private_render_directory(
+        path,
+        parent,
+        ".mix.render-stage.",
+        parent_identity=parent_identity,
+        directory_identity=path_identity,
+    )
+
+    assert preserved is not None
+    assert preserved.name.startswith(".cleanup-preserved-")
+    assert preserved.is_dir()

@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest import mock
@@ -178,6 +179,26 @@ class WindowsExtendedPathContractTests(unittest.TestCase):
 
 
 class ShippedResourceRestoreManifestTests(unittest.TestCase):
+    def test_module_help_uses_utf8_before_argparse_under_cp1252(self) -> None:
+        environment = os.environ.copy()
+        environment["PYTHONUTF8"] = "0"
+        environment["PYTHONIOENCODING"] = "cp1252:strict"
+        completed = subprocess.run(
+            [sys.executable, "-m", "tianlai.resource_restore", "--help"],
+            cwd=Path(__file__).resolve().parents[1],
+            env=environment,
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=30,
+        )
+
+        stdout = completed.stdout.decode("utf-8", errors="strict")
+        stderr = completed.stderr.decode("utf-8", errors="strict")
+        self.assertEqual(completed.returncode, 0, stdout + stderr)
+        self.assertIn("恢复清单", stdout)
+        self.assertIn("音源目录覆盖", stdout)
+
     def test_embedded_windows_drive_component_is_not_a_relative_manifest_path(self) -> None:
         root = Path(__file__).resolve().parents[1]
         document = json.loads(

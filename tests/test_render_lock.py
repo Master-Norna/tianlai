@@ -271,6 +271,68 @@ class RenderLockTests(unittest.TestCase):
 
         self.assertEqual(raised.exception.errno, errno.EPERM)
 
+    def test_plain_sibling_binding_rejects_a_different_parent_generation(
+        self,
+    ) -> None:
+        canonical = self.root / "canonical"
+        authorised = render_lock_module.PlainDirectoryIdentity(
+            path=canonical,
+            device=7,
+            inode=11,
+        )
+        replacement = render_lock_module.PlainDirectoryIdentity(
+            path=canonical,
+            device=7,
+            inode=12,
+        )
+
+        with (
+            mock.patch(
+                "tianlai.render_lock.capture_plain_directory",
+                return_value=replacement,
+            ),
+            mock.patch(
+                "tianlai.render_lock.revalidate_plain_directory",
+                return_value=canonical,
+            ),
+            self.assertRaises(OSError) as raised,
+        ):
+            render_lock_module.bind_plain_sibling_path(
+                self.root / "RUNNER~1" / "mix.wav",
+                authorised,
+                message="must remain bound",
+            )
+
+        self.assertEqual(raised.exception.errno, errno.EPERM)
+
+    def test_plain_sibling_binding_propagates_reparse_rejection(self) -> None:
+        canonical = self.root / "canonical"
+        authorised = render_lock_module.PlainDirectoryIdentity(
+            path=canonical,
+            device=7,
+            inode=11,
+        )
+        rejected = OSError(errno.ELOOP, "injected reparse replacement")
+
+        with (
+            mock.patch(
+                "tianlai.render_lock.capture_plain_directory",
+                side_effect=rejected,
+            ),
+            mock.patch(
+                "tianlai.render_lock.revalidate_plain_directory",
+                return_value=canonical,
+            ),
+            self.assertRaises(OSError) as raised,
+        ):
+            render_lock_module.bind_plain_sibling_path(
+                self.root / "RUNNER~1" / "mix.wav",
+                authorised,
+                message="must remain plain",
+            )
+
+        self.assertIs(raised.exception, rejected)
+
     def test_directory_alias_binding_propagates_final_revalidation_failure(
         self,
     ) -> None:

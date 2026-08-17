@@ -1,0 +1,202 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tianlai.local/schemas/score-v2-execution-profile.schema.json",
+  "title": "Tianlai Score-v2 Execution Consent Profile",
+  "description": "Creator consent policy only; this document is not render authority.",
+  "type": "object",
+  "required": [
+    "kind",
+    "schema_version",
+    "sample_time_policy",
+    "dynamic_profile",
+    "note_velocity",
+    "tuning",
+    "pitch",
+    "articulation",
+    "phrase_policy"
+  ],
+  "properties": {
+    "kind": {
+      "const": "tianlai.score_v2_execution_profile"
+    },
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "sample_time_policy": {
+      "enum": [
+        "exact",
+        "adapt"
+      ]
+    },
+    "dynamic_profile": {
+      "$ref": "#/$defs/dynamicProfile"
+    },
+    "note_velocity": {
+      "$ref": "#/$defs/noteVelocityPolicy"
+    },
+    "tuning": {
+      "$ref": "#/$defs/tuningPolicy"
+    },
+    "pitch": {
+      "$ref": "#/$defs/pitchPolicy"
+    },
+    "articulation": {
+      "$ref": "#/$defs/articulationPolicy"
+    },
+    "phrase_policy": {
+      "const": "reject"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "unitRational": {
+      "$comment": "The parser additionally enforces numerator <= denominator, a cross-property relation not expressible by portable JSON Schema draft 2020-12 keywords.",
+      "type": "object",
+      "required": [
+        "numerator",
+        "denominator"
+      ],
+      "properties": {
+        "numerator": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "denominator": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        }
+      },
+      "additionalProperties": false
+    },
+    "dynamicProfile": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 8,
+      "properties": {
+        "ppp": {
+          "$ref": "#/$defs/unitRational"
+        },
+        "pp": {
+          "$ref": "#/$defs/unitRational"
+        },
+        "p": {
+          "$ref": "#/$defs/unitRational"
+        },
+        "mp": {
+          "$ref": "#/$defs/unitRational"
+        },
+        "mf": {
+          "$ref": "#/$defs/unitRational"
+        },
+        "f": {
+          "$ref": "#/$defs/unitRational"
+        },
+        "ff": {
+          "$ref": "#/$defs/unitRational"
+        },
+        "fff": {
+          "$ref": "#/$defs/unitRational"
+        }
+      },
+      "additionalProperties": false
+    },
+    "noteVelocityPolicy": {
+      "type": "object",
+      "required": [
+        "value_policy",
+        "semantic_policy"
+      ],
+      "properties": {
+        "value_policy": {
+          "enum": [
+            "exact",
+            "adapt"
+          ]
+        },
+        "semantic_policy": {
+          "enum": [
+            "exact",
+            "approximate"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "tuningPolicy": {
+      "type": "object",
+      "required": [
+        "value_policy",
+        "semantic_policy"
+      ],
+      "properties": {
+        "value_policy": {
+          "enum": [
+            "exact",
+            "adapt"
+          ]
+        },
+        "semantic_policy": {
+          "enum": [
+            "exact",
+            "approximate"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "pitchPolicy": {
+      "type": "object",
+      "required": [
+        "value_policy",
+        "semantic_policy",
+        "range_policy"
+      ],
+      "properties": {
+        "value_policy": {
+          "enum": [
+            "exact",
+            "adapt"
+          ]
+        },
+        "semantic_policy": {
+          "enum": [
+            "exact",
+            "approximate"
+          ]
+        },
+        "range_policy": {
+          "enum": [
+            "declared_hard",
+            "verified_high_quality"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "articulationPolicy": {
+      "type": "object",
+      "required": [
+        "mapping_policy",
+        "semantic_policy"
+      ],
+      "properties": {
+        "mapping_policy": {
+          "enum": [
+            "direct_only",
+            "allow_roster_mapping"
+          ]
+        },
+        "semantic_policy": {
+          "enum": [
+            "exact",
+            "approximate"
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

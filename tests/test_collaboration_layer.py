@@ -309,6 +309,45 @@ class RosterTests(unittest.TestCase):
         self.assertEqual(executor.capability.relative_path, "现代鼓组/底鼓")
         self.assertEqual(executor.transpose, 24)
 
+    def test_transpose_rejects_coercion_but_accepts_schema_integer_float(self) -> None:
+        for invalid in (True, "12", 1.5):
+            with self.subTest(value=invalid):
+                document = _load_roster()
+                document["assignments"][0]["transpose"] = invalid
+                with self.assertRaisesRegex(ValueError, "must be an integer"):
+                    parse_roster_document(document, self.capabilities)
+
+        document = _load_roster()
+        document["assignments"][0]["transpose"] = 12.0
+        roster = parse_roster_document(document, self.capabilities)
+        self.assertEqual(roster.executors[0].transpose, 12)
+
+        for invalid in (False, "24", 1.5):
+            with self.subTest(kit_value=invalid):
+                document = _load_roster()
+                drums = next(
+                    item
+                    for item in document["assignments"]
+                    if item.get("part") == "drums"
+                )
+                drums["kit"]["C2"] = {
+                    "instrument": "现代鼓组/底鼓",
+                    "transpose": invalid,
+                }
+                with self.assertRaisesRegex(ValueError, "must be an integer"):
+                    parse_roster_document(document, self.capabilities)
+
+    def test_articulation_map_rejects_non_string_coercion(self) -> None:
+        for mapping in ({1: "legato"}, {"legato": 1}, {"": "legato"}):
+            with self.subTest(mapping=mapping):
+                document = _load_roster()
+                document["assignments"][0]["articulation_map"] = mapping
+                with self.assertRaisesRegex(
+                    ValueError,
+                    "articulation_map",
+                ):
+                    parse_roster_document(document, self.capabilities)
+
     def test_per_executor_override_reaches_the_rendered_manifest(self) -> None:
         """编制表的 overrides 要能并入构造该执行器时的乐器清单。"""
 

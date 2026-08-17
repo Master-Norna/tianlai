@@ -17,9 +17,11 @@ import unicodedata
 import uuid
 import warnings
 
+from .authoring_json import AuthoringJsonError, AuthoringJsonLimits, strict_json_loads
 from .canonical_json import canonical_json_sha256
 from .ensemble import CACHE_TELEMETRY_NAME, verify_render_generation
 from .events import parse_performance_document
+from .plain_file import read_plain_file_bytes
 from .portable_filename import is_windows_reserved_filename
 from .render_lock import (
     PlainDirectoryIdentity,
@@ -29,8 +31,14 @@ from .render_lock import (
     ensure_plain_directory_tree,
     revalidate_plain_directory,
 )
+from .realization import parse_realization_document
 from .score import parse_pitch, parse_score_document, pitch_name
 from .score_ops import compare_scores
+from .score_v2_candidate import (
+    SCORE_V2_CANDIDATE_VERSION,
+    publish_score_v2_candidate_metadata,
+    validate_score_v2_candidate_manifest,
+)
 from .utc_timestamp import (
     canonical_utc_now,
     validate_canonical_utc_timestamp,
@@ -39,8 +47,24 @@ from .workflow_binding import validate_workflow_authorization
 
 
 CANDIDATE_FORMAT = "tianlai.candidate"
+# The established writer deliberately remains on v2.  Candidate v3 is a
+# separate Score-v2 protocol branch with its own publisher and receipt.
 CANDIDATE_VERSION = 2
-_SUPPORTED_CANDIDATE_VERSIONS = frozenset({1, CANDIDATE_VERSION})
+_SUPPORTED_CANDIDATE_VERSIONS = frozenset(
+    {1, CANDIDATE_VERSION, SCORE_V2_CANDIDATE_VERSION}
+)
+MAX_CANDIDATE_JSON_BYTES = 32 * 1024 * 1024
+# Retain the private spelling for compatibility with existing fault-injection
+# tests while exposing the public publication budget to entrypoints.
+_MAX_CANDIDATE_JSON_BYTES = MAX_CANDIDATE_JSON_BYTES
+_CANDIDATE_JSON_LIMITS = AuthoringJsonLimits(
+    max_document_bytes=_MAX_CANDIDATE_JSON_BYTES,
+    max_depth=128,
+    max_nodes=2_000_000,
+    max_string_bytes=4 * 1024 * 1024,
+    max_array_items=500_000,
+    max_object_members=65_536,
+)
 CANDIDATE_MANIFEST_NAME = "候选.json"
 AUTHORING_ROSTER_CANDIDATE_NAME = "authoring-roster.json"
 PLAYBACK_MAP_KIND = "tianlai.candidate_playback_map"
@@ -108,6 +132,56 @@ def sha256_file(path: str | Path) -> str:
         for block in iter(lambda: source.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def _extended_windows_path(path: Path) -> Path:
+    """Use a local filesystem spelling beyond the legacy Windows MAX_PATH."""
+
+    if os.name != "nt":
+        return path
+    text = str(path.absolute())
+    if text.startswith("\\\\?\\"):
+        return path
+    if text.startswith("\\\\"):
+        return Path("\\\\?\\UNC\\" + text[2:])
+    return Path("\\\\?\\" + text)
+
+
+def _candidate_json_snapshot(
+    path: Path,
+    *,
+    invalid_json_message: str,
+    expected_file_sha256: object = None,
+    hash_mismatch_message: str | None = None,
+    map_read_error_to_invalid_json: bool = False,
+) -> tuple[object, str]:
+    """Capture, hash, and strictly parse one bounded candidate JSON file."""
+
+    try:
+        _identity, payload = read_plain_file_bytes(
+            path,
+            maximum_bytes=_MAX_CANDIDATE_JSON_BYTES,
+        )
+    except OSError as exc:
+        if map_read_error_to_invalid_json:
+            raise ValueError(invalid_json_message) from exc
+        raise
+    digest = hashlib.sha256(payload).hexdigest()
+    if (
+        hash_mismatch_message is not None
+        and digest != expected_file_sha256
+    ):
+        raise ValueError(hash_mismatch_message)
+    try:
+        document = strict_json_loads(
+            payload,
+            limits=_CANDIDATE_JSON_LIMITS,
+            require_object=False,
+            require_js_safe_integers=False,
+        )
+    except AuthoringJsonError as exc:
+        raise ValueError(invalid_json_message) from exc
+    return document, digest
 
 
 def _lower_hex(value: object, length: int, *, label: str) -> str:
@@ -423,12 +497,16 @@ def _receipt_performance_plan(
         binding.get("path", ""),
         label="performance plan",
     )
-    if sha256_file(plan_path) != binding.get("file_sha256"):
-        raise ValueError("render receipt performance plan file hash mismatch")
-    try:
-        plan_document = json.loads(plan_path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
-        raise ValueError("render receipt performance plan is invalid JSON") from exc
+    plan_document, _plan_file_sha256 = _candidate_json_snapshot(
+        plan_path,
+        expected_file_sha256=binding.get("file_sha256"),
+        hash_mismatch_message=(
+            "render receipt performance plan file hash mismatch"
+        ),
+        invalid_json_message=(
+            "candidate performance plan is not valid UTF-8 JSON"
+        ),
+    )
     if not isinstance(plan_document, dict):
         raise ValueError("render receipt performance plan must be an object")
     canonical_sha256 = canonical_json_sha256(plan_document)
@@ -460,17 +538,41 @@ def new_candidate_id(plan_sha256: str | None = None) -> str:
     return f"candidate-{timestamp}-{binding}-{uuid.uuid4().hex[:8]}"
 
 
-def _write_json_atomic(path: Path, value: object) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    payload = (
+def _candidate_json_text(value: object) -> str:
+    return (
         json.dumps(
-            value, ensure_ascii=False, allow_nan=False, indent=2
+            value,
+            ensure_ascii=False,
+            allow_nan=False,
+            indent=2,
         )
         + "\n"
     )
+
+
+def validate_candidate_json_size(
+    value: object,
+    *,
+    label: str = "candidate JSON",
+) -> int:
+    """Return the published UTF-8 size or reject an oversized artifact."""
+
+    size = len(_candidate_json_text(value).encode("utf-8"))
+    if size > MAX_CANDIDATE_JSON_BYTES:
+        raise ValueError(
+            f"{label} published JSON size {size} exceeds candidate limit "
+            f"{MAX_CANDIDATE_JSON_BYTES} bytes"
+        )
+    return size
+
+
+def _write_json_atomic(path: Path, value: object) -> None:
+    operational = _extended_windows_path(path)
+    operational.parent.mkdir(parents=True, exist_ok=True)
+    payload = _candidate_json_text(value)
     descriptor, temporary_name = tempfile.mkstemp(
-        dir=path.parent,
-        prefix=f".{path.name}.",
+        dir=operational.parent,
+        prefix=f".{operational.name}.",
         suffix=".tmp",
     )
     temporary = Path(temporary_name)
@@ -481,7 +583,7 @@ def _write_json_atomic(path: Path, value: object) -> None:
     # On success the temporary name ceases to exist.  On failure it is
     # deliberately preserved: deleting a mutable pathname here could erase a
     # file installed by another writer after the failed replace.
-    os.replace(temporary, path)
+    os.replace(temporary, operational)
 
 
 @dataclass(frozen=True, slots=True)
@@ -925,8 +1027,12 @@ def _safe_cleanup_private_directory(
             return
         preserved: Path | None = None
         for _ in range(16):
+            # Keep the quarantine name independent of the source basename.
+            # Transaction names can already approach Windows' component/path
+            # limits (notably ``.<candidate-id>.<uuid>.previous``); appending
+            # another suffix made cleanup itself fail with ERROR_PATH_NOT_FOUND.
             candidate = resolved_parent / (
-                f"{path.name}.cleanup-preserved-{uuid.uuid4().hex}"
+                f".cleanup-preserved-{uuid.uuid4().hex}"
             )
             if os.path.lexists(candidate):
                 continue
@@ -937,6 +1043,14 @@ def _safe_cleanup_private_directory(
                 os.rename(path, candidate)
             except FileExistsError:
                 continue
+            except FileNotFoundError:
+                # A concurrent actor may remove the private entry between the
+                # existence check and rename.  There is then nothing left to
+                # preserve, and claiming otherwise would be a false warning.
+                revalidate_plain_directory(parent_identity)
+                if not os.path.lexists(path):
+                    return
+                raise
             preserved = candidate
             break
         if preserved is None:
@@ -1177,6 +1291,7 @@ def publish_candidate_metadata(
     score: dict[str, Any],
     roster: dict[str, Any],
     render_profile: dict[str, Any],
+    realization: dict[str, Any] | None = None,
     receipt_path: str | Path,
     plan_sha256: str,
     parent_candidate_id: str | None = None,
@@ -1197,6 +1312,25 @@ def publish_candidate_metadata(
     if receipt.parent != directory or not receipt.is_file():
         raise ValueError("render receipt must be inside the candidate directory")
     authoring_input = _candidate_authoring_input(authoring_project)
+    if realization is not None and authoring_input is not None:
+        raise ValueError(
+            "realization is not yet part of the managed authoring revision "
+            "identity; publish it through project-render without an "
+            "authoring_project binding"
+        )
+    parsed_realization = (
+        parse_realization_document(
+            realization,
+            score_document=score,
+        )
+        if realization is not None
+        else None
+    )
+    if realization is not None:
+        validate_candidate_json_size(
+            realization,
+            label="candidate realization",
+        )
     workflow_input = validate_workflow_authorization(authoring_workflow)
     if workflow_input is not None:
         if authoring_input is None:
@@ -1215,10 +1349,11 @@ def publish_candidate_metadata(
             raise ValueError(
                 "authoring workflow binding disagrees with candidate identity"
             )
-    try:
-        receipt_document = json.loads(receipt.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
-        raise ValueError("render receipt must be valid UTF-8 JSON") from exc
+    receipt_document, receipt_sha256 = _candidate_json_snapshot(
+        receipt,
+        invalid_json_message="render receipt must be valid UTF-8 JSON",
+        map_read_error_to_invalid_json=True,
+    )
     if not isinstance(receipt_document, dict):
         raise ValueError("render receipt must be an object")
     if authoring_input is None:
@@ -1264,9 +1399,12 @@ def publish_candidate_metadata(
     score_path = directory / "score.json"
     roster_path = directory / "roster.json"
     profile_path = directory / "render-profile.json"
+    realization_path = directory / "realization.json"
     _write_json_atomic(score_path, score)
     _write_json_atomic(roster_path, roster)
     _write_json_atomic(profile_path, render_profile)
+    if realization is not None:
+        _write_json_atomic(realization_path, realization)
     if target.directory_identity is not None:
         revalidate_plain_directory(target.directory_identity)
     authoring_manifest_binding: dict[str, Any] | None = None
@@ -1313,9 +1451,18 @@ def publish_candidate_metadata(
         },
         "render_receipt": {
             "path": receipt.name,
-            "sha256": sha256_file(receipt),
+            # Bind the same bounded payload that was parsed and validated
+            # above; reopening here could otherwise mix two generations.
+            "sha256": receipt_sha256,
         },
     }
+    if realization is not None:
+        assert parsed_realization is not None
+        manifest["project"]["realization"] = {
+            "path": realization_path.name,
+            "canonical_sha256": canonical_json_sha256(realization),
+            "file_sha256": sha256_file(realization_path),
+        }
     if authoring_manifest_binding is not None:
         manifest["authoring_project"] = authoring_manifest_binding
     if workflow_input is not None:
@@ -1363,9 +1510,10 @@ def _bound_artifact_path(
         raise ValueError(
             f"candidate {label} path escapes its generation directory"
         ) from exc
-    if not resolved.is_file():
+    operational = _extended_windows_path(resolved)
+    if not operational.is_file():
         raise ValueError(f"candidate {label} file is missing")
-    return resolved
+    return operational
 
 
 def load_candidate(
@@ -1377,7 +1525,10 @@ def load_candidate(
 ) -> tuple[Path, dict[str, Any]]:
     directory = _candidate_directory(path)
     manifest_path = directory / CANDIDATE_MANIFEST_NAME
-    document = json.loads(manifest_path.read_text(encoding="utf-8"))
+    document, _manifest_sha256 = _candidate_json_snapshot(
+        manifest_path,
+        invalid_json_message="candidate manifest is invalid JSON",
+    )
     version = document.get("version") if isinstance(document, dict) else None
     if (
         not isinstance(document, dict)
@@ -1387,7 +1538,7 @@ def load_candidate(
     ):
         raise ValueError("unsupported candidate manifest")
     created_at_utc = document.get("created_at_utc")
-    if version == CANDIDATE_VERSION:
+    if version in {CANDIDATE_VERSION, SCORE_V2_CANDIDATE_VERSION}:
         try:
             validate_canonical_utc_timestamp(created_at_utc)
         except ValueError as exc:
@@ -1401,6 +1552,33 @@ def load_candidate(
             raise ValueError(
                 "legacy candidate created_at_utc is invalid"
             ) from exc
+    if version == SCORE_V2_CANDIDATE_VERSION:
+        validate_score_v2_candidate_manifest(
+            document,
+            expected_work_id=(
+                directory.parent.name
+                if expected_work_id is None
+                else expected_work_id
+            ),
+            expected_candidate_id=(
+                directory.name
+                if expected_candidate_id is None
+                else expected_candidate_id
+            ),
+        )
+        if verify:
+            # Import lazily: candidate_integrity imports the legacy candidate
+            # constants and helpers, while its v3 branch is the stronger
+            # descriptor-bound closed-generation reader.
+            from .candidate_integrity import verify_candidate_integrity
+
+            verify_candidate_integrity(
+                directory,
+                expected_work_id=expected_work_id,
+                expected_candidate_id=expected_candidate_id,
+            )
+        return directory, document
+
     if "authoring_project" in document:
         authoring_binding = _candidate_authoring_manifest_binding(
             document.get("authoring_project")
@@ -1470,9 +1648,14 @@ def load_candidate(
                 binding.get("path", ""),
                 label=key,
             )
-            if sha256_file(source) != binding.get("file_sha256"):
-                raise ValueError(f"candidate {key} file hash mismatch")
-            value = json.loads(source.read_text(encoding="utf-8"))
+            value, _source_sha256 = _candidate_json_snapshot(
+                source,
+                expected_file_sha256=binding.get("file_sha256"),
+                hash_mismatch_message=(
+                    f"candidate {key} file hash mismatch"
+                ),
+                invalid_json_message=f"candidate {key} is invalid JSON",
+            )
             if not isinstance(value, dict):
                 raise ValueError(f"candidate {key} must be an object")
             if canonical_json_sha256(value) != binding.get(
@@ -1481,6 +1664,60 @@ def load_candidate(
                 raise ValueError(f"candidate {key} canonical hash mismatch")
             verified_project_hashes[key] = binding["canonical_sha256"]
             verified_project_documents[key] = value
+        realization_binding = project.get("realization")
+        realization_artifact = directory / "realization.json"
+        parsed_realization = None
+        if realization_binding is None:
+            if (
+                realization_artifact.exists()
+                or realization_artifact.is_symlink()
+            ):
+                raise ValueError(
+                    "candidate realization exists without a project binding"
+                )
+        else:
+            if not isinstance(realization_binding, dict):
+                raise ValueError(
+                    "candidate project.realization binding is invalid"
+                )
+            realization_source = _bound_artifact_path(
+                directory,
+                realization_binding.get("path", ""),
+                label="realization",
+            )
+            realization_document, _realization_file_sha256 = (
+                _candidate_json_snapshot(
+                    realization_source,
+                    expected_file_sha256=realization_binding.get(
+                        "file_sha256"
+                    ),
+                    hash_mismatch_message=(
+                        "candidate realization file hash mismatch"
+                    ),
+                    invalid_json_message=(
+                        "candidate realization is invalid JSON"
+                    ),
+                )
+            )
+            if not isinstance(realization_document, dict):
+                raise ValueError("candidate realization must be an object")
+            realization_sha256 = canonical_json_sha256(
+                realization_document
+            )
+            if realization_sha256 != realization_binding.get(
+                "canonical_sha256"
+            ):
+                raise ValueError(
+                    "candidate realization canonical hash mismatch"
+                )
+            parsed_realization = parse_realization_document(
+                realization_document,
+                score_document=verified_project_documents["score"],
+            )
+            verified_project_hashes["realization"] = realization_sha256
+            verified_project_documents["realization"] = (
+                realization_document
+            )
         receipt_binding = document.get("render_receipt")
         if not isinstance(receipt_binding, dict):
             raise ValueError("candidate render_receipt binding is missing")
@@ -1493,12 +1730,12 @@ def load_candidate(
             receipt_binding.get("path", ""),
             label="render receipt",
         )
-        if sha256_file(receipt) != receipt_binding.get("sha256"):
-            raise ValueError("candidate render receipt hash mismatch")
-        try:
-            receipt_document = json.loads(receipt.read_text(encoding="utf-8"))
-        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
-            raise ValueError("candidate render receipt is invalid JSON") from exc
+        receipt_document, _receipt_sha256 = _candidate_json_snapshot(
+            receipt,
+            expected_file_sha256=receipt_binding.get("sha256"),
+            hash_mismatch_message="candidate render receipt hash mismatch",
+            invalid_json_message="candidate render receipt is invalid JSON",
+        )
         if not isinstance(receipt_document, dict):
             raise ValueError("candidate render receipt must be an object")
         receipt_workflow = receipt_document.get("authoring_workflow")
@@ -1528,14 +1765,18 @@ def load_candidate(
                 roster_binding["path"],
                 label="authoring roster",
             )
-            if sha256_file(roster_path) != roster_binding["file_sha256"]:
-                raise ValueError("candidate authoring roster file hash mismatch")
-            try:
-                authoring_roster_document = json.loads(
-                    roster_path.read_text(encoding="utf-8")
+            authoring_roster_document, _roster_sha256 = (
+                _candidate_json_snapshot(
+                    roster_path,
+                    expected_file_sha256=roster_binding["file_sha256"],
+                    hash_mismatch_message=(
+                        "candidate authoring roster file hash mismatch"
+                    ),
+                    invalid_json_message=(
+                        "candidate authoring roster is invalid JSON"
+                    ),
                 )
-            except (OSError, UnicodeError, json.JSONDecodeError) as exc:
-                raise ValueError("candidate authoring roster is invalid JSON") from exc
+            )
             if (
                 canonical_json_sha256(authoring_roster_document)
                 != roster_binding["canonical_sha256"]
@@ -1610,14 +1851,43 @@ def load_candidate(
             raise ValueError(
                 "candidate manifest and render receipt disagree on plan Hash"
             )
-        if authoring_binding is not None:
-            plan_document = _receipt_performance_plan(
-                directory,
-                receipt_document,
-                expected_sha256=document["project"][
-                    "performance_plan_sha256"
+        plan_document = _receipt_performance_plan(
+            directory,
+            receipt_document,
+            expected_sha256=document["project"][
+                "performance_plan_sha256"
+            ],
+        )
+        plan_realization = plan_document.get("realization")
+        if parsed_realization is None:
+            if plan_realization is not None:
+                raise ValueError(
+                    "candidate performance plan has an unmanifested "
+                    "realization binding"
+                )
+        elif parsed_realization.is_noop:
+            if plan_realization is not None:
+                raise ValueError(
+                    "candidate no-op realization unexpectedly changed the "
+                    "performance plan"
+                )
+        else:
+            expected_plan_realization = {
+                "kind": parsed_realization.kind,
+                "schema_version": parsed_realization.schema_version,
+                "score_sha256": parsed_realization.score_sha256,
+                "canonical_sha256": verified_project_hashes[
+                    "realization"
                 ],
-            )
+                "defaults_profile": parsed_realization.defaults_profile,
+                "mode": parsed_realization.mode,
+            }
+            if plan_realization != expected_plan_realization:
+                raise ValueError(
+                    "candidate performance plan realization binding "
+                    "disagrees with realization.json"
+                )
+        if authoring_binding is not None:
             _verify_formal_roster_plan(
                 verified_project_documents["roster"],
                 plan_document,
@@ -1630,16 +1900,16 @@ def _playback_map_json_snapshot(
     *,
     label: str,
 ) -> tuple[dict[str, Any], str]:
-    try:
-        payload = path.read_bytes()
-        document = json.loads(payload.decode("utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
-        raise ValueError(
+    document, digest = _candidate_json_snapshot(
+        path,
+        invalid_json_message=(
             f"candidate playback map {label} is not valid UTF-8 JSON"
-        ) from exc
+        ),
+        map_read_error_to_invalid_json=True,
+    )
     if not isinstance(document, dict):
         raise ValueError(f"candidate playback map {label} must be an object")
-    return document, hashlib.sha256(payload).hexdigest()
+    return document, digest
 
 
 def _playback_map_file_snapshot(path: Path) -> tuple[str, int]:
@@ -1661,6 +1931,10 @@ def _verified_plan(
     directory: Path,
     candidate: dict[str, Any],
 ) -> tuple[dict[str, Any], dict[str, Any]]:
+    if candidate.get("version") == SCORE_V2_CANDIDATE_VERSION:
+        raise ValueError(
+            "candidate playback/locate does not yet support Score-v2 Candidate v3"
+        )
     receipt_binding = candidate["render_receipt"]
     receipt_path = _bound_artifact_path(
         directory,
@@ -2131,7 +2405,7 @@ def build_candidate_playback_map(
                     "candidate playback map note_on/note_off source_event_id mismatch"
                 )
 
-            if parsed_score.schema_version == 1:
+            if parsed_score.has_stable_event_identity:
                 if source_event_id is None:
                     raise ValueError(
                         "candidate playback map score v1 scheduled note lacks "
@@ -2582,19 +2856,63 @@ def compare_candidates(
 ) -> dict[str, Any]:
     before_directory, before = load_candidate(before_path)
     after_directory, after = load_candidate(after_path)
-    before_score = json.loads(
-        _bound_artifact_path(
-            before_directory,
-            before["project"]["score"]["path"],
-            label="score",
-        ).read_text(encoding="utf-8")
+    if (
+        before.get("version") == SCORE_V2_CANDIDATE_VERSION
+        or after.get("version") == SCORE_V2_CANDIDATE_VERSION
+    ):
+        raise ValueError(
+            "candidate comparison does not yet support Score-v2 Candidate v3"
+        )
+
+    def snapshot(
+        directory: Path,
+        binding: dict[str, Any],
+        *,
+        label: str,
+        hash_key: str,
+        hash_mismatch_message: str,
+    ) -> dict[str, Any]:
+        document, _digest = _candidate_json_snapshot(
+            _bound_artifact_path(
+                directory,
+                binding.get("path", ""),
+                label=label,
+            ),
+            expected_file_sha256=binding.get(hash_key),
+            hash_mismatch_message=hash_mismatch_message,
+            invalid_json_message=f"candidate {label} is invalid JSON",
+        )
+        if not isinstance(document, dict):
+            raise ValueError(f"candidate {label} must be an object")
+        return document
+
+    before_score = snapshot(
+        before_directory,
+        before["project"]["score"],
+        label="score",
+        hash_key="file_sha256",
+        hash_mismatch_message="candidate score file hash mismatch",
     )
-    after_score = json.loads(
-        _bound_artifact_path(
-            after_directory,
-            after["project"]["score"]["path"],
-            label="score",
-        ).read_text(encoding="utf-8")
+    after_score = snapshot(
+        after_directory,
+        after["project"]["score"],
+        label="score",
+        hash_key="file_sha256",
+        hash_mismatch_message="candidate score file hash mismatch",
+    )
+    before_receipt = snapshot(
+        before_directory,
+        before["render_receipt"],
+        label="render receipt",
+        hash_key="sha256",
+        hash_mismatch_message="candidate render receipt hash mismatch",
+    )
+    after_receipt = snapshot(
+        after_directory,
+        after["render_receipt"],
+        label="render receipt",
+        hash_key="sha256",
+        hash_mismatch_message="candidate render receipt hash mismatch",
     )
     score_diff = compare_scores(
         before_score,
@@ -2624,20 +2942,8 @@ def compare_candidates(
             != after["project"]["performance_plan_sha256"]
         ),
         "mix_sha256": {
-            "before": json.loads(
-                _bound_artifact_path(
-                    before_directory,
-                    before["render_receipt"]["path"],
-                    label="render receipt",
-                ).read_text(encoding="utf-8")
-            )["mix"]["sha256"],
-            "after": json.loads(
-                _bound_artifact_path(
-                    after_directory,
-                    after["render_receipt"]["path"],
-                    label="render receipt",
-                ).read_text(encoding="utf-8")
-            )["mix"]["sha256"],
+            "before": before_receipt["mix"]["sha256"],
+            "after": after_receipt["mix"]["sha256"],
         },
     }
 
@@ -2646,6 +2952,8 @@ __all__ = [
     "CANDIDATE_FORMAT",
     "CANDIDATE_MANIFEST_NAME",
     "CANDIDATE_VERSION",
+    "SCORE_V2_CANDIDATE_VERSION",
+    "MAX_CANDIDATE_JSON_BYTES",
     "MAX_PLAYBACK_MAP_SCHEDULED_NOTES",
     "PLAYBACK_MAP_KIND",
     "PLAYBACK_MAP_SCHEMA_URI",
@@ -2662,5 +2970,7 @@ __all__ = [
     "portable_slug",
     "prepare_candidate_target",
     "publish_candidate_metadata",
+    "publish_score_v2_candidate_metadata",
     "sha256_file",
+    "validate_candidate_json_size",
 ]

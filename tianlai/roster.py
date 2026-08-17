@@ -492,7 +492,28 @@ def _parse_articulation_map(raw: object, label: str) -> tuple[tuple[str, str], .
         return ()
     if not isinstance(raw, dict):
         raise ValueError(f"{label} articulation_map must be an object")
-    return tuple(sorted((str(key), str(value)) for key, value in raw.items()))
+    parsed: list[tuple[str, str]] = []
+    for key, value in raw.items():
+        if type(key) is not str or type(value) is not str:
+            raise ValueError(
+                f"{label} articulation_map names and targets must be strings"
+            )
+        if not key or not value:
+            raise ValueError(
+                f"{label} articulation_map names and targets must not be empty"
+            )
+        parsed.append((key, value))
+    return tuple(sorted(parsed))
+
+
+def _parse_json_integer(value: object, label: str) -> int:
+    """Implement JSON Schema's mathematical-integer rule without coercion."""
+
+    if type(value) is int:
+        return value
+    if type(value) is float and math.isfinite(value) and value.is_integer():
+        return int(value)
+    raise ValueError(f"{label} must be an integer")
 
 
 def _parse_gain_automation(
@@ -928,7 +949,10 @@ def parse_roster_document(
         pan = float(raw["pan"]) if "pan" in raw else seat.pan
         if not -1.0 <= pan <= 1.0:
             raise ValueError(f"{label} pan must be between -1 and 1")
-        transpose = int(raw.get("transpose", 0))
+        transpose = _parse_json_integer(
+            raw.get("transpose", 0),
+            f"{label} transpose",
+        )
         # 密集写作里音符互相拖尾是"糊"的主要来源:释音包络是指数型,声明
         # 0.8 秒实际能拖到 2 秒。按声部缩短发声时长比换音源见效快得多,而且
         # 0.85 上下还听不成断奏。
@@ -1022,7 +1046,10 @@ def parse_roster_document(
                     f"{assignment_path}.kit[{notehead!r}]",
                 )
                 instrument_ref = str(reference.get("instrument", ""))
-                entry_transpose = int(reference.get("transpose", transpose))
+                entry_transpose = _parse_json_integer(
+                    reference.get("transpose", transpose),
+                    f"{assignment_path}.kit[{notehead!r}].transpose",
+                )
             else:
                 instrument_ref = str(reference)
             capability = resolve_capability(capabilities, instrument_ref)

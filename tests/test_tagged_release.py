@@ -316,6 +316,12 @@ class TaggedReleaseTests(unittest.TestCase):
         self.assertIn("actions/setup-python@v6", workflow)
         self.assertNotIn("actions/checkout@v7", workflow)
         self.assertNotIn("actions/setup-python@v7", workflow)
+        self.assertIn(
+            '    env:\n      PYTHONUTF8: "1"\n'
+            '      PYTHONIOENCODING: "utf-8"\n'
+            "    steps:",
+            workflow,
+        )
         self.assertEqual(workflow.count("actions/attest@v4"), 2)
         self.assertEqual(workflow.count("actions/upload-artifact@v7"), 2)
         self.assertEqual(workflow.count("actions/download-artifact@v8"), 2)

@@ -1,3 +1,4 @@
+* text=auto eol=lf
 *.cmd binary
 *.pdf binary
 *.py text eol=lf

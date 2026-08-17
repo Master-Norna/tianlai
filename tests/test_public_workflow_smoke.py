@@ -98,6 +98,27 @@ class PublicWorkflowSmokeTests(unittest.TestCase):
             self.assertTrue((first_directory / "候选.json").is_file())
             self.assertTrue(Path(first["mix_wav"]).is_file())
 
+            integrity = json.loads(
+                self._run(
+                    [
+                        "candidate-verify",
+                        "--candidate",
+                        str(first_directory / "候选.json"),
+                    ]
+                )
+            )
+            self.assertIs(integrity["integrity_verified"], True)
+            self.assertIs(
+                integrity["integrity"][
+                    "bound_entry_set_closed_when_enumerated"
+                ],
+                True,
+            )
+            self.assertEqual(
+                integrity["candidate"]["candidate_id"],
+                first["candidate_id"],
+            )
+
             locate = json.loads(
                 self._run(
                     [

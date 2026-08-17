@@ -1,0 +1,557 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tianlai.local/schemas/score-v2.schema.json",
+  "title": "Tianlai Score v2 Document",
+  "type": "object",
+  "required": [
+    "kind",
+    "schema_version",
+    "title",
+    "timeline",
+    "tuning",
+    "parts"
+  ],
+  "properties": {
+    "kind": {
+      "const": "tianlai.score"
+    },
+    "schema_version": {
+      "type": "integer",
+      "const": 2
+    },
+    "title": {
+      "$ref": "#/$defs/text"
+    },
+    "timeline": {
+      "$ref": "#/$defs/timeline"
+    },
+    "tuning": {
+      "$ref": "#/$defs/tuning"
+    },
+    "parts": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 256,
+      "items": {
+        "$ref": "#/$defs/part"
+      }
+    },
+    "ties": {
+      "type": "array",
+      "maxItems": 250000,
+      "items": {
+        "$ref": "#/$defs/tie"
+      }
+    },
+    "phrases": {
+      "type": "array",
+      "maxItems": 250000,
+      "items": {
+        "$ref": "#/$defs/phrase"
+      }
+    },
+    "form": {
+      "$ref": "#/$defs/form"
+    },
+    "extensions": {
+      "type": "array",
+      "maxItems": 4096,
+      "items": {
+        "$ref": "#/$defs/extension"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^(?=[\\s\\S]*\\S)[^\\uD800-\\uDFFF]*$"
+    },
+    "text": {
+      "type": "string",
+      "maxLength": 4096,
+      "pattern": "^[^\\uD800-\\uDFFF]*$"
+    },
+    "jsonValue": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "number",
+          "if": {
+            "type": "integer"
+          },
+          "then": {
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        {
+          "$ref": "#/$defs/text"
+        },
+        {
+          "type": "array",
+          "maxItems": 10000,
+          "items": {
+            "$ref": "#/$defs/jsonValue"
+          }
+        },
+        {
+          "type": "object",
+          "maxProperties": 10000,
+          "propertyNames": {
+            "type": "string",
+            "maxLength": 4096,
+            "pattern": "^[^\\uD800-\\uDFFF]*$"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/jsonValue"
+          }
+        }
+      ]
+    },
+    "dynamic": {
+      "enum": [
+        "ppp",
+        "pp",
+        "p",
+        "mp",
+        "mf",
+        "f",
+        "ff",
+        "fff"
+      ]
+    },
+    "rational": {
+      "type": "object",
+      "required": [
+        "numerator",
+        "denominator"
+      ],
+      "properties": {
+        "numerator": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "denominator": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        }
+      },
+      "additionalProperties": false
+    },
+    "nonnegativeRational": {
+      "type": "object",
+      "required": [
+        "numerator",
+        "denominator"
+      ],
+      "properties": {
+        "numerator": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "denominator": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        }
+      },
+      "additionalProperties": false
+    },
+    "positiveRational": {
+      "type": "object",
+      "required": [
+        "numerator",
+        "denominator"
+      ],
+      "properties": {
+        "numerator": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "denominator": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        }
+      },
+      "additionalProperties": false
+    },
+    "position": {
+      "type": "object",
+      "required": [
+        "measure_id",
+        "offset_quarters"
+      ],
+      "properties": {
+        "measure_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "offset_quarters": {
+          "$ref": "#/$defs/nonnegativeRational"
+        }
+      },
+      "additionalProperties": false
+    },
+    "measure": {
+      "type": "object",
+      "required": [
+        "measure_id",
+        "actual_duration_quarters"
+      ],
+      "properties": {
+        "measure_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "actual_duration_quarters": {
+          "$ref": "#/$defs/positiveRational"
+        }
+      },
+      "additionalProperties": false
+    },
+    "meterEvent": {
+      "type": "object",
+      "required": [
+        "meter_id",
+        "at",
+        "groups",
+        "beat_unit"
+      ],
+      "properties": {
+        "meter_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "at": {
+          "$ref": "#/$defs/position"
+        },
+        "groups": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          }
+        },
+        "beat_unit": {
+          "enum": [
+            1,
+            2,
+            4,
+            8,
+            16,
+            32,
+            64
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "tempoEvent": {
+      "type": "object",
+      "required": [
+        "tempo_id",
+        "at",
+        "quarter_bpm"
+      ],
+      "properties": {
+        "tempo_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "at": {
+          "$ref": "#/$defs/position"
+        },
+        "quarter_bpm": {
+          "$ref": "#/$defs/positiveRational"
+        }
+      },
+      "additionalProperties": false
+    },
+    "timeline": {
+      "type": "object",
+      "required": [
+        "measures",
+        "meter_events",
+        "tempo_events"
+      ],
+      "properties": {
+        "measures": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100000,
+          "items": {
+            "$ref": "#/$defs/measure"
+          }
+        },
+        "meter_events": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100000,
+          "items": {
+            "$ref": "#/$defs/meterEvent"
+          }
+        },
+        "tempo_events": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100000,
+          "items": {
+            "$ref": "#/$defs/tempoEvent"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "tuning": {
+      "type": "object",
+      "required": [
+        "tuning_id",
+        "system",
+        "divisions_per_octave",
+        "reference_midi_note",
+        "reference_frequency_hz"
+      ],
+      "properties": {
+        "tuning_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "system": {
+          "const": "equal_temperament"
+        },
+        "divisions_per_octave": {
+          "type": "integer",
+          "const": 12
+        },
+        "reference_midi_note": {
+          "$ref": "#/$defs/rational"
+        },
+        "reference_frequency_hz": {
+          "$ref": "#/$defs/positiveRational"
+        }
+      },
+      "additionalProperties": false
+    },
+    "writtenPitch": {
+      "type": "object",
+      "required": [
+        "step",
+        "alter",
+        "octave"
+      ],
+      "properties": {
+        "step": {
+          "enum": [
+            "A",
+            "B",
+            "C",
+            "D",
+            "E",
+            "F",
+            "G"
+          ]
+        },
+        "alter": {
+          "$ref": "#/$defs/rational"
+        },
+        "octave": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "accidental": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^(?=[\\s\\S]*\\S)[^\\uD800-\\uDFFF]*$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "soundingPitch": {
+      "type": "object",
+      "required": [
+        "midi_note"
+      ],
+      "properties": {
+        "midi_note": {
+          "$ref": "#/$defs/rational"
+        }
+      },
+      "additionalProperties": false
+    },
+    "note": {
+      "type": "object",
+      "required": [
+        "event_id",
+        "position",
+        "duration_quarters",
+        "written_pitch",
+        "sounding_pitch"
+      ],
+      "properties": {
+        "event_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "position": {
+          "$ref": "#/$defs/position"
+        },
+        "duration_quarters": {
+          "$ref": "#/$defs/positiveRational"
+        },
+        "written_pitch": {
+          "$ref": "#/$defs/writtenPitch"
+        },
+        "sounding_pitch": {
+          "$ref": "#/$defs/soundingPitch"
+        },
+        "dynamic": {
+          "$ref": "#/$defs/dynamic"
+        },
+        "articulations": {
+          "type": "array",
+          "maxItems": 256,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
+        },
+        "staff": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "voice": {
+          "$ref": "#/$defs/identifier"
+        }
+      },
+      "additionalProperties": false
+    },
+    "part": {
+      "type": "object",
+      "required": [
+        "part_id",
+        "notes"
+      ],
+      "properties": {
+        "part_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "name": {
+          "$ref": "#/$defs/text"
+        },
+        "default_dynamic": {
+          "$ref": "#/$defs/dynamic"
+        },
+        "default_articulation": {
+          "$ref": "#/$defs/identifier"
+        },
+        "notes": {
+          "type": "array",
+          "maxItems": 250000,
+          "items": {
+            "$ref": "#/$defs/note"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "tie": {
+      "type": "object",
+      "required": [
+        "tie_id",
+        "from_event_id",
+        "to_event_id"
+      ],
+      "properties": {
+        "tie_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "from_event_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "to_event_id": {
+          "$ref": "#/$defs/identifier"
+        }
+      },
+      "additionalProperties": false
+    },
+    "phrase": {
+      "type": "object",
+      "required": [
+        "phrase_id",
+        "part_id",
+        "start",
+        "end"
+      ],
+      "properties": {
+        "phrase_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "part_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "start": {
+          "$ref": "#/$defs/position"
+        },
+        "end": {
+          "$ref": "#/$defs/position"
+        }
+      },
+      "additionalProperties": false
+    },
+    "form": {
+      "type": "object",
+      "required": [
+        "mode"
+      ],
+      "properties": {
+        "mode": {
+          "const": "linear"
+        }
+      },
+      "additionalProperties": false
+    },
+    "extension": {
+      "type": "object",
+      "required": [
+        "namespace",
+        "version",
+        "required",
+        "audible",
+        "payload"
+      ],
+      "properties": {
+        "namespace": {
+          "$ref": "#/$defs/identifier"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "audible": {
+          "type": "boolean"
+        },
+        "payload": {
+          "$ref": "#/$defs/jsonValue"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

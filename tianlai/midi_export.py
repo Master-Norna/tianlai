@@ -10,12 +10,11 @@ and requires ``allow_lossy=True`` before crossing that boundary.
 from __future__ import annotations
 
 import hashlib
-import math
 from pathlib import Path
 import struct
 from typing import Any
-import uuid
 
+from .atomic_publish import _publish_bytes_atomic
 from .canonical_json import canonical_json_sha256 as _canonical_sha256
 from .conductor import velocity_for_dynamic
 from .score import parse_score_document
@@ -170,17 +169,14 @@ def _roster_by_part(
 
 
 def _atomic_bytes(path: Path, payload: bytes, *, overwrite: bool) -> None:
-    if path.exists() and not overwrite:
+    try:
+        _publish_bytes_atomic(path, payload, overwrite=overwrite)
+    except FileExistsError as exc:
+        if overwrite:
+            raise
         raise ValueError(
             f"输出已存在，默认拒绝覆盖: {path};确认后传 --overwrite"
-        )
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
-    try:
-        temporary.write_bytes(payload)
-        temporary.replace(path)
-    finally:
-        temporary.unlink(missing_ok=True)
+        ) from exc
 
 
 def _loss(
@@ -190,6 +186,7 @@ def _loss(
     *,
     blocking: bool,
     part_id: str | None = None,
+    details: dict[str, Any] | None = None,
 ) -> None:
     item: dict[str, Any] = {
         "code": code,
@@ -198,6 +195,8 @@ def _loss(
     }
     if part_id is not None:
         item["part_id"] = part_id
+    if details is not None:
+        item["details"] = details
     losses.append(item)
 
 
@@ -221,7 +220,7 @@ def build_midi(
         )
 
     losses: list[dict[str, Any]] = []
-    if parsed.schema_version == 1:
+    if parsed.has_stable_event_identity:
         _loss(
             losses,
             "stable_event_ids_not_representable",
@@ -235,21 +234,59 @@ def build_midi(
             "score phrases 不进入标准 MIDI 音符轨",
             blocking=True,
         )
+    tuning = parsed.tuning
+    if (
+        str(tuning.get("temperament", "equal")) != "equal"
+        or float(tuning.get("a4_hz", 440.0)) != 440.0
+    ):
+        _loss(
+            losses,
+            "score_tuning_not_representable",
+            "标准 MIDI 音符键位不携带 Tianlai 的非默认调律",
+            blocking=True,
+            details={"tuning": dict(tuning)},
+        )
+    if roster is not None and roster.get("drop_parts"):
+        _loss(
+            losses,
+            "roster_drop_parts_not_applied",
+            "MIDI 导出不会执行 roster.drop_parts，编辑副本仍包含这些 score 声部",
+            blocking=True,
+            details={"drop_parts": roster.get("drop_parts")},
+        )
 
     meta: list[tuple[int, int, bytes]] = [
         (0, 0, _meta_text(0x03, parsed.title))
     ]
     previous_meter: tuple[int, int] | None = None
+    tempo_position_quantized = False
+    tempo_value_quantized = False
+    tempo_value_clamped = False
+    meter_numerator_clamped = False
     for entry in parsed.tempo_map.entries:
         quarter = parsed.tempo_map.quarter_at(entry.bar, entry.beat)
-        tick = round(quarter * DIVISION)
-        microseconds = round(60_000_000 / entry.bpm)
+        raw_tick = quarter * DIVISION
+        tick = round(raw_tick)
+        tempo_position_quantized = tempo_position_quantized or raw_tick != tick
+        raw_microseconds = 60_000_000 / entry.bpm
+        microseconds = round(raw_microseconds)
+        tempo_value_quantized = (
+            tempo_value_quantized or raw_microseconds != microseconds
+        )
+        if microseconds > 0xFF_FF_FF:
+            tempo_value_clamped = True
+            microseconds = 0xFF_FF_FF
         meta.append(
             (tick, 1, b"\xff\x51\x03" + microseconds.to_bytes(3, "big"))
         )
         meter = (entry.beats_per_bar, entry.beat_unit)
         if entry.changes_meter and meter != previous_meter:
             denominator_power = entry.beat_unit.bit_length() - 1
+            midi_numerator = min(255, entry.beats_per_bar)
+            meter_numerator_clamped = (
+                meter_numerator_clamped
+                or midi_numerator != entry.beats_per_bar
+            )
             meta.append(
                 (
                     tick,
@@ -259,7 +296,7 @@ def build_midi(
                             0xFF,
                             0x58,
                             0x04,
-                            entry.beats_per_bar,
+                            midi_numerator,
                             denominator_power,
                             24,
                             8,
@@ -268,6 +305,34 @@ def build_midi(
                 )
             )
             previous_meter = meter
+    if tempo_position_quantized:
+        _loss(
+            losses,
+            "tempo_position_quantized_to_480_ppq",
+            "速度事件位置已量化到 MIDI 的每四分音符 480 tick",
+            blocking=True,
+        )
+    if tempo_value_quantized:
+        _loss(
+            losses,
+            "tempo_value_quantized_to_integer_microseconds",
+            "BPM 已量化为 MIDI 的整数 microseconds-per-quarter",
+            blocking=True,
+        )
+    if tempo_value_clamped:
+        _loss(
+            losses,
+            "tempo_clamped_to_midi_range",
+            "过慢速度超出 MIDI 三字节 tempo 上限，已夹到可表示的最慢速度",
+            blocking=True,
+        )
+    if meter_numerator_clamped:
+        _loss(
+            losses,
+            "meter_numerator_clamped_to_midi_range",
+            "拍号分子超出 MIDI 单字节范围，已夹到 255",
+            blocking=True,
+        )
     tracks = [_track_chunk(meta)]
     melodic_channel_index = 0
     part_reports: list[dict[str, Any]] = []
@@ -294,6 +359,58 @@ def build_midi(
         assignment = assignments[0] if len(assignments) == 1 else {}
         instrument = assignment.get("instrument")
         kit = assignment.get("kit")
+        if isinstance(instrument, str) and instrument.strip():
+            _loss(
+                losses,
+                "dedicated_instrument_approximated_by_gm",
+                "Tianlai 专用乐器只能近似映射为 General MIDI program",
+                blocking=True,
+                part_id=part.id,
+                details={"instrument": instrument},
+            )
+        if isinstance(kit, dict) and kit:
+            _loss(
+                losses,
+                "kit_routing_not_representable",
+                "逐符头 Tianlai kit 路由不会进入单一 MIDI 打击通道",
+                blocking=True,
+                part_id=part.id,
+                details={"noteheads": sorted(str(key) for key in kit)},
+            )
+        unrepresented_roster_fields: set[str] = set()
+        for roster_assignment in assignments:
+            for field, default in (
+                ("gain_db", 0),
+                ("pan", 0),
+                ("transpose", 0),
+                ("dynamic_compression", 0),
+                ("duration_scale", 1),
+            ):
+                if (
+                    field in roster_assignment
+                    and roster_assignment[field] != default
+                ):
+                    unrepresented_roster_fields.add(field)
+            for field in (
+                "executor_id",
+                "gain_automation",
+                "seat",
+                "articulation_map",
+                "overrides",
+            ):
+                if roster_assignment.get(field):
+                    unrepresented_roster_fields.add(field)
+            if "articulation_auto" in roster_assignment:
+                unrepresented_roster_fields.add("articulation_auto")
+        if unrepresented_roster_fields:
+            _loss(
+                losses,
+                "roster_execution_semantics_not_representable",
+                "roster 的执行或混音参数不会进入标准 MIDI 编辑副本",
+                blocking=True,
+                part_id=part.id,
+                details={"fields": sorted(unrepresented_roster_fields)},
+            )
         descriptor = " ".join(
             value
             for value in (
@@ -342,6 +459,8 @@ def build_midi(
         has_voice_identity = False
         has_microtone = False
         has_out_of_range_pitch = False
+        has_timing_quantization = False
+        has_velocity_quantization = False
         for note in part.notes:
             start_quarter = parsed.tempo_map.quarter_at(
                 note.bar,
@@ -351,9 +470,18 @@ def build_midi(
             duration_quarters = (
                 note.duration_beats * meter.quarters_per_beat
             )
-            start = round(start_quarter * DIVISION)
-            length = max(1, round(duration_quarters * DIVISION))
-            if not math.isclose(note.midi, round(note.midi), abs_tol=1e-9):
+            raw_start = start_quarter * DIVISION
+            raw_length = duration_quarters * DIVISION
+            start = round(raw_start)
+            length = max(1, round(raw_length))
+            has_timing_quantization = has_timing_quantization or any(
+                value != rounded
+                for value, rounded in (
+                    (raw_start, start),
+                    (raw_length, length),
+                )
+            )
+            if note.midi != round(note.midi):
                 has_microtone = True
             key = round(note.midi)
             if not 0 <= key <= 127:
@@ -366,6 +494,10 @@ def build_midi(
                 else velocity_for_dynamic(dynamic)
             )
             midi_velocity = min(127, max(1, round(velocity * 127)))
+            has_velocity_quantization = (
+                has_velocity_quantization
+                or velocity * 127 != midi_velocity
+            )
             events.append(
                 (start, 3, bytes((0x90 | channel, key, midi_velocity)))
             )
@@ -383,6 +515,22 @@ def build_midi(
             has_tie = has_tie or note.tie
             has_voice_identity = has_voice_identity or (
                 note.staff is not None or note.voice is not None
+            )
+        if has_timing_quantization:
+            _loss(
+                losses,
+                "note_timing_quantized_to_480_ppq",
+                "音符起点或时值已量化到 MIDI 的每四分音符 480 tick",
+                blocking=True,
+                part_id=part.id,
+            )
+        if has_velocity_quantization:
+            _loss(
+                losses,
+                "velocity_quantized_to_midi_7bit",
+                "音符力度已量化到 MIDI 的 1..127 整数 velocity",
+                blocking=True,
+                part_id=part.id,
             )
         if has_articulation:
             _loss(

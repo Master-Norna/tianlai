@@ -78,6 +78,21 @@ class ReleaseMetadataTests(unittest.TestCase):
         attributes = (ROOT / ".gitattributes").read_text(encoding="utf-8")
         self.assertIn("*.py text eol=lf", attributes.splitlines())
 
+    def test_repository_text_defaults_are_cross_platform_lf(self) -> None:
+        attributes = (
+            ROOT / ".gitattributes"
+        ).read_text(encoding="utf-8").splitlines()
+        self.assertEqual(attributes[0], "* text=auto eol=lf")
+        self.assertIn("*.cmd binary", attributes)
+
+        editor_config = (
+            ROOT / ".editorconfig"
+        ).read_text(encoding="utf-8").splitlines()
+        self.assertEqual(editor_config[0], "root = true")
+        self.assertIn("end_of_line = lf", editor_config)
+        self.assertIn("[*.{bat,cmd}]", editor_config)
+        self.assertEqual(editor_config[-1], "end_of_line = crlf")
+
     def test_windows_ci_doctor_uses_utf8_without_weakening_the_gate(self) -> None:
         workflow = (
             ROOT / ".github" / "workflows" / "ci.yml"
@@ -90,6 +105,14 @@ class ReleaseMetadataTests(unittest.TestCase):
         self.assertIn('PYTHONIOENCODING: "utf-8"', doctor_step)
         self.assertIn("python -m tianlai.doctor --quick", doctor_step)
         self.assertNotIn("continue-on-error", doctor_step)
+
+    def test_ordinary_ci_does_not_duplicate_tagged_release_runs(self) -> None:
+        workflow = (
+            ROOT / ".github" / "workflows" / "ci.yml"
+        ).read_text(encoding="utf-8")
+        trigger = workflow.split("permissions:", maxsplit=1)[0]
+        self.assertIn('push:\n    branches:\n      - "**"', trigger)
+        self.assertNotIn("tags:", trigger)
 
     def test_pypi_artifacts_are_declared_engine_only(self) -> None:
         project = tomllib.loads(
@@ -150,6 +173,40 @@ class ReleaseMetadataTests(unittest.TestCase):
         citation = (ROOT / "CITATION.cff").read_text(encoding="utf-8")
         self.assertIn('family-names: "Nor.na"', citation)
         self.assertIn(f"version: {tianlai.__version__}", citation)
+        self.assertIn("date-released: 2026-08-17", citation)
+
+    def test_formal_release_surfaces_are_synchronised(self) -> None:
+        self.assertEqual(tianlai.__version__, "0.9.0")
+        current_files = (
+            "README.md",
+            "README.en.md",
+            "docs/README.md",
+            "docs/README.en.md",
+            "docs/MCP.md",
+            "docs/MCP.en.md",
+            "docs/Linux快速开始.md",
+            "docs/Linux快速开始.en.md",
+            "docs/当前状态.md",
+            "docs/当前状态.en.md",
+        )
+        for relative in current_files:
+            with self.subTest(path=relative):
+                text = (ROOT / relative).read_text(encoding="utf-8")
+                self.assertIn("0.9.0", text)
+                self.assertNotIn("0.8.0rc1", text)
+
+        # The private construction repository keeps the historical changelog;
+        # the deliberately minimal public source ZIP excludes it.  Validate
+        # the release entry whenever this test runs in the construction tree.
+        changelog_path = ROOT / "CHANGELOG.md"
+        changelog_en_path = ROOT / "CHANGELOG.en.md"
+        if changelog_path.is_file() or changelog_en_path.is_file():
+            self.assertTrue(changelog_path.is_file())
+            self.assertTrue(changelog_en_path.is_file())
+            changelog = changelog_path.read_text(encoding="utf-8")
+            changelog_en = changelog_en_path.read_text(encoding="utf-8")
+            self.assertIn("## 0.9.0（2026-08-17）", changelog)
+            self.assertIn("## 0.9.0 (2026-08-17)", changelog_en)
 
 
 if __name__ == "__main__":

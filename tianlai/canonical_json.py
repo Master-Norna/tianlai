@@ -1,8 +1,8 @@
-"""Project-wide canonical JSON identity.
+"""Project-wide canonical JSON document identity.
 
 Byte hashes are appropriate for release archives and opaque assets. Structured
 JSON evidence instead uses this representation so that line endings, indentation
-and object-key order do not invalidate semantically identical documents.
+and object-key order do not invalidate the same JSON document value.
 """
 
 from __future__ import annotations
@@ -39,7 +39,13 @@ def canonical_json_bytes(document: Any) -> bytes:
 
 
 def canonical_json_sha256(document: Any) -> str:
-    """Return the stable semantic SHA-256 of a JSON-compatible value."""
+    """Return the stable canonical-document SHA-256 of a JSON value.
+
+    This identity deliberately ignores source formatting and object-key order,
+    but it is not a cross-schema or default-aware semantic equivalence proof.
+    Callers that need a render projection or another domain-specific identity
+    must define and version that projection separately.
+    """
 
     return hashlib.sha256(canonical_json_bytes(document)).hexdigest()
 

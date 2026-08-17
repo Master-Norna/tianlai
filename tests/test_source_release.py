@@ -31,6 +31,8 @@ EXPECTED_PUBLIC_MARKDOWN_PAIRS = (
     ("TRADEMARKS.md", "TRADEMARKS.en.md"),
     ("OUTPUT_RIGHTS.md", "OUTPUT_RIGHTS.en.md"),
     ("docs/README.md", "docs/README.en.md"),
+    ("docs/score-v2.md", "docs/score-v2.en.md"),
+    ("docs/realization-v1.md", "docs/realization-v1.en.md"),
     ("docs/Linux快速开始.md", "docs/Linux快速开始.en.md"),
     ("docs/macOS快速开始.md", "docs/macOS快速开始.en.md"),
     ("docs/MCP.md", "docs/MCP.en.md"),
@@ -69,6 +71,42 @@ EXPECTED_PUBLIC_DOCUMENTS = frozenset(
             for pair in EXPECTED_PUBLIC_MARKDOWN_PAIRS
             for path in pair
         ),
+    }
+)
+EXPECTED_PUBLIC_SCHEMAS = frozenset(
+    {
+        "schemas/candidate-playback-map.schema.json",
+        "schemas/realization.schema.json",
+        "schemas/score.schema.json",
+        "schemas/score-v2.schema.json",
+        "schemas/score-v2-migration.schema.json",
+        "schemas/score-v2-execution-profile.schema.json",
+        "schemas/score-v2-render-receipt.schema.json",
+        "schemas/score-v2-post-render-check.schema.json",
+    }
+)
+EXPECTED_SCORE_FOUNDATION_RUNTIME_MODULES = frozenset(
+    {
+        "tianlai/_console_encoding.py",
+        "tianlai/cli.py",
+        "tianlai/realization.py",
+        "tianlai/realization_compile.py",
+        "tianlai/score_source.py",
+        "tianlai/score_v2.py",
+        "tianlai/score_v2_migration.py",
+        "tianlai/score_v2_execution_profile.py",
+        "tianlai/score_v2_capability_source.py",
+        "tianlai/score_v2_capability_adapter.py",
+        "tianlai/score_v2_plan.py",
+        "tianlai/score_v2_time.py",
+        "tianlai/score_v2_runtime_source.py",
+        "tianlai/score_v2_runtime_authority.py",
+        "tianlai/score_v2_performance.py",
+        "tianlai/score_v2_project_render.py",
+        "tianlai/score_v2_candidate.py",
+        "tianlai/score_v2_formal_render.py",
+        "tianlai/score_v2_private_wav.py",
+        "tianlai/score_v2_renderer.py",
     }
 )
 EXPECTED_PUBLIC_MUSIC_REFERENCE_DOCUMENTS = frozenset(
@@ -128,6 +166,70 @@ EXPECTED_EXCLUDED_ROOT_DOCUMENTS = frozenset(
         "发布包/README.md",
     }
 )
+
+
+def test_repository_public_schemas_are_offline_closed() -> None:
+    payloads = [
+        release.SourcePayload(
+            path=path.relative_to(ROOT).as_posix(),
+            mode="100644",
+            content=path.read_bytes(),
+        )
+        for path in sorted((ROOT / "schemas").glob("*.schema.json"))
+    ]
+    paths = {payload.path for payload in payloads}
+
+    assert EXPECTED_PUBLIC_SCHEMAS.issubset(paths)
+    release._validate_json_schema_references(payloads)
+
+
+def test_repository_score_foundation_modules_are_source_releasable() -> None:
+    for relative in EXPECTED_SCORE_FOUNDATION_RUNTIME_MODULES:
+        path = ROOT / Path(*relative.split("/"))
+        assert path.is_file()
+        assert release._excluded_reason(relative) is None
+
+
+def test_repository_public_document_allowlist_has_closed_links() -> None:
+    if (ROOT / ".git").exists():
+        tracked = subprocess.run(
+            ["git", "-C", str(ROOT), "ls-files", "-z"],
+            check=True,
+            capture_output=True,
+        ).stdout.decode("utf-8").split("\0")
+        candidate_paths = {path for path in tracked if path}
+    else:
+        # The formal source ZIP deliberately excludes repository metadata.
+        # Its generated manifest is the authoritative closed file inventory.
+        manifest = json.loads(
+            (ROOT / release.MANIFEST_NAME).read_text(encoding="utf-8")
+        )
+        files = manifest.get("files")
+        assert isinstance(files, list)
+        assert all(isinstance(item, dict) for item in files)
+        candidate_paths = {
+            item["path"]
+            for item in files
+            if set(item) >= {"path"} and isinstance(item["path"], str)
+        }
+    # Public pairs may be new in the working release candidate but are still
+    # contractual inputs to this test before the eventual release commit.
+    candidate_paths.update(release._PUBLIC_DOCUMENT_PATHS)
+    payloads = [
+        release.SourcePayload(
+            path=path,
+            mode="100644",
+            content=(ROOT / Path(*path.split("/"))).read_bytes(),
+        )
+        for path in sorted(candidate_paths)
+        if release._excluded_reason(path) is None
+        and (ROOT / Path(*path.split("/"))).is_file()
+    ]
+
+    release._validate_public_documents(payloads)
+    release._validate_markdown_links(payloads)
+
+
 class SourceReleaseTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
@@ -189,6 +291,12 @@ class SourceReleaseTests(unittest.TestCase):
         self._write("README.md", "# Test project\n")
         self._write("tianlai/__init__.py", '__version__ = "0.4.7"\n')
         self._write("tianlai/core.py", "VALUE = 'committed'\n")
+        for runtime_module in EXPECTED_SCORE_FOUNDATION_RUNTIME_MODULES:
+            self._write(runtime_module, "# release fixture runtime module\n")
+        self._write(
+            "tianlai/cli.py",
+            "PROJECT_RENDER_V2_COMMAND = 'project-render-v2'\n",
+        )
         self._write("乐器/键盘乐器/钢琴/乐器.json", '{"name": "钢琴"}\n')
         self._write("乐器/键盘乐器/钢琴/乐器.py", "ENGINE = True\n")
         for chinese, english in EXPECTED_INSTRUMENT_DOCUMENT_PAIRS:
@@ -201,10 +309,66 @@ class SourceReleaseTests(unittest.TestCase):
                 prefix + english,
                 f"[Chinese]({chinese})\n\n# Public instrument documentation\n",
             )
-        self._write("schemas/score.schema.json", '{"type": "object"}\n')
+        self._write(
+            "schemas/score.schema.json",
+            (
+                '{"$id":"https://tianlai.local/schemas/'
+                'score.schema.json","type":"object"}\n'
+            ),
+        )
         self._write(
             "schemas/candidate-playback-map.schema.json",
-            '{"type": "object"}\n',
+            (
+                '{"$id":"https://tianlai.local/schemas/'
+                'candidate-playback-map.schema.json","type":"object"}\n'
+            ),
+        )
+        self._write(
+            "schemas/score-v2.schema.json",
+            (
+                '{"$id":"https://tianlai.local/schemas/'
+                'score-v2.schema.json","$defs":{"score":{}},'
+                '"$ref":"#/$defs/score"}\n'
+            ),
+        )
+        self._write(
+            "schemas/score-v2-migration.schema.json",
+            (
+                '{"$id":"https://tianlai.local/schemas/'
+                'score-v2-migration.schema.json","$ref":'
+                '"https://tianlai.local/schemas/score-v2.schema.json"}\n'
+            ),
+        )
+        self._write(
+            "schemas/score-v2-execution-profile.schema.json",
+            (
+                '{"$id":"https://tianlai.local/schemas/'
+                'score-v2-execution-profile.schema.json",'
+                '"type":"object"}\n'
+            ),
+        )
+        self._write(
+            "schemas/score-v2-render-receipt.schema.json",
+            (
+                '{"$id":"https://tianlai.local/schemas/'
+                'score-v2-render-receipt.schema.json",'
+                '"type":"object"}\n'
+            ),
+        )
+        self._write(
+            "schemas/score-v2-post-render-check.schema.json",
+            (
+                '{"$id":"https://tianlai.local/schemas/'
+                'score-v2-post-render-check.schema.json",'
+                '"type":"object"}\n'
+            ),
+        )
+        self._write(
+            "schemas/realization.schema.json",
+            (
+                '{"$id":"https://tianlai.local/schemas/'
+                'realization.schema.json","type":"object"}\n'
+            ),
         )
         self._write("examples/demo.events.json", '{"events": []}\n')
         for path in EXPECTED_PUBLIC_DOCUMENTS:
@@ -269,13 +433,19 @@ class SourceReleaseTests(unittest.TestCase):
             self.assertEqual(len(names), len(set(names)))
             self.assertIsNone(archive.testzip())
             self.assertIn("tianlai/core.py", names)
+            self.assertTrue(
+                EXPECTED_SCORE_FOUNDATION_RUNTIME_MODULES.issubset(names)
+            )
+            self.assertIn(
+                b"project-render-v2",
+                archive.read("tianlai/cli.py"),
+            )
             self.assertIn("乐器/键盘乐器/钢琴/乐器.json", names)
             self.assertIn("乐器/键盘乐器/钢琴/乐器.py", names)
             self.assertTrue(
                 EXPECTED_FIXTURE_INSTRUMENT_DOCUMENTS.issubset(names)
             )
-            self.assertIn("schemas/score.schema.json", names)
-            self.assertIn("schemas/candidate-playback-map.schema.json", names)
+            self.assertTrue(EXPECTED_PUBLIC_SCHEMAS.issubset(names))
             self.assertIn("examples/demo.events.json", names)
             self.assertTrue(EXPECTED_PUBLIC_DOCUMENTS.issubset(names))
             self.assertIn("安装环境.ps1", names)
@@ -429,6 +599,108 @@ class SourceReleaseTests(unittest.TestCase):
             release.build_source_release(
                 self.repo,
                 self.output_root / "empty-public-doc.zip",
+            )
+
+    def test_root_readmes_link_to_the_public_score_v2_pair(self) -> None:
+        self._write(
+            "README.md",
+            "[Score v2](docs/score-v2.md)\n",
+        )
+        self._write(
+            "README.en.md",
+            "[Score v2](docs/score-v2.en.md)\n",
+        )
+        self._write(
+            "docs/score-v2.md",
+            "[English](score-v2.en.md)\n",
+        )
+        self._write(
+            "docs/score-v2.en.md",
+            "[简体中文](score-v2.md)\n",
+        )
+        self._git(
+            "add",
+            "README.md",
+            "README.en.md",
+            "docs/score-v2.md",
+            "docs/score-v2.en.md",
+        )
+        self._git("commit", "--quiet", "-m", "link public score v2 pair")
+
+        output = self.output_root / "score-v2-links.zip"
+        release.build_source_release(self.repo, output)
+
+        with zipfile.ZipFile(output, "r") as archive:
+            names = set(archive.namelist())
+            self.assertIn("docs/score-v2.md", names)
+            self.assertIn("docs/score-v2.en.md", names)
+
+    def test_root_readmes_link_to_the_public_realization_pair(self) -> None:
+        self._write(
+            "README.md",
+            "[Realization v1](docs/realization-v1.md)\n",
+        )
+        self._write(
+            "README.en.md",
+            "[Realization v1](docs/realization-v1.en.md)\n",
+        )
+        self._write(
+            "docs/realization-v1.md",
+            "[English](realization-v1.en.md)\n",
+        )
+        self._write(
+            "docs/realization-v1.en.md",
+            "[简体中文](realization-v1.md)\n",
+        )
+        self._git(
+            "add",
+            "README.md",
+            "README.en.md",
+            "docs/realization-v1.md",
+            "docs/realization-v1.en.md",
+        )
+        self._git("commit", "--quiet", "-m", "link realization pair")
+
+        output = self.output_root / "realization-links.zip"
+        release.build_source_release(self.repo, output)
+
+        with zipfile.ZipFile(output, "r") as archive:
+            names = set(archive.namelist())
+            self.assertIn("docs/realization-v1.md", names)
+            self.assertIn("docs/realization-v1.en.md", names)
+
+    def test_public_schema_external_references_must_ship_offline(self) -> None:
+        self._git("rm", "--quiet", "schemas/score-v2.schema.json")
+        self._git("commit", "--quiet", "-m", "remove referenced schema")
+
+        with self.assertRaisesRegex(
+            release.ReleaseBuildError,
+            "JSON Schema reference is not included",
+        ):
+            release.build_source_release(
+                self.repo,
+                self.output_root / "missing-schema-reference.zip",
+            )
+
+    def test_public_schema_internal_references_must_resolve(self) -> None:
+        self._write(
+            "schemas/realization.schema.json",
+            (
+                '{"$id":"https://tianlai.local/schemas/'
+                'realization.schema.json","$defs":{},'
+                '"$ref":"#/$defs/missing"}\n'
+            ),
+        )
+        self._git("add", "schemas/realization.schema.json")
+        self._git("commit", "--quiet", "-m", "break schema pointer")
+
+        with self.assertRaisesRegex(
+            release.ReleaseBuildError,
+            "reference points outside",
+        ):
+            release.build_source_release(
+                self.repo,
+                self.output_root / "broken-schema-pointer.zip",
             )
 
     def test_public_markdown_translation_is_required(self) -> None:

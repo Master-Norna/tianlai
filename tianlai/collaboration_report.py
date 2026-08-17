@@ -18,7 +18,7 @@ from pathlib import Path
 import re
 import stat
 import tempfile
-from typing import Any, BinaryIO
+from typing import Any, BinaryIO, Callable
 
 import numpy as np
 
@@ -38,6 +38,7 @@ from .roster import (
     Executor,
 )
 from .render_lock import (
+    PlainDirectoryIdentity,
     capture_plain_directory,
     revalidate_plain_directory,
 )
@@ -55,6 +56,12 @@ from .temporal_balance import (
     TEMPORAL_BALANCE_VERSION,
     TemporalBalanceAnalysis,
     analyze_temporal_balance,
+)
+from .worker_slots import (
+    SessionScratchClaim,
+    WorkerSlotError,
+    WorkerSlotPool,
+    scratch_volume_identity,
 )
 
 
@@ -78,6 +85,59 @@ ANALYSIS_CACHE_STAGE = (
 ANALYSIS_CACHE_IDENTITY_VERSION = 1
 _STEM_TRANSACTION_MAX_BLOCK_FRAMES = 65_536
 _FLOAT32_STEREO_FRAME_BYTES = 2 * np.dtype(np.float32).itemsize
+
+
+def _session_scratch_pool_factory() -> WorkerSlotPool:
+    return WorkerSlotPool()
+
+
+class _ScratchAdmissionUnavailable(RuntimeError):
+    """The optional collaboration scratch ledger could not admit this build."""
+
+
+def _same_plain_directory_identity(
+    first: PlainDirectoryIdentity,
+    second: PlainDirectoryIdentity,
+) -> bool:
+    return (
+        first.path == second.path
+        and first.device == second.device
+        and first.inode == second.inode
+    )
+
+
+def _collaboration_scratch_peak_bytes(
+    frame_count: int,
+    *,
+    relation_part_count: int,
+    relation_group_endpoint_count: int,
+) -> int:
+    """Return the exact builder mapping peak for one dry timeline.
+
+    During stem ingestion the builder retains at most one mapping per unique
+    relation part plus one current transaction/view.  ``build()`` rejects an
+    unfinished transaction before it creates and caches one mapping per unique
+    referenced part-group endpoint.  The two phases do not overlap, hence the
+    maximum rather than the sum of their transient counts.
+    """
+
+    for value, name in (
+        (frame_count, "collaboration scratch frame_count"),
+        (relation_part_count, "collaboration relation part count"),
+        (
+            relation_group_endpoint_count,
+            "collaboration relation group endpoint count",
+        ),
+    ):
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            raise ValueError(f"{name} must be a non-negative integer")
+    if frame_count <= 0:
+        raise ValueError("collaboration scratch frame_count must be positive")
+    retained_peak = relation_part_count + max(
+        1,
+        relation_group_endpoint_count,
+    )
+    return frame_count * _FLOAT32_STEREO_FRAME_BYTES * retained_peak
 
 
 def _round_optional(value: float | None, digits: int = 6) -> float | None:
@@ -787,6 +847,55 @@ def _close_private_stem_scratch(
         raise first_error
 
 
+def _close_registered_scratch_resources(
+    resources: tuple[tuple[np.memmap, BinaryIO], ...],
+    *,
+    flush: bool,
+) -> list[BaseException]:
+    """Close every unique mapping before any handle and retain all errors.
+
+    The aggregate session lease covers the complete builder peak.  Closing a
+    backing handle (or that lease) while another registered mapping is still
+    live would make the ledger understate real scratch ownership, especially
+    on Windows where delete-on-close waits for the mapping.  The resource table
+    is authoritative; logical endpoint dictionaries are deliberately ignored.
+    """
+
+    errors: list[BaseException] = []
+    mappings: list[np.memmap] = []
+    handles: list[BinaryIO] = []
+    seen_mappings: set[int] = set()
+    seen_handles: set[int] = set()
+    for audio, scratch in resources:
+        audio_identity = id(audio)
+        if audio_identity not in seen_mappings:
+            seen_mappings.add(audio_identity)
+            mappings.append(audio)
+        scratch_identity = id(scratch)
+        if scratch_identity not in seen_handles:
+            seen_handles.add(scratch_identity)
+            handles.append(scratch)
+
+    for audio in mappings:
+        if flush:
+            try:
+                audio.flush()
+            except BaseException as exc:
+                errors.append(exc)
+        mapping = getattr(audio, "_mmap", None)
+        if mapping is not None:
+            try:
+                mapping.close()
+            except BaseException as exc:
+                errors.append(exc)
+    for scratch in handles:
+        try:
+            scratch.close()
+        except BaseException as exc:
+            errors.append(exc)
+    return errors
+
+
 class _AnalyzedStemView:
     """Explicit post-diagnostic access to one transaction mapping.
 
@@ -801,6 +910,7 @@ class _AnalyzedStemView:
         "_scratch",
         "_audio_sha256",
         "_builder_owned",
+        "_close_callback",
         "_closed",
     )
 
@@ -811,13 +921,20 @@ class _AnalyzedStemView:
         *,
         audio_sha256: str,
         builder_owned: bool,
+        close_callback: Callable[
+            ["_AnalyzedStemView", np.memmap, BinaryIO], None
+        ]
+        | None = None,
     ) -> None:
         if builder_owned != (scratch is None):
             raise ValueError("analyzed stem view ownership is inconsistent")
+        if builder_owned and close_callback is not None:
+            raise ValueError("builder-owned analyzed stem view cannot own a callback")
         self._audio: np.memmap | None = audio
         self._scratch = scratch
         self._audio_sha256 = audio_sha256
         self._builder_owned = builder_owned
+        self._close_callback = close_callback
         self._closed = False
 
     @property
@@ -845,10 +962,21 @@ class _AnalyzedStemView:
         self._closed = True
         audio = self._audio
         scratch = self._scratch
+        close_callback = self._close_callback
         self._audio = None
         self._scratch = None
+        self._close_callback = None
+        first_error: BaseException | None = None
         if audio is not None and scratch is not None:
-            _close_private_stem_scratch(audio, scratch, flush=False)
+            try:
+                if close_callback is None:
+                    _close_private_stem_scratch(audio, scratch, flush=False)
+                else:
+                    close_callback(self, audio, scratch)
+            except BaseException as exc:
+                first_error = exc
+        if first_error is not None:
+            raise first_error
 
     def __enter__(self) -> "_AnalyzedStemView":
         if self._closed:
@@ -933,8 +1061,15 @@ class _StemAnalysisTransaction:
         scratch = self._scratch
         self._audio = None
         self._scratch = None
-        if audio is not None and scratch is not None:
-            _close_private_stem_scratch(audio, scratch, flush=flush)
+        try:
+            if audio is not None and scratch is not None:
+                self._builder._release_scratch_resource(
+                    audio,
+                    scratch,
+                    flush=flush,
+                )
+        finally:
+            self._builder._release_current_scratch_owner(self)
 
     def _release_without_masking_error(self) -> None:
         try:
@@ -1051,6 +1186,7 @@ class _StemAnalysisTransaction:
             self._retained = True
             self._audio = None
             self._scratch = None
+            self._builder._release_current_scratch_owner(self)
             try:
                 return _AnalyzedStemView(
                     audio,
@@ -1071,11 +1207,13 @@ class _StemAnalysisTransaction:
                 scratch,
                 audio_sha256=self.audio_sha256,
                 builder_owned=False,
+                close_callback=self._builder._release_current_view_scratch,
             )
         except BaseException:
             self._builder._mark_abort_only()
             self._release_without_masking_error()
             raise
+        self._builder._transfer_current_scratch_owner(self, view)
         self._builder._stem_transactions.discard(self)
         self._closed = True
         self._audio = None
@@ -1130,6 +1268,7 @@ class CollaborationReportBuilder:
         scratch_parent: str | Path | None = None,
         cache_directory: str | Path | None = None,
         expected_stem_count: int | None = None,
+        dry_frame_count: int | None = None,
     ) -> None:
         if not isinstance(settings, CollaborationSettings):
             raise ValueError("settings must be CollaborationSettings")
@@ -1200,11 +1339,30 @@ class CollaborationReportBuilder:
             for endpoint in (relation.subject, relation.reference)
             for part in self._part_groups.get(endpoint, (endpoint,))
         }
+        self._relation_group_endpoints = {
+            endpoint
+            for relation in settings.balance_relations
+            for endpoint in (relation.subject, relation.reference)
+            if endpoint in self._part_groups
+        }
         self._part_buffers: dict[str, np.ndarray] = {}
         self._endpoint_buffers: dict[str, np.ndarray] = {}
         self._endpoint_sha256: dict[str, str] = {}
         self._scratch_parent: Path | None = None
-        self._scratch_identity: Any | None = None
+        self._scratch_identity: PlainDirectoryIdentity | None = None
+        self._scratch_volume_id: str | None = None
+        self._scratch_lease: Any | None = None
+        self._scratch_frame_count: int | None = None
+        self._scratch_expected_frame_count = dry_frame_count
+        self._scratch_admission_required = dry_frame_count is not None
+        self._scratch_admission_disabled = False
+        self._current_scratch_owner: object | None = None
+        self._scratch_resources: dict[
+            int,
+            tuple[np.memmap, BinaryIO],
+        ] = {}
+        # Compatibility telemetry for existing private tests/embedders.  The
+        # resource table above, not this mirror, owns cleanup decisions.
         self._scratch_handles: list[BinaryIO] = []
         self._stem_transactions: set[_StemAnalysisTransaction] = set()
         self._closed = False
@@ -1247,6 +1405,16 @@ class CollaborationReportBuilder:
             identity = capture_plain_directory(parent)
             self._scratch_parent = revalidate_plain_directory(identity)
             self._scratch_identity = identity
+            self._scratch_volume_id = scratch_volume_identity(
+                self._scratch_parent
+            )
+        if dry_frame_count is not None:
+            if (
+                isinstance(dry_frame_count, bool)
+                or not isinstance(dry_frame_count, int)
+                or dry_frame_count <= 0
+            ):
+                raise ValueError("dry_frame_count must be a positive integer")
 
     @property
     def cache_summary(self) -> dict[str, Any] | None:
@@ -1266,15 +1434,214 @@ class CollaborationReportBuilder:
     def _mark_abort_only(self) -> None:
         self._abort_only = True
 
+    def _revalidate_scratch_boundary(self) -> Path:
+        identity = self._scratch_identity
+        expected_volume_id = self._scratch_volume_id
+        if identity is None or expected_volume_id is None:
+            raise WorkerSlotError("collaboration scratch identity is unavailable")
+        parent = revalidate_plain_directory(identity)
+        if scratch_volume_identity(parent) != expected_volume_id:
+            raise WorkerSlotError("collaboration scratch volume identity changed")
+        return parent
+
+    def _disable_scratch_admission(self) -> None:
+        self._scratch_admission_disabled = True
+
+    def _ensure_scratch_admission(self, frame_count: int) -> bool:
+        """Acquire the builder's sole aggregate scratch lease before mapping."""
+
+        if (
+            isinstance(frame_count, bool)
+            or not isinstance(frame_count, int)
+            or frame_count <= 0
+        ):
+            raise ValueError("collaboration scratch frame_count must be positive")
+        if self._scratch_admission_disabled or self._scratch_identity is None:
+            return False
+        expected_frame_count = self._scratch_expected_frame_count
+        if (
+            expected_frame_count is not None
+            and frame_count != expected_frame_count
+        ):
+            raise ValueError(
+                "collaboration scratch mappings must share the dry timeline"
+            )
+        if self._scratch_lease is not None:
+            if frame_count != self._scratch_frame_count:
+                raise ValueError(
+                    "collaboration scratch mappings must share one timeline"
+                )
+            self._revalidate_scratch_boundary()
+            return True
+
+        scratch_bytes = _collaboration_scratch_peak_bytes(
+            frame_count,
+            relation_part_count=len(self._relation_parts),
+            relation_group_endpoint_count=len(
+                self._relation_group_endpoints
+            ),
+        )
+        parent = self._revalidate_scratch_boundary()
+        try:
+            pool = _session_scratch_pool_factory()
+            lease = pool.reserve_session_scratch(
+                SessionScratchClaim(
+                    scratch_bytes=scratch_bytes,
+                    scratch_directory=parent,
+                )
+            )
+        except MemoryError:
+            raise
+        except (OSError, ValueError, WorkerSlotError):
+            # Ledger availability is an optimization boundary.  Prove that
+            # the authorized directory and volume are unchanged before using
+            # the established RAM path.
+            self._revalidate_scratch_boundary()
+            self._disable_scratch_admission()
+            return False
+        if lease is None:
+            self._revalidate_scratch_boundary()
+            self._disable_scratch_admission()
+            return False
+
+        try:
+            lease_identity = capture_plain_directory(lease.scratch_directory)
+            if not _same_plain_directory_identity(
+                self._scratch_identity,
+                lease_identity,
+            ):
+                raise WorkerSlotError(
+                    "collaboration scratch lease has the wrong directory"
+                )
+            admitted_claim = getattr(lease, "claim", None)
+            if (
+                getattr(admitted_claim, "scratch_bytes", None) != scratch_bytes
+                or getattr(admitted_claim, "scratch_volume_id", None)
+                != self._scratch_volume_id
+            ):
+                raise WorkerSlotError(
+                    "collaboration scratch lease has the wrong claim"
+                )
+            self._revalidate_scratch_boundary()
+        except BaseException:
+            try:
+                lease.close()
+            except BaseException:
+                pass
+            raise
+        self._scratch_lease = lease
+        self._scratch_frame_count = frame_count
+        self._scratch_parent = lease.scratch_directory
+        return True
+
+    def _claim_current_scratch_owner(self, owner: object) -> None:
+        if self._current_scratch_owner is not None:
+            raise RuntimeError(
+                "collaboration scratch already has a current transaction"
+            )
+        self._current_scratch_owner = owner
+
+    def _transfer_current_scratch_owner(
+        self,
+        previous: object,
+        current: object,
+    ) -> None:
+        if self._current_scratch_owner is not previous:
+            raise RuntimeError("collaboration scratch ownership is inconsistent")
+        self._current_scratch_owner = current
+
+    def _release_current_scratch_owner(self, owner: object) -> None:
+        if self._current_scratch_owner is owner:
+            self._current_scratch_owner = None
+
+    def _register_scratch_resource(
+        self,
+        audio: np.memmap,
+        scratch: BinaryIO,
+    ) -> None:
+        """Register physical ownership before any logical buffer mutation."""
+
+        identity = id(audio)
+        if identity in self._scratch_resources:
+            raise RuntimeError(
+                "collaboration scratch mapping is already registered"
+            )
+        self._scratch_resources[identity] = (audio, scratch)
+
+    def _unregister_scratch_resource(
+        self,
+        audio: np.memmap,
+        scratch: BinaryIO,
+    ) -> None:
+        identity = id(audio)
+        registered = self._scratch_resources.get(identity)
+        if (
+            registered is None
+            or registered[0] is not audio
+            or registered[1] is not scratch
+        ):
+            raise RuntimeError("collaboration scratch ownership is inconsistent")
+        del self._scratch_resources[identity]
+        self._scratch_handles[:] = [
+            candidate
+            for candidate in self._scratch_handles
+            if candidate is not scratch
+        ]
+
+    def _release_scratch_resource(
+        self,
+        audio: np.memmap,
+        scratch: BinaryIO,
+        *,
+        flush: bool,
+    ) -> None:
+        """Drop one registered mapping and handle in physical close order."""
+
+        first_error: BaseException | None = None
+        try:
+            self._unregister_scratch_resource(audio, scratch)
+        except BaseException as exc:
+            first_error = exc
+        try:
+            _close_private_stem_scratch(audio, scratch, flush=flush)
+        except BaseException as exc:
+            if first_error is None:
+                first_error = exc
+        if first_error is not None:
+            raise first_error
+
+    def _release_current_view_scratch(
+        self,
+        owner: _AnalyzedStemView,
+        audio: np.memmap,
+        scratch: BinaryIO,
+    ) -> None:
+        try:
+            self._release_scratch_resource(audio, scratch, flush=False)
+        finally:
+            self._release_current_scratch_owner(owner)
+
     def _new_scratch_memmap(
         self,
         shape: tuple[int, ...],
     ) -> tuple[np.memmap, BinaryIO, os.stat_result]:
-        """Allocate an unregistered mapping in the bound scratch directory."""
+        """Allocate and immediately register one physical scratch resource."""
 
+        if (
+            self._scratch_admission_required
+            and (
+                not shape
+                or not self._ensure_scratch_admission(int(shape[0]))
+            )
+        ):
+            raise _ScratchAdmissionUnavailable(
+                "collaboration scratch storage is unavailable"
+            )
         identity = self._scratch_identity
         if self._scratch_parent is None or identity is None:
-            raise RuntimeError("collaboration scratch storage is disabled")
+            raise _ScratchAdmissionUnavailable(
+                "collaboration scratch storage is unavailable"
+            )
         parent = revalidate_plain_directory(identity)
         scratch = tempfile.TemporaryFile(
             mode="w+b",
@@ -1291,6 +1658,7 @@ class CollaborationReportBuilder:
                 dtype=np.float32,
                 shape=shape,
             )
+            self._register_scratch_resource(audio, scratch)
             opened_status = os.fstat(scratch.fileno())
             if (
                 not stat.S_ISREG(opened_status.st_mode)
@@ -1299,21 +1667,39 @@ class CollaborationReportBuilder:
                 raise OSError(
                     "collaboration scratch mapping has an invalid identity"
                 )
-        except BaseException:
+        except BaseException as primary_error:
             if audio is not None:
                 try:
-                    _close_private_stem_scratch(
-                        audio,
-                        scratch,
-                        flush=False,
+                    registered = self._scratch_resources.get(id(audio))
+                    if (
+                        registered is not None
+                        and registered[0] is audio
+                        and registered[1] is scratch
+                    ):
+                        self._release_scratch_resource(
+                            audio,
+                            scratch,
+                            flush=False,
+                        )
+                    else:
+                        _close_private_stem_scratch(
+                            audio,
+                            scratch,
+                            flush=False,
+                        )
+                except BaseException as cleanup_error:
+                    primary_error.add_note(
+                        "collaboration scratch cleanup also failed: "
+                        f"{cleanup_error!r}"
                     )
-                except BaseException:
-                    pass
             else:
                 try:
                     scratch.close()
-                except BaseException:
-                    pass
+                except BaseException as cleanup_error:
+                    primary_error.add_note(
+                        "collaboration scratch handle cleanup also failed: "
+                        f"{cleanup_error!r}"
+                    )
             raise
         return audio, scratch, opened_status
 
@@ -1325,7 +1711,11 @@ class CollaborationReportBuilder:
             self._scratch_handles.append(scratch)
         except BaseException:
             try:
-                _close_private_stem_scratch(audio, scratch, flush=False)
+                self._release_scratch_resource(
+                    audio,
+                    scratch,
+                    flush=False,
+                )
             except BaseException:
                 pass
             raise
@@ -1354,6 +1744,10 @@ class CollaborationReportBuilder:
             raise ValueError(
                 "expected_audio_sha256 must be lowercase SHA-256 hex"
             )
+        if self._current_scratch_owner is not None:
+            raise RuntimeError(
+                "collaboration scratch already has a current transaction"
+            )
         audio, scratch, opened_status = self._new_scratch_memmap(
             (frame_count, 2)
         )
@@ -1367,6 +1761,7 @@ class CollaborationReportBuilder:
             opened_status=opened_status,
         )
         try:
+            self._claim_current_scratch_owner(transaction)
             self._stem_transactions.add(transaction)
         except BaseException:
             transaction._release_without_masking_error()
@@ -1431,6 +1826,15 @@ class CollaborationReportBuilder:
         self._require_writable()
         transaction_call = owned_scratch is not None
         try:
+            current_owner = self._current_scratch_owner
+            if current_owner is not None and not (
+                owned_scratch is not None
+                and isinstance(current_owner, _StemAnalysisTransaction)
+                and current_owner._audio is buffer
+            ):
+                raise RuntimeError(
+                    "collaboration scratch has an unfinished current owner"
+                )
             if owned_scratch is not None and owned_scratch[0] is not buffer:
                 raise ValueError(
                     "owned analysis scratch does not match its buffer"
@@ -1637,8 +2041,12 @@ class CollaborationReportBuilder:
         elif self._scratch_parent is None:
             audio = np.array(buffer, dtype=np.float32, copy=True)
         else:
-            audio = self._scratch_memmap(buffer.shape)
-            audio[:] = buffer
+            try:
+                audio = self._scratch_memmap(buffer.shape)
+            except _ScratchAdmissionUnavailable:
+                audio = np.array(buffer, dtype=np.float32, copy=True)
+            else:
+                audio[:] = buffer
         # Relation endpoints are normally a single executor.  Retain only
         # these explicitly referenced parts; unrelated stems do not
         # accumulate in memory or scratch storage.
@@ -1650,12 +2058,6 @@ class CollaborationReportBuilder:
             try:
                 if self._part_buffers.get(executor.part_id) is audio:
                     self._part_buffers.pop(executor.part_id, None)
-                if scratch is not None:
-                    self._scratch_handles[:] = [
-                        candidate
-                        for candidate in self._scratch_handles
-                        if candidate is not scratch
-                    ]
             except BaseException:
                 pass
             raise
@@ -1698,8 +2100,12 @@ class CollaborationReportBuilder:
         if self._scratch_parent is None:
             combined = np.array(first, dtype=np.float32, copy=True)
         else:
-            combined = self._scratch_memmap(first.shape)
-            combined[:] = first
+            try:
+                combined = self._scratch_memmap(first.shape)
+            except _ScratchAdmissionUnavailable:
+                combined = np.array(first, dtype=np.float32, copy=True)
+            else:
+                combined[:] = first
         for part_id in expanded[1:]:
             audio = self._part_buffers.get(part_id)
             if audio is None:
@@ -2320,46 +2726,50 @@ class CollaborationReportBuilder:
             return
         self._closed = True
         cleanup_errors: list[BaseException] = []
+
+        # Invalidate logical owners without letting each one close its pair
+        # independently.  The physical table below must close *all* mappings
+        # before *any* handle, and traceback-held owners must no longer expose
+        # an apparently live resource once this method returns.
         transactions = tuple(self._stem_transactions)
         for transaction in transactions:
-            try:
-                transaction.close()
-            except BaseException as exc:
-                cleanup_errors.append(exc)
+            transaction._closed = True
+            transaction._audio = None
+            transaction._scratch = None
         self._stem_transactions.clear()
-        buffers_by_identity = {
-            id(audio): audio
-            for audio in (
-                *self._part_buffers.values(),
-                *self._endpoint_buffers.values(),
-            )
-        }
-        buffers = tuple(buffers_by_identity.values())
+        current_owner = self._current_scratch_owner
+        if isinstance(current_owner, _AnalyzedStemView):
+            current_owner._closed = True
+            current_owner._audio = None
+            current_owner._scratch = None
+            current_owner._close_callback = None
+        elif isinstance(current_owner, _StemAnalysisTransaction):
+            current_owner._closed = True
+            current_owner._audio = None
+            current_owner._scratch = None
+        self._current_scratch_owner = None
         self._part_buffers.clear()
         self._endpoint_buffers.clear()
         self._endpoint_sha256.clear()
-        scratch_handles = tuple(self._scratch_handles)
+        resources = tuple(self._scratch_resources.values())
+        self._scratch_resources.clear()
         self._scratch_handles.clear()
+        scratch_lease = self._scratch_lease
+        self._scratch_lease = None
+        try:
+            cleanup_errors.extend(
+                _close_registered_scratch_resources(resources, flush=True)
+            )
+        except BaseException as exc:
+            cleanup_errors.append(exc)
+        if scratch_lease is not None:
+            try:
+                scratch_lease.close()
+            except BaseException as exc:
+                cleanup_errors.append(exc)
         self._scratch_parent = None
         self._scratch_identity = None
-        for audio in buffers:
-            if not isinstance(audio, np.memmap):
-                continue
-            try:
-                audio.flush()
-            except BaseException as exc:
-                cleanup_errors.append(exc)
-            mapping = getattr(audio, "_mmap", None)
-            if mapping is not None:
-                try:
-                    mapping.close()
-                except BaseException as exc:
-                    cleanup_errors.append(exc)
-        for scratch in scratch_handles:
-            try:
-                scratch.close()
-            except BaseException as exc:
-                cleanup_errors.append(exc)
+        self._scratch_volume_id = None
         if cleanup_errors:
             raise cleanup_errors[0]
 
@@ -2373,6 +2783,10 @@ class CollaborationReportBuilder:
             if self._stem_transactions:
                 raise RuntimeError(
                     "collaboration report has an unfinished stem transaction"
+                )
+            if self._current_scratch_owner is not None:
+                raise RuntimeError(
+                    "collaboration report has an unfinished analyzed stem view"
                 )
             report = self._build_report()
         except BaseException:

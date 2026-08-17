@@ -95,9 +95,9 @@ class AtomicCliRenderTests(unittest.TestCase):
         written_paths: list[Path] = []
         real_write = renderer._write_wav_pcm24_blocks
 
-        def recording_write(path, blocks, sample_rate, **kwargs):
-            written_paths.append(Path(path))
-            return real_write(path, blocks, sample_rate, **kwargs)
+        def recording_write(claim, blocks, sample_rate, **kwargs):
+            written_paths.append(claim.path)
+            return real_write(claim, blocks, sample_rate, **kwargs)
 
         with patch(
             "tianlai.renderer._write_wav_pcm24_blocks",
@@ -147,8 +147,8 @@ class AtomicCliRenderTests(unittest.TestCase):
         original = b"previous trusted WAV bytes"
         output.write_bytes(original)
 
-        def broken_write(path, _blocks, _sample_rate, **_kwargs):
-            Path(path).write_bytes(b"not a readable WAV")
+        def broken_write(claim, _blocks, _sample_rate, **_kwargs):
+            claim.path.write_bytes(b"not a readable WAV")
             return self.performance.total_samples
 
         with patch(
@@ -178,7 +178,7 @@ class AtomicCliRenderTests(unittest.TestCase):
                 output.write_bytes(original)
 
                 def mismatched_write(
-                    path,
+                    claim,
                     _blocks,
                     _sample_rate,
                     *,
@@ -188,7 +188,7 @@ class AtomicCliRenderTests(unittest.TestCase):
                     **_kwargs,
                 ):
                     sf.write(
-                        str(path),
+                        str(claim.path),
                         np.zeros(
                             (frame_count, channel_count),
                             dtype=np.float32,
@@ -225,7 +225,7 @@ class AtomicCliRenderTests(unittest.TestCase):
                 side_effect=real_write,
             ),
             patch(
-                "tianlai.renderer.os.replace",
+                "tianlai.renderer._replace_published_file",
                 side_effect=OSError("simulated locked destination"),
             ),
         ):
@@ -243,8 +243,8 @@ class AtomicCliRenderTests(unittest.TestCase):
         original = b"old target"
         output.write_bytes(original)
 
-        def interrupted_write(path, _blocks, _sample_rate, **_kwargs):
-            Path(path).write_bytes(b"partial")
+        def interrupted_write(claim, _blocks, _sample_rate, **_kwargs):
+            claim.path.write_bytes(b"partial")
             raise KeyboardInterrupt()
 
         with patch(

@@ -17,7 +17,7 @@ def main() -> None:
     report = generate_dedicated_audition_verification(
         here / "乐器.json",
         ROOT / "examples" / "电钢琴_奏法.events.json",
-        ROOT / "output" / "电钢琴_candidate.wav",
+        ROOT / "output" / "表现力试听" / "键盘乐器" / "电钢琴_candidate.wav",
         output_path=report_path,
         coverage=[
             "A0-C8 低/中/高音域",

@@ -8,13 +8,14 @@ before it can be handed back to a renderer.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import errno
 import hashlib
 import json
 import math
 import os
 from pathlib import Path
-import shutil
 import stat
+import sys
 import tempfile
 from typing import Any, BinaryIO, Iterator, Mapping
 
@@ -22,10 +23,18 @@ import numpy as np
 
 from .canonical_json import canonical_json_bytes
 from .render_lock import (
+    PlainDirectoryIdentity,
     RenderLockError,
     acquire_render_lock,
     capture_plain_directory,
     revalidate_plain_directory,
+)
+from .worker_slots import (
+    SessionScratchClaim,
+    SessionScratchLease,
+    WorkerSlotError,
+    WorkerSlotPool,
+    scratch_volume_identity,
 )
 
 
@@ -38,7 +47,6 @@ _MAX_METADATA_BYTES = 64 * 1024
 _FINITE_CHECK_CHUNK_SAMPLES = 65_536 * _CHANNELS
 _STREAM_VERIFY_CHUNK_BYTES = _FINITE_CHECK_CHUNK_SAMPLES * _AUDIO_DTYPE.itemsize
 _VERIFIED_SOURCE_BLOCK_FRAMES = 65_536
-_SNAPSHOT_FREE_RESERVE_BYTES = 512 * 1024 * 1024
 _METADATA_KEYS = frozenset(
     {
         "format",
@@ -63,6 +71,143 @@ class _InvalidDocument(ValueError):
 
 class _UnsafePath(ValueError):
     """A cache path contains an unexpected symbolic link."""
+
+
+def _verified_snapshot_pool_factory() -> WorkerSlotPool:
+    """Return the private cross-process ledger used by verified snapshots.
+
+    Keeping construction behind a module-private factory lets tests bind the
+    ledger to their own temporary directory instead of touching the real
+    per-user pool.  Production callers intentionally receive the shared
+    default pool.
+    """
+
+    return WorkerSlotPool()
+
+
+def _same_plain_directory_identity(
+    left: PlainDirectoryIdentity,
+    right: PlainDirectoryIdentity,
+) -> bool:
+    return (
+        left.path == right.path
+        and left.device == right.device
+        and left.inode == right.inode
+    )
+
+
+def _capture_verified_snapshot_storage(
+    requested: Path,
+) -> tuple[PlainDirectoryIdentity, str]:
+    """Bind snapshot storage to one plain directory and local volume."""
+
+    try:
+        identity = capture_plain_directory(requested)
+        directory = revalidate_plain_directory(identity)
+        volume_id = scratch_volume_identity(directory)
+    except MemoryError:
+        raise
+    except OSError as exc:
+        if exc.errno in {
+            errno.ELOOP,
+            errno.ENOENT,
+            errno.ENOTDIR,
+            errno.ESTALE,
+            errno.EXDEV,
+            errno.ENOTSUP,
+        }:
+            raise WorkerSlotError(
+                "verified stem snapshot directory identity is unavailable"
+            ) from exc
+        raise
+    except (TypeError, ValueError, WorkerSlotError) as exc:
+        raise WorkerSlotError(
+            "verified stem snapshot volume identity is unavailable"
+        ) from exc
+    return identity, volume_id
+
+
+def _revalidate_verified_snapshot_storage(
+    identity: PlainDirectoryIdentity,
+    expected_volume_id: str,
+    *,
+    lease: SessionScratchLease | None = None,
+    byte_length: int | None = None,
+) -> Path:
+    """Return the admitted canonical directory or fail closed on drift."""
+
+    try:
+        directory = revalidate_plain_directory(identity)
+        current_volume_id = scratch_volume_identity(directory)
+    except MemoryError:
+        raise
+    except (OSError, TypeError, ValueError, WorkerSlotError) as exc:
+        raise WorkerSlotError(
+            "verified stem snapshot directory or volume identity changed"
+        ) from exc
+    if current_volume_id != expected_volume_id:
+        raise WorkerSlotError(
+            "verified stem snapshot volume identity changed"
+        )
+    if lease is None:
+        return directory
+
+    if lease.closed:
+        raise WorkerSlotError("verified stem snapshot lease is unavailable")
+    try:
+        lease_identity = capture_plain_directory(lease.scratch_directory)
+        lease_directory = revalidate_plain_directory(lease_identity)
+    except MemoryError:
+        raise
+    except (OSError, TypeError, ValueError, WorkerSlotError) as exc:
+        raise WorkerSlotError(
+            "verified stem snapshot lease directory is unavailable"
+        ) from exc
+    if not _same_plain_directory_identity(identity, lease_identity):
+        raise WorkerSlotError(
+            "verified stem snapshot lease directory identity changed"
+        )
+    claim = lease.claim
+    if (
+        claim.scratch_volume_id != expected_volume_id
+        or byte_length is None
+        or claim.scratch_bytes != byte_length
+    ):
+        raise WorkerSlotError("verified stem snapshot lease has the wrong claim")
+    return lease_directory
+
+
+def _close_snapshot_resources(
+    snapshot: BinaryIO | None,
+    lease: SessionScratchLease | None,
+) -> BaseException | None:
+    """Close the snapshot before its ledger lease, retaining the first error."""
+
+    first_error: BaseException | None = None
+    for resource in (snapshot, lease):
+        if resource is None:
+            continue
+        try:
+            resource.close()
+        except BaseException as exc:
+            if first_error is None:
+                first_error = exc
+    return first_error
+
+
+def _annotate_snapshot_cleanup_error(
+    primary: BaseException,
+    cleanup_error: BaseException | None,
+) -> None:
+    if cleanup_error is None:
+        return
+    try:
+        primary.add_note(
+            "verified stem snapshot cleanup also failed: "
+            f"{type(cleanup_error).__name__}: {cleanup_error}"
+        )
+    except BaseException:
+        pass
 
 
 def _all_finite_audio(audio: np.ndarray) -> bool:
@@ -260,13 +405,16 @@ class VerifiedStemSource:
     Consumption independently repeats those gates against the bound snapshot
     descriptor.  Cache replacement, in-place modification and snapshot write
     damage cannot expose unverified audio, and no track-sized ndarray is
-    required.
+    required.  Its exact snapshot claim remains live until the descriptor is
+    closed; post-fork children may only abandon their duplicate resources.
     """
 
     __slots__ = (
         "record",
         "_source",
         "_opened_status",
+        "_lease",
+        "_owner_pid",
         "_closed",
         "_consumed",
         "_iterator_active",
@@ -278,10 +426,13 @@ class VerifiedStemSource:
         record: StemCacheRecord,
         source: BinaryIO,
         opened_status: os.stat_result,
+        lease: SessionScratchLease | None = None,
     ) -> None:
         self.record = record
         self._source = source
         self._opened_status = opened_status
+        self._lease = lease
+        self._owner_pid = os.getpid()
         self._closed = False
         self._consumed = False
         self._iterator_active = False
@@ -302,7 +453,7 @@ class VerifiedStemSource:
 
     @property
     def closed(self) -> bool:
-        return self._closed
+        return self._closed or self._owner_pid != os.getpid()
 
     def iter_blocks(
         self,
@@ -319,7 +470,7 @@ class VerifiedStemSource:
             raise ValueError(
                 "block_frames must be between 1 and 65536"
             )
-        if self._closed:
+        if self.closed:
             raise ValueError("verified stem source is closed")
         if self._consumed or self._iterator_active:
             raise ValueError("verified stem source can only be consumed once")
@@ -335,6 +486,10 @@ class VerifiedStemSource:
         source.seek(0)
         try:
             while remaining:
+                if self._owner_pid != os.getpid():
+                    raise ValueError(
+                        "verified stem source is unavailable after fork"
+                    )
                 requested = min(remaining, chunk_bytes)
                 payload = _read_exact_bytes(source, requested)
                 if len(payload) != requested:
@@ -350,6 +505,10 @@ class VerifiedStemSource:
                 remaining -= requested
                 yield block
 
+            if self._owner_pid != os.getpid():
+                raise ValueError(
+                    "verified stem source is unavailable after fork"
+                )
             if source.read(1):
                 raise _InvalidDocument(
                     "audio frame count differs from metadata during consumption"
@@ -382,22 +541,39 @@ class VerifiedStemSource:
         return audio
 
     def close(self) -> None:
-        if not self._closed:
-            self._closed = True
-            self._source.close()
+        if self._closed:
+            return
+        self._closed = True
+        cleanup_error = _close_snapshot_resources(self._source, self._lease)
+        if cleanup_error is not None:
+            raise cleanup_error
 
     def __enter__(self) -> "VerifiedStemSource":
-        if self._closed:
+        if self.closed:
             raise ValueError("verified stem source is closed")
         return self
 
-    def __exit__(self, *_exc: object) -> None:
-        self.close()
+    def __exit__(
+        self,
+        exc_type: object,
+        exc: object,
+        _traceback: object,
+    ) -> None:
+        if exc_type is None:
+            self.close()
+            return
+        try:
+            self.close()
+        except BaseException as cleanup_error:
+            # A context body failure is earlier and therefore remains primary;
+            # descriptor/ledger cleanup is still attempted in full by close().
+            if isinstance(exc, BaseException):
+                _annotate_snapshot_cleanup_error(exc, cleanup_error)
 
     def __del__(self) -> None:
         try:
             self.close()
-        except Exception:
+        except BaseException:
             pass
 
 
@@ -407,7 +583,9 @@ class StemCacheLookup:
 
     ``status`` is one of ``hit``, ``missing``, ``incomplete``, ``corrupt``,
     ``unavailable``, ``too_large``, ``invalid_limit`` or ``invalid_key``.
-    Only ``hit`` carries audio.
+    Only ``hit`` carries audio.  Ordinary cache and optional-ledger failures
+    are structured; memory exhaustion and an inability to prove snapshot
+    directory/volume identity intentionally remain hard failures.
     """
 
     status: str
@@ -1310,6 +1488,10 @@ class StemCache:
             )
         source: BinaryIO | None = None
         snapshot: BinaryIO | None = None
+        lease: SessionScratchLease | None = None
+        snapshot_identity: PlainDirectoryIdentity | None = None
+        snapshot_volume_id: str | None = None
+        structured_result: StemCacheLookup | None = None
         try:
             audio_path, metadata_path = self._paths(key, create=False)
             try:
@@ -1357,19 +1539,48 @@ class StemCache:
                 if snapshot_directory is None
                 else Path(snapshot_directory)
             )
-            snapshot_identity = capture_plain_directory(
-                requested_snapshot_root
+            snapshot_identity, snapshot_volume_id = (
+                _capture_verified_snapshot_storage(requested_snapshot_root)
             )
-            snapshot_root = revalidate_plain_directory(snapshot_identity)
-            snapshot_free = shutil.disk_usage(snapshot_root).free
-            required_snapshot_bytes = (
-                int(metadata["byte_length"])
-                + _SNAPSHOT_FREE_RESERVE_BYTES
+            byte_length = int(metadata["byte_length"])
+            snapshot_root = _revalidate_verified_snapshot_storage(
+                snapshot_identity,
+                snapshot_volume_id,
             )
-            if snapshot_free < required_snapshot_bytes:
-                raise OSError(
-                    "insufficient free space for verified stem snapshot"
+            try:
+                pool = _verified_snapshot_pool_factory()
+                lease = pool.reserve_session_scratch(
+                    SessionScratchClaim(
+                        scratch_bytes=byte_length,
+                        scratch_directory=snapshot_root,
+                    )
                 )
+            except MemoryError:
+                raise
+            except (OSError, TypeError, ValueError, WorkerSlotError):
+                # The optional ledger may itself be unavailable.  Prove that
+                # the requested storage identity did not cause that failure
+                # before retaining the established fail-soft cache fallback.
+                _revalidate_verified_snapshot_storage(
+                    snapshot_identity,
+                    snapshot_volume_id,
+                )
+                lease = None
+            if lease is None:
+                _revalidate_verified_snapshot_storage(
+                    snapshot_identity,
+                    snapshot_volume_id,
+                )
+                raise OSError(
+                    errno.ENOSPC,
+                    "verified stem snapshot scratch admission is unavailable",
+                )
+            snapshot_root = _revalidate_verified_snapshot_storage(
+                snapshot_identity,
+                snapshot_volume_id,
+                lease=lease,
+                byte_length=byte_length,
+            )
             snapshot = tempfile.TemporaryFile(
                 mode="w+b",
                 prefix=".tianlai-verified-stem.",
@@ -1379,7 +1590,12 @@ class StemCache:
             # The anonymous file is now bound to an opened descriptor.  Make
             # sure the directory itself was not exchanged during creation
             # before copying any cache payload into it.
-            revalidate_plain_directory(snapshot_identity)
+            _revalidate_verified_snapshot_storage(
+                snapshot_identity,
+                snapshot_volume_id,
+                lease=lease,
+                byte_length=byte_length,
+            )
             if _stream_open_audio_evidence(
                 source,
                 opened_audio_status,
@@ -1403,6 +1619,12 @@ class StemCache:
                 raise _InvalidDocument(
                     "verified stem snapshot digest differs from metadata"
                 )
+            _revalidate_verified_snapshot_storage(
+                snapshot_identity,
+                snapshot_volume_id,
+                lease=lease,
+                byte_length=byte_length,
+            )
             source.close()
             source = None
 
@@ -1416,25 +1638,77 @@ class StemCache:
                 record,
                 snapshot,
                 snapshot_status,
+                lease,
             )
             snapshot = None
+            lease = None
             return StemCacheLookup(
                 "hit",
                 record=record,
                 source=verified,
             )
+        except MemoryError:
+            raise
         except (OSError, PermissionError) as exc:
-            return StemCacheLookup(
+            if snapshot_identity is not None and snapshot_volume_id is not None:
+                try:
+                    _revalidate_verified_snapshot_storage(
+                        snapshot_identity,
+                        snapshot_volume_id,
+                        lease=lease,
+                        byte_length=(
+                            int(metadata["byte_length"])
+                            if lease is not None
+                            else None
+                        ),
+                    )
+                except BaseException as identity_error:
+                    raise identity_error from exc
+            structured_result = StemCacheLookup(
                 "unavailable",
                 reason=f"cache read failed: {exc}",
             )
         except (_InvalidDocument, _UnsafePath, ValueError) as exc:
-            return StemCacheLookup("corrupt", reason=str(exc))
+            if snapshot_identity is not None and snapshot_volume_id is not None:
+                _revalidate_verified_snapshot_storage(
+                    snapshot_identity,
+                    snapshot_volume_id,
+                    lease=lease,
+                    byte_length=(
+                        int(metadata["byte_length"])
+                        if lease is not None
+                        else None
+                    ),
+                )
+            structured_result = StemCacheLookup("corrupt", reason=str(exc))
         finally:
+            cleanup_error: BaseException | None = None
             if source is not None:
-                source.close()
-            if snapshot is not None:
-                snapshot.close()
+                try:
+                    source.close()
+                except BaseException as exc:
+                    cleanup_error = exc
+            snapshot_cleanup_error = _close_snapshot_resources(snapshot, lease)
+            if cleanup_error is None:
+                cleanup_error = snapshot_cleanup_error
+            active_error = sys.exception()
+            if active_error is not None:
+                _annotate_snapshot_cleanup_error(active_error, cleanup_error)
+            elif cleanup_error is not None and structured_result is None:
+                raise cleanup_error
+            elif cleanup_error is not None and structured_result is not None:
+                structured_result = StemCacheLookup(
+                    structured_result.status,
+                    record=structured_result.record,
+                    reason=(
+                        f"{structured_result.reason}; cleanup also failed: "
+                        f"{type(cleanup_error).__name__}: {cleanup_error}"
+                    ),
+                    audio=structured_result.audio,
+                    source=structured_result.source,
+                )
+        assert structured_result is not None
+        return structured_result
 
     def _lookup(
         self,

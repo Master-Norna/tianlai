@@ -12,7 +12,7 @@ its own automatic, fail-closed resource policy; it is not a user setting.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import math
 import os
 from typing import Any
@@ -23,6 +23,21 @@ from .canonical_json import canonical_json_bytes
 _FLOAT32_STEREO_BYTES_PER_FRAME = 2 * 4
 _PCM24_STEREO_BYTES_PER_FRAME = 2 * 3
 _ANALYSIS_TRANSACTION_FREE_RESERVE_BYTES = 512 * 1024 * 1024
+# A compiled standalone performance normally needs note-on and note-off events,
+# plus a bounded allowance for control and articulation changes.  Deriving this
+# fan-out budget from the score note budget keeps the two render entrypoints on
+# one explicit configuration surface instead of introducing a second event cap.
+_PERFORMANCE_EVENTS_PER_NOTE_BUDGET = 4
+# A performance plan contains resolved events and audit evidence, so its
+# canonical bytes and Python object graph need an independent bound.  Trusted
+# non-candidate jobs may opt in to a larger ceiling through a separate,
+# explicit environment override.
+# Candidate verification already treats every bound JSON member as a 32 MiB
+# maximum.  Keeping the default compiled-plan budget at that same boundary
+# prevents project-render from creating a candidate which its own verifier
+# must reject.  Non-candidate batch users may raise the explicit environment
+# override, while candidate publication retains its fixed integrity ceiling.
+_DEFAULT_MAX_PLAN_MIB = 32
 
 
 class ResourceLimitError(ValueError):
@@ -75,6 +90,7 @@ class ProjectLimits:
     """Operational defaults suitable for a local general-purpose computer."""
 
     max_score_json_bytes: int = 64 * 1024 * 1024
+    max_plan_json_bytes: int = _DEFAULT_MAX_PLAN_MIB * 1024 * 1024
     max_parts: int = 256
     max_notes: int = 250_000
     max_executors: int = 512
@@ -89,6 +105,11 @@ class ProjectLimits:
         return cls(
             max_score_json_bytes=_environment_positive_int(
                 "TIANLAI_MAX_SCORE_MIB", 64
+            )
+            * 1024
+            * 1024,
+            max_plan_json_bytes=_environment_positive_int(
+                "TIANLAI_MAX_PLAN_MIB", _DEFAULT_MAX_PLAN_MIB
             )
             * 1024
             * 1024,
@@ -120,6 +141,105 @@ class ProjectLimits:
         return {
             field: int(getattr(self, field))
             for field in self.__dataclass_fields__
+        }
+
+
+def performance_event_limit(
+    limits: ProjectLimits | None = None,
+) -> int:
+    """Return the shared compiled-event ceiling for one trusted project."""
+
+    limits = limits or ProjectLimits.from_environment()
+    return limits.max_notes * _PERFORMANCE_EVENTS_PER_NOTE_BUDGET
+
+
+@dataclass(slots=True)
+class PlanDocumentBudgetTracker:
+    """Incrementally bound a performance plan before its object graph exists.
+
+    Call :meth:`charge_fragment` immediately before retaining each small JSON
+    fragment (for example, an event or trace row).  The fragment is encoded in
+    Tianlai's canonical JSON form, charged together with a conservative byte
+    of sequence/mapping framing, and rejected before the caller appends it if
+    the configured plan budget would be exceeded.  Container metadata can be
+    charged as another fragment, with ``framing_bytes`` adjusted when useful.
+
+    Incremental accounting deliberately does not claim to reproduce every
+    byte of an as-yet unbuilt nested document.  :meth:`validate_final` is the
+    authoritative exact check and must be called on the completed JSON-ready
+    plan.  This two-stage contract prevents event/trace amplification during
+    construction while still covering structural bytes and caller omissions.
+    """
+
+    limits: ProjectLimits | None = None
+    charged_bytes: int = field(init=False, default=0)
+    fragment_count: int = field(init=False, default=0)
+
+    def __post_init__(self) -> None:
+        if self.limits is None:
+            self.limits = ProjectLimits.from_environment()
+
+    @property
+    def limit_bytes(self) -> int:
+        """Return the configured canonical plan-document ceiling."""
+
+        assert self.limits is not None
+        return self.limits.max_plan_json_bytes
+
+    def charge_fragment(
+        self,
+        fragment: Any,
+        *,
+        framing_bytes: int = 1,
+    ) -> int:
+        """Canonically charge one fragment before the caller retains it.
+
+        The default framing byte accounts for the comma or bracket/brace that
+        accompanies a value in its containing JSON structure.  A caller may
+        provide a larger exact/conservative value for richer local framing.
+        State is committed only after the prospective total passes the gate.
+        """
+
+        if (
+            isinstance(framing_bytes, bool)
+            or not isinstance(framing_bytes, int)
+            or framing_bytes < 0
+        ):
+            raise ValueError("framing_bytes must be a non-negative integer")
+        try:
+            encoded_size = len(canonical_json_bytes(fragment))
+        except (TypeError, ValueError) as exc:
+            raise ResourceLimitError(
+                "plan.nonportable_json",
+                "performance plan fragments must be finite, portable JSON",
+            ) from exc
+        delta = encoded_size + framing_bytes
+        prospective = self.charged_bytes + delta
+        _raise_if_above(
+            code="plan.document_too_large",
+            label="estimated performance plan JSON bytes",
+            actual=prospective,
+            limit=self.limit_bytes,
+            override="TIANLAI_MAX_PLAN_MIB",
+        )
+        self.charged_bytes = prospective
+        self.fragment_count += 1
+        return delta
+
+    def validate_final(
+        self,
+        raw_plan: dict[str, Any],
+    ) -> dict[str, int]:
+        """Apply the exact whole-document gate and return audit counters."""
+
+        report = validate_plan_document_resource_limits(
+            raw_plan,
+            self.limits,
+        )
+        return {
+            **report,
+            "incrementally_charged_bytes": self.charged_bytes,
+            "charged_fragment_count": self.fragment_count,
         }
 
 
@@ -183,6 +303,109 @@ def validate_score_resource_limits(
         "score_json_bytes": len(encoded),
         "part_count": part_count,
         "note_count": note_count,
+    }
+
+
+def validate_performance_document_resource_limits(
+    raw_performance: dict[str, Any],
+    limits: ProjectLimits | None = None,
+) -> dict[str, int]:
+    """Reject oversized standalone event documents before event parsing."""
+
+    limits = limits or ProjectLimits.from_environment()
+    raw_events = raw_performance.get("events")
+    event_count = len(raw_events) if isinstance(raw_events, list) else 0
+    event_limit = performance_event_limit(limits)
+    _raise_if_above(
+        code="performance.too_many_events",
+        label="performance event count",
+        actual=event_count,
+        limit=event_limit,
+        override="TIANLAI_MAX_NOTES",
+    )
+    try:
+        encoded = canonical_json_bytes(raw_performance)
+    except (TypeError, ValueError) as exc:
+        raise ResourceLimitError(
+            "performance.nonportable_json",
+            "performance must be finite, portable JSON",
+        ) from exc
+    _raise_if_above(
+        code="performance.document_too_large",
+        label="performance JSON bytes",
+        actual=len(encoded),
+        limit=limits.max_score_json_bytes,
+        override="TIANLAI_MAX_SCORE_MIB",
+    )
+    return {
+        "performance_json_bytes": len(encoded),
+        "event_count": event_count,
+        "event_limit": event_limit,
+    }
+
+
+def validate_plan_document_resource_limits(
+    raw_plan: dict[str, Any],
+    limits: ProjectLimits | None = None,
+) -> dict[str, int]:
+    """Apply the authoritative canonical-size gate to a completed plan.
+
+    Use :class:`PlanDocumentBudgetTracker` while constructing an untrusted or
+    highly amplified plan; this final check accounts for the complete nested
+    document, including container keys and punctuation that are intentionally
+    only approximated by fragment charging.
+    """
+
+    limits = limits or ProjectLimits.from_environment()
+    try:
+        encoded = canonical_json_bytes(raw_plan)
+    except (TypeError, ValueError) as exc:
+        raise ResourceLimitError(
+            "plan.nonportable_json",
+            "performance plan must be finite, portable JSON",
+        ) from exc
+    _raise_if_above(
+        code="plan.document_too_large",
+        label="performance plan JSON bytes",
+        actual=len(encoded),
+        limit=limits.max_plan_json_bytes,
+        override="TIANLAI_MAX_PLAN_MIB",
+    )
+    return {"plan_json_bytes": len(encoded)}
+
+
+def validate_single_render_resource_limits(
+    performance: Any,
+    limits: ProjectLimits | None = None,
+) -> dict[str, int | float]:
+    """Gate streamed standalone PCM duration and disk output before staging."""
+
+    limits = limits or ProjectLimits.from_environment()
+    frame_count = int(performance.total_samples)
+    sample_rate = int(performance.sample_rate)
+    duration_seconds = frame_count / sample_rate
+    estimated_primary_output_bytes = (
+        frame_count * _PCM24_STEREO_BYTES_PER_FRAME
+    )
+    _raise_if_above(
+        code="render.duration_too_long",
+        label="performance seconds",
+        actual=duration_seconds,
+        limit=limits.max_plan_seconds,
+        override="TIANLAI_MAX_PLAN_SECONDS",
+    )
+    _raise_if_above(
+        code="render.output_budget_exceeded",
+        label="estimated primary output bytes",
+        actual=estimated_primary_output_bytes,
+        limit=limits.max_primary_output_bytes,
+        override="TIANLAI_MAX_OUTPUT_MIB",
+    )
+    return {
+        "duration_seconds": duration_seconds,
+        "sample_rate": sample_rate,
+        "frame_count": frame_count,
+        "estimated_primary_output_bytes": estimated_primary_output_bytes,
     }
 
 
@@ -504,10 +727,15 @@ def validate_plan_resource_limits(
 
 
 __all__ = [
+    "PlanDocumentBudgetTracker",
     "ProjectLimits",
     "ResourceLimitError",
     "estimate_render_resources",
+    "performance_event_limit",
+    "validate_performance_document_resource_limits",
+    "validate_plan_document_resource_limits",
     "validate_plan_resource_limits",
     "validate_render_request_resource_limits",
     "validate_score_resource_limits",
+    "validate_single_render_resource_limits",
 ]

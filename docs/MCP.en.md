@@ -2,7 +2,7 @@
 
 # Tianlai MCP interface
 
-Tianlai `0.8.0rc1` exposes editable, reproducible music projects to AI agents
+Tianlai `0.9.0` exposes editable, reproducible music projects to AI agents
 through stdio MCP. An agent does not receive an opaque “one sentence to audio”
 button. It receives fine-grained tools for reading contracts, choosing
 instruments, importing a score, confirming instrumentation, running preflight,

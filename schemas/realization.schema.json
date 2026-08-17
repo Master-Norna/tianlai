@@ -1,0 +1,238 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tianlai.local/schemas/realization.schema.json",
+  "title": "Tianlai Performance Realization v1",
+  "description": "Optional sparse performance realization bound to one canonical score-v1 hash. An empty document is a no-op.",
+  "type": "object",
+  "required": [
+    "kind",
+    "schema_version",
+    "score_sha256",
+    "defaults_profile",
+    "mode",
+    "note_overrides",
+    "control_lanes"
+  ],
+  "properties": {
+    "kind": { "const": "tianlai.realization" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "score_sha256": { "$ref": "#/$defs/sha256" },
+    "defaults_profile": {
+      "const": "tianlai.realization-defaults-v1",
+      "description": "Version-pinned interpretation defaults. Omitted parameters always inherit; mode alone never changes them."
+    },
+    "mode": {
+      "enum": ["interpreted", "captured"],
+      "description": "Declares whether explicit data is authored interpretation or captured performance evidence. Locking remains explicit per value."
+    },
+    "note_overrides": {
+      "type": "array",
+      "maxItems": 250000,
+      "items": { "$ref": "#/$defs/noteOverride" }
+    },
+    "control_lanes": {
+      "type": "array",
+      "maxItems": 4096,
+      "items": { "$ref": "#/$defs/controlLane" }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "stableId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "\\S"
+    },
+    "valuePolicy": {
+      "enum": ["exact", "adapt"]
+    },
+    "semanticPolicy": {
+      "enum": ["exact", "approximate"]
+    },
+    "autoOverride": {
+      "type": "object",
+      "required": ["strategy"],
+      "properties": {
+        "strategy": { "const": "auto" }
+      },
+      "additionalProperties": false
+    },
+    "timingOverride": {
+      "description": "add/replace/lock values are milliseconds; scale is a multiplier of the inherited timing offset.",
+      "oneOf": [
+        { "$ref": "#/$defs/autoOverride" },
+        {
+          "type": "object",
+          "required": ["strategy", "value", "value_policy", "semantic_policy"],
+          "properties": {
+            "strategy": { "enum": ["add", "replace", "lock"] },
+            "value": { "type": "number", "minimum": -60000, "maximum": 60000 },
+            "value_policy": { "$ref": "#/$defs/valuePolicy" },
+            "semantic_policy": { "$ref": "#/$defs/semanticPolicy" }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["strategy", "value", "value_policy", "semantic_policy"],
+          "properties": {
+            "strategy": { "const": "scale" },
+            "value": { "type": "number", "minimum": 0, "maximum": 16 },
+            "value_policy": { "$ref": "#/$defs/valuePolicy" },
+            "semantic_policy": { "$ref": "#/$defs/semanticPolicy" }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "gateOverride": {
+      "description": "Gate values are ratios. A merged non-positive result is a compile-time error and must never be clamped silently.",
+      "oneOf": [
+        { "$ref": "#/$defs/autoOverride" },
+        {
+          "type": "object",
+          "required": ["strategy", "value", "value_policy", "semantic_policy"],
+          "properties": {
+            "strategy": { "const": "add" },
+            "value": { "type": "number", "minimum": -16, "maximum": 16 },
+            "value_policy": { "$ref": "#/$defs/valuePolicy" },
+            "semantic_policy": { "$ref": "#/$defs/semanticPolicy" }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["strategy", "value", "value_policy", "semantic_policy"],
+          "properties": {
+            "strategy": { "enum": ["scale", "replace", "lock"] },
+            "value": { "type": "number", "exclusiveMinimum": 0, "maximum": 16 },
+            "value_policy": { "$ref": "#/$defs/valuePolicy" },
+            "semantic_policy": { "$ref": "#/$defs/semanticPolicy" }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "unitOverride": {
+      "description": "Normalized velocity/release-velocity override.",
+      "oneOf": [
+        { "$ref": "#/$defs/autoOverride" },
+        {
+          "type": "object",
+          "required": ["strategy", "value", "value_policy", "semantic_policy"],
+          "properties": {
+            "strategy": { "const": "add" },
+            "value": { "type": "number", "minimum": -1, "maximum": 1 },
+            "value_policy": { "$ref": "#/$defs/valuePolicy" },
+            "semantic_policy": { "$ref": "#/$defs/semanticPolicy" }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["strategy", "value", "value_policy", "semantic_policy"],
+          "properties": {
+            "strategy": { "const": "scale" },
+            "value": { "type": "number", "minimum": 0, "maximum": 16 },
+            "value_policy": { "$ref": "#/$defs/valuePolicy" },
+            "semantic_policy": { "$ref": "#/$defs/semanticPolicy" }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["strategy", "value", "value_policy", "semantic_policy"],
+          "properties": {
+            "strategy": { "enum": ["replace", "lock"] },
+            "value": { "type": "number", "minimum": 0, "maximum": 1 },
+            "value_policy": { "$ref": "#/$defs/valuePolicy" },
+            "semantic_policy": { "$ref": "#/$defs/semanticPolicy" }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "noteOverride": {
+      "type": "object",
+      "required": ["event_id"],
+      "minProperties": 2,
+      "properties": {
+        "event_id": { "$ref": "#/$defs/stableId" },
+        "timing_offset_ms": { "$ref": "#/$defs/timingOverride" },
+        "gate_ratio": { "$ref": "#/$defs/gateOverride" },
+        "velocity": { "$ref": "#/$defs/unitOverride" },
+        "release_velocity": { "$ref": "#/$defs/unitOverride" }
+      },
+      "additionalProperties": false
+    },
+    "controlTarget": {
+      "type": "object",
+      "required": ["part_id"],
+      "properties": {
+        "part_id": { "$ref": "#/$defs/stableId" },
+        "voice": { "$ref": "#/$defs/stableId" }
+      },
+      "additionalProperties": false
+    },
+    "controlPoint": {
+      "type": "object",
+      "required": ["bar", "beat", "value"],
+      "properties": {
+        "bar": { "type": "integer", "minimum": 1 },
+        "beat": { "type": "number", "minimum": 1 },
+        "value": { "type": "number", "minimum": 0, "maximum": 1 }
+      },
+      "additionalProperties": false
+    },
+    "controlLane": {
+      "type": "object",
+      "required": [
+        "lane_id",
+        "target",
+        "control",
+        "interpolation",
+        "time_policy",
+        "value_policy",
+        "semantic_policy",
+        "points"
+      ],
+      "properties": {
+        "lane_id": { "$ref": "#/$defs/stableId" },
+        "target": { "$ref": "#/$defs/controlTarget" },
+        "control": {
+          "enum": [
+            "expression",
+            "sustain_pedal",
+            "una_corda",
+            "breath"
+          ]
+        },
+        "interpolation": { "enum": ["step", "linear"] },
+        "time_policy": {
+          "enum": ["exact", "adapt"],
+          "description": "exact requires the score-time point to land on the render sample grid; adapt explicitly authorizes sample-grid timing adaptation with requested/resolved evidence."
+        },
+        "value_policy": {
+          "enum": ["exact", "adapt"],
+          "description": "exact rejects capability quantization; adapt explicitly authorizes capability-defined nearest-value adaptation with requested/resolved/fidelity evidence."
+        },
+        "semantic_policy": {
+          "enum": ["exact", "approximate"],
+          "description": "exact requires the requested control semantics; approximate explicitly authorizes a capability-declared semantic approximation whose reason is retained in resolved evidence."
+        },
+        "points": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 65536,
+          "items": { "$ref": "#/$defs/controlPoint" }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

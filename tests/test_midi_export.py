@@ -67,6 +67,20 @@ class MidiExportTests(unittest.TestCase):
             {item["code"] for item in report["losses"]},
         )
 
+    def test_legacy_score_does_not_claim_stable_event_identity_loss(self) -> None:
+        score = copy.deepcopy(_score())
+        score.pop("schema_version")
+        for part in score["parts"]:
+            for note in part["notes"]:
+                note.pop("event_id")
+
+        _payload, report = build_midi(score, allow_lossy=True)
+
+        self.assertNotIn(
+            "stable_event_ids_not_representable",
+            {item["code"] for item in report["losses"]},
+        )
+
     def test_round_trip_preserves_note_count_and_distinct_dynamics(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary) / "editing.mid"
@@ -107,6 +121,87 @@ class MidiExportTests(unittest.TestCase):
             build_midi(score)
         codes = {item["code"] for item in raised.exception.report["losses"]}
         self.assertIn("staff_voice_identity_not_representable", codes)
+
+    def test_nondefault_tuning_and_actual_midi_quantization_are_reported(self) -> None:
+        score = _score()
+        score["tuning"] = {"temperament": "equal", "a4_hz": 442.0}
+        score["tempo_map"][0]["bpm"] = 123.0
+        note = score["parts"][0]["notes"][0]
+        note["beat"] = 1.0 + 1.0 / 7.0
+        note["duration_beats"] = 1.0 / 7.0
+        note["velocity"] = 0.5
+
+        _payload, report = build_midi(score, allow_lossy=True)
+        codes = {item["code"] for item in report["losses"]}
+
+        self.assertIn("score_tuning_not_representable", codes)
+        self.assertIn("tempo_value_quantized_to_integer_microseconds", codes)
+        self.assertIn("note_timing_quantized_to_480_ppq", codes)
+        self.assertIn("velocity_quantized_to_midi_7bit", codes)
+
+    def test_extremely_slow_tempo_is_a_reported_clamp_not_overflow(self) -> None:
+        score = _score()
+        score["tempo_map"][0]["bpm"] = 1.0
+
+        payload, report = build_midi(score, allow_lossy=True)
+
+        self.assertTrue(payload.startswith(b"MThd"))
+        self.assertIn(
+            "tempo_clamped_to_midi_range",
+            {item["code"] for item in report["losses"]},
+        )
+
+    def test_used_roster_execution_and_mix_semantics_are_listed(self) -> None:
+        roster = {
+            "drop_parts": ["unused-part"],
+            "assignments": [
+                {
+                    "part": "小提琴",
+                    "instrument": "管弦乐/弦乐组/小提琴",
+                    "executor_id": "first-violin-desk",
+                    "gain_db": -3.0,
+                    "gain_automation": [
+                        {"bar": 1, "beat": 1.0, "offset_db": 0.0}
+                    ],
+                    "pan": 0.25,
+                    "transpose": 1,
+                    "dynamic_compression": 0.2,
+                    "duration_scale": 0.9,
+                    "articulation_auto": False,
+                    "seat": {"azimuth_deg": 20.0, "distance_m": 3.0},
+                    "articulation_map": {"short": "staccato"},
+                    "overrides": {"release_seconds": 0.2},
+                }
+            ],
+        }
+
+        _payload, report = build_midi(
+            _score(),
+            roster=roster,
+            allow_lossy=True,
+        )
+        by_code = {item["code"]: item for item in report["losses"]}
+
+        self.assertIn("roster_drop_parts_not_applied", by_code)
+        self.assertIn("dedicated_instrument_approximated_by_gm", by_code)
+        self.assertEqual(
+            by_code["roster_execution_semantics_not_representable"]["details"][
+                "fields"
+            ],
+            [
+                "articulation_auto",
+                "articulation_map",
+                "duration_scale",
+                "dynamic_compression",
+                "executor_id",
+                "gain_automation",
+                "gain_db",
+                "overrides",
+                "pan",
+                "seat",
+                "transpose",
+            ],
+        )
 
     def test_more_than_fifteen_melodic_parts_is_a_blocking_loss(self) -> None:
         score = _score()

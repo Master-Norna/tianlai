@@ -41,7 +41,7 @@ class AuthoringJsonLimits:
     def __post_init__(self) -> None:
         for field in self.__dataclass_fields__:
             value = getattr(self, field)
-            if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+            if type(value) is not int or value < 1:
                 raise ValueError(f"{field} must be a positive integer")
 
 
@@ -102,6 +102,15 @@ def _checked_utf8_size(
     location: Sequence[str | int],
     limits: AuthoringJsonLimits,
 ) -> int:
+    # Every Unicode code point contributes at least one UTF-8 byte.  Reject a
+    # newly swapped-in giant string before allocating an equally giant encoded
+    # temporary merely to discover that it exceeds the limit.
+    if len(value) > limits.max_string_bytes:
+        raise AuthoringJsonError(
+            "string_too_large",
+            location_segments=location,
+            limit=limits.max_string_bytes,
+        )
     try:
         size = len(value.encode("utf-8", errors="strict"))
     except UnicodeEncodeError as exc:
@@ -119,11 +128,26 @@ def _checked_utf8_size(
     return size
 
 
+def _canonical_string_size(value: str, utf8_size: int) -> int:
+    """Return the exact UTF-8 size of ``value`` in canonical JSON quotes."""
+
+    size = utf8_size + 2
+    for character in value:
+        codepoint = ord(character)
+        if character in ('"', "\\") or character in "\b\f\n\r\t":
+            size += 1
+        elif codepoint < 0x20:
+            # Other C0 controls use the six-byte ``\\u00xx`` spelling.
+            size += 5
+    return size
+
+
 def validate_json_value(
     value: object,
     *,
     limits: AuthoringJsonLimits | None = None,
     require_object: bool = True,
+    require_js_safe_integers: bool = True,
 ) -> dict[str, Any] | object:
     """Validate a detached JSON value without recursive Python calls.
 
@@ -134,11 +158,28 @@ def validate_json_value(
     """
 
     active_limits = limits or AuthoringJsonLimits()
-    if require_object and not isinstance(value, dict):
+    if require_object and type(value) is not dict:
         raise AuthoringJsonError("top_level_object_required")
 
     stack: list[tuple[object, tuple[str | int, ...], int]] = [(value, (), 1)]
     nodes = 0
+    canonical_size = 0
+
+    def charge_canonical_bytes(
+        count: int,
+        *,
+        location: tuple[str | int, ...],
+    ) -> None:
+        nonlocal canonical_size
+        canonical_size += count
+        if canonical_size > active_limits.max_document_bytes:
+            raise AuthoringJsonError(
+                "document_too_large",
+                location_segments=location,
+                actual=canonical_size,
+                limit=active_limits.max_document_bytes,
+            )
+
     while stack:
         current, location, depth = stack.pop()
         nodes += 1
@@ -157,30 +198,52 @@ def validate_json_value(
                 limit=active_limits.max_depth,
             )
 
-        if current is None or isinstance(current, bool):
+        if current is None:
+            charge_canonical_bytes(4, location=location)
             continue
-        if isinstance(current, int):
-            if not -JS_SAFE_INTEGER <= current <= JS_SAFE_INTEGER:
+        if type(current) is bool:
+            charge_canonical_bytes(4 if current else 5, location=location)
+            continue
+        if type(current) is int:
+            if require_js_safe_integers and not (
+                -JS_SAFE_INTEGER <= current <= JS_SAFE_INTEGER
+            ):
                 raise AuthoringJsonError(
                     "integer_outside_js_safe_range",
                     location_segments=location,
                 )
+            try:
+                encoded_integer_size = len(str(current))
+            except ValueError as exc:
+                raise AuthoringJsonError(
+                    "invalid_json_syntax",
+                    location_segments=location,
+                ) from exc
+            charge_canonical_bytes(encoded_integer_size, location=location)
             continue
-        if isinstance(current, float):
+        if type(current) is float:
             if not math.isfinite(current):
                 raise AuthoringJsonError(
                     "non_finite_number",
                     location_segments=location,
                 )
+            charge_canonical_bytes(
+                len(json.dumps(current, allow_nan=False)),
+                location=location,
+            )
             continue
-        if isinstance(current, str):
-            _checked_utf8_size(
+        if type(current) is str:
+            utf8_size = _checked_utf8_size(
                 current,
                 location=location,
                 limits=active_limits,
             )
+            charge_canonical_bytes(
+                _canonical_string_size(current, utf8_size),
+                location=location,
+            )
             continue
-        if isinstance(current, list):
+        if type(current) is list:
             count = len(current)
             if count > active_limits.max_array_items:
                 raise AuthoringJsonError(
@@ -189,10 +252,14 @@ def validate_json_value(
                     actual=count,
                     limit=active_limits.max_array_items,
                 )
+            charge_canonical_bytes(
+                2 + max(0, count - 1),
+                location=location,
+            )
             for index in range(count - 1, -1, -1):
                 stack.append((current[index], (*location, index), depth + 1))
             continue
-        if isinstance(current, dict):
+        if type(current) is dict:
             count = len(current)
             if count > active_limits.max_object_members:
                 raise AuthoringJsonError(
@@ -201,17 +268,25 @@ def validate_json_value(
                     actual=count,
                     limit=active_limits.max_object_members,
                 )
+            charge_canonical_bytes(
+                2 + max(0, count - 1),
+                location=location,
+            )
             children: list[tuple[object, tuple[str | int, ...], int]] = []
             for key, child in current.items():
-                if not isinstance(key, str):
+                if type(key) is not str:
                     raise AuthoringJsonError(
                         "non_string_object_key",
                         location_segments=location,
                     )
-                _checked_utf8_size(
+                key_utf8_size = _checked_utf8_size(
                     key,
                     location=location,
                     limits=active_limits,
+                )
+                charge_canonical_bytes(
+                    _canonical_string_size(key, key_utf8_size) + 1,
+                    location=location,
                 )
                 nodes += 1
                 if nodes > active_limits.max_nodes:
@@ -232,16 +307,253 @@ def validate_json_value(
     return value
 
 
+def bounded_canonical_json_bytes(
+    value: object,
+    *,
+    limits: AuthoringJsonLimits | None = None,
+    require_object: bool = True,
+    require_js_safe_integers: bool = True,
+) -> bytes:
+    """Return canonical UTF-8 without trusting a separate size preflight.
+
+    ``validate_json_value`` remains useful for early, precise diagnostics, but
+    an in-memory caller can retain and mutate its containers after that first
+    traversal.  The authoritative materialization therefore consumes the
+    encoder incrementally and stops before retaining more than the document
+    budget.  Callers which need a stable generation should strict-parse the
+    returned bytes and use that detached value from then on.
+    """
+
+    active_limits = limits or AuthoringJsonLimits()
+    validate_json_value(
+        value,
+        limits=active_limits,
+        require_object=require_object,
+        require_js_safe_integers=require_js_safe_integers,
+    )
+    payload = bytearray()
+
+    def emit(chunk: bytes, *, location: tuple[str | int, ...]) -> None:
+        resulting_size = len(payload) + len(chunk)
+        if resulting_size > active_limits.max_document_bytes:
+            raise AuthoringJsonError(
+                "document_too_large",
+                location_segments=location,
+                actual=resulting_size,
+                limit=active_limits.max_document_bytes,
+            )
+        payload.extend(chunk)
+
+    # ``JSONEncoder.iterencode`` bounds repeated small values, but it still
+    # creates one complete encoded chunk for a single string.  Walk exact JSON
+    # built-ins ourselves so a value swapped in after the preflight receives
+    # the string/container/number gates before any large encoded allocation.
+    # Each container is copied through its exact built-in descriptor while the
+    # GIL is held, giving this traversal a stable local generation without
+    # invoking caller-defined iteration methods.
+    stack: list[
+        tuple[str, object, tuple[str | int, ...], int]
+    ] = [("value", value, (), 1)]
+    nodes = 0
+    try:
+        while stack:
+            operation, current, location, depth = stack.pop()
+            if operation == "emit":
+                assert type(current) is bytes
+                emit(current, location=location)
+                continue
+            if operation == "array_items":
+                items, index = current  # type: ignore[misc]
+                assert type(items) is list and type(index) is int
+                if index >= len(items):
+                    emit(b"]", location=location)
+                    continue
+                child_location = (*location, index)
+                if index:
+                    emit(b",", location=child_location)
+                stack.append(
+                    ("array_items", (items, index + 1), location, depth)
+                )
+                stack.append(
+                    ("value", items[index], child_location, depth + 1)
+                )
+                continue
+            if operation == "object_items":
+                items, index = current  # type: ignore[misc]
+                assert type(items) is list and type(index) is int
+                if index >= len(items):
+                    emit(b"}", location=location)
+                    continue
+                key, child = items[index]
+                assert type(key) is str
+                child_location = (*location, key)
+                if index:
+                    emit(b",", location=child_location)
+                key_utf8_size = _checked_utf8_size(
+                    key,
+                    location=location,
+                    limits=active_limits,
+                )
+                key_canonical_size = _canonical_string_size(
+                    key,
+                    key_utf8_size,
+                )
+                if (
+                    len(payload) + key_canonical_size
+                    > active_limits.max_document_bytes
+                ):
+                    raise AuthoringJsonError(
+                        "document_too_large",
+                        location_segments=child_location,
+                        actual=len(payload) + key_canonical_size,
+                        limit=active_limits.max_document_bytes,
+                    )
+                emit(
+                    json.dumps(
+                        key,
+                        ensure_ascii=False,
+                        allow_nan=False,
+                    ).encode("utf-8", errors="strict"),
+                    location=child_location,
+                )
+                emit(b":", location=child_location)
+                stack.append(
+                    ("object_items", (items, index + 1), location, depth)
+                )
+                stack.append(
+                    ("value", child, child_location, depth + 1)
+                )
+                continue
+
+            nodes += 1
+            if nodes > active_limits.max_nodes:
+                raise AuthoringJsonError(
+                    "too_many_nodes",
+                    location_segments=location,
+                    actual=nodes,
+                    limit=active_limits.max_nodes,
+                )
+            if depth > active_limits.max_depth:
+                raise AuthoringJsonError(
+                    "too_deep",
+                    location_segments=location,
+                    actual=depth,
+                    limit=active_limits.max_depth,
+                )
+
+            if current is None:
+                emit(b"null", location=location)
+            elif type(current) is bool:
+                emit(b"true" if current else b"false", location=location)
+            elif type(current) is int:
+                if require_js_safe_integers and not (
+                    -JS_SAFE_INTEGER <= current <= JS_SAFE_INTEGER
+                ):
+                    raise AuthoringJsonError(
+                        "integer_outside_js_safe_range",
+                        location_segments=location,
+                    )
+                emit(str(current).encode("ascii"), location=location)
+            elif type(current) is float:
+                if not math.isfinite(current):
+                    raise AuthoringJsonError(
+                        "non_finite_number",
+                        location_segments=location,
+                    )
+                emit(
+                    json.dumps(current, allow_nan=False).encode("ascii"),
+                    location=location,
+                )
+            elif type(current) is str:
+                string_utf8_size = _checked_utf8_size(
+                    current,
+                    location=location,
+                    limits=active_limits,
+                )
+                string_canonical_size = _canonical_string_size(
+                    current,
+                    string_utf8_size,
+                )
+                if (
+                    len(payload) + string_canonical_size
+                    > active_limits.max_document_bytes
+                ):
+                    raise AuthoringJsonError(
+                        "document_too_large",
+                        location_segments=location,
+                        actual=len(payload) + string_canonical_size,
+                        limit=active_limits.max_document_bytes,
+                    )
+                emit(
+                    json.dumps(
+                        current,
+                        ensure_ascii=False,
+                        allow_nan=False,
+                    ).encode("utf-8", errors="strict"),
+                    location=location,
+                )
+            elif type(current) is list:
+                items = list.copy(current)
+                count = len(items)
+                if count > active_limits.max_array_items:
+                    raise AuthoringJsonError(
+                        "array_too_large",
+                        location_segments=location,
+                        actual=count,
+                        limit=active_limits.max_array_items,
+                    )
+                emit(b"[", location=location)
+                stack.append(("array_items", (items, 0), location, depth))
+            elif type(current) is dict:
+                local = dict.copy(current)
+                count = len(local)
+                if count > active_limits.max_object_members:
+                    raise AuthoringJsonError(
+                        "object_too_large",
+                        location_segments=location,
+                        actual=count,
+                        limit=active_limits.max_object_members,
+                    )
+                for key in local:
+                    if type(key) is not str:
+                        raise AuthoringJsonError(
+                            "non_string_object_key",
+                            location_segments=location,
+                        )
+                nodes += count
+                if nodes > active_limits.max_nodes:
+                    raise AuthoringJsonError(
+                        "too_many_nodes",
+                        location_segments=location,
+                        actual=nodes,
+                        limit=active_limits.max_nodes,
+                    )
+                items = sorted(local.items(), key=lambda item: item[0])
+                emit(b"{", location=location)
+                stack.append(("object_items", (items, 0), location, depth))
+            else:
+                raise AuthoringJsonError(
+                    "unsupported_value_type",
+                    location_segments=location,
+                )
+    except AuthoringJsonError:
+        raise
+    except (TypeError, ValueError, UnicodeError, RecursionError, RuntimeError) as exc:
+        raise AuthoringJsonError("serialization_failed") from exc
+    return bytes(payload)
+
+
 def strict_json_loads(
     payload: str | bytes,
     *,
     limits: AuthoringJsonLimits | None = None,
     require_object: bool = True,
+    require_js_safe_integers: bool = True,
 ) -> dict[str, Any] | object:
     """Decode one bounded UTF-8 JSON value, rejecting duplicate members."""
 
     active_limits = limits or AuthoringJsonLimits()
-    if isinstance(payload, bytes):
+    if type(payload) is bytes:
         size = len(payload)
         if size > active_limits.max_document_bytes:
             raise AuthoringJsonError(
@@ -253,7 +565,7 @@ def strict_json_loads(
             text = payload.decode("utf-8-sig", errors="strict")
         except UnicodeDecodeError as exc:
             raise AuthoringJsonError("invalid_utf8") from exc
-    elif isinstance(payload, str):
+    elif type(payload) is str:
         try:
             size = len(payload.encode("utf-8", errors="strict"))
         except UnicodeEncodeError as exc:
@@ -284,6 +596,7 @@ def strict_json_loads(
         value,
         limits=active_limits,
         require_object=require_object,
+        require_js_safe_integers=require_js_safe_integers,
     )
 
 
@@ -292,30 +605,55 @@ def json_document_bytes(
     *,
     limits: AuthoringJsonLimits | None = None,
 ) -> bytes:
-    """Return deterministic, human-readable UTF-8 after both value gates."""
+    """Return bounded, deterministic, human-readable UTF-8."""
 
     active_limits = limits or AuthoringJsonLimits()
-    validate_json_value(document, limits=active_limits, require_object=True)
+    # First capture one bounded compact generation.  Pretty-printing a strict
+    # detached parse prevents a caller from swapping in a giant string or a
+    # custom container between the value gate and JSONEncoder's next chunk.
+    compact = bounded_canonical_json_bytes(
+        document,
+        limits=active_limits,
+        require_object=True,
+        require_js_safe_integers=True,
+    )
+    detached = strict_json_loads(
+        compact,
+        limits=active_limits,
+        require_object=True,
+        require_js_safe_integers=True,
+    )
+    encoder = json.JSONEncoder(
+        ensure_ascii=False,
+        allow_nan=False,
+        sort_keys=True,
+        indent=2,
+    )
+    payload = bytearray()
     try:
-        payload = (
-            json.dumps(
-                document,
-                ensure_ascii=False,
-                allow_nan=False,
-                sort_keys=True,
-                indent=2,
-            )
-            + "\n"
-        ).encode("utf-8", errors="strict")
-    except (TypeError, ValueError, UnicodeError, RecursionError) as exc:
+        for text_chunk in encoder.iterencode(detached):
+            chunk = text_chunk.encode("utf-8", errors="strict")
+            # The public representation always includes its final newline.
+            resulting_size = len(payload) + len(chunk) + 1
+            if resulting_size > active_limits.max_document_bytes:
+                raise AuthoringJsonError(
+                    "document_too_large",
+                    actual=resulting_size,
+                    limit=active_limits.max_document_bytes,
+                )
+            payload.extend(chunk)
+        payload.extend(b"\n")
+    except AuthoringJsonError:
+        raise
+    except (
+        TypeError,
+        ValueError,
+        UnicodeError,
+        RecursionError,
+        RuntimeError,
+    ) as exc:
         raise AuthoringJsonError("serialization_failed") from exc
-    if len(payload) > active_limits.max_document_bytes:
-        raise AuthoringJsonError(
-            "document_too_large",
-            actual=len(payload),
-            limit=active_limits.max_document_bytes,
-        )
-    return payload
+    return bytes(payload)
 
 
 def validate_request_size(
@@ -327,9 +665,7 @@ def validate_request_size(
     """Bound the combined serialized document payload for one save request."""
 
     if (
-        isinstance(maximum_bytes, bool)
-        or not isinstance(maximum_bytes, int)
-        or maximum_bytes < 1
+        type(maximum_bytes) is not int or maximum_bytes < 1
     ):
         raise ValueError("maximum_bytes must be a positive integer")
     total = 0
@@ -355,6 +691,7 @@ __all__ = [
     "MAX_AUTHORING_OBJECT_MEMBERS",
     "MAX_AUTHORING_REQUEST_BYTES",
     "MAX_AUTHORING_STRING_BYTES",
+    "bounded_canonical_json_bytes",
     "json_document_bytes",
     "strict_json_loads",
     "validate_json_value",

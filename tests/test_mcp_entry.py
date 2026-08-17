@@ -3,6 +3,7 @@ from __future__ import annotations
 from contextlib import redirect_stderr
 import io
 from pathlib import Path
+import sys
 from types import SimpleNamespace
 import unittest
 from unittest import mock
@@ -14,6 +15,41 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class McpEntryTests(unittest.TestCase):
+    def test_cp1252_stderr_becomes_utf8_without_claiming_protocol_stdout(
+        self,
+    ) -> None:
+        stdout_bytes = io.BytesIO()
+        stderr_bytes = io.BytesIO()
+        stdout = io.TextIOWrapper(
+            stdout_bytes,
+            encoding="cp1252",
+            errors="strict",
+        )
+        stderr = io.TextIOWrapper(
+            stderr_bytes,
+            encoding="cp1252",
+            errors="strict",
+        )
+        missing = ModuleNotFoundError("No module named 'mcp'", name="mcp")
+        with (
+            mock.patch.object(sys, "stdout", stdout),
+            mock.patch.object(sys, "stderr", stderr),
+            mock.patch.object(mcp_entry, "_load_server", side_effect=missing),
+        ):
+            status = mcp_entry.main()
+            stderr.flush()
+
+            self.assertEqual(status, 2)
+            self.assertIs(sys.stdout, stdout)
+            self.assertEqual(stdout.encoding, "cp1252")
+            self.assertEqual(stdout_bytes.getvalue(), b"")
+            self.assertEqual(
+                stderr.encoding.lower().replace("-", ""),
+                "utf8",
+            )
+            decoded = stderr_bytes.getvalue().decode("utf-8", errors="strict")
+            self.assertIn("天籁 MCP 依赖未安装", decoded)
+
     def test_public_client_examples_use_dependency_light_entry(self) -> None:
         for relative_path in (
             ".mcp.json.example",

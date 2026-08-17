@@ -11,6 +11,7 @@ from unittest.mock import patch
 import numpy as np
 
 from tianlai import ensemble as ensemble_module
+from tianlai import worker_slots as worker_slots_module
 from tianlai.collaboration_report import (
     MIX_REPORT_NAME,
     CollaborationReportBuilder,
@@ -136,6 +137,13 @@ class EnsembleMixReportIntegrationTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
         self.root = Path(self.temporary.name)
+        self.worker_slot_directory_patch = patch.object(
+            worker_slots_module,
+            "default_worker_slot_directory",
+            return_value=self.root / "managed-worker-slots",
+        )
+        self.worker_slot_directory_patch.start()
+        self.addCleanup(self.worker_slot_directory_patch.stop)
         time = np.arange(8000) / 8000.0
         cello = 0.4 * np.sin(2.0 * np.pi * 220.0 * time)
         melody = 0.1 * np.sin(2.0 * np.pi * 440.0 * time)

@@ -43,6 +43,11 @@ import uuid
 import zipfile
 import zlib
 
+if __package__:
+    from ._console_encoding import configure_utf8_standard_streams
+else:  # Keep ``python -S ./tianlai/resource_restore.py`` bootstrap-safe.
+    from _console_encoding import configure_utf8_standard_streams
+
 
 MANIFEST_SCHEMA_VERSION = 2
 MANIFEST_KIND = "tianlai.resource_restore_manifest"
@@ -2875,6 +2880,7 @@ def _confirm_install(plan: dict[str, Any]) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
+    configure_utf8_standard_streams()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--manifest",

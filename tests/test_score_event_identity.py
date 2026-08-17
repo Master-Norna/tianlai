@@ -115,6 +115,12 @@ class LegacyScoreIdentityTests(unittest.TestCase):
         score = parse_score_document(_legacy_score())
 
         self.assertIsNone(score.schema_version)
+        self.assertEqual(score.identity_contract, "legacy-position-v0")
+        self.assertFalse(score.has_stable_event_identity)
+        self.assertEqual(
+            score.time_contract,
+            "legacy-float-bar-beat-v0",
+        )
         self.assertEqual([note.index for note in score.parts[0].notes], [0, 1])
         self.assertTrue(
             all(note.source_event_id is None for note in score.parts[0].notes)
@@ -180,6 +186,9 @@ class ScoreV1ParsingTests(unittest.TestCase):
 
         document["parts"][1]["notes"][0]["event_id"] = "user-stable-id"
         score = parse_score_document(document)
+        self.assertEqual(score.identity_contract, "stable-event-v1")
+        self.assertTrue(score.has_stable_event_identity)
+        self.assertEqual(score.time_contract, "float-bar-beat-v1")
         note = score.parts[1].notes[0]
         self.assertEqual(note.source_event_id, "user-stable-id")
         self.assertEqual(note.to_dict()["event_id"], "user-stable-id")
@@ -237,6 +246,27 @@ class ScoreV1MigrationTests(unittest.TestCase):
             for note in upgrade_legacy_score_to_v1(edited)["parts"][0]["notes"]
         ]
         self.assertEqual(edited_ids, original_ids)
+
+    def test_migration_materialises_required_legacy_note_defaults(self) -> None:
+        legacy = _legacy_score()
+        note = legacy["parts"][0]["notes"][0]
+        note.pop("bar")
+        note.pop("beat")
+        note.pop("duration_beats")
+
+        upgraded = upgrade_legacy_score_to_v1(legacy)
+        upgraded_note = upgraded["parts"][0]["notes"][0]
+
+        self.assertEqual(upgraded_note["bar"], 1)
+        self.assertEqual(upgraded_note["beat"], 1.0)
+        self.assertEqual(upgraded_note["duration_beats"], 1.0)
+        self.assertEqual(upgrade_legacy_score_to_v1(upgraded), upgraded)
+        parse_score_document(upgraded)
+
+        schema = json.loads(
+            (ROOT / "schemas" / "score.schema.json").read_text(encoding="utf-8")
+        )
+        Draft202012Validator(schema).validate(upgraded)
 
 
 class ScoreV1ConductorTests(unittest.TestCase):

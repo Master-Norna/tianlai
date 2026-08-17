@@ -44,6 +44,27 @@ def _score() -> dict:
 
 
 class ScoreNumericValidationTests(unittest.TestCase):
+    def test_note_to_dict_keeps_integer_pitch_readable(self) -> None:
+        note = parse_score_document(_score()).parts[0].notes[0]
+
+        self.assertEqual(note.to_dict()["pitch"], "C4")
+
+    def test_note_to_dict_preserves_microtonal_pitch_exactly(self) -> None:
+        document = _score()
+        microtonal_pitch = 60.123456789012345
+        document["parts"][0]["notes"][0]["pitch"] = microtonal_pitch
+
+        note = parse_score_document(document).parts[0].notes[0]
+        serialized = note.to_dict()
+        self.assertIsInstance(serialized["pitch"], float)
+        self.assertEqual(serialized["pitch"], microtonal_pitch)
+
+        round_trip = copy.deepcopy(document)
+        round_trip["parts"][0]["notes"][0] = serialized
+        reparsed = parse_score_document(round_trip).parts[0].notes[0]
+        self.assertEqual(reparsed.midi, note.midi)
+        self.assertEqual(reparsed.to_dict(), serialized)
+
     def test_nonfinite_note_coordinates_and_duration_are_rejected(self) -> None:
         for field in ("beat", "duration_beats"):
             for value in (math.inf, -math.inf, math.nan):
@@ -106,6 +127,16 @@ class ScoreNumericValidationTests(unittest.TestCase):
 
     def test_parsed_score_passes_strict_time_validation(self) -> None:
         validate_score_time_coordinates(parse_score_document(_score()))
+
+    def test_unknown_field_diagnostic_is_bounded(self) -> None:
+        document = _score()
+        document["X" * 100_000] = None
+        for index in range(100):
+            document[f"unknown-{index}"] = None
+
+        with self.assertRaisesRegex(ValueError, "未知字段") as caught:
+            parse_score_document(document)
+        self.assertLess(len(str(caught.exception)), 1_000)
 
 
 if __name__ == "__main__":

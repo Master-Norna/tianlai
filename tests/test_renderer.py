@@ -1,6 +1,6 @@
 import hashlib
 import json
-from contextlib import nullcontext
+from contextlib import contextmanager, nullcontext
 import os
 from pathlib import Path
 import stat
@@ -14,6 +14,7 @@ import tianlai.renderer as renderer_module
 from tianlai.instrument import Instrument
 from tianlai.post_render_check import POST_RENDER_CHECK_NAME
 from tianlai.renderer import render_to_wav, render_to_wav_atomic
+from tianlai.resource_limits import ResourceLimitError
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -127,23 +128,22 @@ def _write_tiny_active_performance(directory: Path) -> Path:
     return path
 
 
-def _assert_only_recoverable_private_files(
+def _assert_only_expected_private_files(
     test: unittest.TestCase,
     directory: Path,
+    *,
+    allow_rollbacks: bool = False,
 ) -> None:
     hidden = [path for path in directory.iterdir() if path.name.startswith(".")]
     test.assertTrue(hidden)
     for path in hidden:
         test.assertTrue(path.is_file())
-        test.assertTrue(
-            ".cleanup-preserved-" in path.name
-            or ".rollback-preserved-" in path.name
-            or (
-                path.name.startswith(".tianlai-render-")
-                and path.name.endswith(".lock")
-            ),
-            path.name,
+        is_lock = (
+            path.name.startswith(".tianlai-render-")
+            and path.name.endswith(".lock")
         )
+        is_rollback = ".rollback-preserved-" in path.name
+        test.assertTrue(is_lock or (allow_rollbacks and is_rollback), path.name)
 
 
 class RendererTests(unittest.TestCase):
@@ -185,8 +185,20 @@ class RendererTests(unittest.TestCase):
             duration_seconds=0.001,
             peak_active_voices=0,
         )
+        inputs = SimpleNamespace(
+            manifest=SimpleNamespace(
+                path=Path.cwd() / "instrument.json",
+            ),
+            performance=SimpleNamespace(
+                path=Path.cwd() / "performance.json",
+            ),
+        )
         with (
             patch("tianlai.renderer.acquire_render_lock") as acquire,
+            patch(
+                "tianlai.renderer._capture_single_render_inputs",
+                return_value=inputs,
+            ),
             patch(
                 "tianlai.renderer._render_to_wav_atomic_locked",
                 return_value=expected,
@@ -200,68 +212,407 @@ class RendererTests(unittest.TestCase):
 
         self.assertIs(observed, expected)
         acquire.assert_called_once_with(
-            "render.wav",
+            Path.cwd() / "render.wav",
             existing_target_kind="file",
         )
         render_locked.assert_called_once_with(
-            "instrument.json",
-            "performance.json",
-            "render.wav",
+            Path.cwd() / "instrument.json",
+            Path.cwd() / "performance.json",
+            Path.cwd() / "render.wav",
+            _inputs=inputs,
         )
+
+    def test_duration_budget_fails_before_output_lock_or_staging(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            directory = Path(temporary_directory)
+            performance = directory / "too-long.events.json"
+            performance.write_text(
+                json.dumps(
+                    {
+                        "sample_rate": 8_000,
+                        "channels": 2,
+                        "tail_seconds": 0.0,
+                        "duration_seconds": 7_201.0,
+                        "events": [],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            target = directory / "not-created" / "render.wav"
+            manifest = (
+                ROOT
+                / "乐器"
+                / "测试工具"
+                / "参考振荡器"
+                / "乐器.json"
+            )
+
+            with patch("tianlai.renderer.acquire_render_lock") as acquire:
+                with self.assertRaises(ResourceLimitError) as raised:
+                    render_to_wav_atomic(manifest, performance, target)
+
+            self.assertEqual(raised.exception.code, "render.duration_too_long")
+            acquire.assert_not_called()
+            self.assertFalse(target.parent.exists())
+
+    def test_event_budget_fails_before_output_lock_or_parsing(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            directory = Path(temporary_directory)
+            performance = directory / "too-many.events.json"
+            performance.write_text(
+                json.dumps(
+                    {
+                        "sample_rate": 8_000,
+                        "channels": 2,
+                        "tail_seconds": 0.0,
+                        "duration_seconds": 0.001,
+                        "events": [
+                            {
+                                "time": 0.0,
+                                "type": "control",
+                                "name": f"control-{index}",
+                                "value": 0.5,
+                            }
+                            for index in range(5)
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            target = directory / "not-created" / "render.wav"
+            manifest = (
+                ROOT
+                / "乐器"
+                / "测试工具"
+                / "参考振荡器"
+                / "乐器.json"
+            )
+
+            with (
+                patch.dict(os.environ, {"TIANLAI_MAX_NOTES": "1"}),
+                patch("tianlai.renderer.acquire_render_lock") as acquire,
+                patch(
+                    "tianlai.renderer.parse_performance_document"
+                ) as parse_performance,
+            ):
+                with self.assertRaises(ResourceLimitError) as raised:
+                    render_to_wav_atomic(manifest, performance, target)
+
+            self.assertEqual(
+                raised.exception.code,
+                "performance.too_many_events",
+            )
+            acquire.assert_not_called()
+            parse_performance.assert_not_called()
+            self.assertFalse(target.parent.exists())
+
+    def test_input_byte_limit_fails_before_output_lock(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            directory = Path(temporary_directory)
+            manifest = directory / "instrument.json"
+            manifest.write_text('{"name":"bounded"}', encoding="utf-8")
+            performance = directory / "oversized.events.json"
+            performance.write_text(
+                '{"events":[],"padding":"' + ("x" * 128) + '"}',
+                encoding="utf-8",
+            )
+            target = directory / "not-created" / "render.wav"
+
+            with (
+                patch(
+                    "tianlai.renderer.ProjectLimits.from_environment",
+                    return_value=renderer_module.ProjectLimits(
+                        max_score_json_bytes=64,
+                    ),
+                ),
+                patch("tianlai.renderer.acquire_render_lock") as acquire,
+            ):
+                with self.assertRaisesRegex(ValueError, "演奏事件文档"):
+                    render_to_wav_atomic(manifest, performance, target)
+
+            acquire.assert_not_called()
+            self.assertFalse(target.parent.exists())
+
+    def test_duplicate_manifest_member_fails_before_output_lock(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            directory = Path(temporary_directory)
+            manifest = directory / "instrument.json"
+            manifest.write_text(
+                '{"name":"first","name":"second"}',
+                encoding="utf-8",
+            )
+            performance = _write_tiny_performance(directory)
+            target = directory / "not-created" / "render.wav"
+
+            with patch("tianlai.renderer.acquire_render_lock") as acquire:
+                with self.assertRaisesRegex(ValueError, "严格且有界"):
+                    render_to_wav_atomic(manifest, performance, target)
+
+            acquire.assert_not_called()
+            self.assertFalse(target.parent.exists())
+
+    def test_duplicate_performance_member_fails_before_output_lock(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            directory = Path(temporary_directory)
+            manifest = directory / "instrument.json"
+            manifest.write_text('{"name":"bounded"}', encoding="utf-8")
+            performance = directory / "duplicate.events.json"
+            performance.write_text(
+                '{"sample_rate":8000,"sample_rate":16000,"events":[]}',
+                encoding="utf-8",
+            )
+            target = directory / "not-created" / "render.wav"
+
+            with patch("tianlai.renderer.acquire_render_lock") as acquire:
+                with self.assertRaisesRegex(ValueError, "严格且有界"):
+                    render_to_wav_atomic(manifest, performance, target)
+
+            acquire.assert_not_called()
+            self.assertFalse(target.parent.exists())
+
+    def test_input_replacement_while_waiting_for_lock_fails_before_staging(
+        self,
+    ) -> None:
+        for replaced_input in ("manifest", "performance"):
+            with self.subTest(replaced_input=replaced_input):
+                with tempfile.TemporaryDirectory() as temporary_directory:
+                    directory = Path(temporary_directory)
+                    manifest = directory / "instrument.json"
+                    manifest.write_text(
+                        '{"name":"captured"}',
+                        encoding="utf-8",
+                    )
+                    performance = _write_tiny_performance(directory)
+                    target = directory / "render.wav"
+                    victim = (
+                        manifest
+                        if replaced_input == "manifest"
+                        else performance
+                    )
+
+                    @contextmanager
+                    def replacing_lock(_path, *, existing_target_kind):
+                        self.assertEqual(existing_target_kind, "file")
+                        replacement = victim.with_name(
+                            f"{victim.name}.replacement"
+                        )
+                        replacement.write_bytes(victim.read_bytes())
+                        os.replace(replacement, victim)
+                        yield
+
+                    with (
+                        patch(
+                            "tianlai.renderer.acquire_render_lock",
+                            replacing_lock,
+                        ),
+                        patch(
+                            "tianlai.renderer._reserve_private_file"
+                        ) as reserve,
+                        self.assertRaises(OSError),
+                    ):
+                        render_to_wav_atomic(
+                            manifest,
+                            performance,
+                            target,
+                        )
+
+                    reserve.assert_not_called()
+                    self.assertFalse(target.exists())
+
+    def test_render_and_sidecar_share_one_manifest_snapshot(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            directory = Path(temporary_directory)
+            manifest = directory / "instrument.json"
+            original_manifest = {"name": "snapshot-original"}
+            manifest.write_text(
+                json.dumps(original_manifest),
+                encoding="utf-8",
+            )
+            original_sha256 = hashlib.sha256(manifest.read_bytes()).hexdigest()
+            performance = _write_tiny_performance(directory)
+            target = directory / "snapshot.wav"
+            validated: list[dict[str, object]] = []
+            constructed: list[dict[str, object]] = []
+
+            def validate(value: dict[str, object]) -> None:
+                validated.append(dict(value))
+                value["name"] = "policy-callback-mutation"
+
+            def create(value, sample_rate, *, base_directory):
+                del base_directory
+                constructed.append(dict(value))
+                manifest.write_text(
+                    json.dumps({"name": "racing-replacement"}),
+                    encoding="utf-8",
+                )
+                return _ConstantInstrument((0.0, 0.0), sample_rate)
+
+            with patch(
+                "tianlai.renderer.create_instrument",
+                side_effect=create,
+            ):
+                result = render_to_wav_atomic(
+                    manifest,
+                    performance,
+                    target,
+                    _manifest_validator=validate,
+                )
+
+            sidecar = json.loads(
+                Path(result.license_sidecar_path).read_text(encoding="utf-8")
+            )
+            self.assertEqual(validated, [original_manifest])
+            self.assertEqual(constructed, [original_manifest])
+            self.assertEqual(
+                sidecar["instruments"][0]["instrument"],
+                "snapshot-original",
+            )
+            self.assertEqual(
+                sidecar["instruments"][0]["manifest"]["sha256"],
+                original_sha256,
+            )
+
+    def test_manifest_with_utf8_bom_renders_and_writes_sidecars(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            directory = Path(temporary_directory)
+            source_manifest = (
+                ROOT
+                / "乐器"
+                / "测试工具"
+                / "参考振荡器"
+                / "乐器.json"
+            )
+            manifest = directory / "bom-instrument.json"
+            manifest.write_bytes(b"\xef\xbb\xbf" + source_manifest.read_bytes())
+            performance = _write_tiny_performance(directory)
+            target = directory / "bom.wav"
+
+            result = render_to_wav_atomic(manifest, performance, target)
+
+            self.assertEqual(result.frame_count, 8)
+            sidecar = json.loads(
+                Path(result.license_sidecar_path).read_text(encoding="utf-8")
+            )
+            self.assertEqual(
+                sidecar["instruments"][0]["instrument"],
+                "精确音高参考振荡器",
+            )
 
     def test_transaction_cleanup_preserves_a_racing_replacement(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             directory = Path(temporary_directory)
-            staged = directory / ".render-stage.tmp"
-            staged.write_bytes(b"original staged bytes")
+            claim = renderer_module._reserve_private_file(
+                directory,
+                prefix=".render-stage.",
+                suffix=".tmp",
+            )
+            staged = claim.path
+            original = b"original staged bytes"
+            staged.write_bytes(original)
+            sealed = renderer_module._seal_private_file_claim(
+                claim,
+                expected_sha256=hashlib.sha256(original).hexdigest(),
+            )
             parked = directory / "parked-original"
-            real_rename = os.rename
+            real_rename_noreplace = renderer_module._rename_noreplace
             raced = False
 
             def swap_then_rename(source, destination):
                 nonlocal raced
                 if not raced and Path(source) == staged:
                     raced = True
-                    real_rename(staged, parked)
+                    real_rename_noreplace(staged, parked)
                     staged.write_bytes(b"replacement must survive")
-                return real_rename(source, destination)
+                return real_rename_noreplace(source, destination)
 
             with patch(
-                "tianlai.renderer.os.rename",
+                "tianlai.renderer._rename_noreplace",
                 side_effect=swap_then_rename,
+            ), self.assertRaisesRegex(
+                OSError,
+                "changed while being preserved",
             ):
-                preserved = renderer_module._preserve_transaction_file(
+                renderer_module._preserve_published_generation(
+                    sealed,
                     staged,
-                    label="cleanup",
                 )
 
             self.assertTrue(raced)
-            self.assertEqual(parked.read_bytes(), b"original staged bytes")
-            self.assertIsNotNone(preserved)
-            assert preserved is not None
-            self.assertEqual(preserved.read_bytes(), b"replacement must survive")
-            self.assertFalse(staged.exists())
+            self.assertEqual(parked.read_bytes(), original)
+            self.assertEqual(staged.read_bytes(), b"replacement must survive")
+
+    def test_render_cleanup_preserves_and_warns_for_a_racing_stage(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            directory = Path(temporary_directory)
+            target = directory / "cleanup-race.wav"
+            performance = _write_tiny_performance(directory)
+            parked_owned = directory / "parked-owned-stage"
+            sentinel = b"racing stage replacement must survive"
+            raced_path: Path | None = None
+
+            def replace_stage_then_fail(json_path, _text_path, **_kwargs):
+                nonlocal raced_path
+                raced_path = Path(json_path)
+                os.replace(raced_path, parked_owned)
+                raced_path.write_bytes(sentinel)
+                raise RuntimeError("injected sidecar race")
+
+            with (
+                patch(
+                    "tianlai.renderer.create_instrument",
+                    return_value=_ConstantInstrument((0.01, -0.01), 8_000),
+                ),
+                patch(
+                    "tianlai.renderer.write_license_sidecars",
+                    side_effect=replace_stage_then_fail,
+                ),
+                self.assertWarnsRegex(RuntimeWarning, "replacement preserved"),
+                self.assertRaisesRegex(RuntimeError, "injected sidecar race"),
+            ):
+                render_to_wav_atomic(
+                    ROOT / "乐器/测试工具/参考振荡器/乐器.json",
+                    performance,
+                    target,
+                )
+
+            self.assertIsNotNone(raced_path)
+            assert raced_path is not None
+            self.assertFalse(raced_path.exists())
+            self.assertEqual(parked_owned.read_bytes(), b"")
+            preserved = list(directory.glob(".*.retired.*"))
+            self.assertEqual(len(preserved), 1)
+            self.assertEqual(preserved[0].read_bytes(), sentinel)
+            for path in _render_quartet(target):
+                self.assertFalse(path.exists())
 
     def test_rollback_does_not_clobber_a_concurrent_target(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             directory = Path(temporary_directory)
             target = directory / "published.json"
-            backup = directory / ".published.json.tianlai-backup"
-            target.write_bytes(b"new transaction bytes")
-            backup.write_bytes(b"old durable bytes")
+            backup_claim = renderer_module._reserve_private_file(
+                directory,
+                prefix=".published.json.",
+                suffix=".tianlai-backup",
+            )
+            old_payload = b"old durable bytes"
+            backup_claim.path.write_bytes(old_payload)
+            backup = renderer_module._seal_private_file_claim(
+                backup_claim,
+                expected_sha256=hashlib.sha256(old_payload).hexdigest(),
+            )
             concurrent = b"concurrent writer must survive"
-            real_link = os.link
+            real_rename = renderer_module._rename_noreplace
             raced = False
 
-            def race_before_no_clobber_install(source, destination, **kwargs):
+            def race_before_no_clobber_install(source, destination):
                 nonlocal raced
                 if not raced and Path(destination) == target:
                     raced = True
                     target.write_bytes(concurrent)
-                return real_link(source, destination, **kwargs)
+                return real_rename(source, destination)
 
             with patch(
-                "tianlai.renderer.os.link",
+                "tianlai.renderer._rename_noreplace",
                 side_effect=race_before_no_clobber_install,
             ):
                 with self.assertRaises(FileExistsError):
@@ -269,12 +620,9 @@ class RendererTests(unittest.TestCase):
 
             self.assertTrue(raced)
             self.assertEqual(target.read_bytes(), concurrent)
-            self.assertEqual(backup.read_bytes(), b"old durable bytes")
-            preserved = list(directory.glob(".*.rollback-preserved-*"))
-            self.assertEqual(len(preserved), 1)
-            self.assertEqual(
-                preserved[0].read_bytes(),
-                b"new transaction bytes",
+            self.assertEqual(backup.claim.path.read_bytes(), old_payload)
+            self.assertIsNone(
+                renderer_module._retire_private_file(backup.claim)
             )
 
     def test_render_is_deterministic_and_pcm24(self) -> None:
@@ -366,10 +714,34 @@ class RendererTests(unittest.TestCase):
                 self.assertEqual(audio.getsampwidth(), 3)
                 self.assertEqual(audio.getframerate(), 48000)
                 self.assertEqual(audio.getnframes(), result.frame_count)
-            _assert_only_recoverable_private_files(
+            _assert_only_expected_private_files(
                 self,
                 Path(temporary_directory),
             )
+
+    def test_successful_overwrite_retires_every_old_backup(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            directory = Path(temporary_directory)
+            target = directory / "overwrite.wav"
+            performance = _write_tiny_performance(directory)
+            previous = _seed_old_quartet(target)
+
+            with patch(
+                "tianlai.renderer.create_instrument",
+                return_value=_ConstantInstrument((0.01, -0.01), 8_000),
+            ):
+                render_to_wav_atomic(
+                    ROOT / "乐器/测试工具/参考振荡器/乐器.json",
+                    performance,
+                    target,
+                )
+
+            for path, old_payload in previous.items():
+                self.assertTrue(path.is_file())
+                self.assertNotEqual(path.read_bytes(), old_payload)
+            _assert_only_expected_private_files(self, directory)
+            self.assertEqual(list(directory.glob(".*.tianlai-backup*")), [])
+            self.assertEqual(list(directory.glob(".*.retired.*")), [])
 
     def test_post_render_check_reads_staged_pcm_and_binds_unicode_final_name(
         self,
@@ -476,7 +848,7 @@ class RendererTests(unittest.TestCase):
             publish_replace.assert_not_called()
             for path, payload in previous.items():
                 self.assertEqual(path.read_bytes(), payload)
-            _assert_only_recoverable_private_files(self, directory)
+            _assert_only_expected_private_files(self, directory)
 
     def test_mutated_staged_post_render_check_preserves_old_quartet(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -485,7 +857,7 @@ class RendererTests(unittest.TestCase):
             performance = _write_tiny_performance(directory)
             previous = _seed_old_quartet(target)
 
-            def tamper(path, _report):
+            def tamper(path, _report, **_kwargs):
                 Path(path).write_text("{}\n", encoding="utf-8")
 
             with (
@@ -512,7 +884,7 @@ class RendererTests(unittest.TestCase):
             publish_replace.assert_not_called()
             for path, payload in previous.items():
                 self.assertEqual(path.read_bytes(), payload)
-            _assert_only_recoverable_private_files(self, directory)
+            _assert_only_expected_private_files(self, directory)
 
     def test_misbound_report_hash_is_rejected_before_write_or_publication(
         self,
@@ -558,7 +930,7 @@ class RendererTests(unittest.TestCase):
             publish_replace.assert_not_called()
             for path, payload in previous.items():
                 self.assertEqual(path.read_bytes(), payload)
-            _assert_only_recoverable_private_files(self, directory)
+            _assert_only_expected_private_files(self, directory)
 
     def test_expected_activity_digital_silence_blocks_before_publication(
         self,
@@ -594,7 +966,7 @@ class RendererTests(unittest.TestCase):
             publish_replace.assert_not_called()
             for path, payload in previous.items():
                 self.assertEqual(path.read_bytes(), payload)
-            _assert_only_recoverable_private_files(self, directory)
+            _assert_only_expected_private_files(self, directory)
 
     def test_clipping_does_not_replace_an_existing_target(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -702,7 +1074,7 @@ class RendererTests(unittest.TestCase):
                         )
 
                         with lstat_context, patch(
-                            "tianlai.renderer.tempfile.mkstemp"
+                            "tianlai.atomic_publish.tempfile.mkstemp"
                         ) as reserve_staging:
                             with self.assertRaisesRegex(ValueError, "符号链接"):
                                 render_to_wav_atomic(
@@ -737,7 +1109,7 @@ class RendererTests(unittest.TestCase):
                     member.mkdir()
 
                     with patch(
-                        "tianlai.renderer.tempfile.mkstemp"
+                        "tianlai.atomic_publish.tempfile.mkstemp"
                     ) as reserve_staging:
                         with self.assertRaisesRegex(ValueError, "非普通文件"):
                             render_to_wav_atomic(
@@ -791,7 +1163,7 @@ class RendererTests(unittest.TestCase):
                             self.assertEqual(path.read_bytes(), previous[path])
                         else:
                             self.assertFalse(path.exists())
-                    _assert_only_recoverable_private_files(self, directory)
+                    _assert_only_expected_private_files(self, directory)
 
     def test_each_publication_failure_rolls_back_the_whole_quartet(self) -> None:
         for existing in (False, True):
@@ -827,7 +1199,11 @@ class RendererTests(unittest.TestCase):
                         ) -> None:
                             nonlocal failure_injected
                             publication_attempts.append(destination)
-                            if destination == failed_target and not failure_injected:
+                            if (
+                                destination
+                                == failed_target.resolve(strict=False)
+                                and not failure_injected
+                            ):
                                 failure_injected = True
                                 raise OSError(
                                     f"injected {failed_member} publication failure"
@@ -859,12 +1235,17 @@ class RendererTests(unittest.TestCase):
 
                         self.assertTrue(failure_injected)
                         expected_order = [
-                            json_path,
-                            text_path,
-                            check_path,
-                            audio_path,
+                            path.resolve(strict=False)
+                            for path in (
+                                json_path,
+                                text_path,
+                                check_path,
+                                audio_path,
+                            )
                         ]
-                        failed_index = expected_order.index(failed_target)
+                        failed_index = expected_order.index(
+                            failed_target.resolve(strict=False)
+                        )
                         self.assertEqual(
                             publication_attempts,
                             expected_order[: failed_index + 1],
@@ -874,7 +1255,11 @@ class RendererTests(unittest.TestCase):
                                 self.assertEqual(path.read_bytes(), previous[path])
                             else:
                                 self.assertFalse(path.exists())
-                        _assert_only_recoverable_private_files(self, directory)
+                        _assert_only_expected_private_files(
+                            self,
+                            directory,
+                            allow_rollbacks=True,
+                        )
 
     def test_first_persistent_publish_lock_does_not_touch_original_quartet(
         self,
@@ -897,7 +1282,7 @@ class RendererTests(unittest.TestCase):
                 ) as publish_replace,
                 patch(
                     "tianlai.renderer._restore_published_file",
-                    side_effect=PermissionError("lock also blocks restore"),
+                    wraps=renderer_module._restore_published_file,
                 ) as restore_replace,
             ):
                 with self.assertRaisesRegex(PermissionError, "persistently locked"):
@@ -908,11 +1293,14 @@ class RendererTests(unittest.TestCase):
                     )
 
             publish_replace.assert_called_once()
-            self.assertEqual(publish_replace.call_args.args[1], json_path)
-            restore_replace.assert_not_called()
+            self.assertEqual(
+                publish_replace.call_args.args[1],
+                json_path.resolve(strict=False),
+            )
+            restore_replace.assert_called_once()
             for path, payload in previous.items():
                 self.assertEqual(path.read_bytes(), payload)
-            _assert_only_recoverable_private_files(self, directory)
+            _assert_only_expected_private_files(self, directory)
 
 
 if __name__ == "__main__":

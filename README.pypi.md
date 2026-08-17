@@ -7,7 +7,9 @@ MCP clients.
 
 This PyPI package intentionally contains the engine rather than the full
 Tianlai product bundle. The full source release also carries the user-facing
-launchers, examples, documentation, and separately restored instrument assets.
+launchers, examples, documentation, public JSON Schemas, and separately
+restored instrument assets. The engine parsers do not load those repository
+Schemas at runtime, so they are intentionally not duplicated into the wheel.
 
 ## Installation
 
@@ -21,6 +23,11 @@ tianlai --help
 `tianlai-doctor` performs full source-layout and catalog diagnostics; run it
 from a Tianlai source release (or with `TIANLAI_HOME` pointing to one), not as
 an engine-only wheel smoke test.
+
+The first formal `project-render-v2` command is likewise source-workspace-only:
+the wheel exposes its parser and reusable modules, while an actual formal render
+must run from the full source release whose loaded `tianlai/` package and
+instrument catalog can be bound as one workspace generation.
 
 Local MCP server:
 

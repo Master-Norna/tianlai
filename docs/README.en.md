@@ -3,7 +3,7 @@
 # Documentation
 
 This map collects the user and integration documentation shipped with Tianlai
-`0.8.0rc1`. The current `tianlai-doctor` result is authoritative for the
+`0.9.0`. The current `tianlai-doctor` result is authoritative for the
 runtime environment, instrument availability, and local resource state.
 
 ## Quick start
@@ -24,6 +24,12 @@ runtime environment, instrument availability, and local resource state.
   time-based location, editing, and A/B comparison.
 - [Post-render self-check](渲染后自检.en.md): strict final-PCM integrity gates,
   True Peak/LUFS measurements, risk review, and the human-listening boundary.
+- [Score v2: exact, portable work semantics](score-v2.en.md): rational time,
+  stable identity, the v1 migration bundle, and the restricted direct-v2
+  formal-render and Candidate-v3 boundary.
+- [Realization v1](realization-v1.en.md): optional per-note and continuous
+  performance control bound to a score hash, including quantization,
+  approximation, and resolved-evidence contracts.
 
 Shortest Windows entry point:
 

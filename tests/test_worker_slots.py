@@ -89,6 +89,113 @@ def test_windows_relative_runtime_path_fails_closed(
         slots_module.default_worker_slot_directory()
 
 
+@pytest.mark.skipif(os.name == "nt", reason="POSIX canonical runtime only")
+def test_posix_default_pool_ignores_optional_runtime_environment(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    expected = slots_module.default_worker_slot_directory()
+    for index in range(2):
+        runtime = tmp_path / f"runtime-{index}"
+        temporary = tmp_path / f"temporary-{index}"
+        runtime.mkdir(mode=0o700)
+        temporary.mkdir(mode=0o700)
+        monkeypatch.setenv("XDG_RUNTIME_DIR", str(runtime))
+        monkeypatch.setenv("TMPDIR", str(temporary))
+        monkeypatch.setenv("TEMP", str(temporary))
+        monkeypatch.setenv("TMP", str(temporary))
+        assert slots_module.default_worker_slot_directory() == expected
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX no-follow directories only")
+def test_posix_pool_rejects_precreated_leaf_symlink(tmp_path: Path) -> None:
+    target = tmp_path / "target"
+    target.mkdir(mode=0o700)
+    linked_pool = tmp_path / "pool"
+    linked_pool.symlink_to(target, target_is_directory=True)
+
+    with pytest.raises(
+        slots_module.WorkerSlotError,
+        match="safe ordinary directory",
+    ):
+        WorkerSlotPool(linked_pool)
+
+    assert list(target.iterdir()) == []
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX no-follow directories only")
+def test_posix_pool_rejects_leaf_replacement_during_identity_check(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pool_path = tmp_path / "pool"
+    replacement = tmp_path / "replacement"
+    replacement.mkdir(mode=0o700)
+    real_observations = slots_module._posix_directory_observations
+
+    def replace_then_observe(
+        path: Path,
+    ) -> tuple[os.stat_result, Path, os.stat_result, os.stat_result]:
+        moved = tmp_path / "opened-pool"
+        path.rename(moved)
+        path.symlink_to(replacement, target_is_directory=True)
+        return real_observations(path)
+
+    monkeypatch.setattr(
+        slots_module,
+        "_posix_directory_observations",
+        replace_then_observe,
+    )
+
+    with pytest.raises(
+        slots_module.WorkerSlotError,
+        match="identity changed",
+    ):
+        WorkerSlotPool(pool_path)
+
+    assert list(replacement.iterdir()) == []
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX no-follow directories only")
+def test_posix_processes_reject_retargeted_leaf_instead_of_splitting_pool(
+    tmp_path: Path,
+) -> None:
+    linked_pool = tmp_path / "pool"
+    targets = (tmp_path / "first", tmp_path / "second")
+    for target in targets:
+        target.mkdir(mode=0o700)
+
+    code = r"""
+import sys
+from pathlib import Path
+from tianlai.worker_slots import WorkerSlotError, WorkerSlotPool
+try:
+    WorkerSlotPool(Path(sys.argv[1]))
+except WorkerSlotError:
+    print('REJECTED')
+else:
+    print('ACCEPTED')
+"""
+    results: list[str] = []
+    for target in targets:
+        if os.path.lexists(linked_pool):
+            linked_pool.unlink()
+        linked_pool.symlink_to(target, target_is_directory=True)
+        completed = subprocess.run(
+            [PYTHON, "-c", code, str(linked_pool)],
+            cwd=ROOT,
+            env=_child_environment(),
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        assert completed.returncode == 0, completed.stderr
+        results.append(completed.stdout.strip())
+
+    assert results == ["REJECTED", "REJECTED"]
+    assert all(list(target.iterdir()) == [] for target in targets)
+
+
 def test_batch_is_exact_and_owner_coordinator_is_counted_once() -> None:
     with tempfile.TemporaryDirectory() as temporary_directory:
         root = Path(temporary_directory)
@@ -653,6 +760,74 @@ if reservation is not None:
                 assert process.returncode == 0, stderr
                 outputs.append(stdout.strip())
             assert sorted(outputs) == ["0", "1"]
+        finally:
+            for process in processes:
+                if process.poll() is None:
+                    process.kill()
+                process.wait(timeout=5)
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX canonical runtime only")
+def test_posix_processes_with_different_runtime_env_share_worker_pool() -> None:
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        root = Path(temporary_directory)
+        go = root / "go"
+        environments: list[dict[str, str]] = []
+        for index in range(2):
+            runtime = root / f"runtime-{index}"
+            temporary = root / f"temporary-{index}"
+            runtime.mkdir(mode=0o700)
+            temporary.mkdir(mode=0o700)
+            environment = _child_environment()
+            environment.update(
+                {
+                    "XDG_RUNTIME_DIR": str(runtime),
+                    "TMPDIR": str(temporary),
+                    "TEMP": str(temporary),
+                    "TMP": str(temporary),
+                }
+            )
+            environments.append(environment)
+
+        code = r"""
+import json, sys, time, uuid
+from pathlib import Path
+from tianlai.worker_slots import WorkerResourceClaim, WorkerSlotPool
+scratch, go = map(Path, sys.argv[1:3])
+while not go.exists(): time.sleep(0.005)
+owner = uuid.uuid4().hex
+claims = tuple(WorkerResourceClaim(owner, 4, 268435456, 67108864, 2147483648, 8, scratch) for _ in range(4))
+pool = WorkerSlotPool()
+reservation = pool.reserve_exact(claims)
+print(json.dumps({'pool': str(pool.directory), 'accepted': reservation is not None}), flush=True)
+if reservation is not None:
+    slots = [reservation.take() for _ in range(4)]
+    time.sleep(0.5)
+    for slot in slots: slot.close()
+    reservation.close()
+"""
+        processes = [
+            subprocess.Popen(
+                [PYTHON, "-c", code, str(root), str(go)],
+                cwd=ROOT,
+                env=environment,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            for environment in environments
+        ]
+        go.write_text("go", encoding="ascii")
+        try:
+            results = [process.communicate(timeout=10) for process in processes]
+            documents = []
+            for process, (stdout, stderr) in zip(
+                processes, results, strict=True
+            ):
+                assert process.returncode == 0, stderr
+                documents.append(json.loads(stdout))
+            assert len({item["pool"] for item in documents}) == 1
+            assert sorted(item["accepted"] for item in documents) == [False, True]
         finally:
             for process in processes:
                 if process.poll() is None:

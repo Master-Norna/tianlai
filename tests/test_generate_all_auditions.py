@@ -1623,10 +1623,25 @@ class GenerateAllAuditionsTests(unittest.TestCase):
         self.assertEqual(sfx.tail_seconds, 1.5)
         self.assertIn("attack 0.08s + 稳态 1.2s", str(sfx.exception))
 
-        unresolved_manifest, _ = self._make_instrument(
+        invalid_reversed_manifest, _ = self._make_instrument(
             "环境与拟音/未声明触发键",
             ["old"],
             manifest_updates={"type": "reversed_cymbal"},
+        )
+        with self.assertRaisesRegex(
+            ValueError,
+            "reversed cymbal requires a non-empty variants selector map",
+        ):
+            self.tool.build_full_range_audition(
+                invalid_reversed_manifest,
+                instrument_root=self.instrument_root,
+            )
+
+        unresolved_manifest, _ = self._make_instrument(
+            "环境与拟音/无触发范围",
+            ["old"],
+            manifest_updates={"type": "oscillator"},
+            unpitched=True,
         )
         with self.assertRaisesRegex(
             ValueError,

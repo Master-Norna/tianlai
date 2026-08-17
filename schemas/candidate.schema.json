@@ -20,7 +20,7 @@
       "const": "tianlai.candidate"
     },
     "version": {
-      "enum": [1, 2]
+      "enum": [1, 2, 3]
     },
     "candidate_id": {
       "type": "string",
@@ -42,42 +42,20 @@
     "parent_candidate_id": {
       "type": ["string", "null"]
     },
+    "pipeline": {
+      "$ref": "#/$defs/scoreV2Pipeline"
+    },
     "project": {
-      "type": "object",
-      "required": [
-        "score",
-        "roster",
-        "render_profile",
-        "performance_plan_sha256"
-      ],
-      "properties": {
-        "score": {
-          "$ref": "#/$defs/jsonBinding"
-        },
-        "roster": {
-          "$ref": "#/$defs/jsonBinding"
-        },
-        "render_profile": {
-          "$ref": "#/$defs/jsonBinding"
-        },
-        "performance_plan_sha256": {
-          "$ref": "#/$defs/sha256"
-        }
-      },
-      "additionalProperties": false
+      "oneOf": [
+        { "$ref": "#/$defs/legacyProject" },
+        { "$ref": "#/$defs/scoreV2Project" }
+      ]
     },
     "render_receipt": {
-      "type": "object",
-      "required": ["path", "sha256"],
-      "properties": {
-        "path": {
-          "const": "渲染回执.json"
-        },
-        "sha256": {
-          "$ref": "#/$defs/sha256"
-        }
-      },
-      "additionalProperties": false
+      "oneOf": [
+        { "$ref": "#/$defs/legacyReceiptBinding" },
+        { "$ref": "#/$defs/scoreV2ReceiptBinding" }
+      ]
     },
     "authoring_project": {
       "type": "object",
@@ -207,7 +185,7 @@
   "allOf": [
     {
       "if": {
-        "properties": { "version": { "const": 2 } },
+        "properties": { "version": { "enum": [2, 3] } },
         "required": ["version"]
       },
       "then": {
@@ -215,6 +193,36 @@
           "created_at_utc": {
             "pattern": "^[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])T(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]\\.[0-9]{3}Z$"
           }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "version": { "enum": [1, 2] } },
+        "required": ["version"]
+      },
+      "then": {
+        "properties": {
+          "pipeline": false,
+          "project": { "$ref": "#/$defs/legacyProject" },
+          "render_receipt": { "$ref": "#/$defs/legacyReceiptBinding" }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "version": { "const": 3 } },
+        "required": ["version"]
+      },
+      "then": {
+        "required": ["pipeline"],
+        "properties": {
+          "pipeline": { "$ref": "#/$defs/scoreV2Pipeline" },
+          "project": { "$ref": "#/$defs/scoreV2Project" },
+          "render_receipt": { "$ref": "#/$defs/scoreV2ReceiptBinding" },
+          "authoring_project": false,
+          "authoring_workflow": false,
+          "cache_telemetry": false
         }
       }
     },
@@ -240,6 +248,79 @@
       "minLength": 1,
       "maxLength": 128,
       "pattern": "^(?!\\.{1,2}$)(?!.*[ .]$)[^<>:\"/\\\\|?*\\u0000-\\u001F\\u007F]+$"
+    },
+    "legacyProject": {
+      "type": "object",
+      "required": ["score", "roster", "render_profile", "performance_plan_sha256"],
+      "properties": {
+        "score": { "$ref": "#/$defs/jsonBinding" },
+        "roster": { "$ref": "#/$defs/jsonBinding" },
+        "render_profile": { "$ref": "#/$defs/jsonBinding" },
+        "realization": { "$ref": "#/$defs/jsonBinding" },
+        "performance_plan_sha256": { "$ref": "#/$defs/sha256" }
+      },
+      "additionalProperties": false
+    },
+    "legacyReceiptBinding": {
+      "type": "object",
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "const": "渲染回执.json" },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      },
+      "additionalProperties": false
+    },
+    "scoreV2Pipeline": {
+      "type": "object",
+      "required": ["kind", "contract", "score_schema_version", "executor_count"],
+      "properties": {
+        "kind": { "const": "score_v2" },
+        "contract": { "const": "score-v2-candidate-single-oscillator-asset-free-v1" },
+        "score_schema_version": { "const": 2 },
+        "executor_count": { "const": 1 }
+      },
+      "additionalProperties": false
+    },
+    "scoreV2Project": {
+      "type": "object",
+      "required": ["score", "roster", "execution_profile", "score_v2_plan_sha256", "performance_bundle_sha256"],
+      "properties": {
+        "score": { "$ref": "#/$defs/fixedScoreV2Binding" },
+        "roster": { "$ref": "#/$defs/fixedRosterBinding" },
+        "execution_profile": { "$ref": "#/$defs/fixedExecutionProfileBinding" },
+        "score_v2_plan_sha256": { "$ref": "#/$defs/sha256" },
+        "performance_bundle_sha256": { "$ref": "#/$defs/sha256" }
+      },
+      "additionalProperties": false
+    },
+    "scoreV2ReceiptBinding": {
+      "type": "object",
+      "required": ["path", "sha256", "kind", "schema_version"],
+      "properties": {
+        "path": { "const": "渲染回执.json" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "kind": { "const": "tianlai.score_v2_render_receipt" },
+        "schema_version": { "const": 1 }
+      },
+      "additionalProperties": false
+    },
+    "fixedScoreV2Binding": {
+      "allOf": [
+        { "$ref": "#/$defs/jsonBinding" },
+        { "properties": { "path": { "const": "score-v2.json" } } }
+      ]
+    },
+    "fixedRosterBinding": {
+      "allOf": [
+        { "$ref": "#/$defs/jsonBinding" },
+        { "properties": { "path": { "const": "roster.json" } } }
+      ]
+    },
+    "fixedExecutionProfileBinding": {
+      "allOf": [
+        { "$ref": "#/$defs/jsonBinding" },
+        { "properties": { "path": { "const": "execution-profile.json" } } }
+      ]
     },
     "jsonBinding": {
       "type": "object",

@@ -41,6 +41,9 @@ _MAX_ARCHIVE_ENTRIES = 1024
 _MAX_COMPRESSION_RATIO = 2000
 _DYNAMIC_MARKS = ("ppp", "pp", "p", "mp", "mf", "f", "ff", "fff")
 _HOSTILE_IDENTIFIER = set('/\\:*?"<>|')
+_MUSICXML_NAMESPACE = "http://www.musicxml.org/ns/musicxml"
+_MXL_CONTAINER_NAMESPACE = "urn:oasis:names:tc:opendocument:xmlns:container"
+_MAX_NAMESPACE_AUDIT_EXAMPLES = 16
 _NOTE_OFFSETS = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}
 _ARTICULATIONS = {
     "staccato": "staccato",
@@ -101,6 +104,7 @@ class _PartInfo:
     midi_unpitched: dict[str, int] = field(default_factory=dict)
     midi_channel: int | None = None
     percussion: bool = False
+    midi_playback: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass(slots=True)
@@ -117,6 +121,18 @@ class _RawNote:
     velocity: float | None
     articulation: str | None
     tie: bool
+
+
+@dataclass(frozen=True, slots=True)
+class _SoundTieEndpoint:
+    bar: int
+    onset_quarters: Fraction
+    sequence: int
+    staff: int
+    voice: str
+    midi: float
+    start: bool
+    stop: bool
 
 
 @dataclass(slots=True)
@@ -157,9 +173,129 @@ class _PartResult:
     staff_numbers: set[int]
 
 
-def _local_name(tag: object) -> str:
+@dataclass(slots=True)
+class _NamespaceAudit:
+    """Bounded evidence for namespaced data excluded from the core parser."""
+
+    element_count: int = 0
+    attribute_count: int = 0
+    examples: list[str] = field(default_factory=list)
+    _seen_examples: set[str] = field(default_factory=set)
+
+    def observe(self, kind: str, namespace: str, local_name: str) -> None:
+        if kind == "element":
+            self.element_count += 1
+            rendered = f"{{{namespace}}}{local_name}"
+        else:
+            self.attribute_count += 1
+            rendered = f"@{{{namespace}}}{local_name}"
+        if (
+            rendered not in self._seen_examples
+            and len(self.examples) < _MAX_NAMESPACE_AUDIT_EXAMPLES
+        ):
+            self._seen_examples.add(rendered)
+            self.examples.append(rendered)
+
+    @property
+    def present(self) -> bool:
+        return bool(self.element_count or self.attribute_count)
+
+    def message(self, label: str) -> str:
+        counts: list[str] = []
+        if self.element_count:
+            counts.append(f"{self.element_count} 个元素")
+        if self.attribute_count:
+            counts.append(f"{self.attribute_count} 个属性")
+        examples = "、".join(self.examples)
+        total = self.element_count + self.attribute_count
+        if len(self.examples) < total:
+            examples += "、…"
+        return (
+            f"{label} 含外部命名空间扩展（{'、'.join(counts)}；{examples}）；"
+            "这些扩展未作为 MusicXML 核心语义执行，当前内部乐谱也不保存其语义"
+        )
+
+
+def _expanded_name(tag: object) -> tuple[str, str]:
     text = str(tag)
-    return text.rsplit("}", 1)[-1]
+    if text.startswith("{"):
+        close = text.find("}")
+        if close > 1:
+            return text[1:close], text[close + 1 :]
+    return "", text
+
+
+def _normalise_core_namespace(
+    root: ET.Element,
+    *,
+    label: str,
+    allowed_root_namespaces: frozenset[str],
+) -> _NamespaceAudit:
+    """Make one XML namespace executable and prune every foreign subtree.
+
+    ElementTree exposes expanded names as ``{namespace}local``.  Stripping the
+    namespace from every tag would let an extension such as ``x:note`` execute
+    as a MusicXML ``note``.  Instead, the root namespace defines this
+    document's core vocabulary.  Only that namespace is normalised to local
+    names; foreign subtrees are removed before any local-name based parser can
+    inspect their descendants, and bounded evidence is returned to the caller.
+    """
+
+    root_namespace, _ = _expanded_name(root.tag)
+    if root_namespace not in allowed_root_namespaces:
+        rendered = root_namespace or "（空命名空间）"
+        raise ValueError(f"{label} 使用不支持的根命名空间: {rendered}")
+
+    audit = _NamespaceAudit()
+
+    pending = [root]
+    while pending:
+        element = pending.pop()
+        namespace, local_name = _expanded_name(element.tag)
+        # The root and every queued child have already been established as
+        # core elements.
+        if namespace != root_namespace:
+            raise AssertionError("foreign XML element reached core normalisation")
+        element.tag = local_name
+
+        for attribute_name in element.attrib:
+            attribute_namespace, attribute_local_name = _expanded_name(
+                attribute_name
+            )
+            # MusicXML and the MXL container use unqualified attributes.  Any
+            # qualified attribute is therefore extension data, not a core
+            # spelling of an ordinary attribute such as ``attack``.
+            if attribute_namespace:
+                audit.observe(
+                    "attribute",
+                    attribute_namespace,
+                    attribute_local_name,
+                )
+
+        core_children: list[ET.Element] = []
+        for child in list(element):
+            child_namespace, child_local_name = _expanded_name(child.tag)
+            if child_namespace != root_namespace:
+                audit.observe("element", child_namespace, child_local_name)
+                # Removing the entire subtree is essential: otherwise a core-
+                # namespace descendant hidden below an extension wrapper could
+                # still be found by one of the descendant searches below.
+                element.remove(child)
+                continue
+            core_children.append(child)
+        # Reverse the stack insertion so traversal and bounded examples remain
+        # in XML document order without making hostile nesting consume the
+        # Python call stack.
+        pending.extend(reversed(core_children))
+    return audit
+
+
+def _local_name(tag: object) -> str:
+    # Core documents are normalised once by ``_normalise_core_namespace``.
+    # Keeping an expanded foreign name intact here is a final fail-closed guard
+    # against treating an extension QName as a MusicXML element by local name.
+    namespace, local_name = _expanded_name(tag)
+    return local_name if not namespace else str(tag)
 
 
 def _children(element: ET.Element, name: str) -> list[ET.Element]:
@@ -260,7 +396,12 @@ def _xml_text_for_security_scan(payload: bytes, label: str) -> str | None:
         raise ValueError(f"{label} 的 XML 编码损坏") from exc
 
 
-def _parse_xml(payload: bytes, label: str) -> ET.Element:
+def _parse_xml(
+    payload: bytes,
+    label: str,
+    *,
+    allowed_root_namespaces: frozenset[str],
+) -> tuple[ET.Element, _NamespaceAudit]:
     if len(payload) > _MAX_XML_BYTES:
         raise ValueError(f"{label} 解压后的 XML 超过 {_MAX_XML_BYTES // 1024 // 1024} MiB")
     uppercase = payload.upper()
@@ -278,9 +419,15 @@ def _parse_xml(payload: bytes, label: str) -> ET.Element:
     if unsafe_bytes or unsafe_text:
         raise ValueError(f"{label} 含有不允许的 DTD/ENTITY 声明")
     try:
-        return ET.fromstring(payload)
+        root = ET.fromstring(payload)
     except (ET.ParseError, LookupError, UnicodeError) as exc:
         raise ValueError(f"{label} XML 解析失败: {exc}") from exc
+    audit = _normalise_core_namespace(
+        root,
+        label=label,
+        allowed_root_namespaces=allowed_root_namespaces,
+    )
+    return root, audit
 
 
 def _checked_zip_member(package: zipfile.ZipFile, name: str, limit: int) -> bytes:
@@ -330,7 +477,17 @@ def _read_mxl(payload: bytes, path: Path) -> bytes:
             container_payload = _checked_zip_member(
                 package, "META-INF/container.xml", _MAX_CONTAINER_BYTES
             )
-            container = _parse_xml(container_payload, "MXL container.xml")
+            container, container_namespace_audit = _parse_xml(
+                container_payload,
+                "MXL container.xml",
+                allowed_root_namespaces=frozenset(
+                    ("", _MXL_CONTAINER_NAMESPACE)
+                ),
+            )
+            if container_namespace_audit.present:
+                raise ValueError(
+                    container_namespace_audit.message("MXL container.xml")
+                )
             if _local_name(container.tag) != "container":
                 raise ValueError("MXL container.xml 的根元素必须是 container")
             rootfiles = [
@@ -416,17 +573,54 @@ def _parse_part_list(root: ET.Element) -> tuple[dict[str, _PartInfo], list[str]]
         midi_unpitched: dict[str, int] = {}
         midi_channel: int | None = None
         percussion = False
+        midi_playback: list[dict[str, Any]] = []
         for midi_instrument in _children(score_part, "midi-instrument"):
             instrument_id = str(midi_instrument.get("id", "")).strip()
+            playback: dict[str, Any] = {}
+            if instrument_id:
+                playback["instrument_id"] = instrument_id
             channel_text = _text(_child(midi_instrument, "midi-channel"))
             if channel_text:
                 channel = _integer(channel_text, f"{source_id} midi-channel", minimum=1)
                 if channel > 16:
                     raise ValueError(f"{source_id} midi-channel 必须在 1~16")
+                playback["midi_channel_1based"] = channel
                 if midi_channel is None:
                     midi_channel = channel
                 if channel == 10:
                     percussion = True
+            for element_name, report_key, maximum in (
+                ("midi-bank", "midi_bank_1based", 16_384),
+                ("midi-program", "midi_program_1based", 128),
+            ):
+                raw_value = _text(_child(midi_instrument, element_name))
+                if raw_value:
+                    value = _integer(
+                        raw_value,
+                        f"{source_id} {element_name}",
+                        minimum=1,
+                    )
+                    if value > maximum:
+                        raise ValueError(
+                            f"{source_id} {element_name} 必须在 1~{maximum}"
+                        )
+                    playback[report_key] = value
+            midi_name = _text(_child(midi_instrument, "midi-name"))
+            if midi_name:
+                playback["midi_name"] = midi_name
+            for element_name, report_key, minimum, maximum in (
+                ("volume", "volume_percent", 0.0, 100.0),
+                ("pan", "pan_degrees", -180.0, 180.0),
+                ("elevation", "elevation_degrees", -90.0, 90.0),
+            ):
+                raw_value = _text(_child(midi_instrument, element_name))
+                if raw_value:
+                    value = _float(raw_value, f"{source_id} {element_name}")
+                    if not minimum <= value <= maximum:
+                        raise ValueError(
+                            f"{source_id} {element_name} 必须在 {minimum:g}~{maximum:g}"
+                        )
+                    playback[report_key] = value
             unpitched_text = _text(_child(midi_instrument, "midi-unpitched"))
             if unpitched_text:
                 value = _integer(
@@ -437,7 +631,25 @@ def _parse_part_list(root: ET.Element) -> tuple[dict[str, _PartInfo], list[str]]
                 if not instrument_id:
                     raise ValueError(f"{source_id} 的 midi-unpitched 缺少 instrument id")
                 midi_unpitched[instrument_id] = value - 1
+                playback["midi_unpitched_1based"] = value
                 percussion = True
+            if playback:
+                midi_playback.append(playback)
+            unmapped = sorted(
+                set(playback)
+                - {
+                    "instrument_id",
+                    "midi_channel_1based",
+                    "midi_unpitched_1based",
+                }
+            )
+            if unmapped:
+                _append_warning(
+                    warnings,
+                    f"声部 {identifier} 的 MusicXML MIDI 播放提示 "
+                    f"({', '.join(unmapped)}) 已保留在 import report，"
+                    "但未自动映射到 Tianlai roster 或 score",
+                )
         result[source_id] = _PartInfo(
             source_id=source_id,
             identifier=identifier,
@@ -445,6 +657,7 @@ def _parse_part_list(root: ET.Element) -> tuple[dict[str, _PartInfo], list[str]]
             midi_unpitched=midi_unpitched,
             midi_channel=midi_channel,
             percussion=percussion,
+            midi_playback=midi_playback,
         )
     return result, warnings
 
@@ -664,6 +877,41 @@ def _direction_position(
     return position
 
 
+def _warn_note_loss_features(
+    note: ET.Element,
+    warnings: list[str],
+) -> None:
+    """Inventory currently unrepresented note constructs once per document."""
+
+    if _child(note, "time-modification") is not None:
+        _append_warning(
+            warnings,
+            "MusicXML time-modification 的连音/时值比例语义当前未进入内部乐谱；"
+            "实际发声时值仍按源 duration 导入",
+        )
+    for notations in _children(note, "notations"):
+        for articulations in _children(notations, "articulations"):
+            for child in articulations:
+                name = _local_name(child.tag)
+                if name in ("breath-mark", "caesura"):
+                    _append_warning(
+                        warnings,
+                        f"MusicXML {name} 呼吸/停顿语义当前未进入内部乐谱",
+                    )
+        for child in notations:
+            name = _local_name(child.tag)
+            if name == "tuplet":
+                _append_warning(
+                    warnings,
+                    "MusicXML notations/tuplet 的分组、层级和显示语义当前未进入内部乐谱",
+                )
+            elif name == "other-notation":
+                _append_warning(
+                    warnings,
+                    "MusicXML other-notation 扩展记号当前未进入内部乐谱",
+                )
+
+
 def _note_articulation(
     note: ET.Element,
     label: str,
@@ -718,6 +966,93 @@ def _has_tie_start(note: ET.Element) -> bool:
     return False
 
 
+def _sound_tie_endpoints(
+    note: ET.Element,
+    warnings: list[str],
+) -> tuple[bool, bool]:
+    """Return sound-tie endpoints while auditing notation-only tie data.
+
+    MusicXML deliberately separates ``tie`` (sound) from ``tied`` (notation).
+    The existing v1 output still treats a notation-only start as ``tie=True``;
+    this function does not change that legacy behaviour, but makes the
+    approximation and every unsupported let-ring visible to loss policy.
+    """
+
+    sound_types = {
+        str(candidate.get("type", "")).strip().lower()
+        for candidate in _children(note, "tie")
+    }
+    notation_types: set[str] = set()
+    for notations in _children(note, "notations"):
+        notation_types.update(
+            str(candidate.get("type", "")).strip().lower()
+            for candidate in _children(notations, "tied")
+        )
+
+    if any(
+        notation_type in {"continue"}
+        or (
+            notation_type in {"start", "stop"}
+            and notation_type not in sound_types
+        )
+        for notation_type in notation_types
+    ):
+        _append_warning(
+            warnings,
+            "MusicXML 含没有对应 sound tie 端点的 notation tied；"
+            "当前仅保留既有 tie-start 近似，图形端点语义未保存",
+        )
+    if "let-ring" in notation_types:
+        _append_warning(
+            warnings,
+            "MusicXML tied let-ring 的持续不制音语义当前未进入内部乐谱",
+        )
+    return "start" in sound_types, "stop" in sound_types
+
+
+def _warn_unpaired_sound_ties(
+    endpoints: list[_SoundTieEndpoint],
+    warnings: list[str],
+) -> None:
+    """Report unpaired sound endpoints without changing legacy tie merging."""
+
+    pending: dict[tuple[float, int, str], int] = {}
+    orphan_stop = False
+    for endpoint in sorted(
+        endpoints,
+        key=lambda item: (
+            item.bar,
+            item.onset_quarters,
+            item.sequence,
+        ),
+    ):
+        key = (endpoint.midi, endpoint.staff, endpoint.voice)
+        if endpoint.stop:
+            count = pending.get(key, 0)
+            if count:
+                if count == 1:
+                    pending.pop(key)
+                else:
+                    pending[key] = count - 1
+            else:
+                orphan_stop = True
+        if endpoint.start:
+            pending[key] = pending.get(key, 0) + 1
+
+    if pending:
+        _append_warning(
+            warnings,
+            "MusicXML 含没有后继 sound tie stop 的孤立 tie start；"
+            "当前可听输出保持既有行为，但该连音链并不完整",
+        )
+    if orphan_stop:
+        _append_warning(
+            warnings,
+            "MusicXML 含没有前驱 sound tie start 的孤立 tie stop；"
+            "当前可听输出保持既有行为，但该连音链并不完整",
+        )
+
+
 def _warn_direction_features(
     direction: ET.Element,
     label: str,
@@ -737,6 +1072,11 @@ def _warn_sound_features(
     label: str,
     warnings: list[str],
 ) -> None:
+    if sound.get("damper-pedal") is not None:
+        _append_warning(
+            warnings,
+            "MusicXML sound/damper-pedal 的延音踏板播放语义当前未进入内部乐谱",
+        )
     playback = [
         key
         for key in ("dacapo", "dalsegno", "tocoda", "fine", "segno", "coda")
@@ -772,6 +1112,7 @@ def _parse_part(
     implicit_measures: set[int] = set()
     staff_numbers: set[int] = set()
     instrument_ids: set[str] = set()
+    sound_tie_endpoints: list[_SoundTieEndpoint] = []
     sequence = 0
 
     measures = _children(part, "measure")
@@ -968,6 +1309,7 @@ def _parse_part(
                 continue
 
             note_label = f"{label} 第 {sequence} 个元素"
+            _warn_note_loss_features(item, warnings)
             is_grace = _child(item, "grace") is not None
             is_chord = _child(item, "chord") is not None
             if is_grace:
@@ -1055,6 +1397,24 @@ def _parse_part(
             else:
                 raise ValueError(f"{note_label} 既不是 rest，也没有 pitch/unpitched")
 
+            sound_tie_start, sound_tie_stop = _sound_tie_endpoints(
+                item,
+                warnings,
+            )
+            if sound_tie_start or sound_tie_stop:
+                sound_tie_endpoints.append(
+                    _SoundTieEndpoint(
+                        bar=bar,
+                        onset_quarters=onset,
+                        sequence=sequence,
+                        staff=staff,
+                        voice=voice,
+                        midi=midi,
+                        start=sound_tie_start,
+                        stop=sound_tie_stop,
+                    )
+                )
+
             sound_start = onset
             sound_end = onset + duration
             if item.get("attack") is not None:
@@ -1126,6 +1486,7 @@ def _parse_part(
                 f"{float(expected):g}，按谱面起点保留",
             )
 
+    _warn_unpaired_sound_ties(sound_tie_endpoints, warnings)
     if len(staff_numbers) > 1:
         _append_warning(
             warnings,
@@ -1357,7 +1718,11 @@ def read_musicxml(
         source,
         source_bytes=source_bytes,
     )
-    root = _parse_xml(payload, str(source))
+    root, namespace_audit = _parse_xml(
+        payload,
+        str(source),
+        allowed_root_namespaces=frozenset(("", _MUSICXML_NAMESPACE)),
+    )
     root_name = _local_name(root.tag)
     if root_name == "score-timewise":
         raise ValueError(
@@ -1367,6 +1732,11 @@ def read_musicxml(
         raise ValueError(f"MusicXML 根元素必须是 score-partwise，实际为 {root_name!r}")
 
     part_info, warnings = _parse_part_list(root)
+    if namespace_audit.present:
+        _append_warning(
+            warnings,
+            namespace_audit.message("MusicXML"),
+        )
     meter_events: list[_MeterEvent] = []
     tempo_events: list[_TempoEvent] = []
     results: list[_PartResult] = []
@@ -1459,6 +1829,9 @@ def read_musicxml(
                 "name": result.info.name,
                 "channel": result.info.midi_channel,
                 "percussion": result.info.percussion,
+                "midi_playback": [
+                    dict(item) for item in result.info.midi_playback
+                ],
                 "note_count": len(result.notes),
                 "range": f"{_range_pitch(pitches[0])}~{_range_pitch(pitches[-1])}",
                 "noteheads": (

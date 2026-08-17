@@ -47,6 +47,7 @@ import os
 from pathlib import Path
 from pathlib import PurePosixPath
 import shutil
+import stat
 import tempfile
 from types import SimpleNamespace
 from typing import Any, Callable
@@ -58,7 +59,14 @@ from .adaptive_parallelism import (
     make_adaptive_backend_key,
 )
 from .adaptive_runtime import AdaptiveRenderSession
-from .audio import write_wav_pcm24, write_wav_pcm24_blocks
+from .audio import (
+    WavFileEvidence,
+    revalidate_wav_file_evidence,
+    write_wav_pcm24,
+    write_wav_pcm24_blocks,
+    write_wav_pcm24_blocks_with_evidence,
+    write_wav_pcm24_with_evidence,
+)
 from .canonical_json import canonical_json_bytes as _project_canonical_json_bytes
 from .collaboration_report import (
     CollaborationReportBuilder,
@@ -139,7 +147,9 @@ from .stem_worker import (
 from .stereo_stage_metrics import analyze_stereo_stage
 from .workflow_binding import validate_workflow_authorization
 from .worker_slots import (
+    SessionScratchClaim,
     WorkerResourceClaim,
+    WorkerSlotError,
     WorkerSlotPool,
     scratch_volume_identity,
 )
@@ -162,8 +172,27 @@ _DIRECT_ANALYSIS_STEM_LOAD_BYTES = 32 * 1024 * 1024
 _STREAMED_STEM_FREE_RESERVE_BYTES = 512 * 1024 * 1024
 _STREAMED_STEM_OUTPUT_MARGIN_BYTES = 1024 * 1024
 _MANAGED_WORKER_CHUNK_BYTES = 65_536 * 2 * 4
+# A float64 stereo bus costs sixteen bytes per frame.  Keep this private and
+# deliberately conservative: short renders stay on anonymous RAM, while a
+# dry score large enough to matter can trade sequential local I/O for a much
+# smaller coordinator working set without adding a user-facing setting.
+_MAPPED_DRY_MIX_BUS_THRESHOLD_BYTES = 256 * 1024 * 1024
+# A hall render retains a float64 stereo mix bus and a float32 stereo send bus,
+# or twenty-four bytes per output frame in total.  Admit both files under one
+# exact session claim once their combined size is large enough to materially
+# reduce coordinator private memory.  This remains a private zero-configuration
+# policy so projects never acquire another render knob.
+_MAPPED_HALL_MIX_BUSES_THRESHOLD_BYTES = 128 * 1024 * 1024
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+
+def _session_scratch_pool_factory() -> WorkerSlotPool:
+    return WorkerSlotPool()
+
+
 _LOWER_HEX = frozenset("0123456789abcdef")
+_ORIGINAL_WRITE_WAV_PCM24 = write_wav_pcm24
+_ORIGINAL_WRITE_WAV_PCM24_BLOCKS = write_wav_pcm24_blocks
 
 _RENDER_ARTIFACT_NAMES = (
     PERFORMANCE_PLAN_NAME,
@@ -325,6 +354,57 @@ def _sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _write_wav_pcm24_with_optional_evidence(
+    path: Path,
+    frames: Any,
+    sample_rate: int,
+    *,
+    expected_frame_count: int,
+) -> tuple[int, WavFileEvidence | None]:
+    """Use writer evidence unless a legacy writer seam was monkeypatched."""
+
+    if write_wav_pcm24 is not _ORIGINAL_WRITE_WAV_PCM24:
+        return int(write_wav_pcm24(path, frames, sample_rate)), None
+    result = write_wav_pcm24_with_evidence(
+        path,
+        frames,
+        sample_rate,
+        expected_frame_count=expected_frame_count,
+    )
+    return result.frame_count, result.evidence
+
+
+def _write_wav_pcm24_blocks_with_optional_evidence(
+    path: Path,
+    blocks: Any,
+    sample_rate: int,
+    *,
+    expected_frame_count: int,
+) -> tuple[int, WavFileEvidence | None]:
+    """Block-stream counterpart retaining the established patch seam."""
+
+    if write_wav_pcm24_blocks is not _ORIGINAL_WRITE_WAV_PCM24_BLOCKS:
+        return int(write_wav_pcm24_blocks(path, blocks, sample_rate)), None
+    result = write_wav_pcm24_blocks_with_evidence(
+        path,
+        blocks,
+        sample_rate,
+        expected_frame_count=expected_frame_count,
+    )
+    return result.frame_count, result.evidence
+
+
+def _sha256_written_wav(
+    path: Path,
+    evidence: WavFileEvidence | None,
+) -> str:
+    """Reuse bound writer evidence, with the established scan as fallback."""
+
+    if evidence is None:
+        return _sha256_file(path)
+    return revalidate_wav_file_evidence(path, evidence)
+
+
 def _write_json_atomic(path: Path, document: dict[str, Any]) -> None:
     """Durably finish a temporary JSON file, then atomically replace ``path``."""
 
@@ -377,9 +457,11 @@ def _remove_private_render_directory(
     The active entry is first renamed to an unpredictable same-parent name.
     Empty and non-empty directories, files, links, and entries replaced after
     an identity check all remain recoverable under
-    ``.cleanup-preserved-*``.  Even a non-recursive ``rmdir`` is deliberately
-    avoided: a writer could replace the preserved path after its final
-    identity check and otherwise have that replacement removed by name.
+    ``.cleanup-preserved-*`` (using a compact sibling name when Windows path
+    length rules cannot accommodate the descriptive name).  Even a
+    non-recursive ``rmdir`` is deliberately avoided: a writer could replace
+    the preserved path after its final identity check and otherwise have that
+    replacement removed by name.
     """
 
     if parent_identity is None:
@@ -403,16 +485,52 @@ def _remove_private_render_directory(
         return None
 
     preserved: Path | None = None
+    compact_recovery_name = False
     for _ in range(16):
+        recovery_token = uuid.uuid4().hex
         candidate = resolved_parent / (
-            f"{path.name}.cleanup-preserved-{uuid.uuid4().hex}"
+            f".cleanup-preserved-{recovery_token}"
+            if compact_recovery_name
+            else f"{path.name}.cleanup-preserved-{recovery_token}"
         )
         if os.path.lexists(candidate):
             continue
         try:
             os.rename(path, candidate)
+        except FileNotFoundError as exc:
+            # The renderer may be nested in a larger atomic publication which
+            # has already moved the private parent out of this namespace.  If
+            # the exact source name is now absent there is nothing left here
+            # to preserve; treating that committed disappearance as cleanup
+            # failure produces a false warning on Windows.
+            if not os.path.lexists(path):
+                return None
+            if (
+                not compact_recovery_name
+                and getattr(exc, "winerror", None) == 3
+            ):
+                # Windows also reports an overlong destination path as
+                # ERROR_PATH_NOT_FOUND even though the source still exists.
+                compact_recovery_name = True
+                continue
+            raise
         except FileExistsError:
             continue
+        except OSError as exc:
+            # Some Windows filesystem layers surface a vanished source as a
+            # plain OSError (WinError 3) instead of FileNotFoundError.  The
+            # identity-bound private name being absent is still the same
+            # committed postcondition: there is no active entry left for
+            # this cleanup pass to move.
+            if not os.path.lexists(path):
+                return None
+            if not compact_recovery_name and (
+                getattr(exc, "winerror", None) in {3, 206}
+                or exc.errno == errno.ENAMETOOLONG
+            ):
+                compact_recovery_name = True
+                continue
+            raise
         preserved = candidate
         break
     if preserved is None:
@@ -2242,6 +2360,71 @@ def _prefer_streamed_serial_stem(
         return False
 
 
+def _revalidate_serial_stem_scratch(
+    identity: PlainDirectoryIdentity,
+    expected_volume_id: str,
+    *,
+    lease: Any | None = None,
+) -> Path:
+    directory = revalidate_plain_directory(identity)
+    if scratch_volume_identity(directory) != expected_volume_id:
+        raise WorkerSlotError("serial stem scratch volume identity changed")
+    if lease is None:
+        return directory
+    lease_identity = capture_plain_directory(lease.scratch_directory)
+    if not _same_plain_directory_identity(identity, lease_identity):
+        raise WorkerSlotError("serial stem scratch lease has the wrong directory")
+    return directory
+
+
+def _try_reserve_serial_stem_scratch(
+    scratch_directory: Path,
+    *,
+    scratch_bytes: int,
+) -> tuple[Any, PlainDirectoryIdentity, str] | None:
+    """Reserve one exact raw source, retaining RAM as the optional fallback."""
+
+    identity = capture_plain_directory(scratch_directory)
+    directory = revalidate_plain_directory(identity)
+    expected_volume_id = scratch_volume_identity(directory)
+    try:
+        pool = _session_scratch_pool_factory()
+        lease = pool.reserve_session_scratch(
+            SessionScratchClaim(
+                scratch_bytes=scratch_bytes,
+                scratch_directory=directory,
+            )
+        )
+    except MemoryError:
+        raise
+    except (OSError, ValueError, WorkerSlotError):
+        _revalidate_serial_stem_scratch(identity, expected_volume_id)
+        return None
+    if lease is None:
+        _revalidate_serial_stem_scratch(identity, expected_volume_id)
+        return None
+    try:
+        _revalidate_serial_stem_scratch(
+            identity,
+            expected_volume_id,
+            lease=lease,
+        )
+        admitted_claim = getattr(lease, "claim", None)
+        if (
+            getattr(admitted_claim, "scratch_bytes", None) != scratch_bytes
+            or getattr(admitted_claim, "scratch_volume_id", None)
+            != expected_volume_id
+        ):
+            raise WorkerSlotError("serial stem scratch lease has the wrong claim")
+    except BaseException:
+        try:
+            lease.close()
+        except BaseException:
+            pass
+        raise
+    return lease, identity, expected_volume_id
+
+
 def _render_part_source(
     part: Any,
     sample_rate: int,
@@ -2263,21 +2446,65 @@ def _render_part_source(
     document = parse_performance_document(part.performance)
     if document.sample_rate != sample_rate:
         raise ValueError(
-            f"澹伴儴 {part.executor.executor_id!r} 鐨勯噰鏍风巼涓庢€昏氨涓嶄竴鑷?"
+            f"声部 {part.executor.executor_id!r} 的采样率与总谱不一致"
         )
+
+    reserved = _try_reserve_serial_stem_scratch(
+        scratch_directory,
+        scratch_bytes=document.total_samples * 2 * 4,
+    )
+    if reserved is None:
+        return _render_part(part, sample_rate)
+    scratch_lease, scratch_identity, scratch_volume_id = reserved
 
     try:
         temporary: Any | None = tempfile.TemporaryFile(
             mode="w+b",
-            dir=scratch_directory,
+            dir=scratch_lease.scratch_directory,
         )
     except MemoryError:
+        try:
+            scratch_lease.close()
+        except BaseException:
+            pass
         raise
     except OSError:
         # The transport is optional and no instrument has been constructed
         # yet, so an unavailable scratch handle can safely retain the exact
         # established in-memory renderer.
+        try:
+            _revalidate_serial_stem_scratch(
+                scratch_identity,
+                scratch_volume_id,
+                lease=scratch_lease,
+            )
+        except BaseException:
+            try:
+                scratch_lease.close()
+            except BaseException:
+                pass
+            raise
+        try:
+            scratch_lease.close()
+        except BaseException:
+            pass
         return _render_part(part, sample_rate)
+    try:
+        _revalidate_serial_stem_scratch(
+            scratch_identity,
+            scratch_volume_id,
+            lease=scratch_lease,
+        )
+    except BaseException:
+        try:
+            temporary.close()
+        except BaseException:
+            pass
+        try:
+            scratch_lease.close()
+        except BaseException:
+            pass
+        raise
     digest = hashlib.sha256()
     written_frames = 0
 
@@ -2349,6 +2576,10 @@ def _render_part_source(
             temporary.close()
         except BaseException:
             pass
+        try:
+            scratch_lease.close()
+        except BaseException:
+            pass
         raise
     finally:
         close = None if instrument is None else getattr(instrument, "close", None)
@@ -2358,6 +2589,10 @@ def _render_part_source(
             except BaseException as exc:
                 try:
                     temporary.close()
+                except BaseException:
+                    pass
+                try:
+                    scratch_lease.close()
                 except BaseException:
                     pass
                 if render_failed:
@@ -2375,10 +2610,15 @@ def _render_part_source(
             audio_offset=0,
             frame_count=document.total_samples,
             expected_sha256=digest.hexdigest(),
+            completion_callback=lambda _success: scratch_lease.close(),
         )
     except BaseException:
         try:
             temporary.close()
+        except BaseException:
+            pass
+        try:
+            scratch_lease.close()
         except BaseException:
             pass
         raise
@@ -3005,6 +3245,30 @@ def _iter_managed_stem_batch(
             for job in jobs
         )
 
+    def begin_adaptive_batch() -> None:
+        """Open every timing before this batch can start its first child."""
+
+        adaptive_observations.clear()
+        # Allocate the bounded ownership table before creating any advisor
+        # token.  Once begin_managed succeeds, storing the token cannot need a
+        # later list growth whose MemoryError would orphan that live timing.
+        adaptive_observations.extend([None] * len(jobs))
+        for position, job in enumerate(jobs):
+            observation = None
+            if (
+                adaptive_session is not None
+                and 0 <= job.index
+                < len(adaptive_backend_key_by_part)
+                and job.index < len(adaptive_work_frames_by_part)
+                and adaptive_backend_key_by_part[job.index]
+                and adaptive_work_frames_by_part[job.index] > 0
+            ):
+                observation = adaptive_session.begin_managed(
+                    backend_key=adaptive_backend_key_by_part[job.index],
+                    work_frames=adaptive_work_frames_by_part[job.index],
+                )
+            adaptive_observations[position] = observation
+
     def abandon_warm_attempt(
         binding: _ManagedWarmBinding,
     ) -> None:
@@ -3098,30 +3362,23 @@ def _iter_managed_stem_batch(
 
         while True:
             start_failure: Exception | None = None
+            try:
+                # A managed route describes one admitted batch, not a series
+                # of independently timed child launches.  Begin every member
+                # before the first warm checkout, Popen or slot hand-off so
+                # sequential startup cannot shift later routes' time origin.
+                begin_adaptive_batch()
+            except MemoryError:
+                raise
+            except Exception as exc:
+                start_failure = exc
             for job in jobs:
+                if start_failure is not None:
+                    break
                 slot: Any | None = None
-                adaptive_observation: Any | None = None
                 try:
                     if reservation is not None:
                         slot = reservation.take()
-                    if (
-                        adaptive_session is not None
-                        and 0 <= job.index
-                        < len(adaptive_backend_key_by_part)
-                        and job.index < len(adaptive_work_frames_by_part)
-                        and adaptive_backend_key_by_part[job.index]
-                        and adaptive_work_frames_by_part[job.index] > 0
-                    ):
-                        adaptive_observation = (
-                            adaptive_session.begin_managed(
-                                backend_key=(
-                                    adaptive_backend_key_by_part[job.index]
-                                ),
-                                work_frames=(
-                                    adaptive_work_frames_by_part[job.index]
-                                ),
-                            )
-                        )
                     handle = _try_start_stem_worker(
                         job,
                         scratch_directory=scratch_directory,
@@ -3140,50 +3397,19 @@ def _iter_managed_stem_batch(
                         ),
                     )
                 except MemoryError:
-                    if (
-                        adaptive_session is not None
-                        and adaptive_observation is not None
-                    ):
-                        try:
-                            adaptive_session.discard_managed(
-                                adaptive_observation
-                            )
-                        except BaseException:
-                            pass
                     close_failed_slot(slot)
                     raise
                 except Exception as exc:
-                    if (
-                        adaptive_session is not None
-                        and adaptive_observation is not None
-                    ):
-                        try:
-                            adaptive_session.discard_managed(
-                                adaptive_observation
-                            )
-                        except BaseException:
-                            pass
                     close_failed_slot(slot)
                     start_failure = exc
                     break
                 if handle is None:
-                    if (
-                        adaptive_session is not None
-                        and adaptive_observation is not None
-                    ):
-                        try:
-                            adaptive_session.discard_managed(
-                                adaptive_observation
-                            )
-                        except BaseException:
-                            pass
                     close_failed_slot(slot)
                     start_failure = StemWorkerError(
                         "managed stem worker capacity is unavailable"
                     )
                     break
                 handles.append(handle)
-                adaptive_observations.append(adaptive_observation)
 
             if start_failure is None:
                 break
@@ -4393,6 +4619,7 @@ def _consume_streamed_raw_stem(
     right_gain: float,
     send_scale: float | None,
     stem_target: Path | None,
+    stem_evidence_sink: Callable[[WavFileEvidence | None], None] | None = None,
 ) -> float:
     """Tee, gain, write and mix one verified raw source in one bounded pass."""
 
@@ -4465,15 +4692,20 @@ def _consume_streamed_raw_stem(
             for _block in blocks:
                 pass
         else:
-            written = write_wav_pcm24_blocks(
-                stem_target,
-                blocks,
-                sample_rate,
+            written, write_evidence = (
+                _write_wav_pcm24_blocks_with_optional_evidence(
+                    stem_target,
+                    blocks,
+                    sample_rate,
+                    expected_frame_count=source.frame_count,
+                )
             )
             if written != source.frame_count:
                 raise RuntimeError(
                     "streamed stem writer changed frame count"
                 )
+            if stem_evidence_sink is not None:
+                stem_evidence_sink(write_evidence)
         if frame_offset != source.frame_count:
             raise RuntimeError("streamed stem changed frame count")
     except BaseException:
@@ -4499,6 +4731,669 @@ def _consume_streamed_raw_stem(
 _consume_verified_cache_stem = _consume_streamed_raw_stem
 
 
+def _mapped_dry_mix_bus_layout(plan: PerformancePlan) -> tuple[int, int]:
+    """Return the no-hall float64 stereo bus shape and exact byte claim."""
+
+    dry_frames = max(1, round(plan.duration_seconds * plan.sample_rate))
+    return dry_frames, dry_frames * 2 * 8
+
+
+def _is_builtin_space_config(value: Any) -> bool:
+    from .space import SpaceConfig
+
+    return type(value) is SpaceConfig
+
+
+def _mapped_hall_mix_buses_layout(
+    plan: PerformancePlan,
+    space: Any,
+) -> tuple[int, int, int, int]:
+    """Return total frames plus exact mix, send and aggregate byte claims."""
+
+    dry_frames = max(1, round(plan.duration_seconds * plan.sample_rate))
+    tail_frames = max(
+        0,
+        math.ceil(space.tail_seconds(plan.sample_rate) * plan.sample_rate),
+    )
+    total_frames = dry_frames + tail_frames
+    mix_bytes = total_frames * 2 * 8
+    send_bytes = total_frames * 2 * 4
+    return total_frames, mix_bytes, send_bytes, mix_bytes + send_bytes
+
+
+def _effective_collaboration_mode_for_mapped_bus(
+    plan: PerformancePlan,
+    mode_override: str | None,
+) -> str | None:
+    """Conservatively identify manual mode without moving public validation."""
+
+    if mode_override is not None:
+        return mode_override if mode_override in ("manual", "analyze", "suggest") else None
+    settings = getattr(plan, "collaboration", None)
+    return settings.mode if isinstance(settings, CollaborationSettings) else "manual"
+
+
+def _same_plain_directory_identity(
+    first: PlainDirectoryIdentity,
+    second: PlainDirectoryIdentity,
+) -> bool:
+    return (
+        first.path == second.path
+        and first.device == second.device
+        and first.inode == second.inode
+    )
+
+
+def _revalidate_mapped_scratch_directory(
+    identity: PlainDirectoryIdentity,
+    expected_volume_id: str,
+    *,
+    lease: Any | None = None,
+) -> Path:
+    """Keep the mapped file on the directory and volume that were admitted."""
+
+    directory = revalidate_plain_directory(identity)
+    current_volume_id = scratch_volume_identity(directory)
+    if current_volume_id != expected_volume_id:
+        raise WorkerSlotError("mapped mix scratch volume identity changed")
+    if lease is None:
+        return directory
+
+    lease_identity = capture_plain_directory(lease.scratch_directory)
+    if not _same_plain_directory_identity(identity, lease_identity):
+        raise WorkerSlotError("mapped mix scratch directory identity changed")
+    admitted_claim = getattr(lease, "claim", None)
+    if (
+        admitted_claim is None
+        or getattr(admitted_claim, "scratch_volume_id", None)
+        != expected_volume_id
+    ):
+        raise WorkerSlotError("mapped mix scratch lease has the wrong volume")
+    return directory
+
+
+def _close_mapped_dry_mix_bus_resources(
+    mapping: Any | None,
+    temporary: Any | None,
+    lease: Any | None,
+) -> BaseException | None:
+    """Close mapping, file and ledger lock in that order; return first error."""
+
+    first_error: BaseException | None = None
+    for resource in (mapping, temporary, lease):
+        if resource is None:
+            continue
+        try:
+            resource.close()
+        except BaseException as exc:
+            if first_error is None:
+                first_error = exc
+    return first_error
+
+
+def _close_mapped_hall_mix_bus_resources(
+    mix_mapping: Any | None,
+    send_mapping: Any | None,
+    mix_temporary: Any | None,
+    send_temporary: Any | None,
+    lease: Any | None,
+) -> BaseException | None:
+    """Close every mapping, then every file, then the aggregate lease."""
+
+    first_error: BaseException | None = None
+    seen_mappings: set[int] = set()
+    for mapping in (mix_mapping, send_mapping):
+        if mapping is None or id(mapping) in seen_mappings:
+            continue
+        seen_mappings.add(id(mapping))
+        try:
+            mapping.close()
+        except BaseException as exc:
+            if first_error is None:
+                first_error = exc
+    for resource in (mix_temporary, send_temporary, lease):
+        if resource is None:
+            continue
+        try:
+            resource.close()
+        except BaseException as exc:
+            if first_error is None:
+                first_error = exc
+    return first_error
+
+
+def _annotate_cleanup_error(
+    primary: BaseException,
+    cleanup_error: BaseException | None,
+) -> None:
+    if cleanup_error is None:
+        return
+    try:
+        primary.add_note(
+            "mapped dry mix bus cleanup also failed: "
+            f"{type(cleanup_error).__name__}: {cleanup_error}"
+        )
+    except BaseException:
+        pass
+
+
+class _MappedDryMixBusTransport:
+    """Own one mapped bus and its backing-file scratch admission."""
+
+    __slots__ = ("bus", "_mapping", "_temporary", "_lease", "_closed")
+
+    def __init__(
+        self,
+        bus: Any,
+        mapping: Any,
+        temporary: Any,
+        lease: Any,
+    ) -> None:
+        self.bus = bus
+        self._mapping = mapping
+        self._temporary = temporary
+        self._lease = lease
+        self._closed = False
+
+    def close(self) -> None:
+        if self._closed:
+            return
+        self._closed = True
+        mapping = self._mapping
+        temporary = self._temporary
+        lease = self._lease
+        self._mapping = None
+        self._temporary = None
+        self._lease = None
+        cleanup_error = _close_mapped_dry_mix_bus_resources(
+            mapping,
+            temporary,
+            lease,
+        )
+        # Drop the ndarray only after its mmap is explicitly closed.  This is
+        # significant on Windows, where the TemporaryFile directory entry is
+        # not retired until the file handle closes.
+        self.bus = None
+        if cleanup_error is not None:
+            raise cleanup_error
+
+
+class _MappedHallMixBusesTransport:
+    """Own the mapped float64 mix and float32 hall-send buses together."""
+
+    __slots__ = (
+        "bus",
+        "send_bus",
+        "_mix_mapping",
+        "_send_mapping",
+        "_mix_temporary",
+        "_send_temporary",
+        "_lease",
+        "_closed",
+    )
+
+    def __init__(
+        self,
+        bus: Any,
+        send_bus: Any,
+        mix_mapping: Any,
+        send_mapping: Any,
+        mix_temporary: Any,
+        send_temporary: Any,
+        lease: Any,
+    ) -> None:
+        self.bus = bus
+        self.send_bus = send_bus
+        self._mix_mapping = mix_mapping
+        self._send_mapping = send_mapping
+        self._mix_temporary = mix_temporary
+        self._send_temporary = send_temporary
+        self._lease = lease
+        self._closed = False
+
+    def close(self) -> None:
+        if self._closed:
+            return
+        self._closed = True
+        mix_mapping = self._mix_mapping
+        send_mapping = self._send_mapping
+        mix_temporary = self._mix_temporary
+        send_temporary = self._send_temporary
+        lease = self._lease
+        self._mix_mapping = None
+        self._send_mapping = None
+        self._mix_temporary = None
+        self._send_temporary = None
+        self._lease = None
+        cleanup_error = _close_mapped_hall_mix_bus_resources(
+            mix_mapping,
+            send_mapping,
+            mix_temporary,
+            send_temporary,
+            lease,
+        )
+        self.bus = None
+        self.send_bus = None
+        if cleanup_error is not None:
+            raise cleanup_error
+
+
+def _mapped_dry_mix_bus_transport_factory(
+    bus: Any,
+    mapping: Any,
+    temporary: Any,
+    lease: Any,
+) -> _MappedDryMixBusTransport:
+    """Injectable ownership-transfer seam for the fully built dry transport."""
+
+    return _MappedDryMixBusTransport(bus, mapping, temporary, lease)
+
+
+def _mapped_hall_mix_buses_transport_factory(
+    bus: Any,
+    send_bus: Any,
+    mix_mapping: Any,
+    send_mapping: Any,
+    mix_temporary: Any,
+    send_temporary: Any,
+    lease: Any,
+) -> _MappedHallMixBusesTransport:
+    """Injectable ownership-transfer seam for the fully built hall transport."""
+
+    return _MappedHallMixBusesTransport(
+        bus,
+        send_bus,
+        mix_mapping,
+        send_mapping,
+        mix_temporary,
+        send_temporary,
+        lease,
+    )
+
+
+def _try_mapped_dry_mix_bus(
+    plan: PerformancePlan,
+    scratch_identity: PlainDirectoryIdentity,
+    *,
+    space: Any | None,
+    collaboration_mode: str | None,
+) -> _MappedDryMixBusTransport | None:
+    """Acquire and create the automatic long-score dry bus, or use RAM.
+
+    Resource unavailability is an optimization miss.  Memory exhaustion and
+    any inability to prove the scratch directory/volume identity are hard
+    failures, because silently changing storage after admission would evade
+    the shared worker/session scratch budget.
+    """
+
+    import numpy as np
+
+    # Keep the private optimization transparent to tests/embedders that
+    # replace the generation function and pass an opaque sentinel plan.
+    if not isinstance(plan, PerformancePlan):
+        return None
+    effective_mode = _effective_collaboration_mode_for_mapped_bus(
+        plan,
+        collaboration_mode,
+    )
+    if space is not None or effective_mode != "manual":
+        return None
+    dry_frames, bus_bytes = _mapped_dry_mix_bus_layout(plan)
+    if bus_bytes < _MAPPED_DRY_MIX_BUS_THRESHOLD_BYTES:
+        return None
+
+    scratch_directory = revalidate_plain_directory(scratch_identity)
+    expected_volume_id = scratch_volume_identity(scratch_directory)
+    try:
+        pool = WorkerSlotPool()
+        lease = pool.reserve_session_scratch(
+            SessionScratchClaim(
+                scratch_bytes=bus_bytes,
+                scratch_directory=scratch_directory,
+            )
+        )
+    except MemoryError:
+        raise
+    except (OSError, ValueError, WorkerSlotError):
+        # The per-user allocator is optional.  Re-prove the requested scratch
+        # identity before classifying this as an ordinary RAM fallback.
+        _revalidate_mapped_scratch_directory(
+            scratch_identity,
+            expected_volume_id,
+        )
+        return None
+    if lease is None:
+        _revalidate_mapped_scratch_directory(
+            scratch_identity,
+            expected_volume_id,
+        )
+        return None
+
+    mapping: Any | None = None
+    temporary: Any | None = None
+    bus: Any | None = None
+    try:
+        scratch_directory = _revalidate_mapped_scratch_directory(
+            scratch_identity,
+            expected_volume_id,
+            lease=lease,
+        )
+        admitted_claim = lease.claim
+        if getattr(admitted_claim, "scratch_bytes", None) != bus_bytes:
+            raise WorkerSlotError("mapped mix scratch lease has the wrong size")
+        temporary = tempfile.TemporaryFile(
+            mode="w+b",
+            prefix=".tianlai-dry-mix-bus.",
+            suffix=".tmp",
+            dir=scratch_directory,
+        )
+        _revalidate_mapped_scratch_directory(
+            scratch_identity,
+            expected_volume_id,
+            lease=lease,
+        )
+        temporary.truncate(bus_bytes)
+        status = os.fstat(temporary.fileno())
+        if not stat.S_ISREG(status.st_mode) or status.st_size != bus_bytes:
+            raise WorkerSlotError("mapped mix scratch file has an invalid shape")
+        bus = np.memmap(
+            temporary,
+            mode="r+",
+            dtype=np.float64,
+            shape=(dry_frames, 2),
+        )
+        mapping = getattr(bus, "_mmap", None)
+        if mapping is None:
+            raise WorkerSlotError("mapped mix bus has no owned mapping")
+        # A newly extended ordinary file normally reads as zero without
+        # dirtying every page.  Verify the exact zero bit pattern instead of
+        # eagerly writing the full mapping; if a filesystem exposes any other
+        # extension contents, initialise it explicitly before rendering.
+        if bool(np.any(bus.view(np.uint8))):
+            bus.fill(0.0)
+        if os.fstat(temporary.fileno()).st_size != bus_bytes:
+            raise WorkerSlotError("mapped mix scratch file size changed")
+        _revalidate_mapped_scratch_directory(
+            scratch_identity,
+            expected_volume_id,
+            lease=lease,
+        )
+        assert bus is not None and mapping is not None and temporary is not None
+        return _mapped_dry_mix_bus_transport_factory(
+            bus,
+            mapping,
+            temporary,
+            lease,
+        )
+    except MemoryError as primary:
+        cleanup_error = _close_mapped_dry_mix_bus_resources(
+            mapping,
+            temporary,
+            lease,
+        )
+        _annotate_cleanup_error(primary, cleanup_error)
+        raise
+    except OSError as primary:
+        cleanup_error = _close_mapped_dry_mix_bus_resources(
+            mapping,
+            temporary,
+            lease,
+        )
+        try:
+            _revalidate_mapped_scratch_directory(
+                scratch_identity,
+                expected_volume_id,
+            )
+        except BaseException as identity_error:
+            _annotate_cleanup_error(identity_error, cleanup_error)
+            raise identity_error from primary
+        identity_errnos = {
+            errno.ELOOP,
+            errno.ENOENT,
+            errno.ENOTDIR,
+            errno.ESTALE,
+            errno.EXDEV,
+            errno.ENOTSUP,
+        }
+        if primary.errno in identity_errnos or cleanup_error is not None:
+            _annotate_cleanup_error(primary, cleanup_error)
+            raise
+        # Ordinary create/truncate/map failures leave no live scratch claim
+        # and simply retain the established anonymous-RAM bus.
+        return None
+    except BaseException as primary:
+        cleanup_error = _close_mapped_dry_mix_bus_resources(
+            mapping,
+            temporary,
+            lease,
+        )
+        _annotate_cleanup_error(primary, cleanup_error)
+        raise
+
+def _try_mapped_hall_mix_buses(
+    plan: PerformancePlan,
+    scratch_identity: PlainDirectoryIdentity,
+    *,
+    space: Any | None,
+    collaboration_mode: str | None,
+) -> _MappedHallMixBusesTransport | None:
+    """Acquire both long manual hall buses under one exact scratch claim."""
+
+    import numpy as np
+
+    # Calling arbitrary space objects before the established generation
+    # validation could change their side effects or first error.  The immutable
+    # built-in value object is the only safe zero-configuration fast path.
+    if not isinstance(plan, PerformancePlan) or not _is_builtin_space_config(space):
+        return None
+    if _effective_collaboration_mode_for_mapped_bus(
+        plan,
+        collaboration_mode,
+    ) != "manual":
+        return None
+    # A hand-constructed invalid plan must retain generation's validation and
+    # error order.  Valid public plans always satisfy these inexpensive guards.
+    if (
+        isinstance(plan.sample_rate, bool)
+        or not isinstance(plan.sample_rate, int)
+        or not 8_000 <= plan.sample_rate <= 384_000
+        or isinstance(plan.duration_seconds, bool)
+        or not isinstance(plan.duration_seconds, Real)
+        or not math.isfinite(float(plan.duration_seconds))
+        or plan.duration_seconds < 0.0
+    ):
+        return None
+
+    total_frames, mix_bytes, send_bytes, scratch_bytes = (
+        _mapped_hall_mix_buses_layout(plan, space)
+    )
+    if scratch_bytes < _MAPPED_HALL_MIX_BUSES_THRESHOLD_BYTES:
+        return None
+
+    scratch_directory = revalidate_plain_directory(scratch_identity)
+    expected_volume_id = scratch_volume_identity(scratch_directory)
+    try:
+        pool = WorkerSlotPool()
+        lease = pool.reserve_session_scratch(
+            SessionScratchClaim(
+                scratch_bytes=scratch_bytes,
+                scratch_directory=scratch_directory,
+            )
+        )
+    except MemoryError:
+        raise
+    except (OSError, ValueError, WorkerSlotError):
+        _revalidate_mapped_scratch_directory(
+            scratch_identity,
+            expected_volume_id,
+        )
+        return None
+    if lease is None:
+        _revalidate_mapped_scratch_directory(
+            scratch_identity,
+            expected_volume_id,
+        )
+        return None
+
+    mix_mapping: Any | None = None
+    send_mapping: Any | None = None
+    mix_temporary: Any | None = None
+    send_temporary: Any | None = None
+    bus: Any | None = None
+    send_bus: Any | None = None
+    try:
+        scratch_directory = _revalidate_mapped_scratch_directory(
+            scratch_identity,
+            expected_volume_id,
+            lease=lease,
+        )
+        admitted_claim = lease.claim
+        if getattr(admitted_claim, "scratch_bytes", None) != scratch_bytes:
+            raise WorkerSlotError("mapped hall scratch lease has the wrong size")
+
+        mix_temporary = tempfile.TemporaryFile(
+            mode="w+b",
+            prefix=".tianlai-hall-mix-bus.",
+            suffix=".tmp",
+            dir=scratch_directory,
+        )
+        _revalidate_mapped_scratch_directory(
+            scratch_identity,
+            expected_volume_id,
+            lease=lease,
+        )
+        mix_temporary.truncate(mix_bytes)
+        mix_status = os.fstat(mix_temporary.fileno())
+        if not stat.S_ISREG(mix_status.st_mode) or mix_status.st_size != mix_bytes:
+            raise WorkerSlotError("mapped hall mix scratch file has an invalid shape")
+        bus = np.memmap(
+            mix_temporary,
+            mode="r+",
+            dtype=np.float64,
+            shape=(total_frames, 2),
+        )
+        mix_mapping = getattr(bus, "_mmap", None)
+        if mix_mapping is None:
+            raise WorkerSlotError("mapped hall mix bus has no owned mapping")
+
+        send_temporary = tempfile.TemporaryFile(
+            mode="w+b",
+            prefix=".tianlai-hall-send-bus.",
+            suffix=".tmp",
+            dir=scratch_directory,
+        )
+        _revalidate_mapped_scratch_directory(
+            scratch_identity,
+            expected_volume_id,
+            lease=lease,
+        )
+        send_temporary.truncate(send_bytes)
+        send_status = os.fstat(send_temporary.fileno())
+        if not stat.S_ISREG(send_status.st_mode) or send_status.st_size != send_bytes:
+            raise WorkerSlotError("mapped hall send scratch file has an invalid shape")
+        send_bus = np.memmap(
+            send_temporary,
+            mode="r+",
+            dtype=np.float32,
+            shape=(total_frames, 2),
+        )
+        send_mapping = getattr(send_bus, "_mmap", None)
+        if send_mapping is None:
+            raise WorkerSlotError("mapped hall send bus has no owned mapping")
+
+        for mapped_bus, expected_dtype in (
+            (bus, np.dtype(np.float64)),
+            (send_bus, np.dtype(np.float32)),
+        ):
+            if (
+                not isinstance(mapped_bus, np.ndarray)
+                or mapped_bus.shape != (total_frames, 2)
+                or mapped_bus.dtype != expected_dtype
+                or not mapped_bus.flags.c_contiguous
+                or not mapped_bus.flags.writeable
+            ):
+                raise WorkerSlotError("mapped hall bus has an invalid array layout")
+            if bool(np.any(mapped_bus.view(np.uint8))):
+                mapped_bus.fill(0.0)
+                if bool(np.any(mapped_bus.view(np.uint8))):
+                    raise WorkerSlotError("mapped hall bus could not be zeroed")
+
+        if (
+            os.fstat(mix_temporary.fileno()).st_size != mix_bytes
+            or os.fstat(send_temporary.fileno()).st_size != send_bytes
+        ):
+            raise WorkerSlotError("mapped hall scratch file size changed")
+        _revalidate_mapped_scratch_directory(
+            scratch_identity,
+            expected_volume_id,
+            lease=lease,
+        )
+        assert (
+            bus is not None
+            and send_bus is not None
+            and mix_mapping is not None
+            and send_mapping is not None
+            and mix_temporary is not None
+            and send_temporary is not None
+        )
+        return _mapped_hall_mix_buses_transport_factory(
+            bus,
+            send_bus,
+            mix_mapping,
+            send_mapping,
+            mix_temporary,
+            send_temporary,
+            lease,
+        )
+    except MemoryError as primary:
+        cleanup_error = _close_mapped_hall_mix_bus_resources(
+            mix_mapping,
+            send_mapping,
+            mix_temporary,
+            send_temporary,
+            lease,
+        )
+        _annotate_cleanup_error(primary, cleanup_error)
+        raise
+    except OSError as primary:
+        cleanup_error = _close_mapped_hall_mix_bus_resources(
+            mix_mapping,
+            send_mapping,
+            mix_temporary,
+            send_temporary,
+            lease,
+        )
+        try:
+            _revalidate_mapped_scratch_directory(
+                scratch_identity,
+                expected_volume_id,
+            )
+        except BaseException as identity_error:
+            _annotate_cleanup_error(identity_error, cleanup_error)
+            raise identity_error from primary
+        identity_errnos = {
+            errno.ELOOP,
+            errno.ENOENT,
+            errno.ENOTDIR,
+            errno.ESTALE,
+            errno.EXDEV,
+            errno.ENOTSUP,
+        }
+        if primary.errno in identity_errnos or cleanup_error is not None:
+            _annotate_cleanup_error(primary, cleanup_error)
+            raise
+        return None
+    except BaseException as primary:
+        cleanup_error = _close_mapped_hall_mix_bus_resources(
+            mix_mapping,
+            send_mapping,
+            mix_temporary,
+            send_temporary,
+            lease,
+        )
+        _annotate_cleanup_error(primary, cleanup_error)
+        raise
+
 def _render_plan_generation(
     plan: PerformancePlan,
     output_directory: str | Path,
@@ -4514,6 +5409,8 @@ def _render_plan_generation(
     _authoring_project_binding: dict[str, str] | None = None,
     _authoring_workflow_binding: dict[str, Any] | None = None,
     _progress_callback: Callable[[str, int, int], None] | None = None,
+    _dry_mix_bus: Any | None = None,
+    _hall_send_bus: Any | None = None,
 ) -> EnsembleResult:
     """Render every executor to a stem and sum them into one mix.
 
@@ -4595,15 +5492,70 @@ def _render_plan_generation(
         else max(0, math.ceil(effective_tail_seconds * plan.sample_rate))
     )
     total_frames = dry_frames + reverb_tail_frames
-    bus = np.zeros((total_frames, 2), dtype=np.float64)
+    if _dry_mix_bus is None:
+        if _hall_send_bus is not None:
+            raise ValueError(
+                "private mapped hall buses must provide mix and send together"
+            )
+        bus = np.zeros((total_frames, 2), dtype=np.float64)
+    else:
+        if (
+            collaboration.mode != "manual"
+            or (
+                space is None
+                and reverb_tail_frames != 0
+            )
+        ):
+            raise ValueError(
+                "private mapped mix bus requires manual mode and an exact tail"
+            )
+        if space is None and _hall_send_bus is not None:
+            raise ValueError("private mapped dry mix bus cannot provide a hall send")
+        if space is not None and _hall_send_bus is None:
+            raise ValueError(
+                "private mapped hall buses must provide mix and send together"
+            )
+        if (
+            not isinstance(_dry_mix_bus, np.ndarray)
+            or _dry_mix_bus.shape != (total_frames, 2)
+            or _dry_mix_bus.dtype != np.dtype(np.float64)
+            or not _dry_mix_bus.flags.c_contiguous
+            or not _dry_mix_bus.flags.writeable
+        ):
+            raise ValueError(
+                "private mapped dry mix bus must be writable C-contiguous "
+                "float64 stereo with the exact render length"
+            )
+        bus = _dry_mix_bus
     # 共享厅堂保留每条干分轨的左右相位。各声部按座位距离送入同一条
     # 立体声总线，渲染完统一加回合奏——分轨本身仍是全干、可复算。
-    send_bus = (
-        np.zeros((total_frames, 2), dtype=np.float32)
-        if space is not None
-        else None
-    )
+    if _hall_send_bus is None:
+        send_bus = (
+            np.zeros((total_frames, 2), dtype=np.float32)
+            if space is not None
+            else None
+        )
+    else:
+        if (
+            space is None
+            or collaboration.mode != "manual"
+            or not _is_builtin_space_config(space)
+            or not isinstance(_hall_send_bus, np.ndarray)
+            or _hall_send_bus.shape != (total_frames, 2)
+            or _hall_send_bus.dtype != np.dtype(np.float32)
+            or not _hall_send_bus.flags.c_contiguous
+            or not _hall_send_bus.flags.writeable
+        ):
+            raise ValueError(
+                "private mapped hall send bus must be writable C-contiguous "
+                "float32 stereo with the exact render length"
+            )
+        send_bus = _hall_send_bus
     stems: list[StemResult] = []
+    stem_write_evidence_by_executor: dict[
+        str,
+        WavFileEvidence | None,
+    ] = {}
     manifest_sha256_by_executor: dict[str, str] = {}
     stem_cache = (
         StemCache(stem_cache_directory)
@@ -4633,6 +5585,7 @@ def _render_plan_generation(
             scratch_parent=directory,
             cache_directory=analysis_cache_directory,
             expected_stem_count=len(plan.parts),
+            dry_frame_count=dry_frames,
         )
         if collaboration.mode in ("analyze", "suggest")
         else None
@@ -4771,6 +5724,16 @@ def _render_plan_generation(
                         send_scale = space.send_scale(
                             part.executor.seat.distance_m
                         )
+                    stem_evidence_sink = (
+                        None
+                        if target is None
+                        else lambda evidence, executor_id=(
+                            part.executor.executor_id
+                        ): stem_write_evidence_by_executor.__setitem__(
+                            executor_id,
+                            evidence,
+                        )
+                    )
                     stem_peak = _consume_verified_cache_stem(
                         buffer,
                         sample_rate=plan.sample_rate,
@@ -4783,6 +5746,7 @@ def _render_plan_generation(
                         right_gain=right_gain,
                         send_scale=send_scale,
                         stem_target=target,
+                        stem_evidence_sink=stem_evidence_sink,
                     )
                     _validate_stem_peak(part.executor, stem_peak)
                     stems.append(
@@ -4840,11 +5804,19 @@ def _render_plan_generation(
                 target = stem_directory / portable_stem_filename(
                     part.executor.executor_id
                 )
-                write_wav_pcm24(
-                    target,
-                    buffer,
-                    plan.sample_rate,
+                written, stem_write_evidence = (
+                    _write_wav_pcm24_with_optional_evidence(
+                        target,
+                        buffer,
+                        plan.sample_rate,
+                        expected_frame_count=int(buffer.shape[0]),
+                    )
                 )
+                if written != int(buffer.shape[0]):
+                    raise RuntimeError("stem writer changed frame count")
+                stem_write_evidence_by_executor[
+                    part.executor.executor_id
+                ] = stem_write_evidence
                 stem_path = str(target)
 
             left_gain, right_gain = balance_gains(part.executor.pan)
@@ -5042,17 +6014,18 @@ def _render_plan_generation(
         _write_json_atomic(mix_report_path, mix_report)
 
     mix_path = directory / "合奏.wav"
-    frame_count = write_wav_pcm24(
+    frame_count, mix_write_evidence = _write_wav_pcm24_with_optional_evidence(
         mix_path,
         bus,
         plan.sample_rate,
+        expected_frame_count=total_frames,
     )
     if _progress_callback is not None:
         _progress_callback("mix", 1, 1)
     # Bind the exact writer output before any downstream reader sees it.  The
     # post-render checker is specified as read-only; keeping this digest lets
     # the orchestration layer fail closed if that invariant ever regresses.
-    mix_sha256 = _sha256_file(mix_path)
+    mix_sha256 = _sha256_written_wav(mix_path, mix_write_evidence)
 
     stem_receipts: list[dict[str, Any]] = []
     instrument_uses: list[InstrumentUse] = []
@@ -5061,6 +6034,7 @@ def _render_plan_generation(
             role="mix",
             path=mix_path,
             label=mix_path.relative_to(directory).as_posix(),
+            write_evidence=mix_write_evidence,
         )
     ]
     for part, stem in zip(plan.parts, stems, strict=True):
@@ -5077,16 +6051,23 @@ def _render_plan_generation(
             }
         else:
             stem_path = Path(stem.path)
+            stem_write_evidence = stem_write_evidence_by_executor.get(
+                stem.executor_id
+            )
             wav_receipt = {
                 "written": True,
                 "path": stem_path.relative_to(directory).as_posix(),
-                "sha256": _sha256_file(stem_path),
+                "sha256": _sha256_written_wav(
+                    stem_path,
+                    stem_write_evidence,
+                ),
             }
             audio_artifacts.append(
                 AudioArtifact(
                     role=f"stem:{stem.executor_id}",
                     path=stem_path,
                     label=stem_path.relative_to(directory).as_posix(),
+                    write_evidence=stem_write_evidence,
                 )
             )
         instrument_uses.append(
@@ -5352,22 +6333,71 @@ def _render_plan_locked(
     staging_prefix = f".{final_directory.name}.render-stage."
     staging = Path(tempfile.mkdtemp(dir=parent, prefix=staging_prefix))
     staging_identity = capture_plain_directory(staging)
+    mapped_transport: (
+        _MappedDryMixBusTransport | _MappedHallMixBusesTransport | None
+    ) = None
     try:
-        staged = _render_plan_generation(
-            plan,
-            staging,
-            write_stems=write_stems,
-            master_gain_db=master_gain_db,
-            normalize_peak_db=normalize_peak_db,
-            space=space,
-            collaboration_mode=collaboration_mode,
-            stem_cache_directory=stem_cache_directory,
-            refresh_stem_cache=refresh_stem_cache,
-            analysis_cache_directory=analysis_cache_directory,
-            _authoring_project_binding=_authoring_project_binding,
-            _authoring_workflow_binding=_authoring_workflow_binding,
-            _progress_callback=_progress_callback,
-        )
+        if space is None:
+            mapped_transport = _try_mapped_dry_mix_bus(
+                plan,
+                staging_identity,
+                space=space,
+                collaboration_mode=collaboration_mode,
+            )
+        else:
+            mapped_transport = _try_mapped_hall_mix_buses(
+                plan,
+                staging_identity,
+                space=space,
+                collaboration_mode=collaboration_mode,
+            )
+        if isinstance(mapped_transport, _MappedHallMixBusesTransport):
+            private_generation_arguments = {
+                "_dry_mix_bus": mapped_transport.bus,
+                "_hall_send_bus": mapped_transport.send_bus,
+            }
+        elif mapped_transport is not None:
+            private_generation_arguments = {
+                "_dry_mix_bus": mapped_transport.bus,
+            }
+        else:
+            private_generation_arguments = {}
+        try:
+            staged = _render_plan_generation(
+                plan,
+                staging,
+                write_stems=write_stems,
+                master_gain_db=master_gain_db,
+                normalize_peak_db=normalize_peak_db,
+                space=space,
+                collaboration_mode=collaboration_mode,
+                stem_cache_directory=stem_cache_directory,
+                refresh_stem_cache=refresh_stem_cache,
+                analysis_cache_directory=analysis_cache_directory,
+                _authoring_project_binding=_authoring_project_binding,
+                _authoring_workflow_binding=_authoring_workflow_binding,
+                _progress_callback=_progress_callback,
+                **private_generation_arguments,
+            )
+        except BaseException:
+            if mapped_transport is not None:
+                try:
+                    mapped_transport.close()
+                except BaseException as cleanup_error:
+                    _warn_cleanup(
+                        "mapped dry mix bus cleanup failed after render "
+                        f"failure: {cleanup_error}"
+                    )
+                finally:
+                    mapped_transport = None
+            raise
+        else:
+            # TemporaryFile has a visible staging-directory entry on Windows.
+            # Retire the mapping, handle and lease before generation
+            # verification enumerates the artifacts.
+            if mapped_transport is not None:
+                mapped_transport.close()
+                mapped_transport = None
         _verify_render_generation(staging)
         published_stems = tuple(
             replace(
@@ -5416,6 +6446,14 @@ def _render_plan_locked(
             _progress_callback("publish", 1, 1)
         return published
     finally:
+        if mapped_transport is not None:
+            try:
+                mapped_transport.close()
+            except BaseException as cleanup_error:
+                _warn_cleanup(
+                    "mapped dry mix bus cleanup failed while retiring the "
+                    f"private render directory: {cleanup_error}"
+                )
         try:
             _remove_private_render_directory(
                 staging,
@@ -5494,8 +6532,9 @@ def render_plan(
                 "authoring workflow and project bindings disagree"
             )
     # This gate runs before the lock creates its parent directory and before
-    # NumPy allocates a full-length mix bus.  Validation and rendering therefore
-    # agree on the same finite, bounded operational contract.
+    # the coordinator allocates or maps a full-length mix bus.  Validation and
+    # rendering therefore agree on the same finite, bounded operational
+    # contract.
     validate_render_request_resource_limits(
         plan,
         write_stems=write_stems,

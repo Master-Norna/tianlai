@@ -17,6 +17,8 @@ from pathlib import Path
 import tempfile
 from typing import Any, Iterable
 
+from .atomic_publish import _PrivateFileClaim, _write_private_file_bytes
+from .audio import WavFileEvidence, verify_wav_file_evidence_bytes
 from .provenance import is_project_authored_dsp_provenance
 
 
@@ -55,6 +57,7 @@ class InstrumentUse:
     used_by: tuple[str, ...]
     manifest_label: str | None = None
     expected_sha256: str | None = None
+    manifest_bytes: bytes | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,6 +67,7 @@ class AudioArtifact:
     role: str
     path: str | Path
     label: str
+    write_evidence: WavFileEvidence | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -73,6 +77,15 @@ class LicenseSidecarResult:
     json_sha256: str
     text_sha256: str
     document: dict[str, Any]
+
+
+@dataclass(frozen=True, slots=True)
+class _PreparedLicenseSidecars:
+    document: dict[str, Any]
+    json_payload: bytes
+    text_payload: bytes
+    json_sha256: str
+    text_sha256: str
 
 
 def sha256_file(path: str | Path) -> str:
@@ -95,10 +108,21 @@ def single_render_sidecar_paths(
     )
 
 
-def portable_manifest_label(path: str | Path) -> tuple[str, bool]:
+def portable_manifest_label(
+    path: str | Path,
+    *,
+    resolve_path: bool = True,
+) -> tuple[str, bool]:
     """Avoid leaking a machine-local absolute path into a portable sidecar."""
 
-    manifest_path = Path(path).resolve()
+    manifest_path = Path(path)
+    if resolve_path:
+        manifest_path = manifest_path.resolve()
+    else:
+        # Snapshot-bound callers already captured a canonical plain-file path.
+        # Do not touch the live pathname again after that generation was
+        # revalidated by the renderer.
+        manifest_path = Path(os.path.abspath(os.fspath(manifest_path)))
     parts = manifest_path.parts
     indexes = [
         index
@@ -147,22 +171,40 @@ def _evidence_files(manifest: dict[str, Any]) -> list[str]:
 def _load_manifest_record(
     use: InstrumentUse,
 ) -> tuple[str, dict[str, Any], str]:
-    path = Path(use.manifest_path).resolve()
-    raw = path.read_bytes()
+    snapshot_bound = use.manifest_bytes is not None
+    path = Path(use.manifest_path)
+    path = (
+        Path(os.path.abspath(os.fspath(path)))
+        if snapshot_bound
+        else path.resolve()
+    )
+    raw = (
+        path.read_bytes()
+        if use.manifest_bytes is None
+        else use.manifest_bytes
+    )
+    if not isinstance(raw, bytes):
+        raise TypeError("manifest_bytes must be bytes or None")
     digest = hashlib.sha256(raw).hexdigest()
     if use.expected_sha256 is not None and digest != use.expected_sha256:
         raise ValueError(
             f"乐器清单在渲染期间发生变化：{path}；"
             f"渲染绑定 {use.expected_sha256}，当前 {digest}"
         )
-    manifest = json.loads(raw.decode("utf-8"))
+    # Keep the immutable snapshot's decoding contract aligned with Tianlai's
+    # strict authoring loader, which deliberately accepts an optional UTF-8
+    # BOM.  Duplicate/non-finite members were already rejected at capture.
+    manifest = json.loads(raw.decode("utf-8-sig"))
     if not isinstance(manifest, dict):
         raise ValueError(f"乐器清单根节点必须是对象：{path}")
     if use.manifest_label is not None:
         label = Path(use.manifest_label).as_posix()
         portable = True
     else:
-        label, portable = portable_manifest_label(path)
+        label, portable = portable_manifest_label(
+            path,
+            resolve_path=not snapshot_bound,
+        )
 
     creator, creator_field = _first_optional_text(
         manifest,
@@ -268,11 +310,19 @@ def build_license_sidecar_document(
     outputs = []
     for artifact in audio_artifacts:
         path = Path(artifact.path)
+        digest = None
+        if artifact.write_evidence is not None:
+            digest = verify_wav_file_evidence_bytes(
+                path,
+                artifact.write_evidence,
+            )
+        if digest is None:
+            digest = sha256_file(path)
         outputs.append(
             {
                 "role": str(artifact.role),
                 "path": Path(artifact.label).as_posix(),
-                "sha256": sha256_file(path),
+                "sha256": digest,
             }
         )
     outputs.sort(key=lambda item: (item["path"], item["role"]))
@@ -379,14 +429,12 @@ def _atomic_write(path: Path, payload: bytes) -> None:
     os.replace(temporary, path)
 
 
-def write_license_sidecars(
-    json_path: str | Path,
-    text_path: str | Path,
+def _prepare_license_sidecars(
     *,
     instrument_uses: Iterable[InstrumentUse],
     audio_artifacts: Iterable[AudioArtifact],
-) -> LicenseSidecarResult:
-    """Atomically publish the machine and human views of one sidecar."""
+) -> _PreparedLicenseSidecars:
+    """Build both deterministic payloads before any output path is changed."""
 
     document = build_license_sidecar_document(
         instrument_uses,
@@ -403,14 +451,47 @@ def write_license_sidecars(
         + "\n"
     ).encode("utf-8")
     text_payload = render_human_attribution(document).encode("utf-8")
+    return _PreparedLicenseSidecars(
+        document=document,
+        json_payload=json_payload,
+        text_payload=text_payload,
+        json_sha256=hashlib.sha256(json_payload).hexdigest(),
+        text_sha256=hashlib.sha256(text_payload).hexdigest(),
+    )
+
+
+def write_license_sidecars(
+    json_path: str | Path,
+    text_path: str | Path,
+    *,
+    instrument_uses: Iterable[InstrumentUse],
+    audio_artifacts: Iterable[AudioArtifact],
+    _json_claim: _PrivateFileClaim | None = None,
+    _text_claim: _PrivateFileClaim | None = None,
+) -> LicenseSidecarResult:
+    """Atomically publish the machine and human views of one sidecar."""
+
+    prepared = _prepare_license_sidecars(
+        instrument_uses=instrument_uses,
+        audio_artifacts=audio_artifacts,
+    )
     json_target = Path(json_path)
     text_target = Path(text_path)
-    _atomic_write(json_target, json_payload)
-    _atomic_write(text_target, text_payload)
+    if (_json_claim is None) != (_text_claim is None):
+        raise ValueError("both private sidecar claims must be provided together")
+    if _json_claim is None:
+        _atomic_write(json_target, prepared.json_payload)
+        _atomic_write(text_target, prepared.text_payload)
+    else:
+        assert _text_claim is not None
+        if _json_claim.path != json_target or _text_claim.path != text_target:
+            raise ValueError("private sidecar claim path mismatch")
+        _write_private_file_bytes(_json_claim, prepared.json_payload)
+        _write_private_file_bytes(_text_claim, prepared.text_payload)
     return LicenseSidecarResult(
         json_path=str(json_target),
         text_path=str(text_target),
-        json_sha256=hashlib.sha256(json_payload).hexdigest(),
-        text_sha256=hashlib.sha256(text_payload).hexdigest(),
-        document=document,
+        json_sha256=prepared.json_sha256,
+        text_sha256=prepared.text_sha256,
+        document=prepared.document,
     )

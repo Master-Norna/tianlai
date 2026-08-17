@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 from io import BytesIO
+import os
 from pathlib import Path
 import struct
 import wave
@@ -12,9 +14,14 @@ import pytest
 from tianlai.audio import (
     _PCM24_NUMPY_CHUNK_FRAMES,
     _PCM24_SCALE,
+    _SequentialDigestWriter,
     _pcm24,
+    revalidate_wav_file_evidence,
+    verify_wav_file_evidence_bytes,
     wav_loop_points,
     write_wav_pcm24,
+    write_wav_pcm24_blocks_with_evidence,
+    write_wav_pcm24_with_evidence,
 )
 
 
@@ -83,6 +90,306 @@ def test_numpy_pcm24_fast_path_is_byte_identical_and_does_not_mutate(
 
     assert fast.read_bytes() == scalar.read_bytes()
     assert np.array_equal(source, before, equal_nan=True)
+
+
+def test_evidenced_pcm24_is_byte_identical_and_binds_writer_descriptor(
+    tmp_path: Path,
+) -> None:
+    source = np.linspace(-0.75, 0.75, 2_002, dtype=np.float64).reshape(-1, 2)
+    established = tmp_path / "established.wav"
+    evidenced = tmp_path / "evidenced.wav"
+
+    assert write_wav_pcm24(established, source, 48_000) == len(source)
+    result = write_wav_pcm24_with_evidence(
+        evidenced,
+        source,
+        48_000,
+        expected_frame_count=len(source),
+    )
+
+    assert result.frame_count == len(source)
+    assert result.evidence is not None
+    assert evidenced.read_bytes() == established.read_bytes()
+    assert result.evidence.size_bytes == evidenced.stat().st_size
+    assert result.evidence.sha256 == hashlib.sha256(
+        evidenced.read_bytes()
+    ).hexdigest()
+    assert (
+        revalidate_wav_file_evidence(evidenced, result.evidence)
+        == result.evidence.sha256
+    )
+
+
+def test_evidenced_block_writer_is_byte_identical_across_block_shapes(
+    tmp_path: Path,
+) -> None:
+    source = np.linspace(-0.5, 0.5, 514, dtype=np.float32).reshape(-1, 2)
+    established = tmp_path / "established-blocks.wav"
+    evidenced = tmp_path / "evidenced-blocks.wav"
+    blocks = (source[:1], source[1:129], source[129:])
+
+    assert write_wav_pcm24(established, source, 44_100) == len(source)
+    result = write_wav_pcm24_blocks_with_evidence(
+        evidenced,
+        blocks,
+        44_100,
+        expected_frame_count=len(source),
+    )
+
+    assert result.frame_count == len(source)
+    assert result.evidence is not None
+    assert evidenced.read_bytes() == established.read_bytes()
+    assert result.evidence.sha256 == hashlib.sha256(
+        evidenced.read_bytes()
+    ).hexdigest()
+
+
+def test_evidenced_writer_rejects_a_wrong_declared_frame_count(
+    tmp_path: Path,
+) -> None:
+    source = np.zeros((8, 2), dtype=np.float32)
+
+    with pytest.raises(ValueError, match="frame count mismatch"):
+        write_wav_pcm24_with_evidence(
+            tmp_path / "wrong-size.wav",
+            source,
+            48_000,
+            expected_frame_count=7,
+        )
+
+
+def test_evidence_digest_writer_rejects_a_short_write() -> None:
+    class ShortWriter(BytesIO):
+        def write(self, payload: bytes) -> int:
+            return super().write(payload[:-1])
+
+    tracked = _SequentialDigestWriter(ShortWriter())
+
+    with pytest.raises(OSError, match="short or invalid write"):
+        tracked.write(b"final WAV bytes")
+    assert not tracked.sequential
+
+
+def test_evidenced_zero_frame_wav_has_exact_standard_size(
+    tmp_path: Path,
+) -> None:
+    target = tmp_path / "empty.wav"
+    result = write_wav_pcm24_with_evidence(
+        target,
+        np.empty((0, 2), dtype=np.float32),
+        48_000,
+        expected_frame_count=0,
+    )
+
+    assert result.frame_count == 0
+    assert result.evidence is not None
+    assert result.evidence.size_bytes == 44
+    assert target.stat().st_size == 44
+    with wave.open(str(target), "rb") as source:
+        assert source.getnframes() == 0
+        assert source.getnchannels() == 2
+        assert source.getsampwidth() == 3
+
+
+def test_evidenced_digest_rejects_same_name_replacement(tmp_path: Path) -> None:
+    target = tmp_path / "bound.wav"
+    result = write_wav_pcm24_with_evidence(
+        target,
+        np.zeros((8, 2), dtype=np.float32),
+        48_000,
+        expected_frame_count=8,
+    )
+    assert result.evidence is not None
+    previous = tmp_path / "previous.wav"
+    target.replace(previous)
+    target.write_bytes(b"x" * result.evidence.size_bytes)
+
+    with pytest.raises(OSError):
+        revalidate_wav_file_evidence(target, result.evidence)
+
+
+def test_evidenced_writer_keeps_render_valid_when_change_token_is_unavailable(
+    tmp_path: Path,
+) -> None:
+    target = tmp_path / "fallback.wav"
+    with patch("tianlai.audio._descriptor_change_token", return_value=None):
+        result = write_wav_pcm24_with_evidence(
+            target,
+            np.zeros((8, 2), dtype=np.float32),
+            48_000,
+            expected_frame_count=8,
+        )
+
+    assert result.frame_count == 8
+    assert result.evidence is None
+    assert target.is_file()
+
+
+def test_evidence_revalidation_requests_full_hash_when_token_becomes_unavailable(
+    tmp_path: Path,
+) -> None:
+    target = tmp_path / "revalidation-fallback.wav"
+    result = write_wav_pcm24_with_evidence(
+        target,
+        np.zeros((8, 2), dtype=np.float32),
+        48_000,
+        expected_frame_count=8,
+    )
+    assert result.evidence is not None
+
+    with patch("tianlai.audio._descriptor_change_token", return_value=None):
+        assert (
+            revalidate_wav_file_evidence(target, result.evidence)
+            == result.evidence.sha256
+        )
+
+
+@pytest.mark.skipif(os.name != "nt", reason="requires Windows FileBasicInfo")
+def test_windows_change_time_rejects_same_size_edit_with_restored_mtime(
+    tmp_path: Path,
+) -> None:
+    target = tmp_path / "change-time.wav"
+    result = write_wav_pcm24_with_evidence(
+        target,
+        np.zeros((32, 2), dtype=np.float32),
+        48_000,
+        expected_frame_count=32,
+    )
+    evidence = result.evidence
+    assert evidence is not None
+    assert evidence.change_token_kind == "windows-file-basic-change-time-100ns"
+    captured = target.stat()
+
+    with target.open("r+b") as output:
+        output.seek(60)
+        original = output.read(1)
+        assert len(original) == 1
+        output.seek(60)
+        output.write(bytes((original[0] ^ 1,)))
+        output.flush()
+        os.fsync(output.fileno())
+    os.utime(
+        target,
+        ns=(captured.st_atime_ns, evidence.identity.modified_ns),
+    )
+
+    current = target.stat()
+    assert current.st_size == evidence.size_bytes
+    assert current.st_mtime_ns == evidence.identity.modified_ns
+    with pytest.raises(OSError, match="changed"):
+        revalidate_wav_file_evidence(target, evidence)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="requires Windows mtime semantics")
+def test_unavailable_change_token_still_rejects_same_size_byte_tamper(
+    tmp_path: Path,
+) -> None:
+    target = tmp_path / "fallback-tamper.wav"
+    result = write_wav_pcm24_with_evidence(
+        target,
+        np.zeros((32, 2), dtype=np.float32),
+        48_000,
+        expected_frame_count=32,
+    )
+    evidence = result.evidence
+    assert evidence is not None
+    captured = target.stat()
+
+    with target.open("r+b") as output:
+        output.seek(60)
+        original = output.read(1)
+        assert len(original) == 1
+        output.seek(60)
+        output.write(bytes((original[0] ^ 1,)))
+        output.flush()
+        os.fsync(output.fileno())
+    os.utime(
+        target,
+        ns=(captured.st_atime_ns, evidence.identity.modified_ns),
+    )
+
+    with patch("tianlai.audio._descriptor_change_token", return_value=None):
+        # Windows/Python combinations may expose the edit through identity
+        # metadata before the fallback digest comparison.  Either rejection is
+        # the intended fail-closed result for the same-size byte tamper.
+        with pytest.raises(OSError, match="changed"):
+            revalidate_wav_file_evidence(target, evidence)
+
+
+def test_durable_byte_verifier_rejects_tamper_when_token_is_replayed(
+    tmp_path: Path,
+) -> None:
+    target = tmp_path / "replayed-token-tamper.wav"
+    result = write_wav_pcm24_with_evidence(
+        target,
+        np.zeros((32, 2), dtype=np.float32),
+        48_000,
+        expected_frame_count=32,
+    )
+    evidence = result.evidence
+    assert evidence is not None
+    captured = target.stat()
+
+    with target.open("r+b") as output:
+        output.seek(60)
+        original = output.read(1)
+        assert len(original) == 1
+        output.seek(60)
+        output.write(bytes((original[0] ^ 1,)))
+        output.flush()
+        os.fsync(output.fileno())
+    os.utime(
+        target,
+        ns=(captured.st_atime_ns, evidence.identity.modified_ns),
+    )
+
+    with patch(
+        "tianlai.audio._descriptor_change_token",
+        return_value=(evidence.change_token_kind, evidence.change_token),
+    ):
+        # POSIX ctime independently exposes this edit before the mandatory
+        # digest pass; Windows reaches the digest mismatch when its mocked
+        # change token is replayed.  Both are fail-closed tamper detection.
+        with pytest.raises(OSError, match="changed"):
+            verify_wav_file_evidence_bytes(target, evidence)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="requires Windows share modes")
+def test_durable_byte_verifier_excludes_writers_through_its_postcheck(
+    tmp_path: Path,
+) -> None:
+    target = tmp_path / "writer-exclusion.wav"
+    result = write_wav_pcm24_with_evidence(
+        target,
+        np.zeros((32, 2), dtype=np.float32),
+        48_000,
+        expected_frame_count=32,
+    )
+    evidence = result.evidence
+    assert evidence is not None
+    real_read = os.read
+    write_was_excluded = False
+
+    def attempt_write_after_hash(descriptor: int, count: int) -> bytes:
+        nonlocal write_was_excluded
+        payload = real_read(descriptor, count)
+        if payload or write_was_excluded:
+            return payload
+        with pytest.raises(OSError):
+            with target.open("r+b") as output:
+                output.seek(60)
+                output.write(b"x")
+        write_was_excluded = True
+        return payload
+
+    with patch("tianlai.audio.os.read", side_effect=attempt_write_after_hash):
+        assert (
+            verify_wav_file_evidence_bytes(target, evidence)
+            == evidence.sha256
+        )
+
+    assert write_was_excluded is True
+    assert hashlib.sha256(target.read_bytes()).hexdigest() == evidence.sha256
 
 
 def test_numpy_pcm24_fast_path_accepts_non_contiguous_float32(

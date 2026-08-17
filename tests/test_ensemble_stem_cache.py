@@ -11,9 +11,11 @@ from unittest.mock import patch
 
 import numpy as np
 
+from tianlai import stem_cache as stem_cache_module
 from tianlai.ensemble import render_plan
 from tianlai.events import parse_performance_document
 from tianlai.stem_cache import StemCache, VerifiedStemSource
+from tianlai.worker_slots import WorkerSlotPool
 
 
 def _sha256(path: Path) -> str:
@@ -114,6 +116,15 @@ class EnsembleStemCacheTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
         self.root = Path(self.temporary.name)
+        self.snapshot_pool = WorkerSlotPool(
+            self.root / "verified-snapshot-slots"
+        )
+        self.snapshot_pool_patch = patch.object(
+            stem_cache_module,
+            "_verified_snapshot_pool_factory",
+            return_value=self.snapshot_pool,
+        )
+        self.snapshot_pool_patch.start()
         self.cache = self.root / "stem-cache"
         self.manifest = self.root / "instrument.json"
         self.manifest.write_text(
@@ -136,6 +147,7 @@ class EnsembleStemCacheTests(unittest.TestCase):
         )
 
     def tearDown(self) -> None:
+        self.snapshot_pool_patch.stop()
         self.temporary.cleanup()
 
     @staticmethod

@@ -14,7 +14,7 @@ body:
     attributes:
       label: 天籁版本或提交
       description: 运行 `天籁.cmd --version`；若使用源码开发版，再附 Git 提交。
-      placeholder: 0.8.0rc1 / abcdef1
+      placeholder: 0.9.0 / abcdef1
     validations:
       required: true
   - type: input

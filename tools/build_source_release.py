@@ -19,7 +19,7 @@ import tempfile
 import tomllib
 from typing import Final, Iterable, Mapping, Sequence
 import unicodedata
-from urllib.parse import unquote
+from urllib.parse import unquote, urldefrag, urljoin
 import zipfile
 
 
@@ -38,6 +38,8 @@ _PUBLIC_MARKDOWN_PAIRS: Final[tuple[tuple[str, str], ...]] = (
     ("TRADEMARKS.md", "TRADEMARKS.en.md"),
     ("OUTPUT_RIGHTS.md", "OUTPUT_RIGHTS.en.md"),
     ("docs/README.md", "docs/README.en.md"),
+    ("docs/score-v2.md", "docs/score-v2.en.md"),
+    ("docs/realization-v1.md", "docs/realization-v1.en.md"),
     ("docs/Linux快速开始.md", "docs/Linux快速开始.en.md"),
     ("docs/macOS快速开始.md", "docs/macOS快速开始.en.md"),
     ("docs/MCP.md", "docs/MCP.en.md"),
@@ -867,6 +869,154 @@ def _validate_public_documents(
         )
 
 
+def _strict_json_object(content: bytes, *, path: str) -> dict[str, object]:
+    try:
+        text = content.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ReleaseBuildError(
+            f"public JSON Schema must be UTF-8: {path!r}"
+        ) from exc
+
+    def reject_duplicate_keys(
+        pairs: list[tuple[str, object]],
+    ) -> dict[str, object]:
+        result: dict[str, object] = {}
+        for key, value in pairs:
+            if key in result:
+                raise ReleaseBuildError(
+                    "public JSON Schema contains a duplicate object key: "
+                    f"{path!r} -> {key!r}"
+                )
+            result[key] = value
+        return result
+
+    try:
+        document = json.loads(text, object_pairs_hook=reject_duplicate_keys)
+    except ReleaseBuildError:
+        raise
+    except (json.JSONDecodeError, RecursionError) as exc:
+        raise ReleaseBuildError(
+            f"public JSON Schema is not valid JSON: {path!r}"
+        ) from exc
+    if type(document) is not dict:
+        raise ReleaseBuildError(
+            f"public JSON Schema root must be an object: {path!r}"
+        )
+    return document
+
+
+def _json_nodes(value: object) -> Iterable[object]:
+    pending = [value]
+    while pending:
+        current = pending.pop()
+        yield current
+        if type(current) is dict:
+            pending.extend(current.values())
+        elif type(current) is list:
+            pending.extend(current)
+
+
+def _json_pointer_target(
+    document: object,
+    fragment: str,
+    *,
+    source_path: str,
+    reference: str,
+) -> object:
+    decoded = unquote(fragment)
+    if not decoded:
+        return document
+    if not decoded.startswith("/"):
+        matches = [
+            node
+            for node in _json_nodes(document)
+            if type(node) is dict
+            and (
+                node.get("$anchor") == decoded
+                or node.get("$dynamicAnchor") == decoded
+            )
+        ]
+        if len(matches) != 1:
+            raise ReleaseBuildError(
+                "JSON Schema reference anchor is missing or ambiguous: "
+                f"{source_path!r} -> {reference!r}"
+            )
+        return matches[0]
+
+    current = document
+    for raw_token in decoded[1:].split("/"):
+        if re.search(r"~(?![01])", raw_token):
+            raise ReleaseBuildError(
+                "JSON Schema reference has an invalid JSON Pointer escape: "
+                f"{source_path!r} -> {reference!r}"
+            )
+        token = raw_token.replace("~1", "/").replace("~0", "~")
+        if type(current) is dict and token in current:
+            current = current[token]
+            continue
+        if type(current) is list and token.isascii() and token.isdecimal():
+            index = int(token)
+            if index < len(current):
+                current = current[index]
+                continue
+        raise ReleaseBuildError(
+            "JSON Schema reference points outside the published schema set: "
+            f"{source_path!r} -> {reference!r}"
+        )
+    return current
+
+
+def _validate_json_schema_references(
+    payloads: Sequence[SourcePayload],
+) -> None:
+    """Require every public Schema and ``$ref`` to work fully offline."""
+
+    schemas: dict[str, tuple[str, dict[str, object]]] = {}
+    for payload in payloads:
+        if not (
+            payload.path.startswith("schemas/")
+            and payload.path.endswith(".schema.json")
+        ):
+            continue
+        document = _strict_json_object(payload.content, path=payload.path)
+        expected_id = f"https://tianlai.local/{payload.path}"
+        schema_id = document.get("$id")
+        if schema_id != expected_id:
+            raise ReleaseBuildError(
+                "public JSON Schema $id must match its published path: "
+                f"{payload.path!r} -> {schema_id!r}, expected {expected_id!r}"
+            )
+        if schema_id in schemas:
+            raise ReleaseBuildError(
+                f"duplicate public JSON Schema $id: {schema_id!r}"
+            )
+        schemas[schema_id] = (payload.path, document)
+
+    for schema_id, (source_path, document) in schemas.items():
+        for node in _json_nodes(document):
+            if type(node) is not dict or "$ref" not in node:
+                continue
+            reference = node["$ref"]
+            if type(reference) is not str or not reference:
+                raise ReleaseBuildError(
+                    "public JSON Schema $ref must be a non-empty string: "
+                    f"{source_path!r}"
+                )
+            absolute, fragment = urldefrag(urljoin(schema_id, reference))
+            target = schemas.get(absolute)
+            if target is None:
+                raise ReleaseBuildError(
+                    "JSON Schema reference is not included in the source "
+                    f"release: {source_path!r} -> {reference!r}"
+                )
+            _json_pointer_target(
+                target[1],
+                fragment,
+                source_path=source_path,
+                reference=reference,
+            )
+
+
 def _markdown_without_fenced_code(text: str) -> str:
     kept: list[str] = []
     fence: tuple[str, int] | None = None
@@ -1243,6 +1393,7 @@ def build_source_release(
     _validate_windows_batch_payloads(payloads)
     _validate_public_documents(payloads)
     _validate_markdown_links(payloads)
+    _validate_json_schema_references(payloads)
     project_name, project_version = _project_metadata(payloads)
     if (
         expected_version is not None
