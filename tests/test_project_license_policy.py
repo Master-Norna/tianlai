@@ -43,7 +43,7 @@ class ProjectLicensePolicyTests(unittest.TestCase):
         self.assertIn("9. Accepting Warranty or Additional Liability", license_text)
         self.assertIn("Copyright 2026 Nor.na", notice)
         self.assertIn("originally conceived, architected, and developed", notice)
-        self.assertIn("Tianlai Music Constitution v0.1", notice)
+        self.assertIn("Tianlai Music Constitution v0.2", notice)
         self.assertIn("CC BY 4.0", notice)
         self.assertIn("does not alter the Apache-2.0 license", notice)
         self.assertEqual(
@@ -74,10 +74,10 @@ class ProjectLicensePolicyTests(unittest.TestCase):
             encoding="utf-8"
         )
         chinese_constitution = (
-            MUSIC_REFERENCE_ROOT / "天籁音乐宪法-v0.1.md"
+            MUSIC_REFERENCE_ROOT / "天籁音乐宪法-v0.2.md"
         ).read_text(encoding="utf-8")
         english_constitution = (
-            MUSIC_REFERENCE_ROOT / "天籁音乐宪法-v0.1.en.md"
+            MUSIC_REFERENCE_ROOT / "天籁音乐宪法-v0.2.en.md"
         ).read_text(encoding="utf-8")
         root_readme = (ROOT / "README.md").read_text(encoding="utf-8")
         root_readme_en = (ROOT / "README.en.md").read_text(encoding="utf-8")
@@ -110,20 +110,20 @@ class ProjectLicensePolicyTests(unittest.TestCase):
         self.assertIn("music created or modified with it subject", english_readme)
         self.assertIn("不遵守不会触发项目处罚", chinese_constitution)
         self.assertIn("音乐不会让音乐自动适用 CC BY 4.0", chinese_constitution)
-        self.assertIn(
-            "noncompliance does not trigger project penalties",
-            english_constitution,
+        self.assertRegex(
+            english_constitution.lower(),
+            r"noncompliance does not trigger project\s*>\s*penalties",
+        )
+        self.assertRegex(
+            english_constitution.lower(),
+            r"does not automatically place that music under\s*>\s*cc by 4\.0",
         )
         self.assertIn(
-            "does not automatically place that music under CC BY 4.0",
-            english_constitution,
-        )
-        self.assertIn(
-            "docs/音乐创作参考笔记/天籁音乐宪法-v0.1.md",
+            "docs/音乐创作参考笔记/天籁音乐宪法-v0.2.md",
             root_readme,
         )
         self.assertIn(
-            "docs/音乐创作参考笔记/天籁音乐宪法-v0.1.en.md",
+            "docs/音乐创作参考笔记/天籁音乐宪法-v0.2.en.md",
             root_readme_en,
         )
 

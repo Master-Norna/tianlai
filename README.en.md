@@ -45,7 +45,7 @@ directly exercises import, explicit instrumentation, first sound, location,
 patching, second render, and comparison without downloading several gigabytes
 of sound sources first.
 
-> Current release: `0.9.0`
+> Current release: `1.0.0`
 >
 > **Distribution boundary:** the formal product is the lightweight source ZIP
 > published by the project. If PyPI sdists or wheels are published later,
@@ -57,7 +57,7 @@ of sound sources first.
 
 | Environment | Shortest entry point | Current boundary |
 | --- | --- | --- |
-| Windows 10/11 x64 | [Windows in three steps](#windows-in-three-steps) | Complete reference platform for `0.9.0` |
+| Windows 10/11 x64 | [Windows in three steps](#windows-in-three-steps) | Complete reference platform for `1.0.0` |
 | Linux / WSL x86_64 | [Linux / WSL quick start](docs/Linux快速开始.en.md) | Bash, programmatic instruments, and MCP are available; the success path and real-sample coverage are validated in separate layers |
 | macOS Apple Silicon / Intel | [macOS quick start](docs/macOS快速开始.en.md) | Native 64-bit CPython 3.11–3.14; clean-source-ZIP portable CI is included, while real samples are accepted separately |
 
@@ -92,7 +92,7 @@ and every installation must pass complete integrity verification. See the
 ## Windows in three steps
 
 Windows 10/11 x64 with 64-bit CPython 3.11–3.14 is the reference environment
-for `0.9.0`. Run the following `cmd` blocks from Command Prompt (`cmd.exe`)
+for `1.0.0`. Run the following `cmd` blocks from Command Prompt (`cmd.exe`)
 in the source-release root. The multiline continuation character is `^`.
 
 1. Create the project's own virtual environment and skip the automatic smoke
@@ -142,7 +142,7 @@ before using your own score.
 
 ## Recommended creative loop
 
-For `0.9.0`, use this main workflow instead of invoking older import and
+For `1.0.0`, use this main workflow instead of invoking older import and
 ensemble commands separately and assembling their artifacts by hand:
 
 | Stage | CLI | Result |
@@ -185,10 +185,17 @@ revalidates the plan, ensemble, stems, and attribution sidecars before and after
 the directory exchange. Concurrent changes or an incomplete generation are
 never published as a visible candidate.
 
+New ordinary MCP candidates are organized as
+`output/mcp/<sanitized title without an identity hash>/<candidate_id>/`. The
+`work_id` in `候选.json` remains a hash-bound identity and normally differs from
+that clean parent directory; `candidate_id` and the candidate-directory name do
+not change. Authoring and workflow internals remain separately managed in the
+dedicated `output/mcp/authoring-projects/` namespace.
+
 To verify a saved candidate independently, run
-`天籁.cmd candidate-verify --candidate "candidate-directory"`. The command
-expects the saved `<work_id>/<candidate_id>` directory names bound by the
-manifest to be preserved when a candidate is copied or extracted. It
+`天籁.cmd candidate-verify --candidate "candidate-directory"`. After copying or
+extracting, the final directory must still be the manifest-bound `candidate_id`;
+its parent may be the new sanitized title or the legacy `work_id`. The command
 rejects extra files, directories, links or reparse points, hard links, and
 detected drift in bound artifacts. A report written with `--output`
 must stay outside the candidate directory. `integrity_verified=true` proves
@@ -264,13 +271,47 @@ a lossless inverse of the score.
 
 ## AI and MCP
 
-The MCP server currently exposes 44 tools. Existing diagnosis, import, roster,
-score editing, preflight, location, comparison, and rendering remain compatible;
-v0.7 adds path-isolated persistent authoring projects and an optional creative
-workflow for charters, small constitution clause sets, phased review, trusted
-hard failures, exceptions, managed rendering, revision, rollback, and history
-audit. The
-recommended MCP chain maps to the CLI conceptually, while file transport, output
+The MCP server currently exposes 50 tools. Existing diagnosis, import, roster,
+score editing, preflight, location, comparison, and rendering remain compatible.
+The path-isolated persistent authoring projects and optional creative workflow
+introduced in v0.7 provide charters, small constitution clause sets, phased
+review, trusted hard failures, exceptions, managed rendering, revision,
+rollback, and history audit. `1.0.0` adds
+Claim Lifecycle v1—content-ID recomputation, score-referent verification,
+per-claim decision dispositions, and frozen terminal open claims—passage-level
+necessity derivations, charter settlement (acceptance must settle every charter
+promise), whole-work fork declarations (a branch is always one complete piece;
+the current record is a sparse alternative declaration, not epoch/LCA lineage),
+and an acceptance gate that freezes only the point-in-time recheck of recorded
+hard failures. That gate is neither current readiness nor aesthetic proof. Read
+compatibility now has five policy tiers: base legacy, explicit Claim Lifecycle,
+acceptance-gated, the tier with
+`charter_settlement_profile=affirmative-promise-ledger-v1`, and the latest tier
+with
+`composition_governance_profile=whole-work-derivation-and-bounded-amendment-v1`.
+The first four remain read-compatible. An ordinary older workflow continues to
+upgrade within the pre-governance policy until a composition map is explicitly
+recorded; it cannot downgrade. Workflows newly created through this MCP version
+enable the latest tier by default; pass `composition_governance=false` only for an
+explicit legacy-flow opt-out. Test a model's unassisted baseline without connecting
+the MCP server. New records remain
+optional and sparse: once the promise is fulfilled, identity is stable, and
+material alternatives are closed, the workflow should stop rather than iterate
+for iteration's sake. `budget_exhausted` is valid only when a positive frozen
+budget, the fork cap, or the history ceiling is actually reached; other
+termination reasons remain final-authority declarations, not machine proofs.
+
+> Upgrade compatibility note: Opening a `0.9.x` authoring project read-only
+> under `1.0.0` does not rewrite it; opening it or saving identical documents
+> does not trigger migration. The first content-changing save adds
+> `save_sequence` / `current_save_event_sha256` to `tianlai-project.json`,
+> `first_save_sequence` / `parent_revision` to the new `revision.json`, and
+> creates `.tianlai/save-events/`. This is a one-way causal-provenance upgrade:
+> `1.0.0` reads older projects, but `0.9.x` cannot reopen the project after that
+> save. Copy the complete project directory before the first changed save if
+> downgrade access matters.
+
+The recommended MCP chain maps to the CLI conceptually, while file transport, output
 roots, and default instrument scopes differ:
 
 ```text
@@ -284,11 +325,27 @@ diagnose_runtime(check_level="quick")
         → compare_rendered_candidates
 ```
 
+The latest “Xiangyin” governance first builds a whole-work composition map for
+the current piece, then uses a read-only whole-work mirror to generate questions
+that must be answered rather than checked off. Key derivations bind charter
+claims, map nodes, and those answers. If iteration evidence genuinely requires a
+charter change, the workflow must preflight and acknowledge the exact
+reconstruction cost before editing the score, then append one entry to a linear
+amendment ledger. The amendment takes effect next iteration, which rebuilds the
+map and repeats whole-work review. The map consumes no historical works,
+preference examples, or winner rationales; formal candidates remain complete
+pieces rather than fragment products. Machine checks establish facts and
+bindings only—they neither replace human listening nor prove that the music
+sounds good. The optional loop may still record a sparse fork once several
+complete candidates genuinely exist, and acceptance supplies
+`charter_settlement` covering every affirmative charter promise. With no real
+branch or new information, it adds neither step.
+
 `render`, `render_authoring_revision`, and `render_workflow_candidate` write
 audio. Other write tools publish immutable state/document revisions only inside
 the dedicated project root. File-based import follows the MCP input-root policy; attaching a
 client does not grant arbitrary access to the whole computer. See the
-[MCP interface](docs/MCP.en.md) for the complete 44-tool table, input-root
+[MCP interface](docs/MCP.en.md) for the complete 50-tool table, input-root
 configuration, and candidate rules, and [Creative Workflow](docs/创作工作流.en.md)
 for the honesty boundary, state machine, and disconnect recovery. Runtime and project-readiness checks
 passively summarize contract, resource, platform, and output-location
@@ -325,7 +382,7 @@ boundaries.
   produces a bounded, reviewable diagnostic draft that a creator can carry into
   the next candidate.
 - Offline rendering produces 24-bit WAV audio, optional stems, a shared hall,
-  and complete receipts. `0.9.0` automatically chooses serial execution or
+  and complete receipts. `1.0.0` automatically chooses serial execution or
   up to four managed workers from CPU, memory, scratch-space, work, and verified
   resource evidence, and passes long stems through bounded streaming blocks.
   It adds no render-profile option, falls back to the complete serial path when
@@ -357,12 +414,13 @@ See [Current status](docs/当前状态.en.md) for live status and technical deta
 
 ## Creative reference
 
-[Tianlai Music Constitution v0.1](docs/音乐创作参考笔记/天籁音乐宪法-v0.1.en.md)
-is an included, non-normative creative guide for human creators and AI agents,
-not law, a rules engine, or mandatory project policy. Declining to follow it
-causes no project penalty or feature restriction. Its text is CC BY 4.0, but
-music created with its guidance does not thereby become CC BY, and Tianlai
-software remains Apache-2.0.
+[Tianlai Music Constitution v0.2](docs/音乐创作参考笔记/天籁音乐宪法-v0.2.en.md)
+is an included, non-normative creative guide for human creators and AI agents.
+It protects material that emerges before a verbal reason while asking major
+structural choices to bear proportionate consequences. It is not law, a rules
+engine, or mandatory project policy; declining it causes no project penalty or
+feature restriction. Its text is CC BY 4.0, but music created with its guidance
+does not thereby become CC BY, and Tianlai software remains Apache-2.0.
 
 ## Licenses, output, and attribution
 

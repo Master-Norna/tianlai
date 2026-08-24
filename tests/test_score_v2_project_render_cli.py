@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from tianlai.cli import main as cli_main
-from tianlai.candidate import portable_slug
+from tianlai.candidate import portable_directory_name, portable_slug
 from tianlai.score_v2_candidate import (
     SCORE_V2_RENDER_RECEIPT_NAME,
 )
@@ -245,6 +245,12 @@ def test_project_render_v2_end_to_end_publishes_candidate_v3_and_verifies(
         "no_external_audio_assets_v1"
     )
     assert result["mix_sha256"] == _sha256(candidate / "合奏.wav")
+    manifest = json.loads(
+        (candidate / "候选.json").read_text(encoding="utf-8")
+    )
+    assert candidate.parent.name == portable_directory_name("CLI Score v2")
+    assert manifest["work_id"] == portable_slug("CLI Score v2")
+    assert manifest["work_id"] != candidate.parent.name
 
     assert cli_main(
         ["candidate-verify", "--candidate", str(candidate)]
@@ -257,6 +263,38 @@ def test_project_render_v2_end_to_end_publishes_candidate_v3_and_verifies(
     assert verification["integrity"][
         "runtime_authority_document_reusable"
     ] is False
+
+
+def test_score_v2_candidate_v3_verifies_from_legacy_hash_parent(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    paths = _project_inputs(tmp_path)
+    output_root = tmp_path / "output"
+
+    assert cli_main(
+        _arguments(paths, output_root, output_id="legacy-v3")
+    ) == 0
+    clean_candidate = Path(
+        json.loads(capsys.readouterr().out)["candidate_directory"]
+    )
+    manifest = json.loads(
+        (clean_candidate / "候选.json").read_text(encoding="utf-8")
+    )
+    legacy_parent = output_root / manifest["work_id"]
+
+    os.replace(clean_candidate.parent, legacy_parent)
+    legacy_candidate = legacy_parent / clean_candidate.name
+
+    assert not clean_candidate.parent.exists()
+    assert cli_main(
+        ["candidate-verify", "--candidate", str(legacy_candidate)]
+    ) == 0
+    verification = json.loads(capsys.readouterr().out)
+    assert verification["ok"] is True
+    assert verification["integrity_verified"] is True
+    assert verification["candidate"]["version"] == 3
+    assert verification["candidate"]["work_id"] == manifest["work_id"]
 
 
 @pytest.mark.parametrize(
@@ -483,7 +521,7 @@ def test_formal_publication_failure_removes_private_stage_and_candidate(
     )
     final_candidate = (
         output_root
-        / portable_slug("CLI Score v2")
+        / portable_directory_name("CLI Score v2")
         / portable_slug("cli-v3", maximum_length=96)
     )
     assert not final_candidate.exists()

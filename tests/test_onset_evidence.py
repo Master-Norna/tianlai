@@ -26,7 +26,11 @@ from tianlai.onset_evidence import (
     promote_review,
     read_json_strict,
     record_review_decision,
+    resolve_project_path,
     sha256_file,
+    validate_approved_onset_evidence,
+    validate_candidate_report,
+    validate_review_decision,
     validate_runtime_fingerprint,
     write_json_atomic,
 )
@@ -403,6 +407,183 @@ class OnsetEvidenceWorkflowTests(unittest.TestCase):
         self.assertEqual(onset.frames, 110)
         self.assertEqual(onset.sample_rate_hz, 48_000)
         self.assertEqual(onset.evidence.sha256, sha256_file(approved_path))
+
+    def test_root_schema_versions_reject_boolean_aliases_after_rehash(
+        self,
+    ) -> None:
+        candidate_path = self._candidate()
+        review_path = self._complete_measured_review(
+            candidate_path,
+            (100, 120, 110),
+        )
+        approved_path = self.instrument_dir / "onset-approved.json"
+        approved = promote_review(
+            candidate_path,
+            review_path,
+            approved_path,
+            project_root=self.root,
+            explicit_approval=True,
+            review_lead="lead-1",
+            approved_at="2026-07-25T14:00:00Z",
+        )
+
+        candidate = read_json_strict(candidate_path)
+        candidate["schema_version"] = True
+        candidate["candidate_sha256"] = canonical_sha256(
+            candidate,
+            omit="candidate_sha256",
+        )
+        with self.assertRaisesRegex(
+            OnsetEvidenceError,
+            r"candidate\.schema_version.*integer",
+        ):
+            validate_candidate_report(candidate, project_root=self.root)
+
+        review = read_json_strict(review_path)
+        review["schema_version"] = True
+        review["review_sha256"] = canonical_sha256(
+            review,
+            omit="review_sha256",
+        )
+        with self.assertRaisesRegex(
+            OnsetEvidenceError,
+            r"review\.schema_version.*integer",
+        ):
+            validate_review_decision(review, project_root=self.root)
+
+        approved["schema_version"] = True
+        approved["approved_sha256"] = canonical_sha256(
+            approved,
+            omit="approved_sha256",
+        )
+        with self.assertRaisesRegex(
+            OnsetEvidenceError,
+            r"approved\.schema_version.*integer",
+        ):
+            validate_approved_onset_evidence(
+                approved,
+                project_root=self.root,
+                manifest_path=self.manifest,
+            )
+
+    def test_fingerprint_and_control_flags_keep_strict_types(self) -> None:
+        candidate_path = self._candidate()
+        original = read_json_strict(candidate_path)
+        fingerprint_cases = (
+            (
+                "render closure file_count",
+                lambda fingerprint: fingerprint[
+                    "render_python_closure"
+                ].__setitem__(
+                    "file_count",
+                    float(
+                        fingerprint["render_python_closure"]["file_count"]
+                    ),
+                ),
+                r"file_count.*integer",
+            ),
+            (
+                "dependency applicable",
+                lambda fingerprint: fingerprint["runtime_dependencies"][
+                    "pyfluidsynth"
+                ].__setitem__("applicable", 0),
+                r"applicable.*boolean",
+            ),
+            (
+                "asset graph sample_rate_hz",
+                lambda fingerprint: fingerprint[
+                    "runtime_asset_graph"
+                ].__setitem__("sample_rate_hz", True),
+                r"sample_rate_hz.*integer",
+            ),
+        )
+        for field, mutate, pattern in fingerprint_cases:
+            with self.subTest(fingerprint_field=field):
+                candidate = copy.deepcopy(original)
+                mutate(candidate["runtime_fingerprint"])
+                candidate["candidate_sha256"] = canonical_sha256(
+                    candidate,
+                    omit="candidate_sha256",
+                )
+                with self.assertRaisesRegex(
+                    OnsetEvidenceError,
+                    pattern,
+                ):
+                    validate_candidate_report(
+                        candidate,
+                        project_root=self.root,
+                        verify_current=False,
+                        verify_artifacts=False,
+                    )
+
+        with self.assertRaisesRegex(
+            OnsetEvidenceError,
+            "asset graph sample rate differs",
+        ):
+            validate_runtime_fingerprint(
+                original["runtime_fingerprint"],
+                project_root=self.root,
+                manifest_path=self.manifest,
+                sample_rate_hz=8_000,
+                verify_current=False,
+            )
+
+        for field, arguments in (
+            ("verify_current", {"verify_current": 0}),
+            ("verify_artifacts", {"verify_artifacts": 1}),
+        ):
+            with self.subTest(control_flag=field), self.assertRaisesRegex(
+                OnsetEvidenceError,
+                rf"{field}.*boolean",
+            ):
+                validate_candidate_report(
+                    original,
+                    project_root=self.root,
+                    **arguments,
+                )
+
+        forged_algorithm = copy.deepcopy(original)
+        forged_algorithm["protocol"]["algorithm_sha256"] = "0" * 64
+        forged_algorithm["candidate_sha256"] = canonical_sha256(
+            forged_algorithm,
+            omit="candidate_sha256",
+        )
+        with self.assertRaisesRegex(
+            OnsetEvidenceError,
+            "analysis algorithm differs from runtime fingerprint",
+        ):
+            validate_candidate_report(
+                forged_algorithm,
+                project_root=self.root,
+                verify_current=False,
+                verify_artifacts=False,
+            )
+
+        review_path = self._complete_measured_review(
+            candidate_path,
+            (100, 120, 110),
+        )
+        review = read_json_strict(review_path)
+        with self.assertRaisesRegex(
+            OnsetEvidenceError,
+            r"require_complete.*boolean",
+        ):
+            validate_review_decision(
+                review,
+                project_root=self.root,
+                require_complete=1,
+            )
+
+        for must_exist in (0, 1):
+            with self.subTest(must_exist=must_exist), self.assertRaisesRegex(
+                OnsetEvidenceError,
+                r"must_exist.*boolean",
+            ):
+                resolve_project_path(
+                    self.root,
+                    self._relative(candidate_path),
+                    must_exist=must_exist,
+                )
 
     def test_lightweight_runtime_loader_does_not_require_source_artifacts(
         self,

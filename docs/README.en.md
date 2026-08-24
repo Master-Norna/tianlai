@@ -3,7 +3,7 @@
 # Documentation
 
 This map collects the user and integration documentation shipped with Tianlai
-`0.9.0`. The current `tianlai-doctor` result is authoritative for the
+`1.0.0`. The current `tianlai-doctor` result is authoritative for the
 runtime environment, instrument availability, and local resource state.
 
 ## Quick start
@@ -71,9 +71,11 @@ judgment.
 
 ## Creative reference
 
-- [Tianlai Music Constitution v0.1](音乐创作参考笔记/天籁音乐宪法-v0.1.en.md):
-  a non-normative, layered decision framework for human creators and AI agents.
-  Its text is CC BY 4.0; the project software remains Apache-2.0.
+- [Tianlai Music Constitution v0.2](音乐创作参考笔记/天籁音乐宪法-v0.2.en.md):
+  non-normative creative principles for human creators and AI agents, protecting
+  emergence, consequence, qiyun, and multiple complete worlds without requiring
+  every small sound to justify its existence in advance. Its text is CC BY 4.0;
+  the project software remains Apache-2.0.
 
 ## Capabilities and limitations
 

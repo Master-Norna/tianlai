@@ -40,9 +40,11 @@ from tianlai.runtime_variants import (
     RuntimeVariantError,
     capture_runtime_variants,
     certify_deterministic_single_observation,
+    certify_runtime_variant_observation,
     onset_sampled_condition,
     onset_sampled_condition_id,
     stable_variant_sha256,
+    validate_runtime_variant_proof_document,
 )
 from tianlai.sampler import SampleInstrument
 
@@ -51,7 +53,196 @@ ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "output"
 
 
+def _write_minimal_sample(path: Path) -> None:
+    with wave.open(str(path), "wb") as output:
+        output.setnchannels(1)
+        output.setsampwidth(2)
+        output.setframerate(8_000)
+        output.writeframes(
+            b"".join(
+                struct.pack("<h", value)
+                for value in (0, 1_200, -1_200, 600, -600, 0)
+            )
+        )
+
+
+def _rehash_runtime_receipt(receipt: dict) -> None:
+    receipt["receipt_sha256"] = stable_variant_sha256(
+        "runtime-variant-selection-receipt-v1",
+        {
+            key: value
+            for key, value in receipt.items()
+            if key != "receipt_sha256"
+        },
+    )
+
+
+def _rehash_first_runtime_catalog(receipt: dict) -> None:
+    record = receipt["catalogs"][0]
+    old_catalog_sha256 = record["catalog_sha256"]
+    catalog = record["catalog"]
+    catalog["condition_sha256"] = stable_variant_sha256(
+        "sample-region-condition-v1",
+        catalog["condition"],
+    )
+    new_catalog_sha256 = stable_variant_sha256(
+        "runtime-variant-catalog-v1",
+        catalog,
+    )
+    record["catalog_sha256"] = new_catalog_sha256
+    for selection in receipt["selections"]:
+        if selection["catalog_sha256"] == old_catalog_sha256:
+            selection["catalog_sha256"] = new_catalog_sha256
+            selection["condition_sha256"] = catalog["condition_sha256"]
+    _rehash_runtime_receipt(receipt)
+
+
+def _rehash_runtime_proof_outer_hashes(proof: dict) -> None:
+    proof["top_level_contract_sha256"] = stable_variant_sha256(
+        "top-level-runtime-variant-contract-v1",
+        proof["top_level_contract"],
+    )
+    hash_kind = (
+        "finite-rr-runtime-variant-proof-v1"
+        if proof["kind"] == "finite_rr_runtime_variant_proof"
+        else "deterministic-single-runtime-variant-proof-v1"
+    )
+    proof["proof_sha256"] = stable_variant_sha256(
+        hash_kind,
+        {
+            key: value
+            for key, value in proof.items()
+            if key != "proof_sha256"
+        },
+    )
+
+
+def _rehash_runtime_proof(proof: dict) -> None:
+    contract = proof["top_level_contract"]
+    attack = contract.get("attack_phase_contract")
+    if attack is not None:
+        bindings = attack["ordered_layer_bindings"]
+        attack["retained_bundle_sha256"] = stable_variant_sha256(
+            "dedicated-sfz-retained-attack-bundle-v1",
+            [binding for binding in bindings if binding["route_retained"]],
+        )
+        attack["static_audio_bundle_sha256"] = stable_variant_sha256(
+            "dedicated-sfz-static-audio-attack-bundle-v1",
+            [
+                binding
+                for binding in bindings
+                if binding["static_audio_contributing"]
+            ],
+        )
+        cycle = contract.get("finite_rr_cycle_contract")
+        if cycle is not None:
+            cycle["slot_bundle_sha256"] = stable_variant_sha256(
+                "dedicated-sfz-finite-rr-slot-bundle-v1",
+                [
+                    {
+                        "layer_index": binding["layer_index"],
+                        "choice_sha256": binding["choice_sha256"],
+                        "route_retained": binding["route_retained"],
+                        "wrapper_outcome_sha256": binding[
+                            "wrapper_outcome_sha256"
+                        ],
+                    }
+                    for binding in bindings
+                ],
+            )
+            if proof["kind"] == "finite_rr_runtime_variant_proof":
+                proof["slot_bundle_sha256"] = cycle["slot_bundle_sha256"]
+    _rehash_runtime_proof_outer_hashes(proof)
+
+
 class OnsetProbePureFunctionTests(unittest.TestCase):
+    def test_probe_integer_inputs_reject_boolean_aliases(self) -> None:
+        base = {
+            "manifest_path": ROOT / "instruments" / "placeholder.json",
+            "output_directory": OUTPUT / "placeholder",
+            "articulation": "sustain",
+            "midi_note": 60,
+            "velocity": 80,
+            "repeat_index": 0,
+            "variation_slot": 0,
+            "sample_rate": 8_000,
+        }
+        for field, value in (
+            ("midi_note", True),
+            ("velocity", True),
+            ("repeat_index", False),
+            ("variation_slot", False),
+            ("sample_rate", True),
+        ):
+            with self.subTest(field=field):
+                arguments = dict(base)
+                arguments[field] = value
+                with self.assertRaisesRegex(
+                    ValueError,
+                    rf"{field}.*integer",
+                ):
+                    ProbeSpec(**arguments)
+
+        for field, value in (
+            ("pre_roll_seconds", True),
+            ("note_seconds", True),
+            ("tail_seconds", False),
+        ):
+            with self.subTest(numeric_field=field):
+                arguments = dict(base)
+                arguments[field] = value
+                with self.assertRaisesRegex(
+                    ValueError,
+                    rf"{field}.*finite number",
+                ):
+                    ProbeSpec(**arguments)
+
+        frames = np.zeros((20, 2), dtype=np.float64)
+        analysis_cases = (
+            ("sample_rate", True),
+            ("note_on_frame", False),
+            ("note_off_frame", True),
+        )
+        for field, value in analysis_cases:
+            with self.subTest(analysis_field=field):
+                arguments = {
+                    "sample_rate": 8_000,
+                    "note_on_frame": 0,
+                    "note_off_frame": 10,
+                }
+                arguments[field] = value
+                with self.assertRaisesRegex(
+                    ValueError,
+                    rf"{field}.*integer",
+                ):
+                    analyze_stereo_onset(
+                        frames,
+                        arguments["sample_rate"],
+                        arguments["note_on_frame"],
+                        note_off_frame=arguments["note_off_frame"],
+                    )
+
+        for field in ("window_ms", "hop_ms"):
+            with self.subTest(analysis_numeric_field=field):
+                optional = {field: True}
+                with self.assertRaisesRegex(
+                    ValueError,
+                    rf"{field}.*finite number",
+                ):
+                    analyze_stereo_onset(
+                        frames,
+                        8_000,
+                        0,
+                        note_off_frame=10,
+                        **optional,
+                    )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            r"ranges\[0\]\.low.*finite number",
+        ):
+            select_probe_notes(((True, 40),))
+
     def test_each_range_contributes_low_middle_high_without_crossing_holes(
         self,
     ) -> None:
@@ -305,6 +496,130 @@ class DeterministicSingleVariantProtocolTests(unittest.TestCase):
                 random_value=0.5,
             )
         return capture.receipt()
+
+    def test_selector_and_proof_integer_fields_reject_boolean_aliases(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory(
+            prefix="onset-integer-contract-",
+            dir=OUTPUT,
+        ) as temporary:
+            directory = Path(temporary)
+            instrument = self._sample_instrument(
+                directory,
+                [{"sample": "one.wav", "root_pitch_hz": 440.0}],
+            )
+            receipt = self._capture_selection(instrument, 80)
+            condition, condition_id = self._condition(80)
+            proof = certify_deterministic_single_observation(
+                instrument=instrument,
+                manifest=instrument._test_factory_manifest,
+                selection_receipt=receipt,
+                condition_id=condition_id,
+                sampled_condition=condition,
+            )
+
+            selector_cases = (
+                ("candidate_count", True),
+                ("candidate_index", False),
+                ("round_robin_counter_before", False),
+            )
+            for field, value in selector_cases:
+                with self.subTest(selector_field=field):
+                    forged_receipt = copy.deepcopy(receipt)
+                    forged_receipt["selections"][0]["actual_selector"][
+                        field
+                    ] = value
+                    _rehash_runtime_receipt(forged_receipt)
+                    with self.assertRaisesRegex(
+                        RuntimeVariantError,
+                        rf"{field}.*integer",
+                    ):
+                        certify_deterministic_single_observation(
+                            instrument=instrument,
+                            manifest=instrument._test_factory_manifest,
+                            selection_receipt=forged_receipt,
+                            condition_id=condition_id,
+                            sampled_condition=condition,
+                        )
+
+            proof_cases = (
+                (
+                    "schema_version",
+                    lambda value: value.__setitem__("schema_version", True),
+                ),
+                (
+                    "variation_slot",
+                    lambda value: value.__setitem__("variation_slot", False),
+                ),
+                (
+                    "top_level_contract.schema_version",
+                    lambda value: value["top_level_contract"].__setitem__(
+                        "schema_version", True
+                    ),
+                ),
+                (
+                    "expected_selection_count",
+                    lambda value: value["top_level_contract"].__setitem__(
+                        "expected_selection_count", True
+                    ),
+                ),
+                (
+                    "midi_note",
+                    lambda value: value["sampled_condition"].__setitem__(
+                        "midi_note", 69.0
+                    ),
+                ),
+            )
+            for field, mutate in proof_cases:
+                with self.subTest(proof_field=field):
+                    forged_proof = copy.deepcopy(proof)
+                    mutate(forged_proof)
+                    _rehash_runtime_proof(forged_proof)
+                    with self.assertRaisesRegex(
+                        RuntimeVariantError,
+                        rf"{field}.*integer",
+                    ):
+                        validate_runtime_variant_proof_document(
+                            forged_proof,
+                            selection_receipt=receipt,
+                            condition_id=condition_id,
+                            sampled_condition=condition,
+                            variation_slot=0,
+                        )
+
+            with self.assertRaisesRegex(
+                RuntimeVariantError,
+                "variation_slot.*integer",
+            ):
+                certify_runtime_variant_observation(
+                    instrument=instrument,
+                    manifest=instrument._test_factory_manifest,
+                    selection_receipt=receipt,
+                    condition_id=condition_id,
+                    sampled_condition=condition,
+                    variation_slot=False,
+                )
+
+            equivalent_receipt = copy.deepcopy(receipt)
+            catalog_condition = equivalent_receipt["catalogs"][0][
+                "catalog"
+            ]["condition"]
+            catalog_condition["pitch_hz"] = int(
+                catalog_condition["pitch_hz"]
+            )
+            _rehash_first_runtime_catalog(equivalent_receipt)
+            equivalent_proof = certify_deterministic_single_observation(
+                instrument=instrument,
+                manifest=instrument._test_factory_manifest,
+                selection_receipt=equivalent_receipt,
+                condition_id=condition_id,
+                sampled_condition=condition,
+            )
+            self.assertEqual(
+                equivalent_proof["selection_receipt_sha256"],
+                equivalent_receipt["receipt_sha256"],
+            )
 
     def test_forged_single_catalog_for_real_multi_candidate_is_rejected(
         self,
@@ -1210,6 +1525,206 @@ class DedicatedSfzVariantProtocolTests(unittest.TestCase):
                 project_root=ROOT,
             )
 
+            slot_one = observations[1]
+            original_proof = slot_one["variant_catalog_proof"]
+            expected_condition = copy.deepcopy(
+                original_proof["sampled_condition"]
+            )
+            finite_proof_cases = (
+                (
+                    "variation_slot",
+                    lambda value: value.__setitem__("variation_slot", True),
+                ),
+                (
+                    "variation_period",
+                    lambda value: value.__setitem__("variation_period", 2.0),
+                ),
+                (
+                    "cycle variation_slot",
+                    lambda value: value["top_level_contract"][
+                        "finite_rr_cycle_contract"
+                    ].__setitem__("variation_slot", True),
+                ),
+                (
+                    "cycle variation_period",
+                    lambda value: value["top_level_contract"][
+                        "finite_rr_cycle_contract"
+                    ].__setitem__("variation_period", 2.0),
+                ),
+            )
+            for field, mutate in finite_proof_cases:
+                with self.subTest(finite_proof_field=field):
+                    forged_proof = copy.deepcopy(original_proof)
+                    mutate(forged_proof)
+                    _rehash_runtime_proof(forged_proof)
+                    with self.assertRaisesRegex(
+                        RuntimeVariantError,
+                        r"variation_(?:slot|period).*integer",
+                    ):
+                        validate_runtime_variant_proof_document(
+                            forged_proof,
+                            selection_receipt=slot_one["selection_receipt"],
+                            condition_id=slot_one["condition_id"],
+                            sampled_condition=expected_condition,
+                            variation_slot=1,
+                        )
+
+            attack_scalar_cases = (
+                (
+                    "selector_random_value",
+                    lambda attack: attack.__setitem__(
+                        "selector_random_value", True
+                    ),
+                    r"selector_random_value.*finite number",
+                ),
+                (
+                    "wrapper_velocity_gain",
+                    lambda attack: attack["ordered_layer_bindings"][
+                        0
+                    ].__setitem__("wrapper_velocity_gain", True),
+                    r"wrapper_velocity_gain.*finite number",
+                ),
+                (
+                    "effective_static_gain",
+                    lambda attack: attack["ordered_layer_bindings"][
+                        0
+                    ].__setitem__("effective_static_gain", True),
+                    r"effective_static_gain.*finite number",
+                ),
+                (
+                    "route_retained",
+                    lambda attack: attack["ordered_layer_bindings"][
+                        0
+                    ].__setitem__("route_retained", 1),
+                    r"route_retained.*boolean",
+                ),
+            )
+            for field, mutate, pattern in attack_scalar_cases:
+                with self.subTest(attack_scalar_field=field):
+                    forged_proof = copy.deepcopy(original_proof)
+                    mutate(
+                        forged_proof["top_level_contract"][
+                            "attack_phase_contract"
+                        ]
+                    )
+                    _rehash_runtime_proof(forged_proof)
+                    with self.assertRaisesRegex(
+                        RuntimeVariantError,
+                        pattern,
+                    ):
+                        validate_runtime_variant_proof_document(
+                            forged_proof,
+                            selection_receipt=slot_one["selection_receipt"],
+                            condition_id=slot_one["condition_id"],
+                            sampled_condition=expected_condition,
+                            variation_slot=1,
+                        )
+
+            stale_bundle_proof = copy.deepcopy(original_proof)
+            stale_binding = stale_bundle_proof["top_level_contract"][
+                "attack_phase_contract"
+            ]["ordered_layer_bindings"][0]
+            stale_binding["wrapper_velocity_gain"] = int(
+                stale_binding["wrapper_velocity_gain"]
+            )
+            _rehash_runtime_proof_outer_hashes(stale_bundle_proof)
+            with self.assertRaisesRegex(
+                RuntimeVariantError,
+                r"retained_bundle_sha256.*invalid",
+            ):
+                validate_runtime_variant_proof_document(
+                    stale_bundle_proof,
+                    selection_receipt=slot_one["selection_receipt"],
+                    condition_id=slot_one["condition_id"],
+                    sampled_condition=expected_condition,
+                    variation_slot=1,
+                )
+
+            forged_wrapper_proof = copy.deepcopy(original_proof)
+            forged_wrapper_proof["top_level_contract"][
+                "attack_phase_contract"
+            ]["ordered_layer_bindings"][0]["wrapper_outcome_sha256"] = (
+                "0" * 64
+            )
+            _rehash_runtime_proof(forged_wrapper_proof)
+            with self.assertRaisesRegex(
+                RuntimeVariantError,
+                r"wrapper_outcome_sha256 does not bind its receipt",
+            ):
+                validate_runtime_variant_proof_document(
+                    forged_wrapper_proof,
+                    selection_receipt=slot_one["selection_receipt"],
+                    condition_id=slot_one["condition_id"],
+                    sampled_condition=expected_condition,
+                    variation_slot=1,
+                )
+
+            forged_slot_proof = copy.deepcopy(original_proof)
+            forged_cycle = forged_slot_proof["top_level_contract"][
+                "finite_rr_cycle_contract"
+            ]
+            forged_cycle["slot_bundle_sha256"] = "0" * 64
+            forged_slot_proof["slot_bundle_sha256"] = "0" * 64
+            _rehash_runtime_proof_outer_hashes(forged_slot_proof)
+            with self.assertRaisesRegex(
+                RuntimeVariantError,
+                r"slot_bundle_sha256 is invalid",
+            ):
+                validate_runtime_variant_proof_document(
+                    forged_slot_proof,
+                    selection_receipt=slot_one["selection_receipt"],
+                    condition_id=slot_one["condition_id"],
+                    sampled_condition=expected_condition,
+                    variation_slot=1,
+                )
+
+            equivalent_report = copy.deepcopy(report)
+            equivalent_proof = equivalent_report["observations"][1][
+                "variant_catalog_proof"
+            ]
+            binding = equivalent_proof["top_level_contract"][
+                "attack_phase_contract"
+            ]["ordered_layer_bindings"][0]
+            wrapper_gain = binding["wrapper_velocity_gain"]
+            self.assertIsInstance(wrapper_gain, float)
+            self.assertTrue(wrapper_gain.is_integer())
+            binding["wrapper_velocity_gain"] = int(wrapper_gain)
+            _rehash_runtime_proof(equivalent_proof)
+            equivalent_report["candidate_sha256"] = canonical_sha256(
+                equivalent_report,
+                omit="candidate_sha256",
+            )
+            validate_candidate_report(
+                equivalent_report,
+                project_root=ROOT,
+                verify_artifacts=True,
+            )
+
+            forged_receipt = copy.deepcopy(slot_one["selection_receipt"])
+            rr_selection = next(
+                selection
+                for selection in forged_receipt["selections"]
+                if selection["actual_selector"]["candidate_index"] == 1
+            )
+            rr_selection["actual_selector"]["candidate_index"] = True
+            _rehash_runtime_receipt(forged_receipt)
+            forged_proof = copy.deepcopy(original_proof)
+            forged_proof["selection_receipt_sha256"] = forged_receipt[
+                "receipt_sha256"
+            ]
+            _rehash_runtime_proof(forged_proof)
+            with self.assertRaisesRegex(
+                RuntimeVariantError,
+                r"candidate_index.*integer",
+            ):
+                validate_runtime_variant_proof_document(
+                    forged_proof,
+                    selection_receipt=forged_receipt,
+                    condition_id=slot_one["condition_id"],
+                    sampled_condition=expected_condition,
+                    variation_slot=1,
+                )
+
             omitted = copy.deepcopy(report)
             omitted["observations"] = [omitted["observations"][0]]
             omitted["candidate_sha256"] = canonical_sha256(
@@ -1325,6 +1840,13 @@ class OnsetProbeEndToEndTests(unittest.TestCase):
 
         self.assertEqual(factory.call_count, 2)
         self.assertFalse(report["automatic_approval"])
+        self.assertEqual(report["protocol"]["sample_rate_hz"], 8_000)
+        self.assertEqual(
+            report["runtime_fingerprint"]["runtime_asset_graph"][
+                "sample_rate_hz"
+            ],
+            report["protocol"]["sample_rate_hz"],
+        )
         self.assertEqual(
             report["protocol"]["variant_coverage"],
             "all_runtime_variants",
@@ -1416,6 +1938,69 @@ class OnsetProbeEndToEndTests(unittest.TestCase):
         self.assertEqual(
             approved["policy"]["condition_coverage"],
             "sampled_conditions",
+        )
+
+    def test_sample_replay_preserves_json_number_equivalence(self) -> None:
+        sample_path = self.base / "one.wav"
+        _write_minimal_sample(sample_path)
+        self.manifest_path.write_text(
+            json.dumps(
+                {
+                    "name": "number-equivalence sample",
+                    "type": "sample",
+                    "quality_tier": "candidate",
+                    "license_status": "approved",
+                    "pitch_mode": "pitched",
+                    "note_min": 69,
+                    "note_max": 69,
+                    "articulations": {
+                        "sustain": {"playable_ranges": [[69, 69]]}
+                    },
+                    "default_articulation": "sustain",
+                    "regions": [
+                        {
+                            "sample": sample_path.name,
+                            "root_pitch_hz": 440.0,
+                        }
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        output = self.base / "sample-number-equivalence"
+        report = run_probe_batch(
+            self.manifest_path,
+            output,
+            sample_rate=8_000,
+            pre_roll_seconds=0.025,
+            note_seconds=0.05,
+            tail_seconds=0.03,
+            velocities=(80,),
+        )
+
+        equivalent = copy.deepcopy(report)
+        observation = equivalent["observations"][0]
+        receipt = observation["selection_receipt"]
+        condition = receipt["catalogs"][0]["catalog"]["condition"]
+        self.assertEqual(condition["pitch_hz"], 440.0)
+        condition["pitch_hz"] = 440
+        _rehash_first_runtime_catalog(receipt)
+
+        proof = observation["variant_catalog_proof"]
+        proof["selection_receipt_sha256"] = receipt["receipt_sha256"]
+        proof["catalog_sha256s"] = sorted(
+            record["catalog_sha256"] for record in receipt["catalogs"]
+        )
+        _rehash_runtime_proof(proof)
+        equivalent["candidate_sha256"] = canonical_sha256(
+            equivalent,
+            omit="candidate_sha256",
+        )
+
+        validate_candidate_report(
+            equivalent,
+            project_root=ROOT,
+            verify_artifacts=True,
         )
 
     def test_articulation_range_holes_expand_per_segment(self) -> None:

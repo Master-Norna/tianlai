@@ -29,14 +29,13 @@ permissions nor implies endorsement by the referenced source or by Tianlai.
 
 ## Current note
 
-1. [Tianlai Music Constitution v0.1](天籁音乐宪法-v0.1.en.md)
+1. [Tianlai Music Constitution v0.2](天籁音乐宪法-v0.2.en.md)
 
-   This reference organizes creative decisions into layered “jurisdictions”:
-   write a work-specific promise first, activate only the melodic, rhythmic,
-   harmonic, timbral, narrative, and other rules relevant to that work, then
-   review the result through listening, documented exceptions, and version
-   comparison. It is a framework for choices and conflicts, not a requirement
-   to activate every clause in every piece.
+   It distinguishes a formed composition from a formed world, and emergence
+   from consequence. Material may precede a verbal reason; major structural
+   choices bear proportionate history and consequences, while companion lines,
+   breath, resonance, and silence may first earn a place through whole-work
+   listening. Clauses generate questions rather than answers.
 
 ## Text license
 
@@ -44,7 +43,7 @@ Tianlai software remains licensed under Apache-2.0 in the root
 [`LICENSE`](../../LICENSE); accompanying this creative reference does not
 change that software license.
 
-Except where otherwise noted, the text of *Tianlai Music Constitution v0.1*
+Except where otherwise noted, the text of *Tianlai Music Constitution v0.2*
 is © 2026 Nor.na and licensed under the
 [Creative Commons Attribution 4.0 International license (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/).
 When sharing or adapting it, give appropriate credit, link to the material and
@@ -59,13 +58,16 @@ to CC BY 4.0.
 
 ## Recommended use
 
-1. Before creating, state the work's identity, emotional trajectory, principal
-   roles, exclusions, and intended audience.
-2. Select only a small number of principles that matter to this work instead of
-   mechanically enabling the entire list.
-3. Turn each selected principle into an explicit score, roster, performance, or
-   production change.
-4. Preserve before-and-after candidates for A/B review, recording which judgment
-   helped and which one needs an exception.
-5. Promote recurring, reproducible experience into a later revision instead of
+1. Let seeds occur before gradually identifying the work's identity, direction,
+   and already-established relationships.
+2. Select only a small number of relevant principles and use clauses as questions,
+   not answers.
+3. Apply causal scrutiny to major, conspicuous, irreversible choices; grant small,
+   reversible material the right to be tried in the complete work first.
+4. Mark places where a companion line, breath, resonance, spatial change, or
+   deliberate emptiness may be tried. Zero additions is a valid result; never
+   fill a quota or a fixed bar pattern.
+5. Prefer whole-work addition/removal comparison for peripheral details. Without
+   actual audition, record only a hypothesis rather than claiming improvement.
+6. Promote recurring, reproducible experience into a later revision instead of
    rewriting general guidance from one accidental listening impression.

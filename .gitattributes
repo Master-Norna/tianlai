@@ -3,7 +3,7 @@
 *.pdf binary
 *.py text eol=lf
 *.sh text eol=lf
-docs/音乐创作参考笔记/天籁音乐宪法-v0.1*.md text eol=lf
+docs/音乐创作参考笔记/天籁音乐宪法-v*.md text eol=lf
 tianlai/_resources/constitutions/*.md text eol=lf
 乐器/键盘乐器/击弦古钢琴/SIMPK来源证据.json text eol=lf
 乐器/键盘乐器/击弦古钢琴/SIMPK调音表.json text eol=lf

@@ -14,7 +14,7 @@ body:
     attributes:
       label: Tianlai version or commit
       description: Run `tianlai --version` (or `天籁.cmd --version` on Windows). Add the Git commit when using a source-development version.
-      placeholder: 0.9.0 / abcdef1
+      placeholder: 1.0.0 / abcdef1
     validations:
       required: true
   - type: input

@@ -11,6 +11,7 @@ import tempfile
 import unittest
 
 from tianlai import __version__
+from tianlai.candidate import portable_directory_name, portable_slug
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -49,10 +50,16 @@ EXPECTED_TOOLS = {
     "open_creative_workflow",
     "verify_creative_workflow_history",
     "activate_creative_workflow",
+    "inspect_workflow_composition",
+    "record_workflow_composition_map",
+    "preflight_workflow_charter_amendment",
+    "commit_workflow_charter_amendment",
     "record_workflow_review",
     "record_workflow_evidence",
     "record_verified_workflow_hard_failure",
     "register_workflow_exception",
+    "record_workflow_derivation",
+    "record_workflow_fork",
     "render_workflow_candidate",
     "attach_workflow_candidate_for_audit",
     "decide_workflow_iteration",
@@ -391,9 +398,26 @@ class McpStdioWorkflowTests(unittest.TestCase):
                         first_directory = Path(
                             first["candidate_directory"]
                         ).resolve()
+                        first_manifest = json.loads(
+                            (first_directory / "候选.json").read_text(
+                                encoding="utf-8"
+                            )
+                        )
                         self._assert_inside(
                             first_directory,
                             output_root / "mcp",
+                        )
+                        self.assertEqual(
+                            first_directory.parent.name,
+                            portable_directory_name("MCP stdio portable"),
+                        )
+                        self.assertEqual(
+                            first_manifest["work_id"],
+                            portable_slug("MCP stdio portable"),
+                        )
+                        self.assertNotEqual(
+                            first_manifest["work_id"],
+                            first_directory.parent.name,
                         )
                         self.assertTrue(Path(first["mix_wav"]).is_file())
 
@@ -507,9 +531,22 @@ class McpStdioWorkflowTests(unittest.TestCase):
                         second_directory = Path(
                             second["candidate_directory"]
                         ).resolve()
+                        second_manifest = json.loads(
+                            (second_directory / "候选.json").read_text(
+                                encoding="utf-8"
+                            )
+                        )
                         self._assert_inside(
                             second_directory,
                             output_root / "mcp",
+                        )
+                        self.assertEqual(
+                            second_directory.parent,
+                            first_directory.parent,
+                        )
+                        self.assertEqual(
+                            second_manifest["work_id"],
+                            first_manifest["work_id"],
                         )
                         self.assertTrue(Path(second["mix_wav"]).is_file())
 

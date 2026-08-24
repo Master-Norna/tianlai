@@ -145,6 +145,34 @@ def _kit() -> dict:
     return document
 
 
+def _with_collaboration() -> dict:
+    document = _assigned()
+    first_part = document["assignments"][0]["part"]
+    second_part = document["assignments"][1]["part"]
+    document["collaboration"] = {
+        "mode": "suggest",
+        "analysis": {
+            "metric": "overlap_active_rms",
+            "window_ms": 400,
+            "hop_ms": 100,
+            "gate_dbfs": -60,
+        },
+        "part_groups": [
+            {"id": "lead_group", "parts": [first_part]},
+        ],
+        "balance_relations": [
+            {
+                "subject": second_part,
+                "reference": "lead_group",
+                "target_offset_db": -6,
+                "tolerance_db": 2,
+                "max_suggestion_db": 4,
+            }
+        ],
+    }
+    return document
+
+
 class AuthoringRosterContractTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -229,6 +257,55 @@ class AuthoringRosterContractTests(unittest.TestCase):
         check_roster_covers_score(resolved, parse_score_document(_score()))
         self.assertEqual(len(resolved.executors), 2)
         self.assertEqual(resolved.executors[0].executor_id, "主奏")
+
+    def test_collaboration_round_trips_without_materializing_defaults(
+        self,
+    ) -> None:
+        document = _with_collaboration()
+        self.validator.validate(document)
+
+        parsed = parse_authoring_roster_document(document, _score())
+
+        self.assertEqual(parsed.collaboration, document["collaboration"])
+        self.assertEqual(parsed.to_dict(), document)
+
+    def test_collaboration_unknown_fields_are_rejected(self) -> None:
+        document = _with_collaboration()
+        document["collaboration"]["balance_relations"][0][
+            "auto_apply"
+        ] = True
+
+        self.assert_contract_error(
+            document,
+            "authoring_roster.unknown_field",
+            ("collaboration", "balance_relations", 0, "auto_apply"),
+        )
+        self.assertTrue(list(self.validator.iter_errors(document)))
+
+    def test_collaboration_relation_reaches_formal_conversion(self) -> None:
+        document = _with_collaboration()
+        formal = to_formal_roster(document, _score(), CAPABILITIES)
+
+        self.assertEqual(formal["collaboration"], document["collaboration"])
+        resolved = parse_roster_document(formal, CAPABILITIES)
+        self.assertTrue(resolved.collaboration.declared)
+        self.assertEqual(len(resolved.collaboration.balance_relations), 1)
+        relation = resolved.collaboration.balance_relations[0]
+        self.assertEqual(relation.subject, document["assignments"][1]["part"])
+        self.assertEqual(relation.reference, "lead_group")
+        self.assertEqual(relation.target_offset_db, -6.0)
+
+    def test_collaboration_rejects_undeclared_relation_endpoint(self) -> None:
+        document = _with_collaboration()
+        document["collaboration"]["balance_relations"][0][
+            "reference"
+        ] = "missing_group"
+
+        self.assert_contract_error(
+            document,
+            "authoring_roster.invalid_collaboration",
+            ("collaboration",),
+        )
 
     def test_non_empty_kit_route_converts_to_formal_roster(self) -> None:
         document = _kit()

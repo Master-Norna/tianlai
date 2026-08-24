@@ -246,6 +246,99 @@ class ScorePatchTests(unittest.TestCase):
         )
         self.assertEqual(score, before)
 
+    def test_boolean_and_numeric_expectations_are_distinct(self) -> None:
+        cases = (
+            (
+                "numeric actual does not satisfy boolean expectation",
+                {},
+                {
+                    "op": "delete_note",
+                    "event_id": "melody-1",
+                    "expect": {"bar": True},
+                },
+                "bar",
+            ),
+            (
+                "boolean actual does not satisfy numeric expectation",
+                {"tie": True},
+                {
+                    "op": "update_note",
+                    "event_id": "melody-1",
+                    "expect": {"tie": 1},
+                    "changes": {"dynamic": "f"},
+                },
+                "tie",
+            ),
+        )
+
+        for label, note_changes, operation, expected_field in cases:
+            with self.subTest(label=label):
+                score = _score()
+                score["parts"][0]["notes"][0].update(note_changes)
+                before = copy.deepcopy(score)
+
+                with self.assertRaises(ScoreOpsError) as caught:
+                    apply_score_patch(score, _patch(score, [operation]))
+
+                self.assertEqual(caught.exception.code, "expectation_failed")
+                self.assertEqual(
+                    caught.exception.to_dict()["details"]["field"],
+                    expected_field,
+                )
+                self.assertEqual(score, before)
+
+    def test_non_integer_expectations_keep_json_number_equivalence(self) -> None:
+        score = _score()
+        result = apply_score_patch(
+            score,
+            _patch(
+                score,
+                [
+                    {
+                        "op": "update_note",
+                        "event_id": "melody-1",
+                        "expect": {"beat": 1.0},
+                        "changes": {"dynamic": "f"},
+                    }
+                ],
+            ),
+        )
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["score"]["parts"][0]["notes"][0]["dynamic"], "f")
+
+    def test_integer_expectations_reject_integral_floats(self) -> None:
+        cases = (("bar", {}), ("staff", {"staff": 1}))
+
+        for field, note_changes in cases:
+            with self.subTest(field=field):
+                score = _score()
+                score["parts"][0]["notes"][0].update(note_changes)
+                before = copy.deepcopy(score)
+
+                with self.assertRaises(ScoreOpsError) as caught:
+                    apply_score_patch(
+                        score,
+                        _patch(
+                            score,
+                            [
+                                {
+                                    "op": "update_note",
+                                    "event_id": "melody-1",
+                                    "expect": {field: 1.0},
+                                    "changes": {"dynamic": "f"},
+                                }
+                            ],
+                        ),
+                    )
+
+                self.assertEqual(caught.exception.code, "expectation_failed")
+                self.assertEqual(
+                    caught.exception.to_dict()["details"]["field"],
+                    field,
+                )
+                self.assertEqual(score, before)
+
     def test_update_preserves_identity_and_returns_a_structured_diff(self) -> None:
         score = _score()
         result = apply_score_patch(

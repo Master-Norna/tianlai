@@ -19,7 +19,7 @@ Keep these support layers distinct:
 | 29 project-authored programmatic instruments | Require no third-party audio assets and are directly usable | Other sound entries need separate resource restoration |
 | 74 external resources | Diagnostics expose a cross-platform Python restorer; `plan` resolves all 15 resource families | Download size, upstream availability, license conditions, and system unpacking dependencies vary; CI does not download large resources |
 
-Windows 10/11 x64 remains the complete reference platform for `0.9.0`.
+Windows 10/11 x64 remains the complete reference platform for `1.0.0`.
 Linux covers core programmatic instruments, portable self-checks, CLI, and MCP;
 large third-party resource coverage is not identical to Windows.
 

@@ -607,6 +607,7 @@ def render_project_candidate(
                 plan_sha256=plan_sha256,
                 output_id=output_id,
                 overwrite=False,
+                clean_work_directory=False,
             )
         except CandidateAlreadyExistsError:
             if managed_authorization is None:

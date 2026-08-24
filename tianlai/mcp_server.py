@@ -23,15 +23,20 @@ from collections import Counter
 from pathlib import Path
 from typing import Annotated, Any, Literal
 
+from typing_extensions import NotRequired, TypedDict
+
 from mcp.server import MCPServer
 from mcp.types import ToolAnnotations
 from pydantic import (
+    AfterValidator,
+    ConfigDict,
     Field,
     StrictBool,
     StrictFloat,
     StrictInt,
     StrictStr,
     StringConstraints,
+    with_config,
 )
 
 from . import __version__
@@ -69,13 +74,19 @@ from .creative_workflow import (
     activate_creative_workflow as activate_creative_workflow_state,
     attach_existing_candidate_for_audit as attach_existing_candidate_for_audit_state,
     cancel_workflow_render as cancel_workflow_render_state,
+    commit_workflow_charter_amendment as commit_workflow_charter_amendment_state,
     create_creative_workflow as create_creative_workflow_state,
     decide_workflow_iteration as decide_workflow_iteration_state,
+    inspect_workflow_composition as inspect_workflow_composition_state,
     inspect_workflow_candidate_status,
     open_creative_workflow as open_creative_workflow_state,
+    preflight_workflow_charter_amendment as preflight_workflow_charter_amendment_state,
     record_workflow_authoring_revision as record_workflow_authoring_revision_state,
     record_workflow_candidate as record_workflow_candidate_state,
+    record_workflow_composition_map as record_workflow_composition_map_state,
+    record_workflow_derivation as record_workflow_derivation_state,
     record_workflow_evidence as record_workflow_evidence_state,
+    record_workflow_fork as record_workflow_fork_state,
     record_verified_workflow_hard_failure as record_verified_workflow_hard_failure_state,
     record_workflow_review as record_workflow_review_state,
     register_workflow_exception as register_workflow_exception_state,
@@ -232,6 +243,719 @@ _ConstitutionClauseIdList = Annotated[
     list[_AuthoringSelector],
     Field(min_length=1, max_length=12),
 ]
+_WorkflowDerivationEmptyReferences = Annotated[
+    list[_AuthoringSelector],
+    Field(max_length=0),
+]
+_WorkflowDerivationMaterialReferences = Annotated[
+    list[_AuthoringSelector],
+    Field(min_length=1, max_length=32),
+]
+_WorkflowArtifactSha256 = Annotated[
+    StrictStr,
+    StringConstraints(pattern=r"^[0-9a-f]{64}$"),
+]
+_WorkflowClauseId = Annotated[
+    StrictStr,
+    StringConstraints(pattern=r"^C[0-8](?:\.[A-Z])?(?:\.[0-9]{1,3}){1,2}$"),
+]
+_WorkflowDerivationAlternativeText = Annotated[
+    StrictStr,
+    StringConstraints(min_length=1, max_length=2048),
+]
+_WorkflowBar = Annotated[StrictInt, Field(ge=1)]
+_WorkflowBeat = Annotated[StrictFloat, Field(ge=1.0)]
+
+
+@with_config(ConfigDict(extra="forbid"))
+class _WorkflowDeclaredPromisePremise(TypedDict):
+    kind: Literal["declared_promise"]
+    reference: _WorkflowShortText
+    event_ids: _WorkflowDerivationEmptyReferences
+    artifact_sha256: None
+    artifact_role: None
+
+
+@with_config(ConfigDict(extra="forbid"))
+class _WorkflowActiveClausePremise(TypedDict):
+    kind: Literal["active_clause"]
+    reference: _WorkflowClauseId
+    event_ids: _WorkflowDerivationEmptyReferences
+    artifact_sha256: None
+    artifact_role: None
+
+
+@with_config(ConfigDict(extra="forbid"))
+class _WorkflowEstablishedMaterialPremise(TypedDict):
+    kind: Literal["established_material"]
+    reference: None
+    event_ids: _WorkflowDerivationMaterialReferences
+    artifact_sha256: None
+    artifact_role: None
+
+
+@with_config(ConfigDict(extra="forbid"))
+class _WorkflowRenderMeasurementPremise(TypedDict):
+    kind: Literal["render_measurement"]
+    reference: _WorkflowShortText
+    event_ids: _WorkflowDerivationEmptyReferences
+    artifact_sha256: _WorkflowArtifactSha256
+    artifact_role: Literal["render_receipt", "post_render_check", "mix_report"]
+
+
+_WorkflowDerivationPremise = Annotated[
+    _WorkflowDeclaredPromisePremise
+    | _WorkflowActiveClausePremise
+    | _WorkflowEstablishedMaterialPremise
+    | _WorkflowRenderMeasurementPremise,
+    Field(discriminator="kind"),
+]
+_WorkflowDerivationPremises = Annotated[
+    list[_WorkflowDerivationPremise],
+    Field(min_length=1, max_length=8),
+]
+
+
+def _unique_derivation_premise_indexes(value: list[int]) -> list[int]:
+    if len(value) != len(set(value)):
+        raise ValueError("derivation premise indexes must be unique")
+    return value
+
+
+_WorkflowDerivationPremiseIndexes = Annotated[
+    list[Annotated[StrictInt, Field(ge=0, le=7)]],
+    Field(
+        min_length=1,
+        max_length=8,
+        json_schema_extra={"uniqueItems": True},
+    ),
+    AfterValidator(_unique_derivation_premise_indexes),
+]
+
+
+@with_config(ConfigDict(extra="forbid"))
+class _WorkflowExcludedAlternative(TypedDict):
+    alternative: _WorkflowDerivationAlternativeText
+    failure: _WorkflowDerivationAlternativeText
+    premise_indexes: _WorkflowDerivationPremiseIndexes
+
+
+_WorkflowExcludedAlternatives = Annotated[
+    list[_WorkflowExcludedAlternative],
+    Field(min_length=1, max_length=8),
+]
+
+
+def _unique_workflow_claim_references(value: list[str]) -> list[str]:
+    if len(value) != len(set(value)):
+        raise ValueError("workflow claim references must be unique")
+    return value
+
+
+_WorkflowStableId = Annotated[
+    StrictStr,
+    StringConstraints(
+        min_length=1,
+        max_length=128,
+        pattern=r"^[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+    ),
+]
+_WorkflowClaimId = Annotated[
+    StrictStr,
+    StringConstraints(pattern=r"^claim-[0-9a-f]{64}$"),
+]
+_WorkflowCollectionId = Annotated[
+    StrictStr,
+    StringConstraints(pattern=r"^collection-[0-9a-f]{64}$"),
+]
+_WorkflowQuestionId = Annotated[
+    StrictStr,
+    StringConstraints(pattern=r"^(?:question|workflow-question)-[0-9a-f]{20}$"),
+]
+_WorkflowUniqueReferences = Annotated[
+    list[_AuthoringSelector],
+    Field(max_length=128, json_schema_extra={"uniqueItems": True}),
+    AfterValidator(_unique_workflow_claim_references),
+]
+_WorkflowMapEventReferences = Annotated[
+    list[_AuthoringSelector],
+    Field(max_length=1024, json_schema_extra={"uniqueItems": True}),
+    AfterValidator(_unique_workflow_claim_references),
+]
+_WorkflowMapTextList = Annotated[
+    list[_WorkflowText],
+    Field(max_length=256, json_schema_extra={"uniqueItems": True}),
+    AfterValidator(_unique_workflow_claim_references),
+]
+_WorkflowMapClaimIds = Annotated[
+    list[_WorkflowClaimId],
+    Field(max_length=256, json_schema_extra={"uniqueItems": True}),
+    AfterValidator(_unique_workflow_claim_references),
+]
+_WorkflowDerivationClaimIds = Annotated[
+    list[_WorkflowClaimId],
+    Field(min_length=1, max_length=128, json_schema_extra={"uniqueItems": True}),
+    AfterValidator(_unique_workflow_claim_references),
+]
+_WorkflowDerivationNodeIds = Annotated[
+    list[_WorkflowStableId],
+    Field(min_length=1, max_length=128, json_schema_extra={"uniqueItems": True}),
+    AfterValidator(_unique_workflow_claim_references),
+]
+_WorkflowDerivationQuestionIds = Annotated[
+    list[_WorkflowQuestionId],
+    Field(min_length=1, max_length=128, json_schema_extra={"uniqueItems": True}),
+    AfterValidator(_unique_workflow_claim_references),
+]
+_WorkflowReviewClaimIds = Annotated[
+    list[_WorkflowClaimId],
+    Field(max_length=1024, json_schema_extra={"uniqueItems": True}),
+    AfterValidator(_unique_workflow_claim_references),
+]
+_WorkflowReviewNodeIds = Annotated[
+    list[_WorkflowStableId],
+    Field(max_length=256, json_schema_extra={"uniqueItems": True}),
+    AfterValidator(_unique_workflow_claim_references),
+]
+
+
+@with_config(ConfigDict(extra="forbid"))
+class _WorkflowCompositionMapBarRange(TypedDict):
+    start: Annotated[StrictInt, Field(ge=1)]
+    end: Annotated[StrictInt, Field(ge=1)]
+
+
+@with_config(ConfigDict(extra="forbid"))
+class _WorkflowCompositionMapMaterial(TypedDict):
+    event_ids: _WorkflowMapEventReferences
+
+
+@with_config(ConfigDict(extra="forbid"))
+class _WorkflowCompositionMapRoleChange(TypedDict):
+    part_id: _AuthoringSelector
+    change: _WorkflowText
+
+
+_WorkflowCompositionMapRoleChanges = Annotated[
+    list[_WorkflowCompositionMapRoleChange],
+    Field(max_length=256),
+]
+
+
+@with_config(ConfigDict(extra="forbid"))
+class _WorkflowCompositionMapNode(TypedDict):
+    node_id: _WorkflowStableId
+    label: _WorkflowShortText
+    function: _WorkflowText
+    bar_range: NotRequired[_WorkflowCompositionMapBarRange | None]
+    depends_on_claim_ids: NotRequired[_WorkflowMapClaimIds]
+    established_material: NotRequired[_WorkflowCompositionMapMaterial]
+    preserve: NotRequired[_WorkflowMapTextList]
+    transform: NotRequired[_WorkflowMapTextList]
+    role_changes: NotRequired[_WorkflowCompositionMapRoleChanges]
+    scarce_resources: NotRequired[_WorkflowMapTextList]
+    ending_response: NotRequired[_WorkflowText | None]
+    open_questions: NotRequired[_WorkflowMapTextList]
+
+
+_WorkflowCompositionMapNodes = Annotated[
+    list[_WorkflowCompositionMapNode],
+    Field(min_length=1, max_length=256),
+]
+
+
+@with_config(ConfigDict(extra="forbid"))
+class _WorkflowCompositionMap(TypedDict):
+    kind: Literal["tianlai.composition_map"]
+    schema_version: Annotated[StrictInt, Field(ge=1, le=1)]
+    nodes: _WorkflowCompositionMapNodes
+
+
+@with_config(ConfigDict(extra="forbid"))
+class _WorkflowReviewQuestionAnswer(TypedDict):
+    question_id: _WorkflowQuestionId
+    answer: _WorkflowText
+    claim_ids: _WorkflowReviewClaimIds
+    node_ids: _WorkflowReviewNodeIds
+    event_ids: _WorkflowUniqueReferences
+
+
+def _unique_workflow_question_answers(
+    value: list[_WorkflowReviewQuestionAnswer],
+) -> list[_WorkflowReviewQuestionAnswer]:
+    question_ids = [item["question_id"] for item in value]
+    if len(question_ids) != len(set(question_ids)):
+        raise ValueError("workflow question answers must target unique questions")
+    return value
+
+
+_WorkflowReviewQuestionAnswers = Annotated[
+    list[_WorkflowReviewQuestionAnswer],
+    Field(min_length=1, max_length=128, json_schema_extra={"uniqueItems": True}),
+    AfterValidator(_unique_workflow_question_answers),
+]
+
+
+@with_config(ConfigDict(extra="forbid"))
+class _WorkflowCharterReplaceOperation(TypedDict):
+    op: Literal["replace"]
+    claim_id: _WorkflowClaimId
+    value: Any
+
+
+@with_config(ConfigDict(extra="forbid"))
+class _WorkflowCharterRemoveOperation(TypedDict):
+    op: Literal["remove"]
+    claim_id: _WorkflowClaimId
+
+
+@with_config(ConfigDict(extra="forbid"))
+class _WorkflowCharterAddOperation(TypedDict):
+    op: Literal["add"]
+    collection_id: _WorkflowCollectionId
+    position: Annotated[StrictInt, Field(ge=0)]
+    value: Any
+
+
+_WorkflowCharterPatchOperation = Annotated[
+    _WorkflowCharterReplaceOperation
+    | _WorkflowCharterRemoveOperation
+    | _WorkflowCharterAddOperation,
+    Field(discriminator="op"),
+]
+_WorkflowCharterPatchOperations = Annotated[
+    list[_WorkflowCharterPatchOperation],
+    Field(min_length=1, max_length=32),
+]
+_WorkflowAmendmentTextList = Annotated[
+    list[_WorkflowText],
+    Field(min_length=1, max_length=64, json_schema_extra={"uniqueItems": True}),
+    AfterValidator(_unique_workflow_claim_references),
+]
+_WorkflowAmendmentBasisId = Annotated[
+    StrictStr,
+    StringConstraints(
+        pattern=r"^(?:review|evidence|exception|derivation)-[0-9a-f]{20}$"
+    ),
+]
+_WorkflowAmendmentBasisIds = Annotated[
+    list[_WorkflowAmendmentBasisId],
+    Field(min_length=1, max_length=64, json_schema_extra={"uniqueItems": True}),
+    AfterValidator(_unique_workflow_claim_references),
+]
+
+
+@with_config(ConfigDict(extra="forbid"))
+class _WorkflowCharterAmendmentProposal(TypedDict):
+    summary: _WorkflowText
+    why_score_revision_is_insufficient: _WorkflowText
+    why_bounded_exception_is_insufficient: _WorkflowText
+    expected_gain: _WorkflowText
+    accepted_costs: _WorkflowAmendmentTextList
+    replacement_constraints: _WorkflowAmendmentTextList
+    failure_conditions: _WorkflowAmendmentTextList
+    basis_ids: _WorkflowAmendmentBasisIds
+    operations: _WorkflowCharterPatchOperations
+
+
+_WorkflowCostCount = Annotated[StrictInt, Field(ge=0)]
+
+
+@with_config(ConfigDict(extra="forbid"))
+class _WorkflowCharterAmendmentCostAcknowledgement(TypedDict):
+    preflight_sha256: _WorkflowArtifactSha256
+    minimum_reconstruction_scope: Literal["bounded", "structural", "whole_work"]
+    operation_count: _WorkflowCostCount
+    affected_claim_count: _WorkflowCostCount
+    affected_root_field_count: _WorkflowCostCount
+    composition_dependencies_to_revalidate: _WorkflowCostCount
+    derivations_to_revalidate: _WorkflowCostCount
+    reviews_to_revalidate: _WorkflowCostCount
+    evidence_interpretations_to_revalidate: _WorkflowCostCount
+    observations_preserved: _WorkflowCostCount
+    hard_failures_preserved: _WorkflowCostCount
+    whole_work_consistency_review_required: StrictBool
+
+
+_WorkflowReviewId = Annotated[
+    StrictStr,
+    StringConstraints(pattern=r"^review-[0-9a-f]{20}$"),
+]
+_WorkflowEvidenceId = Annotated[
+    StrictStr,
+    StringConstraints(pattern=r"^evidence-[0-9a-f]{20}$"),
+]
+_WorkflowClaimBasisId = Annotated[
+    StrictStr,
+    StringConstraints(
+        pattern=r"^(?:review|evidence|exception|derivation)-[0-9a-f]{20}$"
+    ),
+]
+_WorkflowReviewIds = Annotated[
+    list[_WorkflowReviewId],
+    Field(max_length=32, json_schema_extra={"uniqueItems": True}),
+    AfterValidator(_unique_workflow_claim_references),
+]
+_WorkflowClaimBasisIds = Annotated[
+    list[_WorkflowClaimBasisId],
+    Field(max_length=32, json_schema_extra={"uniqueItems": True}),
+    AfterValidator(_unique_workflow_claim_references),
+]
+_WorkflowSettlementBasisIds = Annotated[
+    list[_WorkflowClaimBasisId],
+    Field(
+        min_length=1,
+        max_length=16,
+        json_schema_extra={"uniqueItems": True},
+    ),
+    AfterValidator(_unique_workflow_claim_references),
+]
+_WorkflowSettlementEventIds = Annotated[
+    list[_AuthoringSelector],
+    Field(max_length=32, json_schema_extra={"uniqueItems": True}),
+    AfterValidator(_unique_workflow_claim_references),
+]
+
+
+@with_config(ConfigDict(extra="forbid"))
+class _WorkflowEvidenceDisposition(TypedDict):
+    evidence_id: _WorkflowEvidenceId
+    disposition: Literal[
+        "resolved",
+        "accepted_risk",
+        "excepted",
+        "deferred",
+        "revision_target",
+        "contested",
+    ]
+    rationale: _WorkflowText
+    basis_ids: _WorkflowClaimBasisIds
+
+
+def _unique_workflow_evidence_dispositions(
+    value: list[_WorkflowEvidenceDisposition],
+) -> list[_WorkflowEvidenceDisposition]:
+    evidence_ids = [item["evidence_id"] for item in value]
+    if len(evidence_ids) != len(set(evidence_ids)):
+        raise ValueError("workflow evidence dispositions must target unique evidence")
+    return value
+
+
+_WorkflowEvidenceDispositions = Annotated[
+    list[_WorkflowEvidenceDisposition],
+    Field(max_length=128, json_schema_extra={"uniqueItems": True}),
+    AfterValidator(_unique_workflow_evidence_dispositions),
+]
+
+_WorkflowSettlementTarget = Annotated[
+    StrictStr,
+    StringConstraints(
+        pattern=(
+            r"^one_sentence_promise$"
+            r"|^identity_kernel\.invariants\[[0-9]+\]$"
+            r"|^ending_contract$"
+        )
+    ),
+]
+
+
+@with_config(ConfigDict(extra="forbid"))
+class _WorkflowCharterSettlementItem(TypedDict):
+    target: _WorkflowSettlementTarget
+    status: Literal["kept", "transformed", "refused"]
+    rationale: _WorkflowText
+    basis_ids: _WorkflowSettlementBasisIds
+    event_ids: _WorkflowSettlementEventIds
+
+
+def _unique_workflow_charter_settlement(
+    value: list[_WorkflowCharterSettlementItem],
+) -> list[_WorkflowCharterSettlementItem]:
+    targets = [item["target"] for item in value]
+    if len(targets) != len(set(targets)):
+        raise ValueError("charter settlement must cover each target at most once")
+    return value
+
+
+_WorkflowCharterSettlement = Annotated[
+    list[_WorkflowCharterSettlementItem],
+    Field(max_length=64, json_schema_extra={"uniqueItems": True}),
+    AfterValidator(_unique_workflow_charter_settlement),
+]
+
+
+@with_config(ConfigDict(extra="forbid"))
+class _WorkflowRevisionBarRange(TypedDict):
+    start: Annotated[StrictInt, Field(ge=1)]
+    end: Annotated[StrictInt, Field(ge=1)]
+
+
+def _ordered_revision_bar_ranges(
+    value: list[_WorkflowRevisionBarRange],
+) -> list[_WorkflowRevisionBarRange]:
+    if any(item["end"] < item["start"] for item in value):
+        raise ValueError("revision bar range end must be greater than or equal to start")
+    return value
+
+
+_WorkflowRevisionBarRanges = Annotated[
+    list[_WorkflowRevisionBarRange],
+    Field(
+        max_length=128,
+        description="Each inclusive range requires end >= start; the semantic core rechecks it.",
+    ),
+    AfterValidator(_ordered_revision_bar_ranges),
+]
+_WorkflowRevisionPartIds = Annotated[
+    list[_AuthoringSelector],
+    Field(max_length=128, json_schema_extra={"uniqueItems": True}),
+    AfterValidator(_unique_workflow_claim_references),
+]
+_WorkflowRevisionEventIds = Annotated[
+    list[Annotated[StrictStr, StringConstraints(min_length=1, max_length=256)]],
+    Field(max_length=1024, json_schema_extra={"uniqueItems": True}),
+    AfterValidator(_unique_workflow_claim_references),
+]
+_WorkflowRevisionNoteField = Literal[
+    "bar",
+    "beat",
+    "duration_beats",
+    "pitch",
+    "dynamic",
+    "velocity",
+    "articulation",
+    "tie",
+    "staff",
+    "voice",
+    "part_id",
+]
+_WorkflowRevisionNoteFields = Annotated[
+    list[_WorkflowRevisionNoteField],
+    Field(max_length=11, json_schema_extra={"uniqueItems": True}),
+    AfterValidator(_unique_workflow_claim_references),
+]
+
+
+@with_config(ConfigDict(extra="forbid"))
+class _WorkflowRevisionScoreScope(TypedDict):
+    part_ids: _WorkflowRevisionPartIds
+    event_ids: _WorkflowRevisionEventIds
+    bar_ranges: _WorkflowRevisionBarRanges
+    allowed_note_fields: _WorkflowRevisionNoteFields
+    allow_event_additions: StrictBool
+    allow_event_deletions: StrictBool
+    allow_reordering: StrictBool
+
+
+_WorkflowRevisionDocument = Literal[
+    "score",
+    "authoring_roster",
+    "render_profile",
+]
+_WorkflowRevisionDocuments = Annotated[
+    list[_WorkflowRevisionDocument],
+    Field(min_length=1, max_length=3, json_schema_extra={"uniqueItems": True}),
+    AfterValidator(_unique_workflow_claim_references),
+]
+
+
+def _exact_json_pointer(value: str) -> str:
+    if len(value.encode("utf-8")) > 1024:
+        raise ValueError("exact JSON pointer must be at most 1024 UTF-8 bytes")
+    if not value.startswith("/"):
+        raise ValueError("exact JSON pointer must be non-root and start with '/'")
+    index = 0
+    while index < len(value):
+        if value[index] == "~":
+            if index + 1 >= len(value) or value[index + 1] not in {"0", "1"}:
+                raise ValueError("exact JSON pointer contains an invalid RFC 6901 escape")
+            index += 2
+            continue
+        index += 1
+    return value
+
+
+_WorkflowExactJsonPointer = Annotated[
+    StrictStr,
+    StringConstraints(min_length=1, max_length=1024),
+    AfterValidator(_exact_json_pointer),
+]
+_WorkflowExactJsonPointers = Annotated[
+    list[_WorkflowExactJsonPointer],
+    Field(max_length=1024, json_schema_extra={"uniqueItems": True}),
+    AfterValidator(_unique_workflow_claim_references),
+]
+_WorkflowAllowedDocumentPaths = Annotated[
+    dict[_WorkflowRevisionDocument, _WorkflowExactJsonPointers],
+    Field(min_length=1, max_length=3),
+]
+_WorkflowWholeWorkAcceptedCost = Literal[
+    "expanded_change_surface",
+    "downstream_compatibility_rework",
+    "increased_topic_drift_risk",
+]
+
+
+def _complete_whole_work_costs(
+    value: list[_WorkflowWholeWorkAcceptedCost],
+) -> list[_WorkflowWholeWorkAcceptedCost]:
+    if set(value) != {
+        "expanded_change_surface",
+        "downstream_compatibility_rework",
+        "increased_topic_drift_risk",
+    }:
+        raise ValueError("whole-work revision must acknowledge every declared cost")
+    return value
+
+
+_WorkflowWholeWorkAcceptedCosts = Annotated[
+    list[_WorkflowWholeWorkAcceptedCost],
+    Field(min_length=3, max_length=3, json_schema_extra={"uniqueItems": True}),
+    AfterValidator(_complete_whole_work_costs),
+]
+
+
+@with_config(ConfigDict(extra="forbid"))
+class _WorkflowWholeWorkCost(TypedDict):
+    accepted_costs: _WorkflowWholeWorkAcceptedCosts
+    rationale: _WorkflowText
+
+
+@with_config(ConfigDict(extra="forbid"))
+class _WorkflowRevisionScope(TypedDict):
+    change_scale: Literal["bounded", "whole_work"]
+    documents: _WorkflowRevisionDocuments
+    allowed_document_paths: _WorkflowAllowedDocumentPaths | None
+    score: _WorkflowRevisionScoreScope | None
+    whole_work_cost: _WorkflowWholeWorkCost | None
+
+
+def _valid_workflow_revision_scope(
+    value: _WorkflowRevisionScope,
+) -> _WorkflowRevisionScope:
+    if value["change_scale"] == "whole_work":
+        if value["allowed_document_paths"] is not None or value["score"] is not None:
+            raise ValueError("whole-work revision cannot declare bounded authority")
+        if value["whole_work_cost"] is None:
+            raise ValueError("whole-work revision requires explicit cost acknowledgement")
+        return value
+    if value["whole_work_cost"] is not None:
+        raise ValueError("bounded revision cannot declare whole-work costs")
+    paths = value["allowed_document_paths"]
+    if paths is None or set(paths) != set(value["documents"]):
+        raise ValueError("bounded revision paths must exactly match declared documents")
+    for pointer in paths.get("score", []):
+        segments = [
+            item.replace("~1", "/").replace("~0", "~")
+            for item in pointer[1:].split("/")
+        ]
+        if (
+            len(segments) >= 3
+            and segments[0] == "parts"
+            and segments[1].isdigit()
+            and segments[2] == "notes"
+        ):
+            raise ValueError("score note paths must use exact event scope")
+    score = value["score"]
+    if ("score" in value["documents"]) != (score is not None):
+        raise ValueError("score authority must exactly match the declared score document")
+    has_document_path = any(paths.values())
+    has_note_authority = bool(
+        score is not None
+        and (
+            score["allowed_note_fields"]
+            or score["allow_event_additions"]
+            or score["allow_event_deletions"]
+        )
+    )
+    if not has_document_path and not has_note_authority:
+        raise ValueError("bounded revision must declare at least one exact change authority")
+    if score is not None:
+        if score["allow_reordering"]:
+            raise ValueError("bounded revision cannot reorder score events")
+        if (
+            score["allowed_note_fields"]
+            or score["allow_event_additions"]
+            or score["allow_event_deletions"]
+        ) and not score["event_ids"]:
+            raise ValueError("bounded score note changes require exact event_ids")
+    return value
+
+
+_WorkflowRevisionScopeInput = Annotated[
+    _WorkflowRevisionScope,
+    AfterValidator(_valid_workflow_revision_scope),
+]
+
+
+@with_config(ConfigDict(extra="forbid"))
+class _WorkflowPriorRevisionAssessment(TypedDict):
+    contract_sha256: _WorkflowArtifactSha256
+    outcome: Literal[
+        "promote_challenger",
+        "retain_baseline",
+        "inconclusive",
+    ]
+    rationale: _WorkflowText
+    basis_ids: _WorkflowSettlementBasisIds
+
+_WorkflowDerivationReferenceId = Annotated[
+    StrictStr,
+    StringConstraints(pattern=r"^derivation-[0-9a-f]{20}$"),
+]
+_WorkflowForkDerivationReferences = Annotated[
+    list[_WorkflowDerivationReferenceId],
+    Field(max_length=8, json_schema_extra={"uniqueItems": True}),
+    AfterValidator(_unique_workflow_claim_references),
+]
+
+
+@with_config(ConfigDict(extra="forbid"))
+class _WorkflowForkCandidateLocator(TypedDict):
+    work_id: _AuthoringSelector
+    candidate_id: _AuthoringSelector
+    manifest_sha256: _WorkflowArtifactSha256
+
+
+@with_config(ConfigDict(extra="forbid"))
+class _WorkflowForkBranch(TypedDict):
+    candidate: _WorkflowForkCandidateLocator
+    stance: _WorkflowDerivationAlternativeText
+    derivation_ids: _WorkflowForkDerivationReferences
+
+
+_WorkflowForkBranches = Annotated[
+    list[_WorkflowForkBranch],
+    Field(min_length=2, max_length=8),
+]
+
+_WorkflowForkEventIds = Annotated[
+    list[_AuthoringSelector],
+    Field(max_length=128, json_schema_extra={"uniqueItems": True}),
+    AfterValidator(_unique_workflow_claim_references),
+]
+_WorkflowForkPartIds = Annotated[
+    list[_AuthoringSelector],
+    Field(max_length=64, json_schema_extra={"uniqueItems": True}),
+    AfterValidator(_unique_workflow_claim_references),
+]
+
+
+def _unique_workflow_fork_invariant_indexes(value: list[int]) -> list[int]:
+    if len(value) != len(set(value)):
+        raise ValueError("fork invariant indexes must be unique")
+    return value
+
+
+_WorkflowForkInvariantIndexes = Annotated[
+    list[Annotated[StrictInt, Field(ge=0)]],
+    Field(
+        min_length=1,
+        max_length=16,
+        json_schema_extra={"uniqueItems": True},
+    ),
+    AfterValidator(_unique_workflow_fork_invariant_indexes),
+]
 
 _AUTHORING_PROJECTS_DIRECTORY_NAME = "authoring-projects"
 _AUTHORING_RESULT_KIND = "tianlai.authoring_mcp_result"
@@ -248,22 +972,22 @@ _WORKFLOW_RESULT_VERSION = 1
 _WORKFLOW_ID_PATTERN = re.compile(r"^[0-9a-f]{32}$")
 _OFFICIAL_CONSTITUTION = {
     "document_id": "tianlai-music-constitution",
-    "version": "0.1",
+    "version": "0.2",
     "language": "zh-CN",
-    "content_sha256": "3c26f99806b2044b3fd45cbdc8ef12ffadf871d75dc119799881b0d992b75985",
+    "content_sha256": "3ff471c09a08648db4c3f5cee5e4230932277278b68c89dc49872b4bbe2dc78d",
 }
 _OFFICIAL_CONSTITUTIONS = {
     "zh-CN": _OFFICIAL_CONSTITUTION,
     "en": {
         "document_id": "tianlai-music-constitution",
-        "version": "0.1",
+        "version": "0.2",
         "language": "en",
-        "content_sha256": "ca0cc236d93bca684a918f14814695835cf9aa437640294a4f02f898393903a9",
+        "content_sha256": "f1291258812784ef64fa7a019cfaf9b250fc8ca279d8f97c68fc088362af3908",
     },
 }
 _OFFICIAL_CONSTITUTION_FILENAMES = {
-    "zh-CN": "天籁音乐宪法-v0.1.md",
-    "en": "天籁音乐宪法-v0.1.en.md",
+    "zh-CN": "天籁音乐宪法-v0.2.md",
+    "en": "天籁音乐宪法-v0.2.en.md",
 }
 _CONSTITUTION_CLAUSE_LINE = re.compile(
     r"^\* \*\*(?P<clause_id>C[0-8](?:\.[A-Z])?(?:\.[0-9]{1,3}){1,2})"
@@ -385,11 +1109,89 @@ def _workflow_next_action(
     document = snapshot.to_dict()
     state = document["state"]
     allowed = document["allowed_actions"]
+
+    def early_withdrawal_navigation() -> dict[str, Any] | None:
+        iterations = state.get("iterations")
+        if not isinstance(iterations, list) or len(iterations) < 2:
+            return None
+        current_iteration = iterations[-1]
+        if current_iteration.get("anchor", {}).get("candidate") is not None:
+            return None
+        prior_decision = iterations[-2].get("decision")
+        contract = (
+            prior_decision.get("revision_contract")
+            if isinstance(prior_decision, dict)
+            else None
+        )
+        baseline = contract.get("baseline") if isinstance(contract, dict) else None
+        if not isinstance(baseline, dict) or baseline.get("candidate") is None:
+            return None
+        report_review_ids = [
+            item["review_id"]
+            for item in current_iteration.get("reviews", [])
+            if item.get("candidate_id") is None
+            and item.get("reviewer") == state["final_authority"]
+            and item.get("perception_basis") == "report_only"
+        ]
+        return {
+            "withdrawal_condition": contract["withdrawal_condition"],
+            "contract_sha256": contract["contract_sha256"],
+            "baseline_target_iteration_number": baseline[
+                "candidate_source_iteration_number"
+            ],
+            "candidate_id": None,
+            "claim_scope": "pre_render_contextual_withdrawal_not_audio_audition",
+            "review_requirement": (
+                "use_an_existing_current_candidate_id_null_report_only_review"
+                if report_review_ids
+                else "record_one_current_report_only_review_candidate_id_is_null"
+            ),
+            "if_triggered": {
+                "rollback": {
+                    "operation": "rollback_creative_workflow",
+                    "argument_sources": {
+                        "target_iteration_number": baseline[
+                            "candidate_source_iteration_number"
+                        ],
+                        "prior_revision_assessment.contract_sha256": contract[
+                            "contract_sha256"
+                        ],
+                        "prior_revision_assessment.outcome_options": [
+                            "retain_baseline",
+                            "inconclusive",
+                        ],
+                        "prior_revision_assessment.rationale": (
+                            "state_why_the_predeclared_withdrawal_condition_"
+                            "was_met_or_remains_inconclusive"
+                        ),
+                        "prior_revision_assessment.basis_ids": (
+                            report_review_ids
+                            if report_review_ids
+                            else (
+                                "record_one_current_report_only_review_then_"
+                                "use_its_review_id"
+                            )
+                        ),
+                    },
+                    "effect": "retain_the_frozen_baseline_and_cancel_any_pending_render",
+                },
+                "terminate": {
+                    "operation": "stop_creative_workflow",
+                    "effect": "stop_and_select_the_frozen_baseline_without_claiming_the_revision_was_heard",
+                },
+            },
+        }
     mapped = {
         "activate": "activate_creative_workflow",
+        "inspect_composition": "inspect_workflow_composition",
+        "record_composition_map": "record_workflow_composition_map",
         "record_review": "record_workflow_review",
         "record_evidence": "record_workflow_evidence",
         "register_exception": "register_workflow_exception",
+        "record_derivation": "record_workflow_derivation",
+        "record_fork": "record_workflow_fork",
+        "preflight_charter_amendment": "preflight_workflow_charter_amendment",
+        "commit_charter_amendment": "commit_workflow_charter_amendment",
         "request_render": "render_workflow_candidate",
         "record_candidate": "render_workflow_candidate",
         "cancel_render": "cancel_workflow_render",
@@ -425,59 +1227,239 @@ def _workflow_next_action(
     elif status == "candidate_pending":
         operation = "render_workflow_candidate"
         reason = "reserved_render_must_be_executed_or_cancelled"
+        early_withdrawal = early_withdrawal_navigation()
+        if early_withdrawal is not None:
+            continuation = {"early_withdrawal": early_withdrawal}
     elif status == "revision_pending":
         iteration = state["iterations"][-1]
         authoring_revision = iteration["anchor"]["authoring_revision"]
-        operation = "get_authoring_snapshot"
-        reason = "read_edit_save_then_bind_a_new_authoring_revision"
-        suggested_arguments = {
-            "project_key": project_key,
-            "revision": authoring_revision,
-        }
-        prerequisites = [
-            {
-                "step": "read",
-                "operation": "get_authoring_snapshot",
-                "arguments": dict(suggested_arguments),
-            },
-            {
-                "step": "edit",
-                "action": "edit_complete_authoring_documents",
-                "input_from": "get_authoring_snapshot.snapshot.documents",
-                "constraint": "preserve_unmodified_documents_and_make_only_the_evidenced_change",
-            },
-            {
-                "step": "save",
-                "operation": "save_authoring_project",
-                "arguments": {"project_key": project_key},
-                "argument_sources": {
-                    "expected_revision": (
-                        "get_authoring_snapshot.snapshot.project.revision"
+        revision_contract = (
+            iteration.get("decision", {}).get("revision_contract")
+            if isinstance(iteration.get("decision"), dict)
+            else None
+        )
+        content_source_revision = (
+            revision_contract["baseline"]["authoring_revision"]
+            if isinstance(revision_contract, dict)
+            else authoring_revision
+        )
+        causal_save_parent_revision = (
+            revision_contract["authoring_causal_fence"]["anchor_revision"]
+            if isinstance(revision_contract, dict)
+            else authoring_revision
+        )
+        governance = state.get("governance")
+        amendment = None
+        if isinstance(governance, dict):
+            amendment = next(
+                (
+                    item
+                    for item in governance.get("amendments", [])
+                    if item.get("committed_in_iteration")
+                    == iteration["iteration_number"]
+                ),
+                None,
+            )
+        if amendment is None and "commit_charter_amendment" in allowed:
+            operation = "commit_workflow_charter_amendment"
+            reason = (
+                "resolve_preflighted_charter_change_before_any_authoring_change"
+            )
+            suggested_arguments = {
+                "project_key": project_key,
+                "workflow_id": snapshot.workflow_id,
+                "expected_revision": snapshot.revision,
+            }
+            prerequisites = [
+                {
+                    "step": "charter_change_gate",
+                    "action": "confirm_whether_revision_changes_effective_charter",
+                    "constraint": (
+                        "if_yes_commit_the_exact_preflighted_proposal_before_"
+                        "editing_or_saving_the_score; reading_for_cost_assessment_"
+                        "is_allowed; if_no_use_the_score_only_path"
                     ),
-                    "documents": "edited_complete_authoring_documents",
                 },
-            },
-            {
-                "step": "bind",
-                "operation": "record_workflow_authoring_revision",
-                "arguments": {
-                    "project_key": project_key,
-                    "workflow_id": snapshot.workflow_id,
-                    "expected_revision": snapshot.revision,
+                {
+                    "step": "preflight_before_authoring",
+                    "operation": "preflight_workflow_charter_amendment",
+                    "arguments": {
+                        "project_key": project_key,
+                        "workflow_id": snapshot.workflow_id,
+                        "revision": snapshot.revision,
+                    },
+                    "argument_sources": {
+                        "proposal": "bounded_proposal_from_current_review_evidence"
+                    },
+                    "constraint": (
+                        "inspect_and_accept_the_exact_reconstruction_cost_before_"
+                        "the_commit_and_before_any_authoring_change"
+                    ),
                 },
-                "argument_sources": {
-                    "authoring_revision": "save_authoring_project.project.revision"
+                {
+                    "step": "commit_exact_preflight",
+                    "input_from": (
+                        "preflight_workflow_charter_amendment.next_action"
+                    ),
+                    "argument_sources": {
+                        "proposal": (
+                            "preflight_next_action.suggested_arguments.proposal"
+                        ),
+                        "expected_preflight_sha256": (
+                            "preflight_next_action.suggested_arguments."
+                            "expected_preflight_sha256"
+                        ),
+                        "cost_acknowledgement": (
+                            "preflight_next_action.suggested_arguments."
+                            "cost_acknowledgement"
+                        ),
+                    },
+                    "constraint": (
+                        "never_reconstruct_a_preflight_hash_or_cost_from_memory"
+                    ),
                 },
-            },
-        ]
-        continuation = {
-            "workflow_id": snapshot.workflow_id,
-            "expected_revision": snapshot.revision,
-        }
+            ]
+            continuation = {
+                "score_only_path": {
+                    "operation": "get_authoring_snapshot",
+                    "arguments": {
+                        "project_key": project_key,
+                        "revision": content_source_revision,
+                    },
+                    "constraint": "effective_charter_must_remain_unchanged",
+                }
+            }
+            if isinstance(revision_contract, dict):
+                continuation["revision_contract"] = revision_contract
+        else:
+            operation = "get_authoring_snapshot"
+            reason = (
+                "charter_amendment_cost_acknowledged_apply_bounded_reconstruction_then_bind"
+                if amendment is not None
+                else "read_edit_save_then_bind_a_new_authoring_revision"
+            )
+            suggested_arguments = {
+                "project_key": project_key,
+                "revision": content_source_revision,
+            }
+            prerequisites = [
+                {
+                    "step": "read_content_baseline",
+                    "operation": "get_authoring_snapshot",
+                    "arguments": dict(suggested_arguments),
+                },
+                {
+                    "step": "verify_causal_save_parent",
+                    "operation": "get_authoring_snapshot",
+                    "arguments": {"project_key": project_key},
+                    "constraint": (
+                        "current_head_revision_must_equal_the_frozen_"
+                        f"causal_save_parent_{causal_save_parent_revision}"
+                    ),
+                },
+                {
+                    "step": "edit",
+                    "action": "edit_complete_authoring_documents",
+                    "input_from": (
+                        "read_content_baseline.snapshot.documents"
+                    ),
+                    "constraint": (
+                        "apply_only_the_preflighted_charter_patch_and_its_acknowledged_revalidation_scope"
+                        if amendment is not None
+                        else (
+                            "apply_only_the_frozen_revision_contract_scope"
+                            if isinstance(revision_contract, dict)
+                            else "preserve_unmodified_documents_and_make_only_the_evidenced_change"
+                        )
+                    ),
+                },
+                {
+                    "step": "save",
+                    "operation": "save_authoring_project",
+                    "arguments": {
+                        "project_key": project_key,
+                        "expected_revision": causal_save_parent_revision,
+                    },
+                    "argument_sources": {
+                        "documents": "edited_complete_authoring_documents",
+                    },
+                },
+                {
+                    "step": "bind",
+                    "operation": "record_workflow_authoring_revision",
+                    "arguments": {
+                        "project_key": project_key,
+                        "workflow_id": snapshot.workflow_id,
+                        "expected_revision": snapshot.revision,
+                    },
+                    "argument_sources": {
+                        "authoring_revision": (
+                            "save_authoring_project.project.revision"
+                        )
+                    },
+                },
+            ]
+            continuation = {
+                "workflow_id": snapshot.workflow_id,
+                "expected_revision": snapshot.revision,
+                "content_source_revision": content_source_revision,
+                "causal_save_parent_revision": causal_save_parent_revision,
+            }
+            if isinstance(revision_contract, dict):
+                continuation["revision_contract"] = revision_contract
+            if amendment is not None:
+                continuation["charter_amendment"] = {
+                    "amendment_id": amendment["entry"]["amendment_id"],
+                    "effective_from_iteration": amendment[
+                        "effective_from_iteration"
+                    ],
+                    "proposal": amendment["entry"]["proposal"],
+                    "acknowledged_cost": amendment["entry"][
+                        "cost_acknowledgement"
+                    ],
+                }
     elif status == "reviewing":
         iteration = state["iterations"][-1]
         candidate = iteration["anchor"]["candidate"]
-        phases = {item["phase"] for item in iteration["reviews"]}
+        governance = state.get("governance")
+        enforcement_start = (
+            governance.get("enforcement_started_iteration")
+            if isinstance(governance, dict)
+            else None
+        )
+        governed = (
+            isinstance(enforcement_start, int)
+            and not isinstance(enforcement_start, bool)
+            and iteration["iteration_number"] >= enforcement_start
+        )
+        map_record = None
+        if governed:
+            map_record = next(
+                (
+                    item
+                    for item in governance.get("composition_maps", [])
+                    if item.get("iteration_number") == iteration["iteration_number"]
+                ),
+                None,
+            )
+        phases: set[str] = set()
+        for review in iteration["reviews"]:
+            phase = review["phase"]
+            if governed and phase in {
+                "intent",
+                "symbolic_structure",
+                "orchestration_performance",
+            }:
+                if (
+                    map_record is not None
+                    and isinstance(review.get("question_answers"), list)
+                    and review.get("composition_map_sha256")
+                    == map_record.get("composition_map_sha256")
+                    and review.get("score_sha256") == map_record.get("score_sha256")
+                ):
+                    phases.add(phase)
+            else:
+                phases.add(phase)
         historical_hard_failure = any(
             item["category"] == "hard_failure" for item in iteration["evidence"]
         )
@@ -519,7 +1501,32 @@ def _workflow_next_action(
                         "alternatives": ["stop_creative_workflow"],
                     }
                 raise
-        if unresolved_hard_failures:
+        if governed and map_record is None:
+            operation = "record_workflow_composition_map"
+            reason = "whole_work_sequence_map_required_before_iteration_work"
+            suggested_arguments = {
+                "project_key": project_key,
+                "workflow_id": snapshot.workflow_id,
+            }
+            prerequisites = [
+                {
+                    "step": "inspect_claims",
+                    "operation": "inspect_workflow_composition",
+                    "arguments": {
+                        "project_key": project_key,
+                        "workflow_id": snapshot.workflow_id,
+                    },
+                },
+                {
+                    "step": "draft_and_reinspect",
+                    "operation": "inspect_workflow_composition",
+                    "argument_sources": {
+                        "composition_map": "draft_current_work_sequence_map"
+                    },
+                    "constraint": "use_only_current_charter_claims_and_current_score_material",
+                },
+            ]
+        elif unresolved_hard_failures:
             operation = "decide_workflow_iteration"
             reason = "unresolved_hard_failure_requires_revision_preservation_or_stop"
             suggested_arguments = {
@@ -582,6 +1589,136 @@ def _workflow_next_action(
         else:
             operation = "decide_workflow_iteration"
             reason = "evidence_and_candidate_ready_for_contextual_decision"
+        if governed and operation == "decide_workflow_iteration":
+            prerequisites.append(
+                {
+                    "step": "amendment_preflight_gate",
+                    "action": "assess_whether_a_revise_decision_changes_the_charter",
+                    "constraint": (
+                        "if_a_charter_change_is_contemplated_run_"
+                        "preflight_workflow_charter_amendment_and_weigh_its_exact_"
+                        "cost_before_deciding_revise; score_only_revisions_do_not_"
+                        "need_an_amendment"
+                    ),
+                }
+            )
+        if operation == "decide_workflow_iteration" and len(state["iterations"]) > 1:
+            prior_decision = state["iterations"][-2].get("decision")
+            prior_contract = (
+                prior_decision.get("revision_contract")
+                if isinstance(prior_decision, dict)
+                else None
+            )
+            if (
+                isinstance(prior_contract, dict)
+                and isinstance(prior_contract.get("baseline"), dict)
+                and prior_contract["baseline"].get("candidate") is not None
+            ):
+                prerequisites.append(
+                    {
+                        "step": "settle_prior_revision_contract",
+                        "constraint": (
+                            "submit_prior_revision_assessment_to_decide_or_rollback; "
+                            "promote_challenger_continues_from_the_challenger; "
+                            "retain_baseline_or_inconclusive_keeps_the_baseline_"
+                            "without_claiming_aesthetic_quality_and_requires_rollback_"
+                            "before_further_authoring_if_the_workflow_continues"
+                        ),
+                        "argument_sources": {
+                            "contract_sha256": prior_contract["contract_sha256"],
+                            "basis_ids": (
+                                "selected_current_iteration_basis_ids_including_at_"
+                                "least_one_challenger_review_matching_the_frozen_"
+                                "authority_and_perception_basis"
+                            ),
+                        },
+                    }
+                )
+        if (
+            governed
+            and operation == "record_workflow_review"
+            and suggested_arguments.get("phase")
+            in {"intent", "symbolic_structure", "orchestration_performance"}
+        ):
+            phase = suggested_arguments["phase"]
+            prerequisites = [
+                {
+                    "step": "inspect_whole_work",
+                    "operation": "inspect_workflow_composition",
+                    "arguments": {
+                        "project_key": project_key,
+                        "workflow_id": snapshot.workflow_id,
+                    },
+                },
+                {
+                    "step": "answer_every_phase_question",
+                    "input_from": (
+                        "inspect_workflow_composition.inspection."
+                        f"review_questions.{phase}"
+                    ),
+                    "action": "construct_one_answer_per_question",
+                    "output_shape": {
+                        "question_id": "copy_the_exact_question_id",
+                        "answer": "answer_the_question_for_the_whole_work",
+                        "claim_ids": ["relevant_current_claim_id"],
+                        "node_ids": ["relevant_current_map_node_id"],
+                        "event_ids": [
+                            "relevant_current_event_id_when_the_question_locates_one"
+                        ],
+                    },
+                    "reference_rules": [
+                        "whole_work_governance_questions_require_a_claim_and_its_map_node",
+                        "located_questions_must_cite_a_matching_current_claim_node_or_event",
+                        "event_ids_may_be_empty_when_the_question_has_no_current_event_location",
+                    ],
+                    "constraint": (
+                        "question_objects_are_not_answers; each constructed answer "
+                        "must cite current claim, node or event referents"
+                    ),
+                },
+            ]
+        if (
+            governed
+            and operation == "record_workflow_review"
+            and suggested_arguments.get("phase")
+            == "orchestration_performance"
+        ):
+            prerequisites.append(
+                {
+                    "step": "qiyun_location_scan",
+                    "action": (
+                        "use_the_existing_whole_work_answers_to_mark_current_"
+                        "node_ids_and_event_ids_where_peripheral_life_may_be_"
+                        "tried_or_space_should_remain_open"
+                    ),
+                    "recording": (
+                        "fold_the_location_scan_or_zero_addition_conclusion_into_"
+                        "the_existing_orchestration_performance_answer; do_not_"
+                        "create_a_separate_qiyun_question_or_ledger"
+                    ),
+                    "questions": [
+                        "what continues when the principal line withdraws",
+                        "which non-principal parts are only chord fill, pulse repetition, or melodic copying",
+                        "where a return could carry a small history of elapsed time",
+                        "where companion lines, echoes, micro-motion, glints, breath, resonance, shadow layers, timing, space, subtraction, or silence may be tried",
+                        "where timbre, space, resonance, and performance remain static rather than growing with the work",
+                        "which apparently empty positions should stay empty",
+                        "which refined details would merely repeat a predictable ornament formula",
+                        "whether any trial would cross into identity, principal harmonic causality, section function, climax basis, ending response, or charter change",
+                    ],
+                    "constraints": [
+                        "locations_grant_reversible_trial_right_not_a_duty_to_add",
+                        "zero_additions_is_a_valid_answer",
+                        "no_quantity_quota_and_no_derivation_required_for_qiyun_details",
+                        "without_actual_audition_record_only_a_trial_or_hypothesis_not_an_audible_improvement",
+                        "structural_or_charter_change_uses_the_formal_revision_or_amendment_path",
+                        "software_can_surface_the_prompt_and_verify_references_but_cannot_prove_creative_thought",
+                    ],
+                }
+            )
+        early_withdrawal = early_withdrawal_navigation()
+        if early_withdrawal is not None:
+            continuation = {"early_withdrawal": early_withdrawal}
     if operation is None:
         return None
     result = {
@@ -4192,7 +5329,7 @@ def compare_rendered_candidates(
 
 @mcp_tool(title="Get creative workflow guide", annotations=_READ_ONLY_TOOL)
 def creative_workflow_guide() -> dict[str, Any]:
-    """Return the bounded v0.7 workflow contract without loading the full constitution."""
+    """Return the current bounded workflow contract without loading the full constitution."""
 
     return {
         "kind": _WORKFLOW_RESULT_KIND,
@@ -4218,7 +5355,11 @@ def creative_workflow_guide() -> dict[str, Any]:
                 "single_aesthetic_objective": False,
                 "automatic_score_or_audio_changes": False,
                 "acceptance_claim": "contextual_decision_not_objective_quality",
-                "unknown_or_intentional_roughness_requires_preservation_or_exception": True,
+                "recorded_hard_failure_is_permanent_lock": False,
+                "nonhard_claims_require_explicit_disposition": True,
+                "aesthetic_risk_may_be_accepted_risk": True,
+                "promise_conflict_may_be_accepted_risk": False,
+                "unknown_or_intentional_roughness_requires_preservation_or_exception": False,
             },
             "authority": {
                 "mcp_final_authority": "agent",
@@ -4280,6 +5421,73 @@ def creative_workflow_guide() -> dict[str, Any]:
                     "I",
                 ],
             },
+            "composition_governance": {
+                "default_when_created_via_mcp": True,
+                "opt_out_parameter": "composition_governance=false",
+                "raw_model_baseline": "do_not_connect_the_mcp_server",
+                "purpose": (
+                    "Freeze a complete-work sequence framework before reviews, "
+                    "derivations or rendering so each local choice is argued as part "
+                    "of one evolving work. It is not a fixed-form template."
+                ),
+                "workflow": [
+                    "inspect_workflow_composition without a map to obtain current claim ids",
+                    "draft and inspect one current-work map against the immutable score",
+                    "record_workflow_composition_map exactly once for the iteration",
+                    "answer every phase question before that review counts",
+                    "bind hinge derivations to charter claims, map nodes and answered questions",
+                ],
+                "map_template": {
+                    "kind": "tianlai.composition_map",
+                    "schema_version": 1,
+                    "nodes": [
+                        {
+                            "node_id": "opening_state",
+                            "label": "work-specific sequence node",
+                            "function": "what this node establishes or transforms",
+                            "bar_range": {"start": 1, "end": 8},
+                            "depends_on_claim_ids": [
+                                "claim id returned by inspect_workflow_composition"
+                            ],
+                            "established_material": {"event_ids": []},
+                            "preserve": [],
+                            "transform": [],
+                            "role_changes": [],
+                            "scarce_resources": [],
+                            "ending_response": None,
+                            "open_questions": [],
+                        }
+                    ],
+                },
+                "charter_amendment": {
+                    "rule": (
+                        "Prefer score revision, then a bounded exception. Amend only the "
+                        "specific charter claims whose replacement is justified."
+                    ),
+                    "sequence": [
+                        (
+                            "preflight_workflow_charter_amendment while reviewing, "
+                            "or immediately after a revise decision while the "
+                            "authoring head still equals the iteration anchor"
+                        ),
+                        "inspect the complete reconstruction and revalidation cost",
+                        "make a revise decision",
+                        "commit_workflow_charter_amendment with the exact preflight hash and cost echo",
+                        "edit only after commit; the amendment becomes effective next iteration",
+                        "rebuild the map and repeat whole-work review under the new charter",
+                    ],
+                    "large_scope_warning": (
+                        "More affected claims imply wider reconstruction. A whole-work "
+                        "change is never silently widened for compatibility."
+                    ),
+                },
+                "excluded_inputs": [
+                    "historical works",
+                    "preference examples",
+                    "winner rationales",
+                    "fragment candidates presented as finished works",
+                ],
+            },
             "review_phases": [
                 "intent",
                 "symbolic_structure",
@@ -4288,9 +5496,11 @@ def creative_workflow_guide() -> dict[str, Any]:
                 "audio_audition",
             ],
             "render_prerequisites": [
-                "symbolic_structure review",
-                "orchestration_performance review",
-                "no recorded hard_failure",
+                "current composition map bound to the full score and effective charter",
+                "question-complete intent review",
+                "question-complete symbolic_structure review",
+                "question-complete orchestration_performance review",
+                "no trusted hard_failure still reproduced at the current readiness boundary",
             ],
             "evidence_categories": {
                 "hard_failure": (
@@ -4307,16 +5517,195 @@ def creative_workflow_guide() -> dict[str, Any]:
                     "never an automatic edit."
                 ),
             },
+            "derivation": {
+                "purpose": (
+                    "Optional passage-level justification of affirmative necessity "
+                    "at a decisive identity, formal, climax, or ending hinge. "
+                    "Evidence records problems; a derivation closes a materially "
+                    "live structural alternative."
+                ),
+                "anchor_rule": (
+                    "Anchor by event_ids and/or one complete end-exclusive "
+                    "start_bar/start_beat/end_bar/end_beat range of the current "
+                    "authoring revision. part_ids only filter that passage, and a "
+                    "candidate-bound seconds window is supplemental. Event, part, "
+                    "range and score-hash referents are reverified on later reads."
+                ),
+                "premise_kinds": [
+                    "declared_promise",
+                    "active_clause",
+                    "established_material",
+                    "render_measurement",
+                ],
+                "excluded_alternatives_required": True,
+                "governance_bindings": [
+                    "one or more current effective-charter claim ids",
+                    "one or more current composition-map node ids",
+                    "one or more question ids already answered by a governed review",
+                ],
+                "note": (
+                    "Necessity is a claim about the failure of alternatives: at "
+                    "least one excluded alternative with its failure reason and "
+                    "premise_indexes is mandatory. Established material must precede "
+                    "the target passage. Derivations are scarce branch-closing "
+                    "arguments, not a quota: use them at identity, formal, climax or "
+                    "ending hinges, never bar by bar. They never block or trigger an "
+                    "edit, and they are not required for reversible qiyun details, "
+                    "peripheral life, breath, resonance, or deliberate emptiness. "
+                    "They never replace the ear's final judgement. Stop iterating "
+                    "when the promise is fulfilled, identity is stable and no live "
+                    "alternative materially threatens either."
+                ),
+                "candidate_provenance_status": (
+                    "pending a separate provenance envelope; never append a ledger "
+                    "to an already closed candidate or render receipt"
+                ),
+            },
+            "qiyun_space": {
+                "location": (
+                    "the existing orchestration_performance whole-work questions; "
+                    "answers use current composition-map node_ids and event_ids to "
+                    "mark trial locations or deliberate blank space"
+                ),
+                "trial_right": (
+                    "a small reversible detail may be tried before it has a verbal "
+                    "structural reason; locating it is not a claim that it already "
+                    "improves the music"
+                ),
+                "possible_forms": [
+                    "companion line",
+                    "echo",
+                    "micro-motion",
+                    "glint",
+                    "breath",
+                    "resonance",
+                    "shadow layer",
+                    "timing or spatial change",
+                    "subtraction or preserved silence",
+                ],
+                "no_quota": True,
+                "zero_additions_valid": True,
+                "derivation_required": False,
+                "workflow_contract": (
+                    "surface one aggregate reasoning prompt and fold its conclusion "
+                    "into the existing orchestration_performance answer; do not add "
+                    "a scored question, phase, quota, or ledger. Software can verify "
+                    "references, not whether the creative thought was insightful"
+                ),
+                "boundary": (
+                    "identity, principal harmonic causality, section function, "
+                    "climax basis, ending response, or charter changes return to "
+                    "the formal revision and amendment path"
+                ),
+                "evidence_boundary": (
+                    "without actual audition record only a trial or hypothesis; "
+                    "do not claim an audible improvement"
+                ),
+            },
             "decisions": {
                 "iterate": ["accept", "revise", "preserve", "stop"],
                 "audit": ["accept", "recommend_revision", "preserve", "stop"],
                 "accept_requires": [
                     "workflow-authorized and recorded candidate",
                     "complete render review artifacts",
-                    "intent, symbolic_structure, orchestration_performance and render_report reviews",
-                    "no hard_failure",
-                    "a review proving the agent's declared perception basis",
+                    "selected review_ids covering intent, symbolic_structure, orchestration_performance and render_report",
+                    "governed phase reviews answer the exact current whole-work question set",
+                    "no trusted hard_failure still reproduced at the readiness boundary",
+                    "a selected review proving the agent's declared perception basis",
+                    "every current non-hard claim disposed as resolved, accepted_risk or excepted",
+                    "no promise_conflict disposed as accepted_risk",
+                    "every charter promise settled as kept, transformed or refused with selected basis",
                 ],
+                "claim_lifecycle": {
+                    "review_ids_frozen_on_new_decisions": True,
+                    "nonhard_evidence_coverage": "exactly_once_per_current_iteration",
+                    "evidence_dispositions": [
+                        "resolved",
+                        "accepted_risk",
+                        "excepted",
+                        "deferred",
+                        "revision_target",
+                        "contested",
+                    ],
+                    "legacy_missing_fields_remain_readable": True,
+                    "acceptance_gate": {
+                        "new_accepts_freeze": "point_in_time_recorded_hard_failure_recheck",
+                        "binds": [
+                            "authoring_revision",
+                            "candidate_manifest_sha256",
+                            "checked_hard_failure_evidence_ids",
+                            "readiness_result_sha256",
+                        ],
+                        "does_not_prove": [
+                            "current_readiness",
+                            "unrecorded_issues_absent",
+                            "aesthetic_quality",
+                        ],
+                        "legacy_terminal_without_gate": "legacy_unfrozen_readable",
+                        "adds_workflow_step": False,
+                    },
+                    "charter_settlement": {
+                        "targets": [
+                            "one_sentence_promise",
+                            "identity_kernel.invariants[i] for each invariant",
+                            "ending_contract",
+                        ],
+                        "statuses": ["kept", "transformed", "refused"],
+                        "rules": [
+                            "every target settled at most once; acceptance requires full coverage",
+                            "every settlement item cites non-empty basis among the decision's selected review, evidence, exception or derivation record ids",
+                            "transformed requires a derivation basis; refused requires an exception or derivation basis",
+                            "prohibited shortcuts are not settlement targets; violating one still requires a charter exception",
+                            "legacy accepts without settlement remain readable",
+                        ],
+                    },
+                    "revision_contract": {
+                        "revise_requires": [
+                            "a frozen bounded or explicitly cost-acknowledged whole-work scope",
+                            "a withdrawal condition stated before authoring changes",
+                        ],
+                        "scope_enforcement": (
+                            "record_workflow_authoring_revision compares the saved documents "
+                            "with the contract baseline and rejects undeclared change surface"
+                        ),
+                        "challenger_settlement": [
+                            "promote_challenger",
+                            "retain_baseline",
+                            "inconclusive",
+                        ],
+                        "boundary": (
+                            "same workflow and same authoring-project chain only; no global "
+                            "incumbent, cross-project inheritance or parent-version tree"
+                        ),
+                        "does_not_prove": [
+                            "melodic quality",
+                            "layering quality",
+                            "aesthetic superiority",
+                        ],
+                    },
+                },
+                "fork": {
+                    "purpose": (
+                        "Declare that two or more complete recorded candidates are variant "
+                        "worlds of the same work. One possibility is always one whole piece, "
+                        "never a replaceable fragment; fragment-level substitution is a "
+                        "rendering performance question, not a workflow contract."
+                    ),
+                    "anchor_rule": (
+                        "Anchor the divergence locus by event_ids and/or an end-exclusive "
+                        "bar/beat range of the current authoring revision; part_ids only "
+                        "filter. The score's canonical hash is embedded."
+                    ),
+                    "invariant_indexes": (
+                        "Indexes into the charter identity_kernel.invariants claimed to hold "
+                        "across every branch; at least one is required."
+                    ),
+                    "branch_rule": (
+                        "Each branch references a whole candidate already recorded in this "
+                        "workflow plus a stance and optional current-iteration derivations. "
+                        "Forks never block, never rank branches and never replace listening."
+                    ),
+                },
             },
             "constitution": {
                 **_OFFICIAL_CONSTITUTION,
@@ -4324,17 +5713,18 @@ def creative_workflow_guide() -> dict[str, Any]:
                 "full_document_injected": False,
                 "activation_rule": (
                     "Bind the exact document hash and activate only a small, work-relevant "
-                    "clause set; do not inject or activate all 901 lines each iteration."
+                    "clause set; do not inject or activate the full document each iteration."
                 ),
                 "starter_clause_ids": [
                     "C0.02",
-                    "C0.03",
-                    "C0.16",
-                    "C0.21",
-                    "C0.25",
+                    "C0.04",
+                    "C0.06",
+                    "C2.2.06",
+                    "C4.1.03",
+                    "C4.1.15",
                 ],
                 "active_clause_shape": {
-                    "clause_id": "C0.02",
+                    "clause_id": "C0.04",
                     "role": "review_lens",
                     "rationale": "why this clause matters for this work",
                     "interpretation": "bounded, work-specific interpretation",
@@ -4394,8 +5784,9 @@ def create_creative_workflow(
     mode: Literal["off", "audit", "iterate"],
     base_authoring_revision: _AuthoringSelector | None = None,
     budget: dict | None = None,
+    composition_governance: StrictBool = True,
 ) -> dict[str, Any]:
-    """Create an optional workflow whose final authority is truthfully fixed to agent."""
+    """Create an optional workflow; whole-work governance defaults on but may opt out."""
 
     operation = "create_creative_workflow"
     try:
@@ -4414,6 +5805,7 @@ def create_creative_workflow(
             final_authority="agent",
             base_authoring_revision=checked_base,
             budget=budget,
+            composition_governance=composition_governance,
         )
         history = verify_creative_workflow_history_state(
             root,
@@ -4619,6 +6011,368 @@ def activate_creative_workflow(
         )
 
 
+@mcp_tool(title="Inspect workflow composition", annotations=_READ_ONLY_TOOL)
+def inspect_workflow_composition(
+    project_key: _AuthoringSelector,
+    workflow_id: _AuthoringSelector,
+    revision: _AuthoringSelector | None = None,
+    composition_map: _WorkflowCompositionMap | None = None,
+) -> dict[str, Any]:
+    """Return current charter claims and a read-only whole-score sequence mirror.
+
+    Omit ``composition_map`` to obtain the current claim index.  Supplying a
+    draft validates and mirrors it without recording the map or editing music.
+    """
+
+    operation = "inspect_workflow_composition"
+    try:
+        checked_id = _validated_workflow_id(workflow_id)
+        checked_revision = _validated_workflow_revision(revision, required=False)
+        root = _authoring_project_root(
+            project_key,
+            create_namespace=False,
+            require_existing=True,
+        )
+        result = inspect_workflow_composition_state(
+            root,
+            workflow_id=checked_id,
+            revision=checked_revision,
+            composition_map=composition_map,
+        )
+        current = open_creative_workflow_state(root, workflow_id=checked_id)
+        if current.revision != result["workflow_revision"]:
+            next_action = {
+                "operation": "inspect_workflow_composition",
+                "reason": "historical_inspection_is_read_only_refresh_current_workflow",
+                "suggested_arguments": {
+                    "project_key": project_key,
+                    "workflow_id": checked_id,
+                },
+                "alternatives": ["open_creative_workflow"],
+            }
+        elif result["composition_map_source"] == "none":
+            next_action = {
+                "operation": "inspect_workflow_composition",
+                "reason": "draft_current_work_sequence_map_then_validate_before_recording",
+                "expected_revision": result["workflow_revision"],
+                "suggested_arguments": {
+                    "project_key": project_key,
+                    "workflow_id": checked_id,
+                },
+                "prerequisites": [
+                    {
+                        "step": "draft_map",
+                        "action": "construct_current_work_sequence_map",
+                        "input_from": (
+                            "inspect_workflow_composition.inspection."
+                            "charter_claim_index"
+                        ),
+                        "constraint": (
+                            "use_only_the_current_charter_and_current_score; "
+                            "do_not_import_examples_or_historical_works"
+                        ),
+                    }
+                ],
+                "argument_sources": {
+                    "composition_map": "constructed_current_work_sequence_map"
+                },
+                "alternatives": ["stop_creative_workflow"],
+            }
+        elif result["composition_map_source"] == "draft":
+            next_action = {
+                "operation": "record_workflow_composition_map",
+                "reason": "validated_whole_work_sequence_map_ready_to_freeze",
+                "expected_revision": result["workflow_revision"],
+                "suggested_arguments": {
+                    "project_key": project_key,
+                    "workflow_id": checked_id,
+                    "expected_revision": result["workflow_revision"],
+                    "composition_map": result["composition_map"],
+                },
+                "alternatives": [
+                    "inspect_workflow_composition",
+                    "stop_creative_workflow",
+                ],
+            }
+        else:
+            next_action = _workflow_next_action(current, project_key=project_key)
+        return {
+            "kind": _WORKFLOW_RESULT_KIND,
+            "schema_version": _WORKFLOW_RESULT_VERSION,
+            "ok": True,
+            "operation": operation,
+            "project_key": project_key,
+            "inspection": result,
+            "next_action": next_action,
+        }
+    except (
+        AuthoringProjectError,
+        CreativeWorkflowError,
+        _McpAuthoringBoundaryError,
+        _McpWorkflowBoundaryError,
+    ) as exc:
+        return _workflow_failure(
+            operation,
+            exc,
+            project_key=project_key,
+            workflow_id=workflow_id,
+        )
+    except Exception as exc:
+        return _workflow_failure(
+            operation,
+            exc,
+            project_key=project_key,
+            workflow_id=workflow_id,
+        )
+
+
+@mcp_tool(title="Record workflow composition map", annotations=_AUTHORING_WRITE_TOOL)
+def record_workflow_composition_map(
+    project_key: _AuthoringSelector,
+    workflow_id: _AuthoringSelector,
+    expected_revision: _AuthoringSelector,
+    composition_map: _WorkflowCompositionMap,
+) -> dict[str, Any]:
+    """Freeze one current-work sequence framework before iteration work begins."""
+
+    operation = "record_workflow_composition_map"
+    try:
+        checked_id = _validated_workflow_id(workflow_id)
+        checked_revision = _validated_workflow_revision(
+            expected_revision,
+            required=True,
+        )
+        assert checked_revision is not None
+        root = _authoring_project_root(
+            project_key,
+            create_namespace=False,
+            require_existing=True,
+        )
+        snapshot = record_workflow_composition_map_state(
+            root,
+            workflow_id=checked_id,
+            expected_revision=checked_revision,
+            composition_map=composition_map,
+        )
+        return _workflow_success(operation, project_key, snapshot)
+    except (
+        AuthoringProjectError,
+        CreativeWorkflowError,
+        _McpAuthoringBoundaryError,
+        _McpWorkflowBoundaryError,
+    ) as exc:
+        return _workflow_failure(
+            operation,
+            exc,
+            project_key=project_key,
+            workflow_id=workflow_id,
+        )
+    except Exception as exc:
+        return _workflow_failure(
+            operation,
+            exc,
+            project_key=project_key,
+            workflow_id=workflow_id,
+        )
+
+
+@mcp_tool(title="Preflight workflow charter amendment", annotations=_READ_ONLY_TOOL)
+def preflight_workflow_charter_amendment(
+    project_key: _AuthoringSelector,
+    workflow_id: _AuthoringSelector,
+    proposal: _WorkflowCharterAmendmentProposal,
+    revision: _AuthoringSelector | None = None,
+) -> dict[str, Any]:
+    """Calculate an amendment's exact reconstruction cost without activating it."""
+
+    operation = "preflight_workflow_charter_amendment"
+    try:
+        checked_id = _validated_workflow_id(workflow_id)
+        checked_revision = _validated_workflow_revision(revision, required=False)
+        root = _authoring_project_root(
+            project_key,
+            create_namespace=False,
+            require_existing=True,
+        )
+        result = preflight_workflow_charter_amendment_state(
+            root,
+            workflow_id=checked_id,
+            revision=checked_revision,
+            proposal=proposal,
+        )
+        current = open_creative_workflow_state(root, workflow_id=checked_id)
+        if current.revision != result["workflow_revision"]:
+            next_action = {
+                "operation": "open_creative_workflow",
+                "reason": "historical_preflight_cannot_authorize_a_current_amendment",
+                "suggested_arguments": {
+                    "project_key": project_key,
+                    "workflow_id": checked_id,
+                },
+                "alternatives": ["preflight_workflow_charter_amendment"],
+            }
+        else:
+            current_status = current.detached_state()["status"]
+            prerequisites = [
+                {
+                    "step": "weigh_cost",
+                    "action": "inspect_the_complete_preflight_cost",
+                    "input_from": (
+                        "preflight_workflow_charter_amendment."
+                        "amendment_preflight.preflight.cost"
+                    ),
+                    "constraint": (
+                        "narrow_or_abandon_when_the_reconstruction_scope_"
+                        "is_not_worth_the_expected_gain"
+                    ),
+                }
+            ]
+            suggested_arguments = {
+                "project_key": project_key,
+                "workflow_id": checked_id,
+                "proposal": dict(proposal),
+                "expected_preflight_sha256": result["preflight"][
+                    "preflight_sha256"
+                ],
+                "cost_acknowledgement": result[
+                    "cost_acknowledgement_required_for_commit"
+                ],
+            }
+            argument_sources: dict[str, str] = {}
+            if current_status == "reviewing":
+                reason = (
+                    "decide_to_revise_then_acknowledge_the_exact_preflight_cost_"
+                    "before_any_authoring_change"
+                )
+                expected_revision_source = (
+                    "decide_workflow_iteration.workflow.revision"
+                )
+                prerequisites.append(
+                    {
+                        "step": "decide_revision",
+                        "operation": "decide_workflow_iteration",
+                        "arguments": {
+                            "project_key": project_key,
+                            "workflow_id": checked_id,
+                            "expected_revision": result["workflow_revision"],
+                            "disposition": "revise",
+                        },
+                        "constraint": (
+                            "do_not_edit_or_save_the_score_before_the_following_"
+                            "amendment_commit_succeeds"
+                        ),
+                    }
+                )
+                argument_sources["expected_revision"] = expected_revision_source
+                alternatives = [
+                    "preflight_workflow_charter_amendment",
+                    "stop_creative_workflow",
+                ]
+            else:
+                reason = (
+                    "revision_already_pending_acknowledge_exact_preflight_cost_"
+                    "before_any_authoring_change"
+                )
+                expected_revision_source = "current_workflow_revision"
+                suggested_arguments["expected_revision"] = current.revision
+                alternatives = [
+                    "get_authoring_snapshot",
+                    "preflight_workflow_charter_amendment",
+                    "stop_creative_workflow",
+                ]
+            next_action = {
+                "operation": "commit_workflow_charter_amendment",
+                "reason": reason,
+                "expected_revision_source": expected_revision_source,
+                "suggested_arguments": suggested_arguments,
+                "prerequisites": prerequisites,
+                "argument_sources": argument_sources,
+                "alternatives": alternatives,
+            }
+        return {
+            "kind": _WORKFLOW_RESULT_KIND,
+            "schema_version": _WORKFLOW_RESULT_VERSION,
+            "ok": True,
+            "operation": operation,
+            "project_key": project_key,
+            "amendment_preflight": result,
+            "next_action": next_action,
+        }
+    except (
+        AuthoringProjectError,
+        CreativeWorkflowError,
+        _McpAuthoringBoundaryError,
+        _McpWorkflowBoundaryError,
+    ) as exc:
+        return _workflow_failure(
+            operation,
+            exc,
+            project_key=project_key,
+            workflow_id=workflow_id,
+        )
+    except Exception as exc:
+        return _workflow_failure(
+            operation,
+            exc,
+            project_key=project_key,
+            workflow_id=workflow_id,
+        )
+
+
+@mcp_tool(title="Commit workflow charter amendment", annotations=_AUTHORING_WRITE_TOOL)
+def commit_workflow_charter_amendment(
+    project_key: _AuthoringSelector,
+    workflow_id: _AuthoringSelector,
+    expected_revision: _AuthoringSelector,
+    proposal: _WorkflowCharterAmendmentProposal,
+    expected_preflight_sha256: _WorkflowArtifactSha256,
+    cost_acknowledgement: _WorkflowCharterAmendmentCostAcknowledgement,
+) -> dict[str, Any]:
+    """Commit one preflight-bound amendment before any replacement score is saved."""
+
+    operation = "commit_workflow_charter_amendment"
+    try:
+        checked_id = _validated_workflow_id(workflow_id)
+        checked_revision = _validated_workflow_revision(
+            expected_revision,
+            required=True,
+        )
+        assert checked_revision is not None
+        root = _authoring_project_root(
+            project_key,
+            create_namespace=False,
+            require_existing=True,
+        )
+        snapshot = commit_workflow_charter_amendment_state(
+            root,
+            workflow_id=checked_id,
+            expected_revision=checked_revision,
+            proposal=proposal,
+            expected_preflight_sha256=expected_preflight_sha256,
+            cost_acknowledgement=cost_acknowledgement,
+        )
+        return _workflow_success(operation, project_key, snapshot)
+    except (
+        AuthoringProjectError,
+        CreativeWorkflowError,
+        _McpAuthoringBoundaryError,
+        _McpWorkflowBoundaryError,
+    ) as exc:
+        return _workflow_failure(
+            operation,
+            exc,
+            project_key=project_key,
+            workflow_id=workflow_id,
+        )
+    except Exception as exc:
+        return _workflow_failure(
+            operation,
+            exc,
+            project_key=project_key,
+            workflow_id=workflow_id,
+        )
+
+
 @mcp_tool(title="Record workflow review", annotations=_AUTHORING_WRITE_TOOL)
 def record_workflow_review(
     project_key: _AuthoringSelector,
@@ -4633,6 +6387,7 @@ def record_workflow_review(
     ],
     perception_basis: Literal["report_only", "audio_audition"],
     summary: _WorkflowText,
+    question_answers: _WorkflowReviewQuestionAnswers | None = None,
 ) -> dict[str, Any]:
     """Record one agent phase review without claiming human or trusted-validator identity."""
 
@@ -4657,6 +6412,9 @@ def record_workflow_review(
             reviewer="agent",
             perception_basis=perception_basis,
             summary=summary,
+            question_answers=(
+                [] if question_answers is None else question_answers
+            ),
         )
         return _workflow_success(operation, project_key, snapshot)
     except (
@@ -4861,6 +6619,97 @@ def register_workflow_exception(
             recovery=recovery,
             evidence_ids=evidence_ids,
             reusable=reusable,
+        )
+        return _workflow_success(operation, project_key, snapshot)
+    except (
+        AuthoringProjectError,
+        CreativeWorkflowError,
+        _McpAuthoringBoundaryError,
+        _McpWorkflowBoundaryError,
+    ) as exc:
+        return _workflow_failure(
+            operation,
+            exc,
+            project_key=project_key,
+            workflow_id=workflow_id,
+        )
+    except Exception as exc:
+        return _workflow_failure(
+            operation,
+            exc,
+            project_key=project_key,
+            workflow_id=workflow_id,
+        )
+
+
+@mcp_tool(title="Record workflow derivation", annotations=_AUTHORING_WRITE_TOOL)
+def record_workflow_derivation(
+    project_key: _AuthoringSelector,
+    workflow_id: _AuthoringSelector,
+    expected_revision: _AuthoringSelector,
+    claim: _WorkflowText,
+    premises: _WorkflowDerivationPremises,
+    excluded_alternatives: _WorkflowExcludedAlternatives,
+    event_ids: _WorkflowReferenceList | None = None,
+    part_ids: _WorkflowReferenceList | None = None,
+    start_seconds: float | None = None,
+    end_seconds: float | None = None,
+    start_bar: _WorkflowBar | None = None,
+    start_beat: _WorkflowBeat | None = None,
+    end_bar: _WorkflowBar | None = None,
+    end_beat: _WorkflowBeat | None = None,
+    clause_ids: _WorkflowReferenceList | None = None,
+    sacrificed_values: _WorkflowReferenceList | None = None,
+    charter_claim_ids: _WorkflowDerivationClaimIds | None = None,
+    composition_map_node_ids: _WorkflowDerivationNodeIds | None = None,
+    question_ids: _WorkflowDerivationQuestionIds | None = None,
+) -> dict[str, Any]:
+    """Record a bounded passage-level necessity claim; never blocks or edits.
+
+    The four bar/beat fields form one end-exclusive score range and therefore
+    must be supplied together or omitted together.  Part IDs only filter an
+    event or range anchor; they are not a passage anchor by themselves.
+    """
+
+    operation = "record_workflow_derivation"
+    try:
+        checked_id = _validated_workflow_id(workflow_id)
+        checked_revision = _validated_workflow_revision(
+            expected_revision,
+            required=True,
+        )
+        assert checked_revision is not None
+        root = _authoring_project_root(
+            project_key,
+            create_namespace=False,
+            require_existing=True,
+        )
+        snapshot = record_workflow_derivation_state(
+            root,
+            workflow_id=checked_id,
+            expected_revision=checked_revision,
+            claim=claim,
+            premises=premises,
+            excluded_alternatives=excluded_alternatives,
+            event_ids=[] if event_ids is None else event_ids,
+            part_ids=[] if part_ids is None else part_ids,
+            start_seconds=start_seconds,
+            end_seconds=end_seconds,
+            start_bar=start_bar,
+            start_beat=start_beat,
+            end_bar=end_bar,
+            end_beat=end_beat,
+            clause_ids=[] if clause_ids is None else clause_ids,
+            sacrificed_values=[] if sacrificed_values is None else sacrificed_values,
+            charter_claim_ids=(
+                [] if charter_claim_ids is None else charter_claim_ids
+            ),
+            composition_map_node_ids=(
+                []
+                if composition_map_node_ids is None
+                else composition_map_node_ids
+            ),
+            question_ids=[] if question_ids is None else question_ids,
         )
         return _workflow_success(operation, project_key, snapshot)
     except (
@@ -5420,6 +7269,79 @@ def compare_authoring_candidates(
         return _authoring_failure(operation, exc, project_key=project_key)
 
 
+@mcp_tool(title="Record workflow fork", annotations=_AUTHORING_WRITE_TOOL)
+def record_workflow_fork(
+    project_key: _AuthoringSelector,
+    workflow_id: _AuthoringSelector,
+    expected_revision: _AuthoringSelector,
+    branches: _WorkflowForkBranches,
+    invariant_indexes: _WorkflowForkInvariantIndexes,
+    event_ids: _WorkflowForkEventIds | None = None,
+    part_ids: _WorkflowForkPartIds | None = None,
+    start_bar: _WorkflowBar | None = None,
+    start_beat: _WorkflowBeat | None = None,
+    end_bar: _WorkflowBar | None = None,
+    end_beat: _WorkflowBeat | None = None,
+    note: _WorkflowText | None = None,
+) -> dict[str, Any]:
+    """Declare complete variant worlds of one work; never fragments.
+
+    Each branch must be a whole recorded candidate, because one possibility
+    means one complete piece re-observed in a full sequence.  The anchor
+    names where the worlds diverge on the current authoring revision, and
+    ``invariant_indexes`` claim which charter identity invariants hold
+    across every branch.
+    """
+
+    operation = "record_workflow_fork"
+    try:
+        checked_id = _validated_workflow_id(workflow_id)
+        checked_revision = _validated_workflow_revision(
+            expected_revision,
+            required=True,
+        )
+        assert checked_revision is not None
+        root = _authoring_project_root(
+            project_key,
+            create_namespace=False,
+            require_existing=True,
+        )
+        snapshot = record_workflow_fork_state(
+            root,
+            workflow_id=checked_id,
+            expected_revision=checked_revision,
+            branches=branches,
+            invariant_indexes=invariant_indexes,
+            event_ids=[] if event_ids is None else event_ids,
+            part_ids=[] if part_ids is None else part_ids,
+            start_bar=start_bar,
+            start_beat=start_beat,
+            end_bar=end_bar,
+            end_beat=end_beat,
+            note=note,
+        )
+        return _workflow_success(operation, project_key, snapshot)
+    except (
+        AuthoringProjectError,
+        CreativeWorkflowError,
+        _McpAuthoringBoundaryError,
+        _McpWorkflowBoundaryError,
+    ) as exc:
+        return _workflow_failure(
+            operation,
+            exc,
+            project_key=project_key,
+            workflow_id=workflow_id,
+        )
+    except Exception as exc:
+        return _workflow_failure(
+            operation,
+            exc,
+            project_key=project_key,
+            workflow_id=workflow_id,
+        )
+
+
 @mcp_tool(title="Render workflow candidate", annotations=_RENDER_TOOL)
 def render_workflow_candidate(
     project_key: _AuthoringSelector,
@@ -5624,7 +7546,14 @@ def decide_workflow_iteration(
     sacrificed_values: _WorkflowReferenceList | None = None,
     evidence_ids: _WorkflowReferenceList | None = None,
     exception_ids: _WorkflowReferenceList | None = None,
+    derivation_ids: _WorkflowReferenceList | None = None,
+    review_ids: _WorkflowReviewIds | None = None,
+    evidence_dispositions: _WorkflowEvidenceDispositions | None = None,
+    charter_settlement: _WorkflowCharterSettlement | None = None,
     expected_audible_change: _WorkflowText | None = None,
+    revision_scope: _WorkflowRevisionScopeInput | None = None,
+    withdrawal_condition: _WorkflowText | None = None,
+    prior_revision_assessment: _WorkflowPriorRevisionAssessment | None = None,
 ) -> dict[str, Any]:
     """Make an agent-authority contextual decision; never claim objective quality."""
 
@@ -5682,7 +7611,18 @@ def decide_workflow_iteration(
             sacrificed_values=[] if sacrificed_values is None else sacrificed_values,
             evidence_ids=[] if evidence_ids is None else evidence_ids,
             exception_ids=[] if exception_ids is None else exception_ids,
+            derivation_ids=[] if derivation_ids is None else derivation_ids,
+            review_ids=[] if review_ids is None else review_ids,
+            evidence_dispositions=(
+                [] if evidence_dispositions is None else evidence_dispositions
+            ),
+            charter_settlement=(
+                [] if charter_settlement is None else charter_settlement
+            ),
             expected_audible_change=expected_audible_change,
+            revision_scope=revision_scope,
+            withdrawal_condition=withdrawal_condition,
+            prior_revision_assessment=prior_revision_assessment,
             candidate_path=candidate_path,
         )
         return _workflow_success(
@@ -5775,6 +7715,7 @@ def rollback_creative_workflow(
     summary: _WorkflowText,
     rationale: _WorkflowText,
     perception_basis: Literal["report_only", "audio_audition"],
+    prior_revision_assessment: _WorkflowPriorRevisionAssessment | None = None,
 ) -> dict[str, Any]:
     """Select an earlier immutable anchor without overwriting revisions or candidates."""
 
@@ -5806,6 +7747,7 @@ def rollback_creative_workflow(
             rationale=rationale,
             final_authority=authority,
             perception_basis=perception_basis,
+            prior_revision_assessment=prior_revision_assessment,
         )
         return _workflow_success(
             operation,

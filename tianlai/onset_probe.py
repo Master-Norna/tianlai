@@ -15,6 +15,7 @@ import copy
 import hashlib
 import json
 import math
+from numbers import Real
 import os
 from pathlib import Path
 import re
@@ -69,6 +70,32 @@ SIGNAL_STAGE = "instrument_direct_output_no_space"
 _FORBIDDEN_ARTICULATION_PREFIX = "crescendo_"
 
 
+def _require_integer(
+    value: Any,
+    label: str,
+    *,
+    minimum: int | None = None,
+    maximum: int | None = None,
+) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"{label} must be an integer")
+    if minimum is not None and value < minimum:
+        raise ValueError(f"{label} must be at least {minimum}")
+    if maximum is not None and value > maximum:
+        raise ValueError(f"{label} must be at most {maximum}")
+    return value
+
+
+def _require_finite_number(value: Any, label: str) -> float:
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, Real)
+        or not math.isfinite(float(value))
+    ):
+        raise ValueError(f"{label} must be a finite number")
+    return float(value)
+
+
 @dataclass(frozen=True, slots=True)
 class ProbeSpec:
     """One isolated render/measurement observation.
@@ -97,23 +124,24 @@ class ProbeSpec:
         )
         if self.articulation is not None and not self.articulation.strip():
             raise ValueError("articulation must be non-empty or None")
-        if not 0 <= self.midi_note <= 127:
-            raise ValueError("midi_note must be between 0 and 127")
-        if not 1 <= self.velocity <= 127:
-            raise ValueError("velocity must be between 1 and 127")
-        if self.repeat_index < 0:
-            raise ValueError("repeat_index must not be negative")
-        if self.variation_slot < 0:
-            raise ValueError("variation_slot must not be negative")
-        if not 8_000 <= self.sample_rate <= 384_000:
-            raise ValueError("sample_rate must be between 8000 and 384000")
+        _require_integer(self.midi_note, "midi_note", minimum=0, maximum=127)
+        _require_integer(self.velocity, "velocity", minimum=1, maximum=127)
+        _require_integer(self.repeat_index, "repeat_index", minimum=0)
+        _require_integer(self.variation_slot, "variation_slot", minimum=0)
+        _require_integer(
+            self.sample_rate,
+            "sample_rate",
+            minimum=8_000,
+            maximum=384_000,
+        )
         for field, value, allow_zero in (
             ("pre_roll_seconds", self.pre_roll_seconds, False),
             ("note_seconds", self.note_seconds, False),
             ("tail_seconds", self.tail_seconds, True),
         ):
-            if not math.isfinite(value) or value < 0.0 or (
-                not allow_zero and value == 0.0
+            numeric_value = _require_finite_number(value, field)
+            if numeric_value < 0.0 or (
+                not allow_zero and numeric_value == 0.0
             ):
                 qualifier = "non-negative" if allow_zero else "positive"
                 raise ValueError(f"{field} must be finite and {qualifier}")
@@ -148,10 +176,14 @@ def select_probe_notes(
     for index, raw_span in enumerate(ranges):
         if len(raw_span) != 2:
             raise ValueError(f"ranges[{index}] must be a [low, high] pair")
-        low = float(raw_span[0])
-        high = float(raw_span[1])
-        if not math.isfinite(low) or not math.isfinite(high):
-            raise ValueError(f"ranges[{index}] values must be finite")
+        low = _require_finite_number(
+            raw_span[0],
+            f"ranges[{index}].low",
+        )
+        high = _require_finite_number(
+            raw_span[1],
+            f"ranges[{index}].high",
+        )
         if not 0.0 <= low <= high <= 127.0:
             raise ValueError(f"ranges[{index}] is outside the MIDI range")
         if low <= previous_high:
@@ -207,12 +239,28 @@ def analyze_stereo_onset(
     avoided here.
     """
 
-    if not 8_000 <= int(sample_rate) <= 384_000:
-        raise ValueError("sample_rate must be between 8000 and 384000")
-    if not math.isfinite(window_ms) or window_ms <= 0.0:
-        raise ValueError("window_ms must be finite and positive")
-    if not math.isfinite(hop_ms) or hop_ms <= 0.0:
-        raise ValueError("hop_ms must be finite and positive")
+    sample_rate = _require_integer(
+        sample_rate,
+        "sample_rate",
+        minimum=8_000,
+        maximum=384_000,
+    )
+    note_on_frame = _require_integer(
+        note_on_frame,
+        "note_on_frame",
+        minimum=0,
+    )
+    note_off_frame = _require_integer(
+        note_off_frame,
+        "note_off_frame",
+        minimum=0,
+    )
+    window_ms = _require_finite_number(window_ms, "window_ms")
+    hop_ms = _require_finite_number(hop_ms, "hop_ms")
+    if window_ms <= 0.0:
+        raise ValueError("window_ms must be positive")
+    if hop_ms <= 0.0:
+        raise ValueError("hop_ms must be positive")
 
     audio = np.asarray(frames, dtype=np.float64)
     if audio.ndim != 2 or audio.shape[1] != 2:
@@ -697,8 +745,7 @@ def _expand_probe_specs(
     tail_seconds: float = 0.5,
     velocities: Sequence[int] = DEFAULT_VELOCITIES,
 ) -> tuple[ProbeSpec, ...]:
-    if repeat < 1:
-        raise ValueError("repeat must be at least 1")
+    repeat = _require_integer(repeat, "repeat", minimum=1)
     normalized_velocities = tuple(velocities)
     if not normalized_velocities:
         raise ValueError("velocities must not be empty")
@@ -859,6 +906,7 @@ def _assert_runtime_snapshot(
     manifest_path: Path,
     initial_manifest_bytes: bytes,
     initial_runtime_fingerprint: dict[str, Any],
+    sample_rate_hz: int,
 ) -> None:
     try:
         current_manifest_bytes = manifest_path.read_bytes()
@@ -871,6 +919,7 @@ def _assert_runtime_snapshot(
     current_fingerprint = compute_runtime_fingerprint(
         project_root,
         manifest_path,
+        sample_rate_hz=sample_rate_hz,
     )
     if current_fingerprint != initial_runtime_fingerprint:
         raise RuntimeError(
@@ -915,6 +964,7 @@ def run_probe_batch(
     runtime_fingerprint = compute_runtime_fingerprint(
         project_root,
         manifest_path,
+        sample_rate_hz=sample_rate,
     )
     if (
         runtime_fingerprint.get("manifest", {}).get("sha256")
@@ -955,6 +1005,7 @@ def run_probe_batch(
         manifest_path=manifest_path,
         initial_manifest_bytes=initial_manifest_bytes,
         initial_runtime_fingerprint=runtime_fingerprint,
+        sample_rate_hz=sample_rate,
     )
     algorithm_sha256 = sha256_file(Path(__file__))
     output_directory.parent.mkdir(parents=True, exist_ok=True)
@@ -1022,6 +1073,7 @@ def run_probe_batch(
             manifest_path=manifest_path,
             initial_manifest_bytes=initial_manifest_bytes,
             initial_runtime_fingerprint=runtime_fingerprint,
+            sample_rate_hz=sample_rate,
         )
         sampled_condition_ids = sorted(
             {
@@ -1112,6 +1164,7 @@ def run_probe_batch(
             manifest_path=manifest_path,
             initial_manifest_bytes=initial_manifest_bytes,
             initial_runtime_fingerprint=runtime_fingerprint,
+            sample_rate_hz=sample_rate,
         )
         _publish_new_directory(staging, output_directory)
         return report

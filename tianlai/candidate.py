@@ -290,7 +290,13 @@ def _formal_roster_projection(authoring_roster: object) -> dict[str, Any]:
 
     if not isinstance(authoring_roster, dict):
         raise ValueError("candidate authoring roster must be an object")
-    allowed = {"kind", "schema_version", "name", "assignments"}
+    allowed = {
+        "kind",
+        "schema_version",
+        "name",
+        "collaboration",
+        "assignments",
+    }
     if (
         set(authoring_roster) - allowed
         or authoring_roster.get("kind") != "tianlai.authoring_roster"
@@ -304,6 +310,8 @@ def _formal_roster_projection(authoring_roster: object) -> dict[str, Any]:
     }
     if "name" in authoring_roster:
         projected["name"] = authoring_roster["name"]
+    if "collaboration" in authoring_roster:
+        projected["collaboration"] = authoring_roster["collaboration"]
     return projected
 
 
@@ -518,7 +526,14 @@ def _receipt_performance_plan(
     return plan_document
 
 
-def portable_slug(text: object, *, maximum_length: int = 72) -> str:
+def portable_directory_name(text: object, *, maximum_length: int = 72) -> str:
+    """Return a clean portable display name for one work directory.
+
+    The directory name is deliberately not an identity.  Candidate manifests
+    keep the hash-bound :func:`portable_slug` work ID, while the filesystem
+    parent stays readable for people browsing ``output/``.
+    """
+
     original = unicodedata.normalize("NFC", str(text)).strip()
     cleaned = re.sub(r'[<>:"/\\|?*\x00-\x1f]+', "_", original)
     cleaned = re.sub(r"\s+", " ", cleaned).strip(" ._")
@@ -526,10 +541,40 @@ def portable_slug(text: object, *, maximum_length: int = 72) -> str:
         cleaned = "untitled"
     if is_windows_reserved_filename(cleaned):
         cleaned = f"_{cleaned}"
+    return cleaned[:maximum_length].rstrip(" ._") or "untitled"
+
+
+def portable_slug(text: object, *, maximum_length: int = 72) -> str:
+    original = unicodedata.normalize("NFC", str(text)).strip()
+    cleaned = portable_directory_name(original, maximum_length=maximum_length)
     digest = hashlib.sha256(original.encode("utf-8")).hexdigest()[:10]
     suffix = f"-{digest}"
     stem_length = max(1, maximum_length - len(suffix))
     return f"{cleaned[:stem_length].rstrip(' ._') or 'untitled'}{suffix}"
+
+
+def _expected_work_id_for_directory(
+    document: dict[str, Any],
+    directory: Path,
+    explicit: str | None,
+) -> str:
+    """Resolve candidate identity across clean and legacy work directories."""
+
+    title = document.get("title")
+    if not isinstance(title, str) or not title.strip():
+        raise ValueError("candidate title is invalid")
+    work_id = document.get("work_id")
+    if not isinstance(work_id, str) or not work_id:
+        raise ValueError("candidate work_id is invalid")
+    if work_id != portable_slug(title):
+        raise ValueError("candidate work_id does not match candidate title")
+    legacy_parent = directory.parent.name == work_id
+    clean_parent = directory.parent.name == portable_directory_name(title)
+    if not (legacy_parent or clean_parent):
+        raise ValueError(
+            "candidate work_id does not match the clean or legacy work directory"
+        )
+    return work_id if explicit is None else explicit
 
 
 def new_candidate_id(plan_sha256: str | None = None) -> str:
@@ -812,6 +857,7 @@ def prepare_candidate_target(
     output_id: str | None = None,
     overwrite: bool = False,
     expected_receipt_sha256: str | None = None,
+    clean_work_directory: bool = True,
 ) -> CandidateTarget:
     """Resolve and identity-bind one candidate publication target."""
 
@@ -820,7 +866,15 @@ def prepare_candidate_target(
     expected_receipt = _normalized_expected_receipt_sha256(
         expected_receipt_sha256
     )
+    if not isinstance(clean_work_directory, bool):
+        raise ValueError("clean_work_directory must be boolean")
     work_id = portable_slug(title)
+    if clean_work_directory:
+        work_directory_name = portable_directory_name(title)
+        if work_directory_name.casefold() == "authoring-projects":
+            raise ValueError("work directory name is reserved")
+    else:
+        work_directory_name = work_id
     candidate_id = (
         new_candidate_id(plan_sha256)
         if output_id is None
@@ -830,7 +884,10 @@ def prepare_candidate_target(
     if not root_request.is_absolute():
         root_request = root_request.absolute()
     root_identity = ensure_plain_directory_tree(root_request)
-    work_identity = ensure_authorized_child_directory(root_identity, work_id)
+    work_identity = ensure_authorized_child_directory(
+        root_identity,
+        work_directory_name,
+    )
     directory = work_identity.path / candidate_id
     with acquire_render_lock(directory, parent_identity=work_identity):
         revalidate_plain_directory(work_identity)
@@ -1553,13 +1610,14 @@ def load_candidate(
                 "legacy candidate created_at_utc is invalid"
             ) from exc
     if version == SCORE_V2_CANDIDATE_VERSION:
+        resolved_work_id = _expected_work_id_for_directory(
+            document,
+            directory,
+            expected_work_id,
+        )
         validate_score_v2_candidate_manifest(
             document,
-            expected_work_id=(
-                directory.parent.name
-                if expected_work_id is None
-                else expected_work_id
-            ),
+            expected_work_id=resolved_work_id,
             expected_candidate_id=(
                 directory.name
                 if expected_candidate_id is None
@@ -1620,13 +1678,14 @@ def load_candidate(
             raise ValueError(
                 "candidate authoring workflow and candidate identity disagree"
             )
+    resolved_work_id = _expected_work_id_for_directory(
+        document,
+        directory,
+        expected_work_id,
+    )
     _verify_candidate_identity(
         document,
-        expected_work_id=(
-            directory.parent.name
-            if expected_work_id is None
-            else expected_work_id
-        ),
+        expected_work_id=resolved_work_id,
         expected_candidate_id=(
             directory.name
             if expected_candidate_id is None
@@ -2967,6 +3026,7 @@ __all__ = [
     "load_candidate",
     "locate_candidate",
     "new_candidate_id",
+    "portable_directory_name",
     "portable_slug",
     "prepare_candidate_target",
     "publish_candidate_metadata",

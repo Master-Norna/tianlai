@@ -38,7 +38,7 @@ MIDI / MusicXML / 可编辑 score
 “导入—明确配器—首次出声—定位—补丁—二次渲染—比较”，不需要先下载数 GB
 音源。
 
-> 当前正式版本：`0.9.0`
+> 当前正式版本：`1.0.0`
 >
 > **发行边界：** 正式产品是项目提供的轻量源码 ZIP。若未来发布 PyPI 的
 > sdist/wheel，`tianlai-audio` 只提供可复用的 Python 引擎，不包含完整乐器目录、
@@ -48,7 +48,7 @@ MIDI / MusicXML / 可编辑 score
 
 | 环境 | 最短入口 | 当前边界 |
 | --- | --- | --- |
-| Windows 10/11 x64 | [Windows 三步上手](#windows-三步上手) | `0.9.0` 完整参考平台 |
+| Windows 10/11 x64 | [Windows 三步上手](#windows-三步上手) | `1.0.0` 完整参考平台 |
 | Linux / WSL x86_64 | [Linux / WSL 快速开始](docs/Linux快速开始.md) | 已提供 Bash、程序音色与 MCP 入口；成功链和真实采样按层验收 |
 | macOS Apple Silicon / Intel | [macOS 快速开始](docs/macOS快速开始.md) | 原生 64 位 CPython 3.11–3.14；已纳入干净源码 ZIP portable CI，真实采样另行验收 |
 
@@ -78,7 +78,7 @@ bash ./bootstrap_macos.sh
 
 ## Windows 三步上手
 
-Windows 10/11 x64 与 64 位 CPython 3.11–3.14 是 `0.9.0` 的参考环境。
+Windows 10/11 x64 与 64 位 CPython 3.11–3.14 是 `1.0.0` 的参考环境。
 以下 `cmd` 代码块都在源码包根目录的“命令提示符（cmd.exe）”执行；多行续写符
 是 `^`。
 
@@ -122,7 +122,7 @@ Windows 10/11 x64 与 64 位 CPython 3.11–3.14 是 `0.9.0` 的参考环境。
 
 ## 推荐创作闭环
 
-`0.9.0` 推荐使用下面这一条主链，而不是分别调用早期导入和合奏命令后手工拼接
+`1.0.0` 推荐使用下面这一条主链，而不是分别调用早期导入和合奏命令后手工拼接
 产物：
 
 | 阶段 | CLI | 结果 |
@@ -159,9 +159,16 @@ score、roster、render profile、演奏计划和渲染回执绑定起来。候�
 Hash。引擎还会在准备阶段冻结旧候选清单 Hash，并在目录交换前后递归复验计划、
 合奏、分轨和许可旁车；并发修改或不完整一代不会被发布成可见候选。
 
+新的普通 MCP 候选按
+`output/mcp/<安全化曲名（无身份 Hash）>/<candidate_id>/` 整理。`候选.json`
+中的 `work_id` 仍是绑定 Hash 的身份，通常不等于这个干净父目录；`candidate_id`
+及候选目录名保持不变。authoring 与 workflow 的内部工程仍在专用
+`output/mcp/authoring-projects/` 命名空间中单独管理。
+
 需要独立核验已保存候选时，运行
-`天籁.cmd candidate-verify --candidate "候选目录"`。复制或解压时必须保留清单绑定的
-`<work_id>/<candidate_id>` 两级目录名。命令拒绝额外文件、目录、
+`天籁.cmd candidate-verify --candidate "候选目录"`。复制或解压时，最后一级目录
+必须仍为清单绑定的 `candidate_id`；父目录可以是新的安全化曲名，也可以是历史
+`work_id`。命令拒绝额外文件、目录、
 链接或重解析点、硬链接以及检测到的绑定工件漂移；用 `--output` 保存报告时，报告必须位于
 候选目录外。成功结果中的 `integrity_verified=true` 只证明本次通过描述符读取的
 字节构成封闭、自洽的本地代际；不证明作者身份、来源或内容质量，也不保证不合作的
@@ -221,10 +228,32 @@ MIDI 与 MusicXML 都可能包含当前 score 无法无损表达的语义。统�
 
 ## AI 与 MCP
 
-MCP 服务当前实际公开 44 个工具：原有诊断、导入、编制、乐谱编辑、预检、定位、
-比较和渲染保持兼容，并新增路径隔离的持久 authoring project，以及可选的 v0.7
-创作工作流（宪章、少量宪法条款、分阶段复核、可信 hard failure、例外、受管渲染、
-修订、回滚与审计）。
+MCP 服务当前实际公开 50 个工具：原有诊断、导入、编制、乐谱编辑、预检、定位、
+比较和渲染保持兼容，并提供 v0.7 引入的路径隔离 authoring project 与可选创作
+工作流（宪章、少量宪法条款、分阶段复核、可信 hard failure、例外、受管渲染、
+修订、回滚与审计）。`1.0.0` 在这条工作流上新增 Claim Lifecycle v1
+（内容 ID 重算、谱面指涉复验、决策逐条处置与终局开放主张冻结）、段落级必然性推导、
+宪章清偿（accept 必须逐条清偿宪章承诺）与整曲分支声明（一个分支永远是一首完整的
+曲子；当前只是稀疏的整曲备选声明，不是 epoch/LCA 谱系），以及只冻结当时已记录
+hard failure 复核的 acceptance gate；后者不是当前 readiness 或审美证明。兼容读取现为
+五档：基础 legacy、显式 Claim Lifecycle、带 acceptance gate、再加
+`charter_settlement_profile=affirmative-promise-ledger-v1`，以及带
+`composition_governance_profile=whole-work-derivation-and-bounded-amendment-v1` 的最新档。
+前四档保持只读兼容；普通旧工作流仍按既有步骤升级到修宪前策略，只有显式记录作品
+展开图时才开启新治理，且不能降级；本版 MCP 新建的工作流默认启用最新档，可用
+`composition_governance=false` 显式关闭，以兼容旧流程；测试模型裸能力时则不接入 MCP。
+新增记录仍保持可选且稀疏；承诺兑现、身份稳定且实质备选已经关闭时，应及时收束，而不是为迭代
+而迭代。`budget_exhausted` 只在正数冻结预算、fork 上限或历史上限确实达到时成立；
+其余终止理由仍是终审 authority 声明，不是机器证明。
+
+> 升级兼容提示：用 `1.0.0` 只读打开 `0.9.x` authoring project 不会改写磁盘；
+> 仅打开或保存完全相同的文档也不会触发迁移。第一次实际内容保存会为
+> `tianlai-project.json` 增加 `save_sequence` / `current_save_event_sha256`，
+> 为新 `revision.json` 增加 `first_save_sequence` / `parent_revision`，并建立
+> `.tianlai/save-events/`。这是单向的因果记录升级：`1.0.0` 能读取旧工程，
+> 但 `0.9.x` 无法再打开保存后的工程。如需保留降级能力，请在首次修改保存前
+> 复制完整工程目录。
+
 推荐 MCP 主链与 CLI 在概念上对应，但文件载体、输出根和默认乐器范围不同：
 
 ```text
@@ -238,10 +267,21 @@ diagnose_runtime(check_level="quick")
         → compare_rendered_candidates
 ```
 
+最新“相因”治理先为当前作品建立整曲展开图，再用只读全曲镜子生成必须逐题回答的
+复核问题；关键推导绑定宪章主张、展开图节点和答案，而不是依靠模型自行打卡。若意见
+确实要求改宪章，必须在改谱前预检并精确确认重构成本，再向单线修宪账本追加；新宪章
+从下一轮生效，下一轮必须重建展开图并复核全曲。展开图不吸收历史作品、偏好案例或
+获奖理由，正式候选也始终是完整曲目，不把局部片段作为成品。机器检查只能建立事实与
+绑定，不能代替人类听审或证明好听。已有多个完整候选时仍可稀疏记录 fork，并在 accept
+时提交覆盖全部肯定性宪章承诺的 `charter_settlement`；没有真实分支或新信息时不增加
+这些步骤。
+
+> 一境之内，相因而成；万境既生，因之曼衍。
+
 `render`、`render_authoring_revision` 与 `render_workflow_candidate` 会写入音频；
 其他写工具只在专用工程根内发布不可变状态或文档修订。文件型导入受 MCP
 输入根策略约束，客户端不会因为接入服务就获得整台电脑的任意读取权限。完整的
-44 工具表、输入根配置和候选规则见 [MCP 接口](docs/MCP.md)；工作流的诚信边界、
+50 工具表、输入根配置和候选规则见 [MCP 接口](docs/MCP.md)；工作流的诚信边界、
 状态机和断线恢复见 [创作工作流](docs/创作工作流.md)。运行时与项目就绪
 自检以被动方式汇总合同、资源、平台与输出位置评估；正式 `render` 完成实际实例化、
 音频处理和候选写入。macOS x86_64 会在当前进程内以只读 `sysctlbyname` 核验
@@ -265,7 +305,7 @@ readiness 授权继续渲染，已转译或无法核验都会令 readiness 保�
   通过 `manual`、`analyze`、`suggest` 工作流继续吸收创作者与社区反馈。
 - `manual`、`analyze`、`suggest` 把分析与修改分层；`suggest` 生成有界、可复核的
   诊断草稿，由创作者确认后进入下一版候选。
-- 离线渲染生成 24-bit WAV、可选分轨、共享厅堂与完整回执；`0.9.0` 会按
+- 离线渲染生成 24-bit WAV、可选分轨、共享厅堂与完整回执；`1.0.0` 会按
   CPU、内存、临时磁盘、工作量和已核验资源自动选择串行或最多四个受管 worker，
   并以有界块流式交接长分轨。它不新增 `render profile` 参数，必需的 worker 安全
   或资源证据不足时回退到完整串行路径，串行与并行保持相同的正式音频字节合同。
@@ -288,10 +328,11 @@ readiness 授权继续渲染，已转译或无法核验都会令 readiness 保�
 
 ## 创作参考
 
-[天籁音乐宪法 v0.1](docs/音乐创作参考笔记/天籁音乐宪法-v0.1.md) 是附带给人类
-创作者与 AI Agent 的非规范性创作指导，不是法律、规则引擎或项目强制政策；不
-采纳不会触发项目处罚或功能限制。宪法文本采用 CC BY 4.0，但参考它创作的音乐
-不会因此自动采用 CC BY，天籁项目代码也继续采用 Apache-2.0。
+[天籁音乐宪法 v0.2](docs/音乐创作参考笔记/天籁音乐宪法-v0.2.md) 是附带给人类
+创作者与 AI Agent 的非规范性创作指导。它保护材料先于理由萌发的权利，同时只让
+重大结构选择承担相称的相因后果；它不是法律、规则引擎或项目强制政策，不采纳不会
+触发项目处罚或功能限制。宪法文本采用 CC BY 4.0，但参考它创作的音乐不会因此自动
+采用 CC BY，天籁项目代码也继续采用 Apache-2.0。
 
 ## 许可、输出与署名
 

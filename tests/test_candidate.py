@@ -154,6 +154,7 @@ def _populate_candidate(
     pitch: str = "C4",
     parent_candidate_id: str | None = None,
     score_title: str = "候选合同测试",
+    manifest_title: str | None = None,
     with_cache_telemetry: bool = False,
     authoring_roster: dict | None = None,
     roster_instrument: str = "测试工具/参考振荡器",
@@ -319,7 +320,11 @@ def _populate_candidate(
         )
     publish_candidate_metadata(
         target,
-        title="候选合同测试",
+        title=(
+            target.directory.parent.name
+            if manifest_title is None
+            else manifest_title
+        ),
         score=score,
         roster=roster,
         render_profile=profile,
@@ -462,6 +467,173 @@ class CandidateTests(unittest.TestCase):
             self.assertTrue(output_root.is_dir())
             self.assertTrue(target.directory.parent.is_dir())
 
+    def test_prepare_uses_clean_work_parent_but_keeps_hash_bound_work_id(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            title = "Clean / Work"
+
+            target = prepare_candidate_target(
+                root,
+                title,
+                output_id="clean-parent",
+            )
+            directory = _populate_candidate(
+                target,
+                score_title=title,
+                manifest_title=title,
+            )
+            loaded_directory, manifest = load_candidate(directory, verify=True)
+
+            self.assertEqual(
+                target.directory.parent.name,
+                candidate_module.portable_directory_name(title),
+            )
+            self.assertNotEqual(target.work_id, target.directory.parent.name)
+            self.assertEqual(
+                target.work_id,
+                candidate_module.portable_slug(title),
+            )
+            self.assertNotEqual(
+                target.work_id,
+                candidate_module.portable_slug(
+                    candidate_module.portable_directory_name(title)
+                ),
+            )
+            self.assertEqual(loaded_directory, directory.resolve())
+            self.assertEqual(manifest["work_id"], target.work_id)
+
+    def test_legacy_hash_parent_candidate_round_trips(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            title = "候选合同测试"
+            target = prepare_candidate_target(
+                Path(temporary),
+                title,
+                output_id="legacy-parent",
+                clean_work_directory=False,
+            )
+            directory = _populate_candidate(
+                target,
+                manifest_title=title,
+            )
+
+            loaded_directory, manifest = load_candidate(directory, verify=True)
+
+            self.assertEqual(directory.parent.name, target.work_id)
+            self.assertEqual(
+                target.work_id,
+                candidate_module.portable_slug(title),
+            )
+            self.assertEqual(loaded_directory, directory.resolve())
+            self.assertEqual(manifest["work_id"], target.work_id)
+
+    def test_legacy_work_parent_can_be_atomically_renamed_to_clean_title(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            title = "Legacy / Work"
+            target = prepare_candidate_target(
+                root,
+                title,
+                output_id="rename-to-clean",
+                clean_work_directory=False,
+            )
+            legacy_candidate = _populate_candidate(
+                target,
+                score_title=title,
+                manifest_title=title,
+            )
+            load_candidate(legacy_candidate, verify=True)
+            before = _tree_snapshot(legacy_candidate)
+            clean_parent = root / candidate_module.portable_directory_name(title)
+
+            os.replace(legacy_candidate.parent, clean_parent)
+            clean_candidate = clean_parent / legacy_candidate.name
+            loaded_directory, manifest = load_candidate(
+                clean_candidate,
+                verify=True,
+            )
+
+            self.assertFalse(legacy_candidate.parent.exists())
+            self.assertEqual(loaded_directory, clean_candidate.resolve())
+            self.assertEqual(manifest["work_id"], target.work_id)
+            self.assertEqual(_tree_snapshot(clean_candidate), before)
+
+    def test_load_rejects_candidate_moved_under_unrelated_work_parent(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            directory = _publish(root, output_id="wrong-parent")
+            wrong_parent = root / "unrelated-work"
+            os.replace(directory.parent, wrong_parent)
+
+            with self.assertRaisesRegex(ValueError, "clean or legacy"):
+                load_candidate(wrong_parent / directory.name, verify=False)
+
+    def test_load_rejects_manifest_title_that_no_longer_matches_work_id(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = _publish(Path(temporary), output_id="tampered-title")
+            manifest_path = directory / CANDIDATE_MANIFEST_NAME
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["title"] = "forged work title"
+            _write_json(manifest_path, manifest)
+
+            with self.assertRaises(ValueError):
+                load_candidate(directory, verify=False)
+
+    def test_load_rejects_tampered_manifest_work_id(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = _publish(Path(temporary), output_id="tampered-work-id")
+            manifest_path = directory / CANDIDATE_MANIFEST_NAME
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["work_id"] = candidate_module.portable_slug(
+                "forged work title"
+            )
+            _write_json(manifest_path, manifest)
+
+            with self.assertRaises(ValueError):
+                load_candidate(directory, verify=False)
+
+    def test_prepare_rejects_non_boolean_clean_work_directory(self) -> None:
+        invalid_values = (None, 0, 1, "true", object())
+        for index, value in enumerate(invalid_values):
+            with (
+                self.subTest(value=repr(value)),
+                tempfile.TemporaryDirectory() as temporary,
+            ):
+                output_root = Path(temporary) / f"must-not-exist-{index}"
+
+                with self.assertRaisesRegex(
+                    ValueError,
+                    "clean_work_directory must be boolean",
+                ):
+                    prepare_candidate_target(
+                        output_root,
+                        "候选合同测试",
+                        output_id="invalid-clean-flag",
+                        clean_work_directory=value,  # type: ignore[arg-type]
+                    )
+
+                self.assertFalse(output_root.exists())
+
+    def test_prepare_reserves_authoring_projects_namespace(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            output_root = Path(temporary) / "output"
+
+            with self.assertRaisesRegex(ValueError, "reserved"):
+                prepare_candidate_target(
+                    output_root,
+                    "authoring-projects",
+                    output_id="must-not-collide",
+                )
+
+            self.assertFalse(output_root.exists())
+
     @unittest.skipIf(os.name == "nt", "POSIX symlink contract")
     def test_prepare_rejects_symlink_work_directory_before_lock_or_scan(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -470,7 +642,7 @@ class CandidateTests(unittest.TestCase):
             root.mkdir()
             outside.mkdir()
             title = "linked work"
-            work = root / candidate_module.portable_slug(title)
+            work = root / candidate_module.portable_directory_name(title)
             os.symlink(outside, work, target_is_directory=True)
 
             with self.assertRaises(OSError):
@@ -486,7 +658,7 @@ class CandidateTests(unittest.TestCase):
             root.mkdir()
             outside.mkdir()
             title = "junction work"
-            work = root / candidate_module.portable_slug(title)
+            work = root / candidate_module.portable_directory_name(title)
             created = subprocess.run(
                 ["cmd", "/d", "/c", "mklink", "/J", str(work), str(outside)],
                 check=False,
@@ -652,6 +824,50 @@ class CandidateTests(unittest.TestCase):
                         roster_instrument=roster_instrument,
                         plan_instrument=plan_instrument,
                     )
+
+    def test_publish_preserves_authoring_collaboration_projection(self) -> None:
+        collaboration = {
+            "mode": "analyze",
+            "analysis": {
+                "metric": "overlap_active_rms",
+                "window_ms": 320,
+                "hop_ms": 80,
+                "gate_dbfs": -58,
+            },
+            "part_groups": [{"id": "solo", "parts": ["lead"]}],
+            "balance_relations": [],
+        }
+        authoring_roster = {
+            "kind": "tianlai.authoring_roster",
+            "schema_version": 1,
+            "name": "test",
+            "collaboration": collaboration,
+            "assignments": [
+                {
+                    "part": "lead",
+                    "instrument": "测试工具/参考振荡器",
+                }
+            ],
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            target = prepare_candidate_target(
+                Path(temporary),
+                "candidate collaboration",
+                output_id="authoring-collaboration",
+            )
+            directory = _populate_candidate(
+                target,
+                authoring_roster=authoring_roster,
+            )
+
+            _candidate_directory, _manifest = load_candidate(
+                directory,
+                verify=True,
+            )
+            formal = json.loads(
+                (directory / "roster.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(formal["collaboration"], collaboration)
 
     def test_authoring_plan_checks_explicit_articulation_auto_only(self) -> None:
         base_roster = {

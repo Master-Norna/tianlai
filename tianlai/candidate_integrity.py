@@ -31,6 +31,7 @@ from .candidate import (
     CANDIDATE_VERSION,
     _authoring_revision_identity,
     _candidate_authoring_manifest_binding,
+    _expected_work_id_for_directory,
     _parse_bounded_candidate_datetime,
     _verify_authoring_formal_roster,
     _verify_formal_roster_plan,
@@ -1432,9 +1433,17 @@ def verify_candidate_integrity(
         relative_path=CANDIDATE_MANIFEST_NAME,
         parent_identity=root_identity,
     )
+    try:
+        resolved_work_id = _expected_work_id_for_directory(
+            manifest,
+            root,
+            expected_work_id,
+        )
+    except ValueError as exc:
+        _fail("identity_mismatch", str(exc))
     candidate_version, authoring, workflow = _validate_manifest(
         manifest,
-        expected_work_id=work.name if expected_work_id is None else expected_work_id,
+        expected_work_id=resolved_work_id,
         expected_candidate_id=root.name if expected_candidate_id is None else expected_candidate_id,
     )
     if candidate_version == SCORE_V2_CANDIDATE_VERSION:

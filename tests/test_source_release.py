@@ -55,8 +55,8 @@ EXPECTED_PUBLIC_MARKDOWN_PAIRS = (
         "docs/音乐创作参考笔记/README.en.md",
     ),
     (
-        "docs/音乐创作参考笔记/天籁音乐宪法-v0.1.md",
-        "docs/音乐创作参考笔记/天籁音乐宪法-v0.1.en.md",
+        "docs/音乐创作参考笔记/天籁音乐宪法-v0.2.md",
+        "docs/音乐创作参考笔记/天籁音乐宪法-v0.2.en.md",
     ),
     ("output/README.md", "output/README.en.md"),
     ("音源/README.md", "音源/README.en.md"),
@@ -76,6 +76,7 @@ EXPECTED_PUBLIC_DOCUMENTS = frozenset(
 EXPECTED_PUBLIC_SCHEMAS = frozenset(
     {
         "schemas/candidate-playback-map.schema.json",
+        "schemas/creative-workflow.schema.json",
         "schemas/realization.schema.json",
         "schemas/score.schema.json",
         "schemas/score-v2.schema.json",
@@ -113,8 +114,8 @@ EXPECTED_PUBLIC_MUSIC_REFERENCE_DOCUMENTS = frozenset(
     {
         "docs/音乐创作参考笔记/README.md",
         "docs/音乐创作参考笔记/README.en.md",
-        "docs/音乐创作参考笔记/天籁音乐宪法-v0.1.md",
-        "docs/音乐创作参考笔记/天籁音乐宪法-v0.1.en.md",
+        "docs/音乐创作参考笔记/天籁音乐宪法-v0.2.md",
+        "docs/音乐创作参考笔记/天籁音乐宪法-v0.2.en.md",
     }
 )
 REPOSITORY_ONLY_MUSIC_REFERENCE_PDF = (
@@ -321,6 +322,13 @@ class SourceReleaseTests(unittest.TestCase):
             (
                 '{"$id":"https://tianlai.local/schemas/'
                 'candidate-playback-map.schema.json","type":"object"}\n'
+            ),
+        )
+        self._write(
+            "schemas/creative-workflow.schema.json",
+            (
+                '{"$id":"https://tianlai.local/schemas/'
+                'creative-workflow.schema.json","type":"object"}\n'
             ),
         )
         self._write(
@@ -782,13 +790,13 @@ class SourceReleaseTests(unittest.TestCase):
     ) -> None:
         pairs = (
             (
-                "docs/音乐创作参考笔记/天籁音乐宪法-v0.1.md",
-                "tianlai/_resources/constitutions/天籁音乐宪法-v0.1.md",
+                "docs/音乐创作参考笔记/天籁音乐宪法-v0.2.md",
+                "tianlai/_resources/constitutions/天籁音乐宪法-v0.2.md",
                 "README.md",
             ),
             (
-                "docs/音乐创作参考笔记/天籁音乐宪法-v0.1.en.md",
-                "tianlai/_resources/constitutions/天籁音乐宪法-v0.1.en.md",
+                "docs/音乐创作参考笔记/天籁音乐宪法-v0.2.en.md",
+                "tianlai/_resources/constitutions/天籁音乐宪法-v0.2.en.md",
                 "README.en.md",
             ),
         )
@@ -807,9 +815,9 @@ class SourceReleaseTests(unittest.TestCase):
                 self.assertIn(packaged, archive.namelist())
 
     def test_packaged_constitution_must_match_public_source(self) -> None:
-        source = "docs/音乐创作参考笔记/天籁音乐宪法-v0.1.md"
+        source = "docs/音乐创作参考笔记/天籁音乐宪法-v0.2.md"
         packaged = (
-            "tianlai/_resources/constitutions/天籁音乐宪法-v0.1.md"
+            "tianlai/_resources/constitutions/天籁音乐宪法-v0.2.md"
         )
         self._write(source, "# Canonical constitution\n")
         self._write(packaged, "# Altered runtime copy\n")

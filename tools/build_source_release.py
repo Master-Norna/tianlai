@@ -62,8 +62,8 @@ _PUBLIC_MARKDOWN_PAIRS: Final[tuple[tuple[str, str], ...]] = (
         "docs/音乐创作参考笔记/README.en.md",
     ),
     (
-        "docs/音乐创作参考笔记/天籁音乐宪法-v0.1.md",
-        "docs/音乐创作参考笔记/天籁音乐宪法-v0.1.en.md",
+        "docs/音乐创作参考笔记/天籁音乐宪法-v0.2.md",
+        "docs/音乐创作参考笔记/天籁音乐宪法-v0.2.en.md",
     ),
     ("output/README.md", "output/README.en.md"),
     ("音源/README.md", "音源/README.en.md"),
@@ -89,12 +89,12 @@ _PUBLIC_DOCUMENT_KEYS: Final = frozenset(
 _PACKAGED_MARKDOWN_SOURCE_PATHS: Final[Mapping[str, str]] = {
     (
         "tianlai/_resources/constitutions/"
-        "天籁音乐宪法-v0.1.md"
-    ): "docs/音乐创作参考笔记/天籁音乐宪法-v0.1.md",
+        "天籁音乐宪法-v0.2.md"
+    ): "docs/音乐创作参考笔记/天籁音乐宪法-v0.2.md",
     (
         "tianlai/_resources/constitutions/"
-        "天籁音乐宪法-v0.1.en.md"
-    ): "docs/音乐创作参考笔记/天籁音乐宪法-v0.1.en.md",
+        "天籁音乐宪法-v0.2.en.md"
+    ): "docs/音乐创作参考笔记/天籁音乐宪法-v0.2.en.md",
 }
 _REPOSITORY_ONLY_ROOT_DOCUMENT_PATHS: Final = frozenset(
     {

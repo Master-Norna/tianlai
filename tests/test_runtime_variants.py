@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 from pathlib import Path
 import struct
@@ -11,6 +12,9 @@ from tianlai.runtime_variants import (
     RuntimeVariantError,
     capture_runtime_variants,
     current_runtime_variant_capture,
+    runtime_variant_selection_receipts_match,
+    stable_variant_sha256,
+    validate_runtime_variant_selection_receipt,
 )
 from tianlai.sampler import SampleInstrument
 
@@ -72,7 +76,228 @@ def _catalog(receipt: dict, selection_index: int = 0) -> dict:
     return catalogs[catalog_sha256]
 
 
+def _rehash_receipt(receipt: dict) -> None:
+    receipt["receipt_sha256"] = stable_variant_sha256(
+        "runtime-variant-selection-receipt-v1",
+        {
+            key: value
+            for key, value in receipt.items()
+            if key != "receipt_sha256"
+        },
+    )
+
+
+def _rehash_first_catalog(receipt: dict) -> None:
+    record = receipt["catalogs"][0]
+    old_catalog_sha256 = record["catalog_sha256"]
+    catalog = record["catalog"]
+    catalog["condition_sha256"] = stable_variant_sha256(
+        "sample-region-condition-v1",
+        catalog["condition"],
+    )
+    new_catalog_sha256 = stable_variant_sha256(
+        "runtime-variant-catalog-v1",
+        catalog,
+    )
+    record["catalog_sha256"] = new_catalog_sha256
+    for selection in receipt["selections"]:
+        if selection["catalog_sha256"] == old_catalog_sha256:
+            selection["catalog_sha256"] = new_catalog_sha256
+            selection["condition_sha256"] = catalog["condition_sha256"]
+    _rehash_receipt(receipt)
+
+
 class RuntimeVariantCaptureTests(unittest.TestCase):
+    def test_receipt_integer_fields_reject_boolean_aliases_after_rehash(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory(
+            prefix="tianlai_runtime_variants_integer_contract_"
+        ) as temporary:
+            directory = Path(temporary)
+            instrument = _instrument(
+                directory,
+                [{"sample": "single.wav", "root_pitch_hz": 440.0}],
+            )
+            with capture_runtime_variants() as capture:
+                _select(instrument)
+            original = capture.receipt()
+
+            cases = (
+                (
+                    "schema_version",
+                    lambda receipt: receipt.__setitem__(
+                        "schema_version", True
+                    ),
+                ),
+                (
+                    "selection_index",
+                    lambda receipt: receipt["selections"][0].__setitem__(
+                        "selection_index", False
+                    ),
+                ),
+            )
+            for field, mutate in cases:
+                with self.subTest(field=field):
+                    forged = copy.deepcopy(original)
+                    mutate(forged)
+                    _rehash_receipt(forged)
+                    with self.assertRaisesRegex(
+                        RuntimeVariantError,
+                        rf"{field}.*integer",
+                    ):
+                        validate_runtime_variant_selection_receipt(forged)
+
+            forged = copy.deepcopy(original)
+            forged["catalogs"][0]["catalog"]["condition"][
+                "pitch_bucket"
+            ] = 69.0
+            _rehash_first_catalog(forged)
+            with self.assertRaisesRegex(
+                RuntimeVariantError,
+                r"pitch_bucket.*integer",
+            ):
+                validate_runtime_variant_selection_receipt(forged)
+
+            forged = copy.deepcopy(original)
+            forged["catalogs"][0]["catalog"]["choices"][0][
+                "catalog_position"
+            ] = False
+            _rehash_first_catalog(forged)
+            with self.assertRaisesRegex(
+                RuntimeVariantError,
+                r"catalog_position.*integer",
+            ):
+                validate_runtime_variant_selection_receipt(forged)
+
+            equivalent = copy.deepcopy(original)
+            pitch_hz = equivalent["catalogs"][0]["catalog"]["condition"][
+                "pitch_hz"
+            ]
+            self.assertEqual(pitch_hz, int(pitch_hz))
+            equivalent["catalogs"][0]["catalog"]["condition"][
+                "pitch_hz"
+            ] = int(pitch_hz)
+            _rehash_first_catalog(equivalent)
+            self.assertTrue(
+                runtime_variant_selection_receipts_match(
+                    original,
+                    equivalent,
+                )
+            )
+
+            multi_condition = _instrument(
+                directory,
+                [{"sample": "shared.wav", "root_pitch_hz": 440.0}],
+            )
+            with capture_runtime_variants() as multi_capture:
+                multi_condition._select_region(
+                    440.0,
+                    80 / 127.0,
+                    target_midi=69.0,
+                    random_value=0.5,
+                )
+                multi_condition._select_region(
+                    466.1637615180899,
+                    80 / 127.0,
+                    target_midi=70.0,
+                    random_value=0.5,
+                )
+            bound = multi_capture.receipt()
+            self.assertEqual(len(bound["catalogs"]), 2)
+            swapped = copy.deepcopy(bound)
+            first = swapped["selections"][0]
+            second = swapped["selections"][1]
+            first["catalog_sha256"], second["catalog_sha256"] = (
+                second["catalog_sha256"],
+                first["catalog_sha256"],
+            )
+            first["condition_sha256"], second["condition_sha256"] = (
+                second["condition_sha256"],
+                first["condition_sha256"],
+            )
+            _rehash_receipt(swapped)
+            validate_runtime_variant_selection_receipt(swapped)
+            self.assertFalse(
+                runtime_variant_selection_receipts_match(bound, swapped)
+            )
+
+            numeric_cases = (
+                (
+                    "selector minimum",
+                    lambda catalog: catalog["selector_domain"].__setitem__(
+                        "minimum", True
+                    ),
+                ),
+                (
+                    "partition probe",
+                    lambda catalog: catalog["partitions"][0].__setitem__(
+                        "probe_value", True
+                    ),
+                ),
+                (
+                    "choice random minimum",
+                    lambda catalog: catalog["choices"][0].__setitem__(
+                        "random_min", True
+                    ),
+                ),
+                (
+                    "choice jitter",
+                    lambda catalog: catalog["choices"][0][
+                        "jitter"
+                    ].__setitem__("pitch_random_cents", True),
+                ),
+            )
+            for field, mutate in numeric_cases:
+                with self.subTest(numeric_field=field):
+                    forged = copy.deepcopy(original)
+                    mutate(forged["catalogs"][0]["catalog"])
+                    _rehash_first_catalog(forged)
+                    with self.assertRaisesRegex(
+                        RuntimeVariantError,
+                        r"finite number",
+                    ):
+                        validate_runtime_variant_selection_receipt(forged)
+
+            jittered = _instrument(
+                directory,
+                [
+                    {
+                        "sample": "jittered.wav",
+                        "root_pitch_hz": 440.0,
+                        "pitch_random_cents": 4.0,
+                    }
+                ],
+            )
+            with capture_runtime_variants() as jitter_capture:
+                _select(jittered)
+            jitter_receipt = jitter_capture.receipt()
+            domain_cases = (
+                (
+                    "minimum",
+                    lambda domain: domain.__setitem__("minimum", True),
+                    r"minimum.*finite number",
+                ),
+                (
+                    "exhaustive",
+                    lambda domain: domain.__setitem__("exhaustive", 0),
+                    r"exhaustive.*boolean",
+                ),
+            )
+            for field, mutate, pattern in domain_cases:
+                with self.subTest(unexhausted_domain_field=field):
+                    forged = copy.deepcopy(jitter_receipt)
+                    domain = forged["catalogs"][0]["catalog"][
+                        "unexhausted_domains"
+                    ][0]
+                    mutate(domain)
+                    _rehash_first_catalog(forged)
+                    with self.assertRaisesRegex(
+                        RuntimeVariantError,
+                        pattern,
+                    ):
+                        validate_runtime_variant_selection_receipt(forged)
+
     def test_plain_round_robin_sequence_is_unchanged_by_capture(self) -> None:
         with tempfile.TemporaryDirectory(
             prefix="tianlai_runtime_variants_rr_"

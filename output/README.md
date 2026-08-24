@@ -10,7 +10,7 @@
 | 路径 | 用途 |
 | --- | --- |
 | `作品/<曲名>/<版本>/` | 经创作者确认保留的合奏、分轨、计划、回执与许可旁车 |
-| `mcp/<作品 ID>/<候选 ID>/` | MCP `render` 生成的不可变候选 |
+| `mcp/<安全化曲名>/<候选 ID>/` | 普通 MCP `render` 生成的不可变候选；曲名目录不带身份 Hash |
 | `mcp-workspaces/<会话或曲名>/` | 尚未确认的 score、roster、补丁结果和客户端状态 |
 | `全音域试音/<乐器类别>/` | 可重新生成的逐乐器全音域扫描与许可旁车 |
 | `表现力试听/<乐器类别>/` | 固定谱例、精致化 A/B 和与音频配套的许可旁车 |
@@ -26,6 +26,14 @@ CLI `project-render` 默认写入 `output/候选/`，MCP `render` 写入 `output
 候选目录由 `候选.json` 和渲染回执绑定，应按不可变快照使用。确认收录后，使用
 同一份 score、roster 和可选 space 复制或重新渲染到
 `作品/<曲名>/<版本>/`；不要移动或覆盖原候选来冒充新结果。
+
+新的普通 MCP 候选路径是
+`output/mcp/<安全化曲名（无身份 Hash）>/<candidate_id>/`。目录用于按曲名整理，
+身份仍由 `候选.json` 内绑定 Hash 的 `work_id` 与保持不变的 `candidate_id` 决定；
+因此 `work_id` 通常不等于父目录名。加载和完整性核验同时支持这种干净父目录与
+历史 `<work_id>/<candidate_id>/` 布局，但候选目录名本身必须保持为
+`candidate_id`。authoring 与 workflow 的内部工程仍由
+`output/mcp/authoring-projects/` 独立管理，不应按普通候选规则手动重排。
 
 一个可复现的作品版本至少应保留：
 

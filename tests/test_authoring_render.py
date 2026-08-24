@@ -144,6 +144,41 @@ def _work_charter() -> dict[str, object]:
     }
 
 
+def _score_metadata_revision_scope() -> dict[str, object]:
+    return {
+        "change_scale": "bounded",
+        "documents": ["score"],
+        "allowed_document_paths": {"score": ["/tail_seconds"]},
+        "score": {
+            "part_ids": [],
+            "event_ids": [],
+            "bar_ranges": [],
+            "allowed_note_fields": [],
+            "allow_event_additions": False,
+            "allow_event_deletions": False,
+            "allow_reordering": False,
+        },
+        "whole_work_cost": None,
+    }
+
+
+def _full_charter_settlement(basis_ids: list[str]) -> list[dict[str, object]]:
+    return [
+        {
+            "target": target,
+            "status": "kept",
+            "rationale": "The accepted candidate keeps this charter promise.",
+            "basis_ids": list(basis_ids),
+            "event_ids": ["event-1"],
+        }
+        for target in (
+            "one_sentence_promise",
+            "identity_kernel.invariants[0]",
+            "ending_contract",
+        )
+    ]
+
+
 def _record_review(root: Path, snapshot, phase: str):
     return record_workflow_review(
         root,
@@ -212,9 +247,9 @@ def _open_revision_after_managed_candidate(root: Path, state):
         interpretation="A child revision can be abandoned without erasing it.",
         confidence="medium",
     )
-    evidence_id = snapshot.detached_state()["iterations"][0]["evidence"][-1][
-        "evidence_id"
-    ]
+    current_iteration = snapshot.detached_state()["iterations"][0]
+    evidence_id = current_iteration["evidence"][-1]["evidence_id"]
+    review_ids = [item["review_id"] for item in current_iteration["reviews"]]
     snapshot = decide_workflow_iteration(
         root,
         workflow_id=snapshot.workflow_id,
@@ -225,7 +260,18 @@ def _open_revision_after_managed_candidate(root: Path, state):
         final_authority="agent",
         perception_basis="report_only",
         evidence_ids=[evidence_id],
+        review_ids=review_ids,
+        evidence_dispositions=[
+            {
+                "evidence_id": evidence_id,
+                "disposition": "revision_target",
+                "rationale": "The bounded risk is the explicit target of the child revision.",
+                "basis_ids": [],
+            }
+        ],
         expected_audible_change="The rendered tail becomes slightly longer.",
+        revision_scope=_score_metadata_revision_scope(),
+        withdrawal_condition="Withdraw if the change exceeds score metadata.",
     )
     documents = state.detached_documents()
     documents["score"]["tail_seconds"] = 0.06
@@ -347,6 +393,23 @@ def test_real_minimal_render_publishes_verified_candidate_and_playback_map(
     tmp_path: Path,
 ) -> None:
     root, state = _renderable_project(tmp_path)
+    documents = state.detached_documents()
+    documents["authoring_roster"]["collaboration"] = {
+        "mode": "manual",
+        "analysis": {
+            "metric": "overlap_active_rms",
+            "window_ms": 400,
+            "hop_ms": 100,
+            "gate_dbfs": -60,
+        },
+        "part_groups": [{"id": "solo", "parts": ["part-1"]}],
+        "balance_relations": [],
+    }
+    state = save_authoring_project(
+        root,
+        expected_revision=state.revision,
+        documents=documents,
+    )
     checkpoints: list[RenderCheckpoint] = []
 
     result = render_project_candidate(
@@ -383,6 +446,10 @@ def test_real_minimal_render_publishes_verified_candidate_and_playback_map(
             encoding="utf-8"
         )
     )
+    formal_roster = json.loads(
+        (candidate_directory / "roster.json").read_text(encoding="utf-8")
+    )
+    assert formal_roster["collaboration"] == authoring_roster["collaboration"]
     assert binding["authoring_roster"]["canonical_sha256"] == (
         canonical_json_sha256(authoring_roster)
     )
@@ -732,6 +799,7 @@ def test_default_manual_managed_candidate_can_be_accepted_without_mix_report(
     assert candidate["complete_review_artifacts"] is True
     assert candidate["mix_report_sha256"] is None
     snapshot = _record_review(root, snapshot, "render_report")
+    current_iteration = snapshot.detached_state()["iterations"][-1]
     accepted = decide_workflow_iteration(
         root,
         workflow_id=snapshot.workflow_id,
@@ -744,6 +812,11 @@ def test_default_manual_managed_candidate_can_be_accepted_without_mix_report(
         ),
         final_authority="agent",
         perception_basis="report_only",
+        review_ids=[item["review_id"] for item in current_iteration["reviews"]],
+        evidence_dispositions=[],
+        charter_settlement=_full_charter_settlement(
+            [item["review_id"] for item in current_iteration["reviews"]]
+        ),
         candidate_path=directory,
     )
 
@@ -818,6 +891,7 @@ def test_resolved_output_failure_remains_audited_but_does_not_block_acceptance(
         candidate_path=directory,
     )
     snapshot = _record_review(root, snapshot, "render_report")
+    current_iteration = snapshot.detached_state()["iterations"][-1]
     accepted = decide_workflow_iteration(
         root,
         workflow_id=snapshot.workflow_id,
@@ -827,6 +901,11 @@ def test_resolved_output_failure_remains_audited_but_does_not_block_acceptance(
         rationale="The historical output failure no longer reproduces.",
         final_authority="agent",
         perception_basis="report_only",
+        review_ids=[item["review_id"] for item in current_iteration["reviews"]],
+        evidence_dispositions=[],
+        charter_settlement=_full_charter_settlement(
+            [item["review_id"] for item in current_iteration["reviews"]]
+        ),
         candidate_path=directory,
     )
 
@@ -835,6 +914,30 @@ def test_resolved_output_failure_remains_audited_but_does_not_block_acceptance(
     historical = accepted_state["iterations"][0]["evidence"][0]
     assert historical["code"] == "output.not_writable"
     assert historical["blocking"] is True
+    gate = accepted_state["termination"]["acceptance_gate"]
+    assert gate["profile"] == "recorded-hard-failure-recheck-v1"
+    assert gate["checked_hard_failure_evidence_ids"] == [
+        historical["evidence_id"]
+    ]
+    assert gate["unresolved_hard_failure_evidence_ids"] == []
+    assert gate["readiness_result_sha256"] is not None
+
+    def _environment_must_not_rewrite_history(*_args, **_kwargs):
+        raise AssertionError("accepted history must not re-run current readiness")
+
+    monkeypatch.setattr(
+        creative_workflow_module,
+        "validate_project_readiness",
+        _environment_must_not_rewrite_history,
+    )
+    reopened = creative_workflow_module.open_creative_workflow(
+        root, workflow_id=accepted.workflow_id
+    )
+    assert reopened.revision == accepted.revision
+    history = verify_creative_workflow_history(
+        root, workflow_id=accepted.workflow_id
+    )
+    assert history["complete"] is True
 
 
 def test_candidate_pending_rollback_cancels_reservation_and_keeps_history(
@@ -853,6 +956,13 @@ def test_candidate_pending_rollback_cancels_reservation_and_keeps_history(
     )
     authorization = workflow_render_authorization(pending)
     assert "rollback" in pending.to_dict()["allowed_actions"]
+    pending_state = pending.detached_state()
+    contract_sha256 = pending_state["iterations"][0]["decision"][
+        "revision_contract"
+    ]["contract_sha256"]
+    assessment_review_id = pending_state["iterations"][1]["reviews"][0][
+        "review_id"
+    ]
 
     rolled_back = rollback_workflow(
         root,
@@ -863,6 +973,12 @@ def test_candidate_pending_rollback_cancels_reservation_and_keeps_history(
         rationale="The earlier verified candidate remains the selected anchor.",
         final_authority="agent",
         perception_basis="report_only",
+        prior_revision_assessment={
+            "contract_sha256": contract_sha256,
+            "outcome": "retain_baseline",
+            "rationale": "The unrendered child does not displace the verified baseline.",
+            "basis_ids": [assessment_review_id],
+        },
     )
 
     workflow_state = rolled_back.detached_state()
@@ -893,8 +1009,17 @@ def test_revision_pending_rejects_rollback_without_overwriting_revise_decision(
     tmp_path: Path,
 ) -> None:
     root, state = _renderable_project(tmp_path)
-    snapshot, first_candidate = _open_revision_after_managed_candidate(
-        root, state
+    snapshot = create_creative_workflow(
+        root,
+        mode="iterate",
+        final_authority="agent",
+        base_authoring_revision=state.revision,
+    )
+    snapshot = activate_creative_workflow(
+        root,
+        workflow_id=snapshot.workflow_id,
+        expected_revision=snapshot.revision,
+        work_charter=_work_charter(),
     )
     snapshot = _record_review(root, snapshot, "intent")
     snapshot = record_workflow_evidence(
@@ -912,9 +1037,9 @@ def test_revision_pending_rejects_rollback_without_overwriting_revise_decision(
         interpretation="Rollback should close the pending hypothesis cleanly.",
         confidence="medium",
     )
-    evidence_id = snapshot.detached_state()["iterations"][1]["evidence"][-1][
-        "evidence_id"
-    ]
+    current_iteration = snapshot.detached_state()["iterations"][0]
+    evidence_id = current_iteration["evidence"][-1]["evidence_id"]
+    review_ids = [item["review_id"] for item in current_iteration["reviews"]]
     revision_pending = decide_workflow_iteration(
         root,
         workflow_id=snapshot.workflow_id,
@@ -925,11 +1050,21 @@ def test_revision_pending_rejects_rollback_without_overwriting_revise_decision(
         final_authority="agent",
         perception_basis="report_only",
         evidence_ids=[evidence_id],
+        review_ids=review_ids,
+        evidence_dispositions=[
+            {
+                "evidence_id": evidence_id,
+                "disposition": "revision_target",
+                "rationale": "The current aesthetic risk is the target of the proposed revision.",
+                "basis_ids": [],
+            }
+        ],
         expected_audible_change="Test a shorter decay.",
+        revision_scope=_score_metadata_revision_scope(),
+        withdrawal_condition="Withdraw if the change exceeds score metadata.",
     )
-    assert first_candidate is not None
     assert "rollback" not in revision_pending.to_dict()["allowed_actions"]
-    before = revision_pending.detached_state()["iterations"][1]["decision"]
+    before = revision_pending.detached_state()["iterations"][0]["decision"]
     with pytest.raises(CreativeWorkflowError) as captured:
         rollback_workflow(
             root,
@@ -949,8 +1084,8 @@ def test_revision_pending_rejects_rollback_without_overwriting_revise_decision(
     workflow_state = unchanged.detached_state()
     assert unchanged.revision == revision_pending.revision
     assert workflow_state["status"] == "revision_pending"
-    assert workflow_state["iterations"][1]["decision"] == before
-    assert workflow_state["iterations"][1]["decision"]["disposition"] == "revise"
+    assert workflow_state["iterations"][0]["decision"] == before
+    assert workflow_state["iterations"][0]["decision"]["disposition"] == "revise"
     history = verify_creative_workflow_history(
         root, workflow_id=revision_pending.workflow_id
     )
@@ -1082,9 +1217,9 @@ def test_managed_render_builds_verified_parent_chain(
         interpretation="A second revision can verify the parent locator.",
         confidence="medium",
     )
-    evidence_id = snapshot.detached_state()["iterations"][-1]["evidence"][-1][
-        "evidence_id"
-    ]
+    current_iteration = snapshot.detached_state()["iterations"][-1]
+    evidence_id = current_iteration["evidence"][-1]["evidence_id"]
+    review_ids = [item["review_id"] for item in current_iteration["reviews"]]
     snapshot = decide_workflow_iteration(
         root,
         workflow_id=snapshot.workflow_id,
@@ -1095,7 +1230,18 @@ def test_managed_render_builds_verified_parent_chain(
         final_authority="agent",
         perception_basis="report_only",
         evidence_ids=[evidence_id],
+        review_ids=review_ids,
+        evidence_dispositions=[
+            {
+                "evidence_id": evidence_id,
+                "disposition": "revision_target",
+                "rationale": "The duration variation is the explicit target of the child revision.",
+                "basis_ids": [],
+            }
+        ],
         expected_audible_change="The note and tail become slightly longer.",
+        revision_scope=_score_metadata_revision_scope(),
+        withdrawal_condition="Withdraw if the change exceeds score metadata.",
     )
     documents = state.detached_documents()
     documents["score"]["tail_seconds"] = 0.06

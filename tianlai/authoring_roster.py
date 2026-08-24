@@ -28,7 +28,11 @@ from .portable_filename import (
     portable_filename_key,
     validate_executor_id,
 )
-from .roster import check_roster_covers_score, parse_roster_document
+from .roster import (
+    check_roster_covers_score,
+    parse_roster_document,
+    validate_collaboration_document,
+)
 from .score import ScoreDocument, parse_pitch, pitch_name, parse_score_document
 from .self_check import build_issue
 
@@ -57,7 +61,7 @@ LocationSegment: TypeAlias = str | int
 Location: TypeAlias = tuple[LocationSegment, ...]
 
 _TOP_LEVEL_KEYS = frozenset(
-    {"kind", "schema_version", "name", "assignments"}
+    {"kind", "schema_version", "name", "collaboration", "assignments"}
 )
 _ASSIGNMENT_KEYS = frozenset(
     {
@@ -102,6 +106,24 @@ _ROLE_PROMINENCES = frozenset({"foreground", "midground", "background"})
 _OVERRIDE_KEYS = frozenset(
     {"release_seconds", "release_tail_gain", "sample_variant"}
 )
+_COLLABORATION_KEYS = frozenset(
+    {"mode", "analysis", "part_groups", "balance_relations"}
+)
+_COLLABORATION_ANALYSIS_KEYS = frozenset(
+    {"metric", "window_ms", "hop_ms", "gate_dbfs"}
+)
+_PART_GROUP_KEYS = frozenset({"id", "parts"})
+_BALANCE_RELATION_KEYS = frozenset(
+    {
+        "subject",
+        "reference",
+        "target_offset_db",
+        "tolerance_db",
+        "max_suggestion_db",
+    }
+)
+
+
 class AuthoringRosterError(ValueError):
     """Stable, machine-readable authoring-roster contract failure.
 
@@ -197,6 +219,16 @@ class AuthoringRoster:
 
     name: str | None
     assignments: tuple[AuthoringAssignment, ...]
+    _collaboration_payload: bytes | None = None
+
+    @property
+    def collaboration(self) -> dict[str, Any] | None:
+        if self._collaboration_payload is None:
+            return None
+        document = json.loads(self._collaboration_payload.decode("utf-8"))
+        if not isinstance(document, dict):  # pragma: no cover - constructor invariant
+            raise AssertionError("authoring collaboration payload is not an object")
+        return document
 
     @property
     def unassigned_parts(self) -> tuple[str, ...]:
@@ -214,6 +246,9 @@ class AuthoringRoster:
         }
         if self.name is not None:
             document["name"] = self.name
+        collaboration = self.collaboration
+        if collaboration is not None:
+            document["collaboration"] = collaboration
         return document
 
 
@@ -556,6 +591,44 @@ def _validate_overrides(value: object, location: Location) -> None:
             (*location, "sample_variant"),
             maximum=MAX_ID_LENGTH,
         )
+
+
+def _reject_collaboration_unknown_keys(
+    value: object, location: Location
+) -> None:
+    """Retain authoring-style locations while sharing formal semantics."""
+
+    if not isinstance(value, dict):
+        return
+    _reject_unknown_keys(value, _COLLABORATION_KEYS, location)
+
+    analysis = value.get("analysis")
+    if isinstance(analysis, dict):
+        _reject_unknown_keys(
+            analysis,
+            _COLLABORATION_ANALYSIS_KEYS,
+            (*location, "analysis"),
+        )
+
+    part_groups = value.get("part_groups")
+    if isinstance(part_groups, list):
+        for index, group in enumerate(part_groups):
+            if isinstance(group, dict):
+                _reject_unknown_keys(
+                    group,
+                    _PART_GROUP_KEYS,
+                    (*location, "part_groups", index),
+                )
+
+    relations = value.get("balance_relations")
+    if isinstance(relations, list):
+        for index, relation in enumerate(relations):
+            if isinstance(relation, dict):
+                _reject_unknown_keys(
+                    relation,
+                    _BALANCE_RELATION_KEYS,
+                    (*location, "balance_relations", index),
+                )
 
 
 def _validate_shared_assignment_fields(
@@ -933,6 +1006,33 @@ def parse_authoring_roster_document(
         _parse_assignment(raw, index)
         for index, raw in enumerate(raw_assignments)
     )
+    collaboration_payload: bytes | None = None
+    if "collaboration" in data:
+        raw_collaboration = data["collaboration"]
+        _reject_collaboration_unknown_keys(
+            raw_collaboration,
+            ("collaboration",),
+        )
+        try:
+            validate_collaboration_document(
+                raw_collaboration,
+                frozenset(item.part for item in assignments),
+                path="authoring_roster.collaboration",
+            )
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise _error(
+                "authoring_roster.invalid_collaboration",
+                "The collaboration intent is invalid.",
+                ("collaboration",),
+            ) from exc
+        try:
+            collaboration_payload = canonical_json_bytes(raw_collaboration)
+        except (TypeError, ValueError, OverflowError, UnicodeError) as exc:
+            raise _error(
+                "authoring_roster.nonportable_json",
+                "The collaboration intent must contain finite, portable JSON values.",
+                ("collaboration",),
+            ) from exc
     try:
         encoded = canonical_json_bytes(data)
     except (TypeError, ValueError, OverflowError, UnicodeError) as exc:
@@ -950,7 +1050,11 @@ def parse_authoring_roster_document(
     parsed_score = _coerce_score(score)
     _validate_part_binding(assignments, parsed_score)
     _validate_executor_budget_and_ids(assignments)
-    return AuthoringRoster(name=name, assignments=assignments)
+    return AuthoringRoster(
+        name=name,
+        assignments=assignments,
+        _collaboration_payload=collaboration_payload,
+    )
 
 
 def validate_authoring_roster_document(
@@ -1058,6 +1162,9 @@ def to_formal_roster(
     }
     if parsed.name is not None:
         formal["name"] = parsed.name
+    collaboration = parsed.collaboration
+    if collaboration is not None:
+        formal["collaboration"] = collaboration
     try:
         resolved = parse_roster_document(formal, capabilities)
         check_roster_covers_score(resolved, parsed_score)

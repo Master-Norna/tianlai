@@ -11,7 +11,7 @@ default and are not part of the lightweight source release.
 | Path | Purpose |
 | --- | --- |
 | `作品/<title>/<version>/` | Creator-approved ensembles, stems, plans, receipts, and license sidecars |
-| `mcp/<work ID>/<candidate ID>/` | Immutable candidates produced by MCP `render` |
+| `mcp/<sanitized title>/<candidate ID>/` | Immutable ordinary MCP `render` candidates; the title directory has no identity hash |
 | `mcp-workspaces/<session or title>/` | Unconfirmed scores, rosters, patch results, and client state |
 | `全音域试音/<instrument category>/` | Regenerable full-range scans and their license sidecars |
 | `表现力试听/<instrument category>/` | Fixed examples, refinement A/B renders, and matching license sidecars |
@@ -29,6 +29,17 @@ receipt and must be treated as an immutable snapshot. After accepting a result,
 copy or re-render the same score, roster, and optional space into
 `作品/<title>/<version>/`. Do not move or overwrite the original candidate and
 present it as a new result.
+
+A new ordinary MCP candidate uses
+`output/mcp/<sanitized title without an identity hash>/<candidate_id>/`. The
+title directory is only for organizing works. Identity remains bound by the
+hash-bound `work_id` and unchanged `candidate_id` in `候选.json`, so `work_id`
+normally differs from the parent-directory name. Loading and integrity
+verification accept either this clean parent or the legacy
+`<work_id>/<candidate_id>/` layout, but the candidate directory itself must
+remain exactly `candidate_id`. Authoring and workflow internals remain managed
+separately under `output/mcp/authoring-projects/`; do not manually rearrange
+them as ordinary candidates.
 
 A reproducible work version should retain at least:
 

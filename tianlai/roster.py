@@ -862,6 +862,23 @@ def _parse_collaboration(
     )
 
 
+def validate_collaboration_document(
+    raw: object,
+    assigned_parts: frozenset[str],
+    *,
+    path: str = "roster.collaboration",
+) -> CollaborationSettings:
+    """Validate collaboration intent without resolving instrument capabilities.
+
+    Authoring rosters need the same group and relation semantics as formal
+    rosters even while an instrument route may still be unassigned.  Keep one
+    parser for those semantics so endpoint, overlap, duplicate and numeric
+    checks cannot drift between the authoring and render boundaries.
+    """
+
+    return _parse_collaboration(raw, assigned_parts, path)
+
+
 # 编制表不是第二份乐器清单。这里采用显式白名单：每增加一种可调参数都要
 # 经过一次代码审阅，而不是仅凭“它碰巧是标量”就放行。否则 type、
 # implementation、asset_root、license_status 等身份/资源/许可字段同样都是

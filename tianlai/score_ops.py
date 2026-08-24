@@ -72,6 +72,7 @@ _NOTE_KEYS = frozenset(
     }
 )
 _REQUIRED_NOTE_KEYS = frozenset({"bar", "beat", "duration_beats", "pitch"})
+_INTEGER_NOTE_KEYS = frozenset({"bar", "staff"})
 _MISSING = object()
 
 
@@ -748,7 +749,20 @@ def _check_expectation(
         # field is absent.  Valid score-v1 notes never need an explicit null.
         if expected_value is None and actual_value is _MISSING:
             continue
-        if actual_value is _MISSING or actual_value != expected_value:
+        if (
+            actual_value is _MISSING
+            or isinstance(actual_value, bool) != isinstance(expected_value, bool)
+            or (
+                field in _INTEGER_NOTE_KEYS
+                and (
+                    isinstance(actual_value, bool)
+                    or not isinstance(actual_value, int)
+                    or isinstance(expected_value, bool)
+                    or not isinstance(expected_value, int)
+                )
+            )
+            or actual_value != expected_value
+        ):
             actual: dict[str, Any]
             if actual_value is _MISSING:
                 actual = {"present": False}

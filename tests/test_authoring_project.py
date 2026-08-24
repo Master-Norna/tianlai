@@ -7,6 +7,7 @@ import multiprocessing
 import os
 from pathlib import Path
 import pickle
+import shutil
 
 import pytest
 
@@ -20,6 +21,7 @@ from tianlai.authoring_project import (
     create_authoring_project,
     open_authoring_project,
     save_authoring_project,
+    verify_authoring_revision_ancestry,
 )
 from tianlai.utc_timestamp import validate_canonical_utc_timestamp
 
@@ -371,6 +373,194 @@ def test_save_is_three_document_cas_and_never_overwrites_stale_revision(
         )
     ) == "revision_conflict"
     assert open_authoring_project(root) == saved
+
+
+def test_public_save_sequence_and_hash_bound_events_prevent_causal_rewind(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root, original = _project(tmp_path)
+    changed = original.detached_documents()
+    changed["score"]["tail_seconds"] = 3
+    second = save_authoring_project(
+        root,
+        expected_revision=original.revision,
+        documents=changed,
+    )
+    restored_content = save_authoring_project(
+        root,
+        expected_revision=second.revision,
+        documents=original.detached_documents(),
+    )
+
+    assert original.save_sequence == 1
+    assert original.revision_first_save_sequence == 1
+    assert original.revision_parent_revision is None
+    assert second.save_sequence == 2
+    assert second.revision_first_save_sequence == 2
+    assert second.revision_parent_revision == original.revision
+    assert restored_content.save_sequence == 3
+    # Revisions stay content-addressed for candidate compatibility, while the
+    # immutable save event distinguishes this later publication of A.
+    assert restored_content.revision_first_save_sequence == 1
+    assert restored_content.revision_parent_revision is None
+    assert restored_content.revision == original.revision
+    assert restored_content.save_event_sha256 != original.save_event_sha256
+
+    proof = verify_authoring_revision_ancestry(
+        root,
+        descendant_revision=restored_content.revision,
+        ancestor_revision=original.revision,
+        descendant_save_event_sha256=restored_content.save_event_sha256,
+        ancestor_save_event_sha256=original.save_event_sha256,
+        minimum_exclusive_save_sequence=1,
+        require_current_head=True,
+    )
+    assert proof["depth"] == 2
+    assert proof["descendant_save_sequence"] == 3
+
+    monkeypatch.setattr(project_module, "MAX_AUTHORING_ANCESTRY_DEPTH", 1)
+    assert _code(
+        lambda: verify_authoring_revision_ancestry(
+            root,
+            descendant_revision=restored_content.revision,
+            ancestor_revision=original.revision,
+            descendant_save_event_sha256=restored_content.save_event_sha256,
+            ancestor_save_event_sha256=original.save_event_sha256,
+            minimum_exclusive_save_sequence=1,
+        )
+    ) == "revision_ancestry_too_deep"
+
+
+def test_save_event_causal_provenance_is_hash_bound(
+    tmp_path: Path,
+) -> None:
+    root, original = _project(tmp_path)
+    changed = original.detached_documents()
+    changed["score"]["tail_seconds"] = 3
+    saved = save_authoring_project(
+        root,
+        expected_revision=original.revision,
+        documents=changed,
+    )
+    save_event_path = (
+        root
+        / ".tianlai"
+        / "save-events"
+        / f"{saved.save_event_sha256}.json"
+    )
+    metadata = json.loads(save_event_path.read_text(encoding="utf-8"))
+    metadata["sequence"] = 3
+    save_event_path.write_text(
+        json.dumps(metadata, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    assert _code(lambda: open_authoring_project(root)) == (
+        "save_event_identity_mismatch"
+    )
+
+
+def test_legacy_project_without_causal_fields_remains_readable_and_upgrades(
+    tmp_path: Path,
+) -> None:
+    root, current = _project(tmp_path)
+
+    def snapshot_tree() -> tuple[tuple[str, str, bytes], ...]:
+        entries: list[tuple[str, str, bytes]] = []
+        for path in sorted(root.rglob("*"), key=lambda item: item.as_posix()):
+            relative = path.relative_to(root).as_posix()
+            if path.is_dir():
+                entries.append(("directory", relative, b""))
+            else:
+                entries.append(("file", relative, path.read_bytes()))
+        return tuple(entries)
+
+    legacy_revision = current.revision
+    revision_manifest = (
+        root / ".tianlai" / "revisions" / legacy_revision / "revision.json"
+    )
+    revision_metadata = json.loads(
+        revision_manifest.read_text(encoding="utf-8")
+    )
+    revision_metadata.pop("first_save_sequence")
+    revision_metadata.pop("parent_revision")
+    revision_manifest.write_text(
+        json.dumps(revision_metadata, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    project_manifest = root / PROJECT_MANIFEST_NAME
+    project_metadata = json.loads(project_manifest.read_text(encoding="utf-8"))
+    project_metadata.pop("save_sequence")
+    project_metadata.pop("current_save_event_sha256")
+    project_manifest.write_text(
+        json.dumps(project_metadata, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    shutil.rmtree(root / ".tianlai" / "save-events")
+    legacy_revision_bytes = revision_manifest.read_bytes()
+    legacy_tree = snapshot_tree()
+
+    legacy = open_authoring_project(root)
+    assert legacy.revision == legacy_revision
+    assert legacy.save_sequence is None
+    assert legacy.revision_first_save_sequence is None
+    assert legacy.revision_parent_revision is None
+    assert snapshot_tree() == legacy_tree
+
+    unchanged = save_authoring_project(
+        root,
+        expected_revision=legacy.revision,
+        documents=legacy.detached_documents(),
+    )
+    assert unchanged.revision == legacy_revision
+    assert unchanged.save_sequence is None
+    assert unchanged.revision_first_save_sequence is None
+    assert unchanged.revision_parent_revision is None
+    assert snapshot_tree() == legacy_tree
+    assert not (root / ".tianlai" / "save-events").exists()
+
+    changed = unchanged.detached_documents()
+    changed["score"]["tail_seconds"] = 3
+    upgraded = save_authoring_project(
+        root,
+        expected_revision=unchanged.revision,
+        documents=changed,
+    )
+    assert upgraded.save_sequence == 1
+    assert upgraded.revision_first_save_sequence == 1
+    assert upgraded.revision_parent_revision == legacy_revision
+    assert revision_manifest.read_bytes() == legacy_revision_bytes
+    upgraded_project_metadata = json.loads(
+        project_manifest.read_text(encoding="utf-8")
+    )
+    assert upgraded_project_metadata["save_sequence"] == 1
+    assert (
+        upgraded_project_metadata["current_save_event_sha256"]
+        == upgraded.save_event_sha256
+    )
+    upgraded_revision_metadata = json.loads(
+        (
+            root
+            / ".tianlai"
+            / "revisions"
+            / upgraded.revision
+            / "revision.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert upgraded_revision_metadata["first_save_sequence"] == 1
+    assert upgraded_revision_metadata["parent_revision"] == legacy_revision
+    assert (root / ".tianlai" / "save-events").is_dir()
+    proof = verify_authoring_revision_ancestry(
+        root,
+        descendant_revision=upgraded.revision,
+        ancestor_revision=legacy_revision,
+        descendant_save_event_sha256=upgraded.save_event_sha256,
+        ancestor_save_event_sha256=None,
+        minimum_exclusive_save_sequence=0,
+        require_current_head=True,
+    )
+    assert proof["depth"] == 1
 
 
 def test_crash_after_revision_publish_before_pointer_keeps_old_current(

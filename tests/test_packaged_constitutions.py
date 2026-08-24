@@ -19,20 +19,26 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 DOCUMENTS = (
     (
-        "天籁音乐宪法-v0.1.md",
-        "3c26f99806b2044b3fd45cbdc8ef12ffadf871d75dc119799881b0d992b75985",
-        "C0.02",
+        "天籁音乐宪法-v0.2.md",
+        "3ff471c09a08648db4c3f5cee5e4230932277278b68c89dc49872b4bbe2dc78d",
+        "C0.06",
     ),
     (
-        "天籁音乐宪法-v0.1.en.md",
-        "ca0cc236d93bca684a918f14814695835cf9aa437640294a4f02f898393903a9",
-        "C0.03",
+        "天籁音乐宪法-v0.2.en.md",
+        "f1291258812784ef64fa7a019cfaf9b250fc8ca279d8f97c68fc088362af3908",
+        "C4.1.16",
     ),
 )
 CONSTITUTION_LF_RULES = {
-    "docs/音乐创作参考笔记/天籁音乐宪法-v0.1*.md text eol=lf",
+    "docs/音乐创作参考笔记/天籁音乐宪法-v*.md text eol=lf",
     "tianlai/_resources/constitutions/*.md text eol=lf",
 }
+CONSTITUTION_CLAUSE_LINE = re.compile(
+    r"^\* \*\*(?P<clause_id>C[0-8](?:\.[A-Z])?(?:\.[0-9]{1,3}){1,2})｜"
+    r"[^*]+\*\*[：:]\s*.+$",
+    flags=re.MULTILINE,
+)
+EXPECTED_CONSTITUTION_FILES = {filename for filename, _hash, _id in DOCUMENTS}
 SETUPTOOLS_BUILD_REQUIREMENT = "setuptools>=77"
 
 
@@ -165,6 +171,30 @@ def test_packaged_constitution_is_byte_exact_docs_copy(
     assert hashlib.sha256(packaged_payload).hexdigest() == expected_sha256
 
 
+def test_packaged_constitution_directory_contains_only_v02_bilingual_pair(
+) -> None:
+    resource_root = ROOT / "tianlai" / "_resources" / "constitutions"
+    assert {path.name for path in resource_root.glob("*.md")} == (
+        EXPECTED_CONSTITUTION_FILES
+    )
+
+
+def test_v02_bilingual_constitutions_have_the_same_150_clause_ids() -> None:
+    docs_root = ROOT / "docs" / "音乐创作参考笔记"
+    clause_sets: list[list[str]] = []
+    for filename, _expected_sha256, _example_clause_id in DOCUMENTS:
+        text = (docs_root / filename).read_text(encoding="utf-8")
+        ids = [
+            match.group("clause_id")
+            for match in CONSTITUTION_CLAUSE_LINE.finditer(text)
+        ]
+        assert len(ids) == 150
+        assert len(set(ids)) == 150
+        clause_sets.append(ids)
+
+    assert set(clause_sets[0]) == set(clause_sets[1])
+
+
 def test_pyproject_declares_constitutions_as_package_data() -> None:
     project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     setuptools = project["tool"]["setuptools"]
@@ -273,6 +303,15 @@ def test_wheel_contains_constitutions_and_lookup_needs_no_repo_docs(
     installed.mkdir()
     with ZipFile(wheels[0]) as archive:
         members = set(archive.namelist())
+        assert {
+            member
+            for member in members
+            if member.startswith("tianlai/_resources/constitutions/")
+            and member.endswith(".md")
+        } == {
+            f"tianlai/_resources/constitutions/{filename}"
+            for filename in EXPECTED_CONSTITUTION_FILES
+        }
         for filename, expected_sha256, _clause_id in DOCUMENTS:
             member = f"tianlai/_resources/constitutions/{filename}"
             assert member in members
@@ -295,8 +334,8 @@ from tianlai import mcp_server
 
 installed = Path(mcp_server.__file__).resolve()
 assert 'installed' in installed.parts
-zh = mcp_server.get_music_constitution_clauses(['C0.02'], 'zh-CN')
-en = mcp_server.get_music_constitution_clauses(['C0.03'], 'en')
+zh = mcp_server.get_music_constitution_clauses(['C0.06'], 'zh-CN')
+en = mcp_server.get_music_constitution_clauses(['C4.1.16'], 'en')
 assert zh['ok'], zh
 assert en['ok'], en
 print(json.dumps({
@@ -335,7 +374,7 @@ import json
 from tianlai import mcp_server
 
 print(json.dumps(
-    mcp_server.get_music_constitution_clauses(['C0.02'], 'zh-CN'),
+    mcp_server.get_music_constitution_clauses(['C0.06'], 'zh-CN'),
     ensure_ascii=False,
 ))
 """

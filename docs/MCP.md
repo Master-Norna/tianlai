@@ -2,8 +2,9 @@
 
 # 天籁 MCP 接口
 
-天籁 `0.9.0` 通过 stdio MCP 把可编辑、可复算的音乐工程交给 AI Agent。Agent
-拿到的不是一个不可解释的“一句话转音频”按钮，而是一组细粒度工具：读取合同、
+本文描述天籁 `1.0.0` 的 stdio MCP。它把可编辑、可复算的音乐工程交给 AI Agent。
+Agent 拿到的不是一个
+不可解释的“一句话转音频”按钮，而是一组细粒度工具：读取合同、
 选择乐器、导入谱面、明确配器、预检、渲染不可变候选、按秒定位、局部修改，再
 渲染并 A/B。
 
@@ -91,7 +92,9 @@ Apple Silicon 与 Intel 的解释器必须匹配当前原生宿主。安装与�
 结构化参数直接作为 MCP 对象传递，不需要为它们开放额外磁盘目录。
 
 已渲染候选的定位和比较还有更窄的边界：只能读取当前运行实例的
-`output/mcp/` 候选树，不能借候选参数查看任意输入根。
+`output/mcp/` 候选树，不能借候选参数查看任意输入根。新的普通候选位于
+`output/mcp/<安全化曲名（无身份 Hash）>/<candidate_id>/`；清单内绑定 Hash 的
+`work_id` 仍是身份，通常不等于这个父目录名。
 
 v0.7 的持久创作工程使用更窄的独立边界。客户端只传小写 ASCII
 `project_key`；服务端把它映射到固定的
@@ -99,9 +102,9 @@ v0.7 的持久创作工程使用更窄的独立边界。客户端只传小写 AS
 盘符、斜杠或链接目录，也不在结果中返回本机路径。候选检查同样只接受服务端已经
 返回的 `work_id` 与 `candidate_id`，并重新校验候选及其工程绑定。
 
-## 当前 44 个工具
+## 当前 50 个工具
 
-服务实际注册下列 44 个工具；原有 27 个工具的名称和参数保持兼容：
+服务实际注册下列 50 个工具；原有 27 个工具的名称和参数保持兼容：
 
 | 工具 | 写音频/项目文件 | 作用 |
 | --- | --- | --- |
@@ -132,21 +135,27 @@ v0.7 的持久创作工程使用更窄的独立边界。客户端只传小写 AS
 | `inspect_authoring_candidate` | 否 | 按工程和候选 ID 验证身份链，返回 workflow 管理状态、脱敏回执、自检及可选协作证据。 |
 | `locate_authoring_candidate` | 否 | 按工程和候选 ID 将渲染秒数映射回事件，不接受或返回路径。 |
 | `compare_authoring_candidates` | 否 | 在同一工程内比较两个已验证候选的谱面、配置、计划与混音身份。 |
-| `creative_workflow_guide` | 否 | 返回模式、诚信边界、work charter 模板、复核阶段、证据和决策合同，不注入宪法全文。 |
+| `creative_workflow_guide` | 否 | 返回模式、诚信边界、work charter 模板、既有复核阶段、证据和决策合同，以及 `orchestration_performance` 内不新增 phase 的轻量成境 / Qiyun 位置指引；不注入宪法全文。 |
 | `get_music_constitution_clauses` | 否 | 校验本地官方宪法完整 Hash 后，按 ID 返回至多 12 条中英文条文；未知 ID 拒绝。 |
-| `create_creative_workflow` | **是** | 创建 `off`、`audit` 或 `iterate` 工作流；此 stdio 边界把终审身份真实冻结为 `agent`。 |
+| `create_creative_workflow` | **是** | 创建 `off`、`audit` 或 `iterate` 工作流；`composition_governance` 默认 `true`、可显式关闭；此 stdio 边界把终审身份真实冻结为 `agent`。 |
 | `open_creative_workflow` | 否 | 验证并打开当前或指定不可变 workflow 修订，不做隐式全历史遍历。 |
 | `verify_creative_workflow_history` | 否 | 显式、有界地验证从当前指针回到创世修订的完整父链。 |
 | `activate_creative_workflow` | **是** | 冻结单曲 work charter，以及可选的、少量激活的官方或自定义宪法条款。 |
-| `record_workflow_review` | **是** | 记录 `agent` 的阶段复核；不能借 MCP 自称 creator、listener、engine 或 validator。 |
+| `inspect_workflow_composition` | 否 | 返回当前有效宪章的主张索引；可校验草拟的作品展开图并生成只读全曲事实、依赖缺口与问题，不评分或改谱。 |
+| `record_workflow_composition_map` | **是** | 在本轮其他工作之前冻结唯一一份、只描述当前作品的展开图，并绑定本轮完整 score 与有效宪章。 |
+| `preflight_workflow_charter_amendment` | 否 | 在复核期，或 revise 后但尚未改谱时，只读计算拟修宪的精确影响与重构成本，不激活修改。 |
+| `commit_workflow_charter_amendment` | **是** | 在 revise 后、保存替代乐谱前，凭精确预检 Hash 与成本确认向线性修宪账本追加一项。 |
+| `record_workflow_review` | **是** | 记录 `agent` 的阶段复核；受治理的三相必须回答本轮全曲问题，且不能借 MCP 自称 creator、listener、engine 或 validator。 |
 | `record_workflow_evidence` | **是** | 记录非阻断的 promise conflict 或 aesthetic risk；不会自动改谱或改音频。 |
 | `record_verified_workflow_hard_failure` | **是** | 由服务端重跑可信 readiness，只把精确复现的阻断 issue 写成 hard failure。 |
 | `register_workflow_exception` | **是** | 登记有证据、有代价和恢复方式的例外；hard failure 永不可赦免。 |
+| `record_workflow_derivation` | **是** | 记录稀缺的段落级必然性推导：事件或 end-exclusive 小节/拍号范围构成锚点，声部仅过滤；既有材料必须早于目标，备选必须用 `premise_indexes` 指回前提；非阻断、不改谱。 |
+| `record_workflow_fork` | **是** | 稀疏声明同一作品的整曲备选：分支必须是已记录的完整候选且包含当前候选；每次读取重算 ID，并复验谱面锚点与候选绑定；不排序、不阻断，也不是 epoch/LCA 谱系。 |
 | `render_workflow_candidate` | **是** | 原子衔接“预留 → 真实受管渲染 → 候选复验 → workflow 记录”，不接收路径或自述授权。 |
 | `attach_workflow_candidate_for_audit` | **是** | 按候选 ID 把既有候选接入 audit；它保持 unmanaged，不能冒充受管完成态。 |
-| `decide_workflow_iteration` | **是** | 在冻结的 agent 权限下 accept/revise/recommend/preserve/stop，并声明感知依据与牺牲。 |
+| `decide_workflow_iteration` | **是** | 在冻结的 agent 权限下 accept/revise/recommend/preserve/stop；以复核、证据处置、推导和宪章清偿固定裁决依据。revise 还会预先冻结 `revision_scope` 与 `withdrawal_condition`，下一轮通过 `prior_revision_assessment` 显式决定 promote、保留基线或未决；范围通过不代表审美更优。 |
 | `record_workflow_authoring_revision` | **是** | 把另行 CAS 保存的新 authoring 修订绑定为下一轮，不替 Agent 暗改乐谱。 |
-| `rollback_creative_workflow` | **是** | 选择较早的不可变候选锚点；不覆盖工程修订，也不删除后来候选。 |
+| `rollback_creative_workflow` | **是** | 选择较早的不可变候选锚点；可同时以 `prior_revision_assessment=retain_baseline/inconclusive` 结清挑战者，不覆盖工程修订，也不删除后来候选。 |
 | `cancel_workflow_render` | **是** | 取消唯一当前预留，不删除任何已经发布的候选。 |
 | `stop_creative_workflow` | **是** | 按冻结的 agent 权限停止流程；不会伪造创作者批准。 |
 
@@ -230,17 +239,31 @@ compare_authoring_candidates → 创作者听取 A/B
 `workflow_managed` 只兼容性表示历史预留确实有效；只有 shape 合法的自述
 `authoring_workflow` 不构成权限，普通 authoring 渲染也不会被伪装成上层完成态。
 
+> 升级兼容提示：用 `1.0.0` 只读打开 `0.9.x` authoring project 不会改写磁盘；
+> 仅打开或保存完全相同的文档也不会触发迁移。第一次实际内容保存会为
+> `tianlai-project.json` 增加 `save_sequence` / `current_save_event_sha256`，
+> 为新 `revision.json` 增加 `first_save_sequence` / `parent_revision`，并建立
+> `.tianlai/save-events/`。这是单向的因果记录升级：`1.0.0` 能读取旧工程，
+> 但 `0.9.x` 无法再打开保存后的工程。如需保留降级能力，请在首次修改保存前
+> 复制完整工程目录。
+
 可选的 v0.7 治理闭环位于 authoring 之上：
 
 ```text
 creative_workflow_guide
     → 可选 get_music_constitution_clauses（至多 12 条）
     ↓
-create_creative_workflow(mode=off|audit|iterate)
+create_creative_workflow(mode=off|audit|iterate, composition_governance=true)
     ↓
 activate_creative_workflow(work_charter, 可选 constitution + active_clauses)
     ↓
-record_workflow_review(intent → symbolic_structure → orchestration_performance)
+inspect_workflow_composition（取得有效宪章 claim IDs）
+    → 草拟当前作品的展开图
+    → inspect_workflow_composition（只读全曲镜子）
+    → record_workflow_composition_map（本轮其他工作之前）
+    ↓
+record_workflow_review(intent → symbolic_structure → orchestration_performance；
+                       逐题回答本轮完整问题集，配器复核内含轻量成境位置审视)
     ↓
 record_workflow_evidence / record_verified_workflow_hard_failure
     ↓
@@ -248,16 +271,130 @@ render_workflow_candidate（内部预留、渲染、复验并记录）
     ↓
 record_workflow_review(render_report；真实听过才可 audio_audition)
     ↓
-register_workflow_exception（可选） → decide_workflow_iteration
+record_workflow_derivation（可选；仅关键转移）/ register_workflow_exception（可选）
+    ↓
+record_workflow_fork（可选；已有多个完整候选且当前候选属于 branches 时）
+    ↓
+decide_workflow_iteration（最新策略显式提交 charter_settlement；accept 全覆盖）
     ├─ accept / preserve / stop
-    └─ revise → CAS save_authoring_project
-                 → record_workflow_authoring_revision → 下一轮
+    └─ revise
+         ├─ 不修宪：CAS save_authoring_project
+         └─ 需要修宪：在 reviewing 期，或 revise 后但尚未改谱时完成预检：
+              commit_workflow_charter_amendment（回显精确 Hash 与成本；必须先于改谱）
+                  → CAS save_authoring_project
+         → record_workflow_authoring_revision
+         → 下一轮重建展开图、重做全曲镜子与三相复核
 ```
+
+作品展开图不是固定曲式模板，而是先把**这一首作品**的完整序列因果关系定构出来：
+每个稳定节点说明其作用、依赖的宪章主张、沿用或变化的既有材料、角色变化、稀缺资源、
+结尾回应与仍待回答的问题。输入只来自当前有效宪章和当前 score；历史作品、偏好案例、
+获奖理由与其他作品的片段都不进入生成依据。`inspect_workflow_composition` 只把全谱事实、
+位置、依赖覆盖与缺口变成可追问记录；它不套用固定曲式、不评分、不自动修改，也没有
+试听音频。
+
+在受治理的 `intent`、`symbolic_structure` 与 `orchestration_performance` 三相中，复核不再是
+勾选“已看过”：调用方必须回答镜子针对本轮 score、有效宪章和展开图生成的完整问题集，
+并引用真实的 claim、节点或事件。关键转移的推导还必须绑定这些宪章主张、展开图节点和
+已回答的问题；这样“先推导、再写作”成为可复验的过程，而不是只依赖模型自觉。
+
+成境 / Qiyun 不增加 review phase，而是在 `orchestration_performance` 中审视完整候选的
+具体位置：哪里虽已正确存在，却还缺少流动、层次、呼吸、距离、余响或周边生命。结果
+可以是零新增；不得把它执行成固定周期的点缀清单，也不要求为每个微小伴生细节补一条
+推导。删除、静音或前后完整候选比较可以帮助发现损失，但没有实际听审时只能记录
+`aesthetic_risk` 或待验证假设，不能声称差异已经成立。若修改触及身份核、主要和声因果、
+段落职能、高潮依据、结尾回应或宪章主张，就退出这次微观审视，走正式修订；需要改变
+宪章时沿用现有修宪预检，不新增阶段、账本或 Schema。审视结论折入既有配器复核回答，
+不增加可打分的“成境题”；机器只能确认提示已给出和引用合法，不能证明模型真的想明白。
+
+如果迭代意见确实要求改变宪章，必须在 `reviewing` 期，或作出 `revise` 决定后但尚未
+改谱时，先做只读预检。预检逐项列出受影响
+主张、展开图依赖、推导、复核与证据解释，以及最小重构范围；范围越大，明确成本越高。
+只有先作出 `revise` 决定，再逐字段回显同一预检 Hash 和精确成本，修宪才会追加到单线、
+只增不改的账本，并从下一轮生效。扩大范围必须重新预检，且提交必须早于任何替代 score
+保存，避免先大规模重盖、再用新宪章追认。它不是第二套父版本树；新一轮也不会继承旧
+展开图或旧问题答案，必须按新 score 与有效宪章重新定构并复核全曲。非 hard 依据必须
+命中受影响主张或集合根域；预检的最小输入快照进入 Hash，提交与历史重开会从 workflow
+持久记录重算成本。内部线性保存事件只证明“改谱发生在确认代价之后”，不成为新的产品
+版本树。
+
+这些机器合同只能证明材料绑定、问题覆盖和账本一致，不能证明作品好听，也不能冒充
+人类听审。正式候选始终是一首完整作品；事件、小节和秒窗只用于全曲中的定位、证据和
+推导，不作为片段成品写入候选目录。
 
 `next_action` 只是在当前已验证状态上的程序导航，不是审美判断。`iterate` 不会自行
 生成乐谱修改：Agent 仍须读取 authoring 快照、提出明确改动并用 CAS 保存；workflow
 只记录为什么改、依据是什么、付出了什么以及新修订是哪一个。`rollback` 也是选择，
 不是覆盖。
+
+宪法条款不是全曲提示词；v0.2 用它们在关键位置提出问题，而不是直接生成答案，也不
+要求尚在萌发或仅改变周边气息的每个细节先给出理由。推导同样是稀缺论证，不是配额：
+每轮默认上限为 8，设为 0 可关闭，
+无需为了用完预算逐小节制造理由。其锚点必须是非空 `event_ids` 和/或完整的
+`[start_bar:start_beat, end_bar:end_beat)` 半开范围；`part_ids` 只能过滤，不能独立
+锚定；候选秒窗也只能补充渲染定位，不能替代事件或谱面范围锚点。
+`established_material` 必须严格早于目标，每条备选的非空 `premise_indexes` 必须指回
+本推导前提。承诺兑现、身份稳定且实质备选关闭后，应当 accept、preserve 或 stop，
+不得为了迭代而迭代。
+
+fork 也不是每轮必做的关卡。只有确有多个完整候选需要并存时才记录；它是稀疏的
+whole-work alternative declaration，不是 epoch/LCA lineage，不能据此推断祖先、合并点
+或因果演化。每次读取都会由正文重算 fork ID，复验锚定 score 的规范化 Hash、event / part /
+半开 range 的存在与对应关系，以及 branches 确实引用此前已记录候选；当前迭代候选必须
+在 branches 中。没有真实多解时，直接进入裁决即可。
+
+新决策不能只列 `evidence_ids` 后把其余主张留在日志里不管。`review_ids` 固定裁决采用的
+准确复核；accept 的所选集合必须覆盖四相，试听裁决还必须选中同一 agent 的
+`audio_audition`。`evidence_dispositions` 必须恰好覆盖本轮全部非 hard-failure 证据：
+accept 只能关闭为 `resolved` / `accepted_risk` / `excepted`，promise conflict 不可直接
+标成 accepted risk；revise / recommend 必须至少有一个 `revision_target`，其中 `revise`
+还必须填写 `expected_audible_change`。每个 disposition 的 `evidence_id` 必须同时列入顶层
+`evidence_ids`；`basis_ids` 所引 review、evidence、exception 或 derivation ID 必须分别
+列入对应的顶层选择。preserve、stop 以及独立终止可以把未决项如实冻结到
+`open_evidence_ids`，不会伪造“已经解决”。记录 ID、谱面事件/声部指涉和例外目标会在
+读取时重验；对 `resolved`，机器只检查引用已选择、禁止自指且依赖无环，不证明解决理由
+在音乐或审美上成立。这仍是审计合同，不是自动审美评分器。
+
+新策略还要求 revise 在编辑前提交 `revision_scope` 和 `withdrawal_condition`。有限范围用
+`allowed_document_paths` 必须与 `documents` 使用完全相同的键，并对每份文档声明至多
+1024 条精确 RFC 6901 叶子路径；每条路径至多 1024 个字符且 UTF-8 编码至多 1024 字节，
+不授予前缀/通配权限。score 音符只能通过稳定 `event_ids` 修改，有限范围不能重排；
+`bar_ranges` 还要求 `end >= start`。范围校验覆盖合同 causal fence 之后直到绑定目标的每个
+持久化 save state；中间一度越权，即使最终 documents 恢复，也会拒绝，不能“先重盖再回填”。
+`record_workflow_authoring_revision` 同时把目标 documents 与基线做实际差异核对；整曲重构必须显式
+确认扩大改动面、下游兼容重做和跑题风险。下一轮 decide 或 rollback 以
+`prior_revision_assessment` 结清该合同；只有 `promote_challenger` 才允许把挑战者当作后续
+基线，`retain_baseline` / `inconclusive` 均保留原完整候选。该闭环只在同一 workflow 与同一
+authoring project 链内有效；停止仍保留基线，但新 workflow 或跨项目不继承它，也不建立
+全局父版本树。机器证明的是声明、范围与因果闭环，不证明旋律、层次或“更好听”。
+渲染前若撤回条件已成立，可用 `candidate_id=null` 的当前 `report_only` 复核支持
+`retain_baseline` / `inconclusive` 并 rollback，不得声称已听过挑战者。rollback 后继续编辑时，
+内容从 contract baseline 读取，保存 CAS 父修订取 `authoring_causal_fence.anchor_revision`。
+
+新 accept 会随 terminal 写入时间点 `acceptance_gate`：只重验本轮已记录的 hard failure，
+并绑定 authoring revision、候选 manifest Hash、hard-failure 内容 ID 与该次 readiness
+结果 Hash；没有已记录 hard failure 时 readiness Hash 为 `null`。历史读取不会按当前环境
+重跑它，因此 gate 不是当前 readiness，也不证明没有未记录问题或作品审美成立。
+兼容读取不靠回填旧历史：基础 legacy、Claim Lifecycle、acceptance gate 与
+`charter_settlement_profile=affirmative-promise-ledger-v1` 的旧 shape 均保持原语义。
+`composition_governance_profile=whole-work-derivation-and-bounded-amendment-v1` 与
+`revision_contract_profile=bounded-change-and-explicit-challenger-settlement-v1` 可以组合：
+前者负责作品展开图、全曲问题与有界修宪，后者只负责修订范围及挑战者闭环；启用其一不会
+伪造另一份合同。
+启用 composition governance 才要求每轮作品展开图、全曲问题复核和有界修宪；每个新决策也继续显式携带
+`derivation_ids` 与 `charter_settlement`，accept 的清偿必须覆盖全部肯定性宪章承诺，
+preserve/stop 可部分或为空。旧 shape 只读兼容：旧 terminal 保持原语义且不回填，
+其中缺 gate 的旧 accept 仍标记为 `legacy_unfrozen`。普通旧工作流继续在修宪前策略内
+单调升级，不会因读取或普通 transition 被暗中增加新步骤；只有显式记录作品展开图时
+才开启新治理，且不能降级。如果当前迭代已经有活动，新治理从下一轮开始强制执行；
+本版 MCP 新建工作流默认启用修订合同，并默认组合 composition governance；仅在明确需要旧流程时传
+`composition_governance=false`。若要测模型不借助项目能力时的裸表现，应完全不接入 MCP，
+而不是关闭若干工具后把结果误称为裸能力。
+
+直接终止理由中，`budget_exhausted` 是可机器核验的窄声明：只有某项正数冻结预算已达
+上限、当前迭代达到 fork 上限，或历史达到上限时才允许；设为 0 的关闭项不算耗尽。
+`no_material_improvement`、`external_blocker` 等其他理由仍是终审 authority 的如实声明，
+合同只验证其权限与形状，不证明审美已经停滞或外部事实必然成立。
 
 中英文官方宪法的固定 Hash 法源副本作为 package data 随 wheel 发布，并与音乐创作
 参考笔记中的原文做 byte-for-byte 同步检查；条文查询不依赖运行目录存在仓库 `docs/`。
@@ -634,7 +771,7 @@ render(
 
 ```text
 locate_rendered_candidate(
-  candidate_directory="作品ID/候选ID",
+  candidate_directory="安全化曲名/候选ID",
   at_seconds=34.2
 )
 ```
@@ -710,8 +847,8 @@ render(
 
 ```text
 compare_rendered_candidates(
-  before_candidate_directory="作品ID/候选1",
-  after_candidate_directory="作品ID/候选2"
+  before_candidate_directory="安全化曲名/候选1",
+  after_candidate_directory="安全化曲名/候选2"
 )
 ```
 
@@ -720,11 +857,19 @@ compare_rendered_candidates(
 
 ## 候选不可变规则
 
-MCP 渲染默认写入：
+下面的目录与工件合同描述当前 workflow 受管的 Candidate v2（以及旧 v1 语义）。
+direct `project-render-v2` 发布的 Candidate v3 是独立 Score-v2/runtime-evidence 闭集，
+不接受 `authoring_workflow`，也不会被 workflow accept 冒充。MCP 渲染默认写入：
 
 ```text
-output/mcp/<安全化作品 ID>/<唯一候选 ID>/
+output/mcp/<安全化曲名（无身份 Hash）>/<唯一候选 ID>/
 ```
+
+曲名父目录只用于干净地归组作品，不承担身份。`候选.json` 内的 `work_id` 继续作为
+绑定 Hash 的作品身份，通常不等于父目录名；候选目录名则必须继续与
+`candidate_id` 完全一致。加载与完整性核验接受当前干净父目录，也兼容历史
+`<work_id>/<candidate_id>/` 布局。authoring 与 workflow 的内部候选仍由
+`output/mcp/authoring-projects/` 专用命名空间管理，不套用普通候选的目录整理规则。
 
 每个目录最后写入 `候选.json`，绑定：
 
@@ -738,6 +883,12 @@ output/mcp/<安全化作品 ID>/<唯一候选 ID>/
 候选一旦用于定位、比较或听审，就应当作不可变快照。不要就地编辑这些文件，也
 不要把新音频复制进旧候选冒充同一代。正常迭代创建新 `candidate_id` 并设置
 `parent_candidate_id`。
+
+当前 workflow 推导只保存在不可变 workflow 历史和迭代决策的 `derivation_ids` 引用中；
+Candidate v2 与 Candidate v3 闭集本身都不内嵌这份 provenance；完成或停止也不会生成可随候选搬运的账本。
+这项能力尚未完成。后续应由独立的 Candidate Provenance Envelope / portable bundle
+绑定原候选 manifest Hash、终局 workflow 修订与所选推导，并保持候选目录逐字节不变。
+不得在 accept 后向既有候选或 render receipt 追加旁车文件，否则会破坏其闭集完整性。
 
 成功的 `render` 结果同时返回渲染后自检路径、完整报告与有界 `summary`。硬合同
 已经在候选发布前验证；`warning` 是需要结合分轨和实际收听复核的风险证据，不是

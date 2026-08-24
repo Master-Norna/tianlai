@@ -47,6 +47,7 @@ from .runtime_variants import (
     onset_sampled_condition,
     onset_sampled_condition_id,
     prewarm_dedicated_sfz_variation_slot,
+    runtime_variant_selection_receipts_match,
     validate_runtime_variant_observation_proof,
     validate_runtime_variant_proof_document,
     validate_runtime_variant_selection_receipt,
@@ -386,6 +387,7 @@ def resolve_project_path(
 ) -> Path:
     """Resolve a stored POSIX project-relative path without traversal."""
 
+    must_exist = _boolean(must_exist, "must_exist")
     root = Path(project_root).resolve()
     text = _string(label, "project-relative path")
     if "\x00" in text or "\\" in text or ":" in text:
@@ -1322,13 +1324,27 @@ def validate_runtime_fingerprint(
     manifest_path: str | Path | None = None,
     effective_manifest: dict[str, Any] | None = None,
     sample_rate_hz: int = 48_000,
+    verify_current: bool = True,
 ) -> dict[str, Any]:
-    """Fail closed unless a stored fingerprint equals the current runtime.
+    """Validate a stored fingerprint and optionally compare current runtime.
 
-    Callers that used a runtime manifest overlay or a non-default sample rate
-    while computing the fingerprint must provide the same values here.
+    Callers must always provide the sample rate used to compute the stored
+    fingerprint.  A runtime manifest overlay is needed only when
+    ``verify_current`` asks to recompute the live fingerprint.  Disabling that
+    comparison never disables stored structure, type, or sample-rate binding
+    validation.
     """
 
+    compare_current = _boolean(
+        verify_current,
+        "runtime fingerprint verify_current",
+    )
+    runtime_sample_rate_hz = _integer(
+        sample_rate_hz,
+        "sample_rate_hz",
+        minimum=8_000,
+        maximum=384_000,
+    )
     value = _expect_keys(
         fingerprint,
         required={
@@ -1402,12 +1418,16 @@ def validate_runtime_fingerprint(
     )
     if asset_graph["algorithm"] != "constructed-runtime-asset-graph-v1":
         raise OnsetEvidenceError("unsupported runtime asset graph algorithm")
-    _integer(
+    stored_sample_rate_hz = _integer(
         asset_graph["sample_rate_hz"],
         "runtime asset graph sample_rate_hz",
         minimum=8_000,
         maximum=384_000,
     )
+    if stored_sample_rate_hz != runtime_sample_rate_hz:
+        raise OnsetEvidenceError(
+            "runtime asset graph sample rate differs from the requested runtime"
+        )
     for field in ("file_count", "total_bytes", "region_count"):
         _integer(
             asset_graph[field],
@@ -1415,18 +1435,19 @@ def validate_runtime_fingerprint(
         )
     _sha256(asset_graph["sha256"], "runtime asset graph sha256")
 
-    current = compute_runtime_fingerprint(
-        project_root,
-        stored_manifest_path,
-        effective_manifest=effective_manifest,
-        sample_rate_hz=sample_rate_hz,
-    )
-    if value != current:
-        raise OnsetEvidenceError(
-            "runtime fingerprint is stale: manifest, render source/dependency, "
-            "implementation, resource verification, pitch calibration, or "
-            "runtime asset graph changed"
+    if compare_current:
+        current = compute_runtime_fingerprint(
+            project_root,
+            stored_manifest_path,
+            effective_manifest=effective_manifest,
+            sample_rate_hz=runtime_sample_rate_hz,
         )
+        if value != current:
+            raise OnsetEvidenceError(
+                "runtime fingerprint is stale: manifest, render "
+                "source/dependency, implementation, resource verification, "
+                "pitch calibration, or runtime asset graph changed"
+            )
     return value
 
 
@@ -1857,7 +1878,10 @@ def _replay_and_validate_variant_proof(
             stored_receipt = validate_runtime_variant_selection_receipt(
                 selection_receipt
             )
-            if replayed_receipt != stored_receipt:
+            if not runtime_variant_selection_receipts_match(
+                replayed_receipt,
+                stored_receipt,
+            ):
                 raise OnsetEvidenceError(
                     f"{label} selection receipt does not match runtime replay"
                 )
@@ -1889,6 +1913,14 @@ def validate_candidate_report(
     verify_current: bool = True,
     verify_artifacts: bool = True,
 ) -> dict[str, Any]:
+    verify_current = _boolean(
+        verify_current,
+        "candidate verify_current",
+    )
+    verify_artifacts = _boolean(
+        verify_artifacts,
+        "candidate verify_artifacts",
+    )
     candidate = _expect_keys(
         document,
         required={
@@ -1907,7 +1939,10 @@ def validate_candidate_report(
     )
     if candidate["$schema"] != CANDIDATE_SCHEMA:
         raise OnsetEvidenceError("candidate has an unexpected $schema")
-    if candidate["schema_version"] != SCHEMA_VERSION:
+    if _integer(
+        candidate["schema_version"],
+        "candidate.schema_version",
+    ) != SCHEMA_VERSION:
         raise OnsetEvidenceError("candidate schema_version is unsupported")
     if candidate["kind"] != "onset_candidate_report":
         raise OnsetEvidenceError("candidate kind is invalid")
@@ -2246,20 +2281,28 @@ def validate_candidate_report(
             "all_runtime_variants requires a certified proof for every observation"
         )
 
-    if verify_current:
-        fingerprint = validate_runtime_fingerprint(
-            candidate["runtime_fingerprint"],
-            project_root=project_root,
-            manifest_path=manifest_path,
-        )
-    else:
-        fingerprint = candidate["runtime_fingerprint"]
+    fingerprint = validate_runtime_fingerprint(
+        candidate["runtime_fingerprint"],
+        project_root=project_root,
+        manifest_path=manifest_path,
+        sample_rate_hz=sample_rate_hz,
+        verify_current=verify_current,
+    )
     if fingerprint["manifest"] != {
         "path": instrument["manifest_path"],
         "sha256": instrument["manifest_sha256"],
     }:
         raise OnsetEvidenceError(
             "candidate instrument binding differs from runtime fingerprint"
+        )
+    probe_hashes = [
+        record["sha256"]
+        for record in fingerprint["render_python_closure"]["files"]
+        if record["path"] == "tianlai/onset_probe.py"
+    ]
+    if probe_hashes != [algorithm_hash]:
+        raise OnsetEvidenceError(
+            "candidate analysis algorithm differs from runtime fingerprint"
         )
     return candidate
 
@@ -2300,6 +2343,10 @@ def validate_review_decision(
     project_root: str | Path,
     require_complete: bool = False,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
+    require_complete = _boolean(
+        require_complete,
+        "review require_complete",
+    )
     review = _expect_keys(
         document,
         required={
@@ -2321,7 +2368,10 @@ def validate_review_decision(
     )
     if review["$schema"] != REVIEW_SCHEMA:
         raise OnsetEvidenceError("review has an unexpected $schema")
-    if review["schema_version"] != SCHEMA_VERSION:
+    if _integer(
+        review["schema_version"],
+        "review.schema_version",
+    ) != SCHEMA_VERSION:
         raise OnsetEvidenceError("review schema_version is unsupported")
     if review["kind"] != "onset_review_decision":
         raise OnsetEvidenceError("review kind is invalid")
@@ -3358,7 +3408,10 @@ def validate_approved_onset_evidence(
     )
     if approved["$schema"] != APPROVED_SCHEMA:
         raise OnsetEvidenceError("approved evidence has an unexpected $schema")
-    if approved["schema_version"] != SCHEMA_VERSION:
+    if _integer(
+        approved["schema_version"],
+        "approved.schema_version",
+    ) != SCHEMA_VERSION:
         raise OnsetEvidenceError("approved evidence schema_version is unsupported")
     if approved["kind"] != "approved_onset_evidence":
         raise OnsetEvidenceError("approved evidence kind is invalid")
@@ -3392,19 +3445,6 @@ def validate_approved_onset_evidence(
             expected_manifest = Path(project_root) / expected_manifest
         if stored_manifest.resolve() != expected_manifest.resolve():
             raise OnsetEvidenceError("approved onset evidence belongs to another instrument")
-    fingerprint = validate_runtime_fingerprint(
-        approved["runtime_fingerprint"],
-        project_root=project_root,
-        manifest_path=stored_manifest,
-    )
-    if fingerprint["manifest"] != {
-        "path": instrument["manifest_path"],
-        "sha256": instrument["manifest_sha256"],
-    }:
-        raise OnsetEvidenceError(
-            "approved instrument differs from runtime fingerprint"
-        )
-
     lead = _expect_keys(
         approved["review_lead"],
         required={"reviewer_id", "display_name", "attestation"},
@@ -3443,6 +3483,23 @@ def validate_approved_onset_evidence(
             "approved evidence must describe sampled condition coverage"
         )
 
+    portable_proof = _validate_portable_proof(approved["portable_proof"])
+    fingerprint = validate_runtime_fingerprint(
+        approved["runtime_fingerprint"],
+        project_root=project_root,
+        manifest_path=stored_manifest,
+        sample_rate_hz=portable_proof["candidate"]["protocol"][
+            "sample_rate_hz"
+        ],
+    )
+    if fingerprint["manifest"] != {
+        "path": instrument["manifest_path"],
+        "sha256": instrument["manifest_sha256"],
+    }:
+        raise OnsetEvidenceError(
+            "approved instrument differs from runtime fingerprint"
+        )
+
     sources = _expect_keys(
         approved["sources"],
         required={
@@ -3473,7 +3530,6 @@ def validate_approved_onset_evidence(
     ):
         _sha256(sources[field], f"approved.sources.{field}")
 
-    portable_proof = _validate_portable_proof(approved["portable_proof"])
     _validate_portable_runtime_contracts(
         portable_proof,
         manifest_path=stored_manifest,

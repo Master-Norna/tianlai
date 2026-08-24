@@ -160,6 +160,44 @@ class ReleaseMetadataTests(unittest.TestCase):
         self.assertIn("client that bypasses readiness", english)
         self.assertNotIn("passive inspection cannot establish Rosetta", english)
 
+    def test_authoring_project_one_way_upgrade_is_explicit_and_bilingual(
+        self,
+    ) -> None:
+        chinese_markers = (
+            "仅打开或保存完全相同的文档也不会触发迁移",
+            "save_sequence",
+            "current_save_event_sha256",
+            "first_save_sequence",
+            "parent_revision",
+            ".tianlai/save-events/",
+            "单向的因果记录升级",
+            "0.9.x` 无法再打开保存后的工程",
+            "首次修改保存前",
+            "复制完整工程目录",
+        )
+        english_markers = (
+            "saving identical documents",
+            "save_sequence",
+            "current_save_event_sha256",
+            "first_save_sequence",
+            "parent_revision",
+            ".tianlai/save-events/",
+            "one-way causal-provenance upgrade",
+            "0.9.x` cannot reopen the project",
+            "before the first changed save",
+            "Copy the complete project directory",
+        )
+        for relative in ("README.md", "docs/MCP.md"):
+            text = (ROOT / relative).read_text(encoding="utf-8")
+            for marker in chinese_markers:
+                with self.subTest(path=relative, marker=marker):
+                    self.assertIn(marker, text)
+        for relative in ("README.en.md", "docs/MCP.en.md"):
+            text = (ROOT / relative).read_text(encoding="utf-8")
+            for marker in english_markers:
+                with self.subTest(path=relative, marker=marker):
+                    self.assertIn(marker, text)
+
     def test_default_pytest_collection_is_confined_to_the_test_suite(self) -> None:
         project = tomllib.loads(
             (ROOT / "pyproject.toml").read_text(encoding="utf-8")
@@ -173,10 +211,10 @@ class ReleaseMetadataTests(unittest.TestCase):
         citation = (ROOT / "CITATION.cff").read_text(encoding="utf-8")
         self.assertIn('family-names: "Nor.na"', citation)
         self.assertIn(f"version: {tianlai.__version__}", citation)
-        self.assertIn("date-released: 2026-08-17", citation)
+        self.assertIn("date-released: 2026-08-24", citation)
 
     def test_formal_release_surfaces_are_synchronised(self) -> None:
-        self.assertEqual(tianlai.__version__, "0.9.0")
+        self.assertEqual(tianlai.__version__, "1.0.0")
         current_files = (
             "README.md",
             "README.en.md",
@@ -192,7 +230,7 @@ class ReleaseMetadataTests(unittest.TestCase):
         for relative in current_files:
             with self.subTest(path=relative):
                 text = (ROOT / relative).read_text(encoding="utf-8")
-                self.assertIn("0.9.0", text)
+                self.assertIn("1.0.0", text)
                 self.assertNotIn("0.8.0rc1", text)
 
         # The private construction repository keeps the historical changelog;
@@ -205,8 +243,31 @@ class ReleaseMetadataTests(unittest.TestCase):
             self.assertTrue(changelog_en_path.is_file())
             changelog = changelog_path.read_text(encoding="utf-8")
             changelog_en = changelog_en_path.read_text(encoding="utf-8")
-            self.assertIn("## 0.9.0（2026-08-17）", changelog)
-            self.assertIn("## 0.9.0 (2026-08-17)", changelog_en)
+            self.assertIn("## 1.0.0（2026-08-24）", changelog)
+            self.assertIn("## 1.0.0 (2026-08-24)", changelog_en)
+            chinese_unreleased, chinese_release = changelog.split(
+                "## 1.0.0（2026-08-24）",
+                maxsplit=1,
+            )
+            english_unreleased, english_release = changelog_en.split(
+                "## 1.0.0 (2026-08-24)",
+                maxsplit=1,
+            )
+            self.assertIn("- 暂无。", chinese_unreleased)
+            self.assertIn("- None.", english_unreleased)
+            self.assertNotIn("天籁音乐宪法 v0.2", chinese_unreleased)
+            self.assertNotIn("Constitution v0.2", english_unreleased)
+            self.assertIn("天籁音乐宪法 v0.2", chinese_release)
+            self.assertIn("Constitution v0.2", english_release)
+
+        self.assertIn(
+            "更新日期：2026-08-24",
+            (ROOT / "docs" / "当前状态.md").read_text(encoding="utf-8"),
+        )
+        self.assertIn(
+            "Updated: 2026-08-24",
+            (ROOT / "docs" / "当前状态.en.md").read_text(encoding="utf-8"),
+        )
 
 
 if __name__ == "__main__":

@@ -116,6 +116,19 @@ class CreativeWorkflowTests(unittest.TestCase):
             "illegal_workflow_transition",
         )
 
+    def test_workflow_state_schema_version_requires_strict_integer(self) -> None:
+        snapshot = self.create()
+        for invalid_version in (True, 1.0):
+            with self.subTest(invalid_version=invalid_version):
+                state = snapshot.detached_state()
+                state["schema_version"] = invalid_version
+                self.assertEqual(
+                    _error_code(
+                        lambda: workflow_module._validate_state_document(state)
+                    ),
+                    "invalid_workflow_state",
+                )
+
     def test_cas_rejects_stale_revision_and_history_is_append_only(self) -> None:
         active = self.activate()
         first = self.review(active, "intent")
@@ -527,6 +540,9 @@ class CreativeWorkflowTests(unittest.TestCase):
         evidence_id = evidence.detached_state()["iterations"][-1]["evidence"][0][
             "evidence_id"
         ]
+        review_id = evidence.detached_state()["iterations"][-1]["reviews"][0][
+            "review_id"
+        ]
         pending = decide_workflow_iteration(
             self.root,
             workflow_id=evidence.workflow_id,
@@ -537,7 +553,32 @@ class CreativeWorkflowTests(unittest.TestCase):
             final_authority="agent",
             perception_basis="report_only",
             evidence_ids=[evidence_id],
+            review_ids=[review_id],
+            evidence_dispositions=[
+                {
+                    "evidence_id": evidence_id,
+                    "disposition": "revision_target",
+                    "rationale": "This is the bounded claim the next revision tests.",
+                    "basis_ids": [review_id],
+                }
+            ],
             expected_audible_change="The opening contour returns once in a new register.",
+            revision_scope={
+                "change_scale": "bounded",
+                "documents": ["score"],
+                "allowed_document_paths": {"score": ["/tail_seconds"]},
+                "score": {
+                    "part_ids": [],
+                    "event_ids": [],
+                    "bar_ranges": [],
+                    "allowed_note_fields": [],
+                    "allow_event_additions": False,
+                    "allow_event_deletions": False,
+                    "allow_reordering": False,
+                },
+                "whole_work_cost": None,
+            },
+            withdrawal_condition="Withdraw if the edit exceeds score metadata.",
         )
         documents = self.authoring.detached_documents()
         documents["score"]["tail_seconds"] = 2.25
@@ -592,7 +633,7 @@ class CreativeWorkflowTests(unittest.TestCase):
                     perception_basis="audio_audition",
                 )
             ),
-            "decision_perception_basis_unproven",
+            "audio_audition_review_required",
         )
 
     def test_unactivated_termination_cannot_claim_audio_audition(self) -> None:

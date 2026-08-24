@@ -2,9 +2,10 @@
 
 # Tianlai MCP interface
 
-Tianlai `0.9.0` exposes editable, reproducible music projects to AI agents
-through stdio MCP. An agent does not receive an opaque “one sentence to audio”
-button. It receives fine-grained tools for reading contracts, choosing
+This document describes Tianlai `1.0.0`'s stdio MCP. It exposes editable,
+reproducible music projects to AI
+agents. An agent does not receive an opaque “one sentence to audio” button. It
+receives fine-grained tools for reading contracts, choosing
 instruments, importing a score, confirming instrumentation, running preflight,
 rendering immutable candidates, locating by time, editing locally, rendering
 again, and A/B comparison.
@@ -109,16 +110,20 @@ as MCP objects and need no additional disk root.
 
 Rendered-candidate location and comparison have a narrower boundary: they may
 read only the current runtime's `output/mcp/` candidate tree and cannot use a
-candidate parameter to inspect an arbitrary input root.
+candidate parameter to inspect an arbitrary input root. New ordinary candidates
+live at
+`output/mcp/<sanitized title without an identity hash>/<candidate_id>/`; the
+hash-bound `work_id` in the manifest remains the identity and normally differs
+from that parent-directory name.
 
 Persistent authoring and workflow tools use an even narrower boundary. Clients
 pass a lowercase ASCII `project_key`, which maps below the fixed
 `output/mcp/authoring-projects/` namespace. They accept no project, candidate,
 or output paths and return no local paths.
 
-## The current 44 tools
+## The current 50 tools
 
-The server registers exactly these 44 tools; the original 27 names and
+The server registers exactly these 50 tools; the original 27 names and
 parameters remain compatible:
 
 | Tool | Writes audio/project files | Purpose |
@@ -150,21 +155,27 @@ parameters remain compatible:
 | `inspect_authoring_candidate` | No | Verifies candidate/project bindings and separately reports authorization, recording, and acceptance. |
 | `locate_authoring_candidate` | No | Maps rendered seconds to events using project and candidate IDs only. |
 | `compare_authoring_candidates` | No | Compares two verified candidates inside one project. |
-| `creative_workflow_guide` | No | Returns modes, honesty boundary, charter template, phases, evidence, decisions, and constitution metadata. |
+| `creative_workflow_guide` | No | Returns modes, honesty boundary, charter template, existing phases, evidence, decisions, constitution metadata, and lightweight Chengjing / Qiyun position guidance inside `orchestration_performance` without adding a phase. |
 | `get_music_constitution_clauses` | No | Verifies the full local constitution hash and returns at most 12 explicit Chinese or English clauses. |
-| `create_creative_workflow` | **Yes** | Creates an off/audit/iterate workflow with stdio final authority frozen to agent. |
+| `create_creative_workflow` | **Yes** | Creates an off/audit/iterate workflow; `composition_governance` defaults to `true` and may be explicitly disabled; stdio final authority is frozen to agent. |
 | `open_creative_workflow` | No | Opens a verified current or historical workflow revision without implicit full-history traversal. |
 | `verify_creative_workflow_history` | No | Explicitly verifies the bounded immutable parent chain back to genesis. |
 | `activate_creative_workflow` | **Yes** | Freezes a work charter and optional small official/custom clause set. |
-| `record_workflow_review` | **Yes** | Records an agent phase review; MCP cannot claim human or trusted-validator identity. |
+| `inspect_workflow_composition` | No | Returns the effective-charter claim index; it can validate a draft composition map and produce read-only whole-work facts, dependency gaps, and questions without scoring or editing. |
+| `record_workflow_composition_map` | **Yes** | Freezes exactly one current-work composition map before any other work in the iteration, bound to the complete score and effective charter. |
+| `preflight_workflow_charter_amendment` | No | Computes the exact impact and reconstruction cost during review, or after `revise` while the score is still unchanged, without activating it. |
+| `commit_workflow_charter_amendment` | **Yes** | After a revise decision and before any replacement score is saved, appends an exact-preflight-and-cost-bound entry to the linear amendment ledger. |
+| `record_workflow_review` | **Yes** | Records an agent phase review; the three governed phases answer the current whole-work question set, and MCP cannot claim human or trusted-validator identity. |
 | `record_workflow_evidence` | **Yes** | Records nonblocking promise conflicts or aesthetic risks without automatic edits. |
 | `record_verified_workflow_hard_failure` | **Yes** | Reruns trusted readiness and records only an exactly reproduced blocking issue. |
 | `register_workflow_exception` | **Yes** | Registers an evidenced exception with cost/recovery; hard failures are never exceptable. |
+| `record_workflow_derivation` | **Yes** | Records a scarce passage-level necessity derivation: events or an end-exclusive bar/beat range anchor it, parts only filter, established material must precede the target, and alternatives cite premises through `premise_indexes`; nonblocking and never edits the score. |
+| `record_workflow_fork` | **Yes** | Sparsely declares whole-work alternatives: branches must be recorded complete candidates and include the current candidate; each read recomputes the ID and reverifies score anchors and candidate bindings. Never ranks or blocks, and is not epoch/LCA lineage. |
 | `render_workflow_candidate` | **Yes** | Performs reserve → managed render → candidate verification → workflow record with no caller auth/path. |
 | `attach_workflow_candidate_for_audit` | **Yes** | Attaches an existing candidate by ID for audit; it remains unmanaged. |
-| `decide_workflow_iteration` | **Yes** | Accepts/revises/recommends/preserves/stops under frozen agent authority. |
+| `decide_workflow_iteration` | **Yes** | Accepts/revises/recommends/preserves/stops under frozen agent authority, with selected reviews, evidence dispositions, derivations, and charter settlement fixing its basis. Revise also freezes `revision_scope` and `withdrawal_condition`; the next iteration supplies `prior_revision_assessment` to promote the challenger, retain the baseline, or remain inconclusive. Scope compliance is not aesthetic superiority. |
 | `record_workflow_authoring_revision` | **Yes** | Binds a separately CAS-saved authoring revision as the next iteration. |
-| `rollback_creative_workflow` | **Yes** | Selects an earlier immutable anchor without overwriting or deleting. |
+| `rollback_creative_workflow` | **Yes** | Selects an earlier immutable anchor and may close the challenger as `retain_baseline` or `inconclusive`, without overwriting or deleting. |
 | `cancel_workflow_render` | **Yes** | Cancels the sole current reservation without deleting candidates. |
 | `stop_creative_workflow` | **Yes** | Stops under frozen agent authority without fabricating creator approval. |
 
@@ -220,17 +231,97 @@ create_authoring_project → get_authoring_snapshot
   → inspect/locate/compare_authoring_candidates
 ```
 
+> Upgrade compatibility note: Opening a `0.9.x` authoring project read-only
+> under `1.0.0` does not rewrite it; opening it or saving identical documents
+> does not trigger migration. The first content-changing save adds
+> `save_sequence` / `current_save_event_sha256` to `tianlai-project.json`,
+> `first_save_sequence` / `parent_revision` to the new `revision.json`, and
+> creates `.tianlai/save-events/`. This is a one-way causal-provenance upgrade:
+> `1.0.0` reads older projects, but `0.9.x` cannot reopen the project after that
+> save. Copy the complete project directory before the first changed save if
+> downgrade access matters.
+
 The optional governance loop sits above it:
 
 ```text
 creative_workflow_guide → optional get_music_constitution_clauses
-  → create_creative_workflow → activate_creative_workflow
-  → review intent/symbolic_structure/orchestration_performance
+  → create_creative_workflow(composition_governance=true) → activate_creative_workflow
+  → inspect_workflow_composition for effective-charter claim IDs
+  → draft this work's composition map
+  → inspect_workflow_composition as a read-only whole-work mirror
+  → record_workflow_composition_map before any other iteration work
+  → review intent/symbolic_structure/orchestration_performance,
+       answering the complete current question set and performing the lightweight
+       Chengjing / Qiyun position review inside orchestration
   → evidence → render_workflow_candidate → review render_report
-  → optional exception → decide_workflow_iteration
-  → if revise: CAS-save authoring documents
-       → record_workflow_authoring_revision → next iteration
+  → optional key-transition derivation / optional exception
+  → optional record_workflow_fork, once several complete candidates exist
+       and the current candidate is one of its branches
+  → decide_workflow_iteration with explicit charter_settlement under the latest
+       policy; acceptance covers every affirmative charter promise
+  → if revise without an amendment: CAS-save authoring documents
+  → if an amendment is needed, preflight it while reviewing or after `revise`
+       while the score is still unchanged:
+       commit_workflow_charter_amendment with the exact hash and cost echo,
+       before any score edit → CAS-save authoring documents
+  → record_workflow_authoring_revision
+  → next iteration rebuilds the map and repeats the whole-work mirror and reviews
 ```
+
+A composition map is not a fixed-form template. It first makes the complete
+sequence causality of **this work** explicit: stable nodes state their function,
+charter dependencies, preserved or transformed established material, role changes,
+scarce resources, ending response, and open questions. Its inputs are only the
+current effective charter and score. Historical works, preference examples,
+winner rationales, and fragments from other works are excluded from generation.
+`inspect_workflow_composition` turns full-score facts, locations, dependency
+coverage, and gaps into questions; it applies no fixed form, assigns no score,
+makes no edit, and auditions no audio.
+
+In governed `intent`, `symbolic_structure`, and `orchestration_performance`
+reviews, “reviewed” is no longer a checkbox. The caller must answer the complete
+question set generated for the current score, effective charter, and map, citing
+real claims, nodes, or events. A key-transition derivation must also bind those
+charter claims, map nodes, and already answered questions. This makes derivation
+a replayable prerequisite to writing rather than an appeal to model discipline.
+
+Chengjing / Qiyun adds no review phase. Inside `orchestration_performance`, it
+examines positions in the complete candidate that exist correctly yet may still
+lack flow, depth, breath, distance, resonance, or peripheral life. Zero additions
+are valid. The review must not become a periodic ornament checklist, and every
+micro-level companion detail does not need a derivation. Deletion, muting, or
+before/after complete-candidate comparison may expose a loss, but without an actual
+audition the caller records only an `aesthetic_risk` or hypothesis, never an audible
+conclusion. If an edit reaches the identity kernel, primary harmonic causality,
+section function, climax basis, ending response, or a charter claim, leave this
+micro-level review for formal revision. Charter changes use the existing amendment
+preflight; no new phase, ledger, or Schema is added. The conclusion is folded into
+the existing orchestration answer rather than a scored “Qiyun question.” Software
+can verify that the prompt was surfaced and references remain valid, not that the
+model's creative thought was insightful.
+
+If iteration evidence genuinely calls for a charter change, a read-only preflight
+must happen while the workflow is reviewing, or after a `revise` decision while
+the score is still unchanged. It itemizes affected claims, map
+dependencies, derivations, reviews, evidence interpretations, and the minimum
+reconstruction scope: broader proposals carry an explicit higher cost. Only after
+a `revise` decision may the caller echo the same preflight hash and exact cost.
+Commit appends the amendment to one immutable linear ledger, effective next
+iteration. Expanding scope requires a new preflight, and commit must precede any
+replacement-score save, closing the rewrite-first-and-rationalize-later escape
+hatch. This is not a second parent-version tree. The next iteration inherits
+neither the old map nor its answers; it reconstructs and reviews the whole work
+against the new score and effective charter. A non-hard basis must reach an affected
+claim or collection domain. The minimal resolved-input snapshot is hashed into the
+preflight, and commit plus history reopen recompute cost from durable workflow
+records. An internal linear save-event chain proves that score publication followed
+cost acknowledgement; it is not another product version tree.
+
+These machine contracts establish bindings, question coverage, and ledger
+consistency only. They neither prove that music sounds good nor substitute for
+human listening. Formal candidates remain complete works; event, bar, and seconds
+windows are navigation, evidence, and derivation scopes inside the whole work,
+not fragment products written into candidate directories.
 
 `render_workflow_candidate` derives its authorization from the sole current
 immutable reservation, rechecks it before expensive work, binds it into both
@@ -246,6 +337,106 @@ automatically gate or edit. The stdio boundary has no trusted human identity
 channel, so its workflows freeze `final_authority=agent` and expose no authority
 switch. See [Creative Workflow](创作工作流.en.md) for the full state and recovery
 contract.
+
+Constitution clauses are not a whole-work prompt. In v0.2 they ask questions at key
+positions rather than generate answers, and germinal or peripheral micro-details do
+not need a reason in advance. Derivations are likewise scarce arguments rather than
+a quota: the default per-iteration ceiling is 8, and 0 disables them. A derivation is anchored by
+non-empty `event_ids` and/or the complete half-open
+`[start_bar:start_beat, end_bar:end_beat)` range; `part_ids` only filter that scope.
+A candidate seconds window is also supplementary and cannot replace an event or
+score-range anchor. `established_material` must strictly precede the target, and
+each alternative's non-empty `premise_indexes` must cite this derivation's premises.
+Once the promise is fulfilled, identity is stable, and material alternatives are
+closed, accept, preserve, or stop rather than iterating for iteration's sake.
+
+A fork is likewise not a per-iteration gate. Record one only when several complete
+candidates genuinely need to coexist. It is a sparse whole-work alternative
+declaration, not epoch/LCA lineage, and establishes no ancestry, merge point, or
+causal evolution. Every read recomputes its ID from its body and reverifies the
+anchored score's canonical hash, event/part/half-open-range relationships, and that
+every branch names a previously recorded candidate; the current iteration's
+candidate must be among those branches. With no real plurality, proceed directly
+to the decision.
+
+A new decision cannot cite a few `evidence_ids` and silently abandon the other
+claims in the log. `review_ids` freeze the exact reviews adopted by the decision;
+acceptance must select all four phases, and an audition-based decision must select
+the same agent's `audio_audition` review. `evidence_dispositions` must account
+exactly once for every current non-hard-failure record. Acceptance closes claims only
+as `resolved`, `accepted_risk`, or `excepted`, and a promise conflict cannot be
+treated as an ordinary accepted risk. Revision and revision recommendation require
+at least one `revision_target`; `revise` also requires `expected_audible_change`.
+Each disposition's `evidence_id` must also be selected in top-level `evidence_ids`,
+and any review, evidence, exception, or derivation ID in `basis_ids` must be selected
+in the corresponding top-level list. Preserve, stop, and direct termination retain
+honest open claims through `open_evidence_ids` rather than fabricating resolution.
+Record identities, score event/part referents, and exception targets are revalidated
+when read. For `resolved`, the machine only checks that references were selected,
+rejects self-reference, and rejects cyclic resolution dependencies; it does not prove
+that the resolution rationale is musically or aesthetically sound. This remains an
+audit contract, not an automatic aesthetic scorer.
+
+The latest policy also requires `revision_scope` and `withdrawal_condition` before
+editing. In a bounded scope, `allowed_document_paths` must have exactly the same keys
+as `documents`, with at most 1024 exact RFC 6901 leaf paths per document. Each path
+is limited to 1024 characters and 1024 UTF-8 bytes and grants no prefix or wildcard
+authority. Score-note changes require stable `event_ids`, bounded reordering is
+forbidden, and each `bar_ranges` entry requires `end >= start`. Scope enforcement
+checks every persisted save state after the contract causal fence through the bound
+target; an intermediate violation is rejected even if the final documents restore
+the baseline, so rewrite-then-backfill cannot evade the contract.
+`record_workflow_authoring_revision` also compares bounded changes with the frozen
+baseline; a whole-work rewrite must explicitly accept the expanded change
+surface, downstream compatibility rework, and increased topic-drift risk. The next
+decide or rollback closes the contract through `prior_revision_assessment`. Only
+`promote_challenger` makes the challenger the subsequent baseline;
+`retain_baseline` and `inconclusive` preserve the prior complete candidate. This
+closure is local to one workflow and one authoring-project chain. Termination keeps
+the baseline, but new workflows and other projects do not inherit it, and no global
+parent-version tree is introduced. The machine proves declaration, scope, and causal
+closure—not melody, layering, or that the result sounds better.
+If the withdrawal condition is met before rendering, a current `report_only` review
+with `candidate_id=null` may support `retain_baseline` or `inconclusive` and rollback;
+this does not claim that the challenger was heard. After rollback, continuation reads
+content from the contract baseline but uses `authoring_causal_fence.anchor_revision`
+as the save CAS parent.
+
+A new accept writes a point-in-time `acceptance_gate` into its termination. It
+rechecks only hard failures already recorded in that iteration and binds the
+authoring revision, candidate-manifest hash, hard-failure content IDs, and that
+check's readiness-result hash; the readiness hash is `null` when no recorded hard
+failure existed. History reads do not rerun it against the current environment, so
+the gate is neither current readiness nor proof that no unrecorded issue or aesthetic
+failure exists. Compatibility never backfills old history: legacy, explicit Claim
+Lifecycle, acceptance-gated, and
+`charter_settlement_profile=affirmative-promise-ledger-v1` shapes keep their original
+semantics. `composition_governance_profile=whole-work-derivation-and-bounded-amendment-v1`
+and `revision_contract_profile=bounded-change-and-explicit-challenger-settlement-v1`
+may be combined. The former requires a per-iteration composition map, whole-work
+question reviews, and bounded charter amendments; the latter governs revision scope
+and challenger closure. Enabling one does not fabricate the other. Every new decision also continues to
+carry explicit `derivation_ids` and `charter_settlement`; acceptance settles every
+affirmative charter promise, while preserve/stop may be partial or empty. The
+older tiers remain read-compatible: old terminal history
+keeps its original semantics and is not backfilled; an old accept without a gate
+remains `legacy_unfrozen`. An ordinary older workflow continues to upgrade within
+the pre-governance policy and does not acquire new steps merely through a read or
+ordinary transition. Governance begins only when a composition map is explicitly
+recorded and cannot downgrade. If the current iteration already has activity,
+enforcement begins with the next iteration; workflows newly created through this
+MCP version enable the latest tier by default. Pass
+`composition_governance=false` only for an explicit legacy-flow opt-out. To measure
+a model's unassisted baseline, do not connect the MCP server instead of disabling a
+subset of tools and calling the result unassisted.
+
+Among direct termination reasons, `budget_exhausted` is a narrow machine-checkable
+claim: it is accepted only when a positive frozen budget is at its limit, the
+current iteration has reached the fork cap, or workflow history has reached its
+ceiling. A disabled zero limit does not count. Other reasons such as
+`no_material_improvement` and `external_blocker` remain honest final-authority
+declarations; the contract checks authority and shape, not whether aesthetic
+stagnation or the external fact has been proven.
 
 Byte-exact, fixed-hash Chinese and English constitution sources ship as wheel
 package data and are tested against the copies in the music-creation notes. Clause
@@ -657,7 +848,7 @@ When a problem is heard at `34.2` seconds, prefer:
 
 ```text
 locate_rendered_candidate(
-  candidate_directory="作品ID/候选ID",
+  candidate_directory="sanitized-title/candidate-ID",
   at_seconds=34.2
 )
 ```
@@ -738,8 +929,8 @@ Finally call:
 
 ```text
 compare_rendered_candidates(
-  before_candidate_directory="作品ID/候选1",
-  after_candidate_directory="作品ID/候选2"
+  before_candidate_directory="sanitized-title/candidate-1",
+  after_candidate_directory="sanitized-title/candidate-2"
 )
 ```
 
@@ -749,11 +940,24 @@ The creator must still directly A/B both `合奏.wav` files.
 
 ## Candidate immutability
 
-MCP rendering defaults to:
+The directory and artifact contract below describes the workflow-managed
+Candidate v2 layout (and legacy v1 semantics). Candidate v3 from direct
+`project-render-v2` is a separate closed Score-v2/runtime-evidence generation;
+it rejects `authoring_workflow` and cannot be presented as a workflow-accepted
+candidate. MCP rendering defaults to:
 
 ```text
-output/mcp/<sanitized work ID>/<unique candidate ID>/
+output/mcp/<sanitized title without an identity hash>/<unique candidate ID>/
 ```
+
+The title parent is only a clean grouping directory, not an identity. The
+`work_id` in `候选.json` remains the hash-bound work identity and normally does
+not equal the parent name; the candidate directory must still exactly match
+`candidate_id`. Loading and integrity verification accept either the current
+clean parent or the legacy `<work_id>/<candidate_id>/` layout. Authoring and
+workflow candidates remain managed in the dedicated
+`output/mcp/authoring-projects/` namespace and do not use this ordinary-candidate
+organization rule.
 
 Each directory writes `候选.json` last, binding:
 
@@ -768,6 +972,15 @@ Once used for location, comparison, or listening, a candidate is an immutable
 snapshot. Do not edit these files in place or copy new audio into an old
 candidate and call it the same generation. Normal iteration creates a new
 `candidate_id` and sets `parent_candidate_id`.
+
+Workflow derivations currently live only in immutable workflow history and the
+`derivation_ids` selected by iteration decisions. Neither the Candidate v2 nor
+Candidate v3 closed set embeds this provenance, and completion or stopping creates
+no portable ledger. That capability remains unfinished. A future independent Candidate
+Provenance Envelope / portable bundle should bind the original candidate manifest
+hash, terminal workflow revision, and selected derivations while leaving the
+candidate directory byte-for-byte unchanged. Never append a sidecar to an accepted
+candidate or render receipt: that would break its closed-set integrity.
 
 A successful `render` result also returns the post-render self-check path, full
 report, and bounded `summary`. Hard contracts have already been verified before

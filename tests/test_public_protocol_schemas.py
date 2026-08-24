@@ -25,6 +25,31 @@ def _schema(name: str) -> dict:
     return json.loads((SCHEMAS / name).read_text(encoding="utf-8"))
 
 
+def _workflow_contract_validator(pointer: str) -> Draft202012Validator:
+    workflow_schema = _schema("creative-workflow.schema.json")
+    return Draft202012Validator(
+        {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$defs": workflow_schema["$defs"],
+            "$ref": pointer,
+        }
+    )
+
+
+def _legacy_workflow_policy() -> dict:
+    return {
+        "hard_failures_may_block": True,
+        "promise_conflicts_block_automatically": False,
+        "aesthetic_risks_block_automatically": False,
+        "automatic_score_changes": False,
+        "automatic_audio_changes": False,
+        "single_aesthetic_objective": False,
+        "unresolved_candidates_preserved": True,
+        "rollback_is_selection_not_overwrite": True,
+        "acceptance_is_contextual_not_objective_quality": True,
+    }
+
+
 def _score() -> dict:
     return {
         "schema_version": 1,
@@ -61,11 +86,249 @@ class PublicProtocolSchemaTests(unittest.TestCase):
             "authoring-roster.schema.json",
             "candidate.schema.json",
             "candidate-playback-map.schema.json",
+            "creative-workflow.schema.json",
             "render-profile.schema.json",
             "score-patch.schema.json",
         ):
             with self.subTest(name=name):
                 Draft202012Validator.check_schema(_schema(name))
+
+    def test_workflow_charter_settlement_schema_matches_runtime_bounds(self) -> None:
+        validator = _workflow_contract_validator(
+            "#/$defs/charterSettlementItem"
+        )
+        valid = {
+            "target": "one_sentence_promise",
+            "status": "kept",
+            "rationale": "The established material fulfils the promise.",
+            "basis_ids": ["evidence-" + "1" * 20],
+            "event_ids": [],
+        }
+        validator.validate(valid)
+
+        invalid_items = []
+        for changes in (
+            {"basis_ids": []},
+            {
+                "basis_ids": [
+                    f"evidence-{index:020x}" for index in range(17)
+                ]
+            },
+            {"basis_ids": ["not-a-workflow-basis-id"]},
+            {
+                "basis_ids": [
+                    "evidence-" + "1" * 20,
+                    "evidence-" + "1" * 20,
+                ]
+            },
+            {"event_ids": [f"event-{index}" for index in range(33)]},
+            {"event_ids": ["event-1", "event-1"]},
+        ):
+            item = dict(valid)
+            item.update(changes)
+            invalid_items.append(item)
+        for item in invalid_items:
+            with self.subTest(item=item):
+                self.assertTrue(list(validator.iter_errors(item)))
+
+    def test_workflow_fork_anchor_requires_events_or_complete_bar_range(self) -> None:
+        validator = _workflow_contract_validator(
+            "#/$defs/fork/properties/anchor"
+        )
+        base = {
+            "authoring_revision": "1" * 64,
+            "score_sha256": "2" * 64,
+            "event_ids": ["event-1"],
+            "part_ids": [],
+            "start_bar": None,
+            "start_beat": None,
+            "end_bar": None,
+            "end_beat": None,
+        }
+        validator.validate(base)
+        validator.validate(
+            {
+                **base,
+                "event_ids": [],
+                "part_ids": ["lead"],
+                "start_bar": 1,
+                "start_beat": 1,
+                "end_bar": 2,
+                "end_beat": 1,
+            }
+        )
+
+        invalid_anchors = [
+            {**base, "event_ids": [], "part_ids": ["lead"]},
+            {
+                **base,
+                "event_ids": [],
+                "start_bar": 1,
+                "start_beat": None,
+                "end_bar": 2,
+                "end_beat": 1,
+            },
+            {**base, "event_ids": ["event-1", "event-1"]},
+            {
+                **base,
+                "event_ids": [f"event-{index}" for index in range(129)],
+            },
+            {**base, "part_ids": ["lead", "lead"]},
+            {
+                **base,
+                "part_ids": [f"part-{index}" for index in range(65)],
+            },
+        ]
+        for anchor in invalid_anchors:
+            with self.subTest(anchor=anchor):
+                self.assertTrue(list(validator.iter_errors(anchor)))
+
+    def test_workflow_schema_accepts_compatible_policy_profiles(self) -> None:
+        validator = _workflow_contract_validator(
+            "#/$defs/state/properties/policy"
+        )
+        legacy = _legacy_workflow_policy()
+        claim_lifecycle = {
+            **legacy,
+            "claim_lifecycle_profile": "explicit-v1",
+        }
+        acceptance_gate = {
+            **claim_lifecycle,
+            "acceptance_gate_profile": "recorded-hard-failure-recheck-v1",
+        }
+        charter_settlement = {
+            **acceptance_gate,
+            "charter_settlement_profile": "affirmative-promise-ledger-v1",
+        }
+        composition_governance = {
+            **charter_settlement,
+            "composition_governance_profile": (
+                "whole-work-derivation-and-bounded-amendment-v1"
+            ),
+        }
+        revision_contract = {
+            **charter_settlement,
+            "revision_contract_profile": (
+                "bounded-change-and-explicit-challenger-settlement-v1"
+            ),
+        }
+        governed_revision_contract = {
+            **revision_contract,
+            "composition_governance_profile": (
+                "whole-work-derivation-and-bounded-amendment-v1"
+            ),
+        }
+        for policy in (
+            legacy,
+            claim_lifecycle,
+            acceptance_gate,
+            charter_settlement,
+            composition_governance,
+            revision_contract,
+            governed_revision_contract,
+        ):
+            with self.subTest(policy=policy):
+                validator.validate(policy)
+
+        for policy in (
+            {
+                **legacy,
+                "acceptance_gate_profile": "recorded-hard-failure-recheck-v1",
+            },
+            {
+                **claim_lifecycle,
+                "charter_settlement_profile": "affirmative-promise-ledger-v1",
+            },
+            {
+                **acceptance_gate,
+                "revision_contract_profile": (
+                    "bounded-change-and-explicit-challenger-settlement-v1"
+                ),
+            },
+        ):
+            with self.subTest(policy=policy):
+                self.assertTrue(list(validator.iter_errors(policy)))
+
+    def test_workflow_revision_scope_schema_requires_real_bounded_authority(self) -> None:
+        validator = _workflow_contract_validator("#/$defs/revisionScope")
+        bounded = {
+            "change_scale": "bounded",
+            "documents": ["score"],
+            "allowed_document_paths": {"score": []},
+            "score": {
+                "part_ids": ["lead"],
+                "event_ids": ["lead-1"],
+                "bar_ranges": [{"start": 1, "end": 2}],
+                "allowed_note_fields": ["pitch", "part_id"],
+                "allow_event_additions": False,
+                "allow_event_deletions": False,
+                "allow_reordering": False,
+            },
+            "whole_work_cost": None,
+        }
+        validator.validate(bounded)
+
+        no_score_authority = json.loads(json.dumps(bounded))
+        no_score_authority["score"]["allowed_note_fields"] = []
+        no_score_authority["score"]["event_ids"] = []
+        self.assertTrue(list(validator.iter_errors(no_score_authority)))
+
+        score_not_declared = json.loads(json.dumps(bounded))
+        score_not_declared["documents"] = ["render_profile"]
+        score_not_declared["allowed_document_paths"] = {"score": ["/title"]}
+        self.assertTrue(list(validator.iter_errors(score_not_declared)))
+
+        invalid_pointer = json.loads(json.dumps(bounded))
+        invalid_pointer["allowed_document_paths"] = {"score": ["title"]}
+        self.assertTrue(list(validator.iter_errors(invalid_pointer)))
+
+        note_pointer = json.loads(json.dumps(bounded))
+        note_pointer["allowed_document_paths"] = {
+            "score": ["/parts/0/notes/0/pitch"]
+        }
+        self.assertTrue(list(validator.iter_errors(note_pointer)))
+
+        reversed_range = json.loads(json.dumps(bounded))
+        reversed_range["score"]["bar_ranges"] = [{"start": 3, "end": 2}]
+        # JSON Schema documents the cross-field relation; semantic core and
+        # MCP typed validation enforce it.
+        validator.validate(reversed_range)
+
+        whole_work = json.loads(json.dumps(bounded))
+        whole_work["change_scale"] = "whole_work"
+        whole_work["allowed_document_paths"] = None
+        whole_work["score"] = None
+        whole_work["whole_work_cost"] = {
+            "accepted_costs": [
+                "expanded_change_surface",
+                "downstream_compatibility_rework",
+                "increased_topic_drift_risk",
+            ],
+            "rationale": "The broad rewrite cost is accepted before editing.",
+        }
+        validator.validate(whole_work)
+        whole_work["whole_work_cost"]["accepted_costs"].pop()
+        self.assertTrue(list(validator.iter_errors(whole_work)))
+
+    def test_workflow_prior_revision_assessment_schema_is_non_aesthetic(self) -> None:
+        validator = _workflow_contract_validator(
+            "#/$defs/priorRevisionAssessment"
+        )
+        validator.validate(
+            {
+                "contract_sha256": "1" * 64,
+                "outcome": "retain_baseline",
+                "rationale": "The declared change was not established by the cited review.",
+                "basis_ids": ["review-" + "2" * 20],
+            }
+        )
+        invalid = {
+            "contract_sha256": "1" * 64,
+            "outcome": "sounds_better",
+            "rationale": "A machine score cannot establish this.",
+            "basis_ids": ["review-" + "2" * 20],
+        }
+        self.assertTrue(list(validator.iter_errors(invalid)))
 
     def test_render_profile_schema_accepts_public_default(self) -> None:
         validator = Draft202012Validator(_schema("render-profile.schema.json"))

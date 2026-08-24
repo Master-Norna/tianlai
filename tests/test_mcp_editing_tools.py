@@ -234,6 +234,29 @@ class PreciseScoreEditingToolTests(unittest.TestCase):
         self.assertFalse(result["ok"])
         self.assertEqual(result["code"], "base_score_hash_mismatch")
 
+    def test_patch_rejects_boolean_as_numeric_expectation(self) -> None:
+        original = copy.deepcopy(self.score)
+        result = self.m.patch_score(
+            self.score,
+            {
+                "kind": SCORE_PATCH_KIND,
+                "schema_version": 1,
+                "base_score_sha256": canonical_score_sha256(self.score),
+                "operations": [
+                    {
+                        "op": "delete_note",
+                        "event_id": "piano-0001",
+                        "expect": {"bar": True},
+                    }
+                ],
+            },
+        )
+
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["code"], "expectation_failed")
+        self.assertEqual(result["details"]["field"], "bar")
+        self.assertEqual(self.score, original)
+
 
 @unittest.skipUnless(_HAS_MCP, "未安装 mcp,可选组件跳过")
 class LocateToolTests(unittest.TestCase):

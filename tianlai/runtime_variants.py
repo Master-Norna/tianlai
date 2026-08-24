@@ -71,6 +71,78 @@ def _canonical_copy(value: Any) -> Any:
     return json.loads(_canonical_bytes(value).decode("utf-8"))
 
 
+def _json_values_match(left: Any, right: Any) -> bool:
+    """Compare JSON values without Python's bool/number equality alias."""
+
+    if isinstance(left, bool) or isinstance(right, bool):
+        return isinstance(left, bool) and isinstance(right, bool) and left is right
+    if isinstance(left, dict) or isinstance(right, dict):
+        if not isinstance(left, dict) or not isinstance(right, dict):
+            return False
+        return left.keys() == right.keys() and all(
+            _json_values_match(left[key], right[key]) for key in left
+        )
+    if isinstance(left, list) or isinstance(right, list):
+        if not isinstance(left, list) or not isinstance(right, list):
+            return False
+        return len(left) == len(right) and all(
+            _json_values_match(left_item, right_item)
+            for left_item, right_item in zip(left, right, strict=True)
+        )
+    return left == right
+
+
+def _sample_catalogs_match(left: Any, right: Any) -> bool:
+    """Compare validated catalogs without representation-specific hashes."""
+
+    if not isinstance(left, dict) or not isinstance(right, dict):
+        return False
+    left_fields = {
+        key: value for key, value in left.items() if key != "condition_sha256"
+    }
+    right_fields = {
+        key: value for key, value in right.items() if key != "condition_sha256"
+    }
+    return _json_values_match(left_fields, right_fields)
+
+
+def _runtime_variant_proofs_match(left: Any, right: Any) -> bool:
+    """Compare validated proofs without representation-only JSON hashes."""
+
+    if not isinstance(left, dict) or not isinstance(right, dict):
+        return False
+    representation_hashes = {
+        "top_level_contract_sha256",
+        "proof_sha256",
+    }
+    def semantic_fields(value: dict[str, Any]) -> dict[str, Any]:
+        fields = {
+            key: item
+            for key, item in value.items()
+            if key not in representation_hashes
+        }
+        contract = fields.get("top_level_contract")
+        if isinstance(contract, dict):
+            contract_fields = dict(contract)
+            attack = contract_fields.get("attack_phase_contract")
+            if isinstance(attack, dict):
+                contract_fields["attack_phase_contract"] = {
+                    key: item
+                    for key, item in attack.items()
+                    if key
+                    not in {
+                        "retained_bundle_sha256",
+                        "static_audio_bundle_sha256",
+                    }
+                }
+            fields["top_level_contract"] = contract_fields
+        return fields
+
+    left_fields = semantic_fields(left)
+    right_fields = semantic_fields(right)
+    return _json_values_match(left_fields, right_fields)
+
+
 def _reject_absolute_path_strings(
     value: Any,
     label: str = "variant record",
@@ -110,6 +182,46 @@ def _require_sha256(value: Any, label: str) -> str:
     if not isinstance(value, str) or _SHA256.fullmatch(value) is None:
         raise RuntimeVariantError(f"{label} must be a lowercase SHA-256")
     return value
+
+
+def _require_integer(
+    value: Any,
+    label: str,
+    *,
+    minimum: int | None = None,
+    maximum: int | None = None,
+) -> int:
+    """Return one JSON integer without accepting Python's bool subclass."""
+
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise RuntimeVariantError(f"{label} must be an integer")
+    if minimum is not None and value < minimum:
+        raise RuntimeVariantError(f"{label} must be at least {minimum}")
+    if maximum is not None and value > maximum:
+        raise RuntimeVariantError(f"{label} must be at most {maximum}")
+    return value
+
+
+def _require_boolean(value: Any, label: str) -> bool:
+    if not isinstance(value, bool):
+        raise RuntimeVariantError(f"{label} must be boolean")
+    return value
+
+
+def _require_schema_version(value: Any, label: str) -> None:
+    version = _require_integer(value, label)
+    if version != 1:
+        raise RuntimeVariantError(f"{label} is unsupported")
+
+
+def _require_finite_number(value: Any, label: str) -> float:
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, Real)
+        or not math.isfinite(float(value))
+    ):
+        raise RuntimeVariantError(f"{label} must be a finite number")
+    return float(value)
 
 
 def _expect_exact_keys(
@@ -212,7 +324,7 @@ def _validate_sampled_condition_payload(value: Any) -> dict[str, Any]:
         velocity=condition["velocity"],
         sample_rate_hz=condition["sample_rate_hz"],
     )
-    if condition != expected:
+    if not _json_values_match(condition, expected):
         raise RuntimeVariantError("sampled_condition is not canonical")
     return condition
 
@@ -433,10 +545,10 @@ def _validate_dedicated_sfz_wrapper_outcome(
         },
         label,
     )
-    if outcome["schema_version"] != 1:
-        raise RuntimeVariantError(
-            f"{label}.schema_version is unsupported"
-        )
+    _require_schema_version(
+        outcome["schema_version"],
+        f"{label}.schema_version",
+    )
     if outcome["kind"] != "dedicated_sfz_wrapper_outcome":
         raise RuntimeVariantError(f"{label}.kind is invalid")
     if outcome["phase"] not in {
@@ -542,7 +654,7 @@ def _validate_dedicated_sfz_wrapper_outcome(
             f"{label}.final_status belongs to another selection phase"
         )
     for field, expected_value in expected.items():
-        if outcome[field] != expected_value:
+        if not _json_values_match(outcome[field], expected_value):
             raise RuntimeVariantError(
                 f"{label}.{field} is inconsistent with final_status"
             )
@@ -576,10 +688,10 @@ def validate_runtime_variant_selection_receipt(
         },
         "selection_receipt",
     )
-    if value["schema_version"] != 1:
-        raise RuntimeVariantError(
-            "selection_receipt schema_version is unsupported"
-        )
+    _require_schema_version(
+        value["schema_version"],
+        "selection_receipt schema_version",
+    )
     if value["kind"] != "runtime_variant_selection_receipt":
         raise RuntimeVariantError("selection_receipt kind is invalid")
     if value["claim"] != "capture_only_not_variant_certification":
@@ -695,6 +807,15 @@ def validate_runtime_variant_selection_receipt(
             raise RuntimeVariantError(
                 f"{label}.catalog.deterministic_single must be boolean"
             )
+        if catalog["algorithm"] == "sample-select-region-partition-v1":
+            _validate_sample_catalog_condition(
+                catalog,
+                label=f"{label}.catalog.condition",
+            )
+            _validate_sample_catalog_numeric_fields(
+                catalog,
+                label=f"{label}.catalog",
+            )
         expected_catalog_sha256 = stable_variant_sha256(
             "runtime-variant-catalog-v1",
             catalog,
@@ -727,7 +848,12 @@ def validate_runtime_variant_selection_receipt(
             },
             label,
         )
-        if selection["selection_index"] != index:
+        selection_index = _require_integer(
+            selection["selection_index"],
+            f"{label}.selection_index",
+            minimum=0,
+        )
+        if selection_index != index:
             raise RuntimeVariantError(
                 f"{label}.selection_index must be contiguous"
             )
@@ -801,6 +927,11 @@ def validate_runtime_variant_selection_receipt(
             raise RuntimeVariantError(
                 f"{label}.actual_selector must be an object"
             )
+        if catalog["algorithm"] == "sample-select-region-partition-v1":
+            _validate_sample_actual_selector_integer_fields(
+                selection["actual_selector"],
+                label=f"{label}.actual_selector",
+            )
         wrapper_outcome = selection["wrapper_outcome"]
         if wrapper_outcome is not None:
             _validate_dedicated_sfz_wrapper_outcome(
@@ -841,6 +972,69 @@ def validate_runtime_variant_selection_receipt(
     return value
 
 
+def _selection_receipt_semantic_projection(
+    receipt: dict[str, Any],
+) -> dict[str, Any]:
+    catalogs = []
+    catalog_by_sha: dict[str, dict[str, Any]] = {}
+    for record in receipt["catalogs"]:
+        catalog = {
+            key: item
+            for key, item in record["catalog"].items()
+            if key != "condition_sha256"
+        }
+        catalogs.append({"catalog": catalog})
+        catalog_by_sha[record["catalog_sha256"]] = catalog
+    selections = []
+    for selection in receipt["selections"]:
+        projected_selection = {
+            key: item
+            for key, item in selection.items()
+            if key not in {"condition_sha256", "catalog_sha256"}
+        }
+        projected_selection["catalog"] = catalog_by_sha[
+            selection["catalog_sha256"]
+        ]
+        selections.append(projected_selection)
+    projected = {
+        key: item
+        for key, item in receipt.items()
+        if key not in {"catalogs", "selections", "receipt_sha256"}
+    }
+    projected["catalogs"] = catalogs
+    projected["selections"] = selections
+    return projected
+
+
+def runtime_variant_selection_receipts_match(
+    left: Any,
+    right: Any,
+) -> bool:
+    """Compare two strict receipts by JSON-number semantics, not byte hashes."""
+
+    left_receipt = validate_runtime_variant_selection_receipt(left)
+    right_receipt = validate_runtime_variant_selection_receipt(right)
+    left_projection = _selection_receipt_semantic_projection(left_receipt)
+    right_projection = _selection_receipt_semantic_projection(right_receipt)
+    left_catalogs = left_projection.pop("catalogs")
+    unmatched_catalogs = list(right_projection.pop("catalogs"))
+    if not _json_values_match(left_projection, right_projection):
+        return False
+    for catalog in left_catalogs:
+        match = next(
+            (
+                index
+                for index, candidate in enumerate(unmatched_catalogs)
+                if _json_values_match(catalog, candidate)
+            ),
+            None,
+        )
+        if match is None:
+            return False
+        unmatched_catalogs.pop(match)
+    return not unmatched_catalogs
+
+
 def _validate_declared_top_level_contract(
     contract: Any,
 ) -> dict[str, Any]:
@@ -864,10 +1058,10 @@ def _validate_declared_top_level_contract(
         },
         "top_level_contract",
     )
-    if value["schema_version"] != 1:
-        raise RuntimeVariantError(
-            "top-level contract schema_version is unsupported"
-        )
+    _require_schema_version(
+        value["schema_version"],
+        "top-level contract schema_version",
+    )
     if value["kind"] != "top_level_runtime_variant_contract":
         raise RuntimeVariantError("top-level contract kind is invalid")
     if not isinstance(value["expected_component_sha256s"], list):
@@ -891,6 +1085,287 @@ def _validate_declared_top_level_contract(
             "top-level expected_selection_count must be non-negative"
         )
     return value
+
+
+def _validate_embedded_top_level_contract_scalar_fields(
+    contract: Any,
+    *,
+    label: str,
+) -> dict[str, Any]:
+    """Validate typed scalars carried by a portable proof contract."""
+
+    if not isinstance(contract, dict):
+        raise RuntimeVariantError(f"{label} must be an object")
+    _require_schema_version(
+        contract.get("schema_version"),
+        f"{label}.schema_version",
+    )
+    _require_integer(
+        contract.get("expected_selection_count"),
+        f"{label}.expected_selection_count",
+        minimum=0,
+    )
+
+    attack = contract.get("attack_phase_contract")
+    if attack is not None:
+        if not isinstance(attack, dict):
+            raise RuntimeVariantError(
+                f"{label}.attack_phase_contract must be an object"
+            )
+        public_note_id = _require_integer(
+            attack.get("public_note_id"),
+            f"{label}.attack_phase_contract.public_note_id",
+            minimum=0,
+        )
+        if public_note_id != 1:
+            raise RuntimeVariantError(
+                f"{label}.attack_phase_contract.public_note_id must be 1"
+            )
+        _require_integer(
+            attack.get("note_on_sequence"),
+            f"{label}.attack_phase_contract.note_on_sequence",
+            minimum=0,
+        )
+        _require_finite_number(
+            attack.get("selector_random_value"),
+            f"{label}.attack_phase_contract.selector_random_value",
+        )
+        bindings = attack.get("ordered_layer_bindings")
+        if not isinstance(bindings, list):
+            raise RuntimeVariantError(
+                f"{label}.attack_phase_contract.ordered_layer_bindings "
+                "must be an array"
+            )
+        for index, binding in enumerate(bindings):
+            if not isinstance(binding, dict):
+                raise RuntimeVariantError(
+                    f"{label}.attack_phase_contract.ordered_layer_bindings"
+                    f"[{index}] must be an object"
+                )
+            for field in ("selection_index", "layer_index"):
+                _require_integer(
+                    binding.get(field),
+                    f"{label}.attack_phase_contract.ordered_layer_bindings"
+                    f"[{index}].{field}",
+                    minimum=0,
+                )
+            for field in (
+                "wrapper_velocity_gain",
+                "effective_static_gain",
+            ):
+                _require_finite_number(
+                    binding.get(field),
+                    f"{label}.attack_phase_contract.ordered_layer_bindings"
+                    f"[{index}].{field}",
+                )
+            for field in (
+                "route_retained",
+                "static_audio_contributing",
+            ):
+                _require_boolean(
+                    binding.get(field),
+                    f"{label}.attack_phase_contract.ordered_layer_bindings"
+                    f"[{index}].{field}",
+                )
+            for field in (
+                "wrapper_role_sha256",
+                "component_sha256",
+                "catalog_sha256",
+                "choice_sha256",
+                "wrapper_outcome_sha256",
+            ):
+                _require_sha256(
+                    binding.get(field),
+                    f"{label}.attack_phase_contract.ordered_layer_bindings"
+                    f"[{index}].{field}",
+                )
+        for field in (
+            "retained_layer_indexes",
+            "static_audio_contributing_layer_indexes",
+        ):
+            indexes = attack.get(field)
+            if not isinstance(indexes, list):
+                raise RuntimeVariantError(
+                    f"{label}.attack_phase_contract.{field} must be an array"
+                )
+            for index, item in enumerate(indexes):
+                _require_integer(
+                    item,
+                    f"{label}.attack_phase_contract.{field}[{index}]",
+                    minimum=0,
+                )
+
+    cycle = contract.get("finite_rr_cycle_contract")
+    if cycle is not None:
+        if not isinstance(cycle, dict):
+            raise RuntimeVariantError(
+                f"{label}.finite_rr_cycle_contract must be an object"
+            )
+        period = _require_integer(
+            cycle.get("variation_period"),
+            f"{label}.finite_rr_cycle_contract.variation_period",
+            minimum=2,
+            maximum=MAX_NATURAL_FINITE_RR_VARIANTS,
+        )
+        _require_integer(
+            cycle.get("variation_slot"),
+            f"{label}.finite_rr_cycle_contract.variation_slot",
+            minimum=0,
+            maximum=period - 1,
+        )
+        counts = cycle.get("ordered_layer_candidate_counts")
+        if not isinstance(counts, list):
+            raise RuntimeVariantError(
+                f"{label}.finite_rr_cycle_contract."
+                "ordered_layer_candidate_counts must be an array"
+            )
+        for index, count in enumerate(counts):
+            _require_integer(
+                count,
+                f"{label}.finite_rr_cycle_contract."
+                f"ordered_layer_candidate_counts[{index}]",
+                minimum=1,
+            )
+        _require_sha256(
+            cycle.get("slot_bundle_sha256"),
+            f"{label}.finite_rr_cycle_contract.slot_bundle_sha256",
+        )
+    return contract
+
+
+def _validate_embedded_top_level_contract_hash_bindings(
+    contract: dict[str, Any],
+    *,
+    selection_receipt: dict[str, Any],
+    label: str,
+) -> None:
+    """Recompute every hash derived from an embedded attack contract.
+
+    The enclosing contract/proof hashes protect the stored JSON bytes, but do
+    not by themselves prove that nested bundle hashes describe those bytes.
+    Each representation validates its own derived hashes here before live
+    semantic comparison is allowed to ignore the two number-sensitive bundle
+    hashes.
+    """
+
+    attack = contract.get("attack_phase_contract")
+    if attack is None:
+        return
+    assert isinstance(attack, dict)
+    bindings = attack["ordered_layer_bindings"]
+    selections = selection_receipt["selections"]
+    if (
+        contract["expected_selection_count"] != len(bindings)
+        or len(bindings) != len(selections)
+    ):
+        raise RuntimeVariantError(
+            f"{label}.attack_phase_contract binding count is inconsistent"
+        )
+
+    selection_indexes: list[int] = []
+    for index, binding in enumerate(bindings):
+        selection_index = binding["selection_index"]
+        selection_indexes.append(selection_index)
+        if not 0 <= selection_index < len(selections):
+            raise RuntimeVariantError(
+                f"{label}.attack_phase_contract.ordered_layer_bindings"
+                f"[{index}].selection_index is outside the receipt"
+            )
+        wrapper_outcome = selections[selection_index]["wrapper_outcome"]
+        if wrapper_outcome is None:
+            raise RuntimeVariantError(
+                f"{label}.attack_phase_contract.ordered_layer_bindings"
+                f"[{index}] has no receipt wrapper outcome"
+            )
+        expected_wrapper_hash = stable_variant_sha256(
+            "dedicated-sfz-wrapper-outcome-v1",
+            wrapper_outcome,
+        )
+        if _require_sha256(
+            binding.get("wrapper_outcome_sha256"),
+            f"{label}.attack_phase_contract.ordered_layer_bindings"
+            f"[{index}].wrapper_outcome_sha256",
+        ) != expected_wrapper_hash:
+            raise RuntimeVariantError(
+                f"{label}.attack_phase_contract.ordered_layer_bindings"
+                f"[{index}].wrapper_outcome_sha256 does not bind its receipt"
+            )
+    if selection_indexes != list(range(len(bindings))):
+        raise RuntimeVariantError(
+            f"{label}.attack_phase_contract selection indexes are not contiguous"
+        )
+
+    retained_bundle = [
+        binding for binding in bindings if binding["route_retained"]
+    ]
+    static_audio_bundle = [
+        binding
+        for binding in bindings
+        if binding["static_audio_contributing"]
+    ]
+    expected_retained_indexes = [
+        binding["layer_index"] for binding in retained_bundle
+    ]
+    expected_static_indexes = [
+        binding["layer_index"] for binding in static_audio_bundle
+    ]
+    if attack["retained_layer_indexes"] != expected_retained_indexes:
+        raise RuntimeVariantError(
+            f"{label}.attack_phase_contract retained indexes are inconsistent"
+        )
+    if (
+        attack["static_audio_contributing_layer_indexes"]
+        != expected_static_indexes
+    ):
+        raise RuntimeVariantError(
+            f"{label}.attack_phase_contract static-audio indexes are inconsistent"
+        )
+
+    for field, algorithm, bundle in (
+        (
+            "retained_bundle_sha256",
+            "dedicated-sfz-retained-attack-bundle-v1",
+            retained_bundle,
+        ),
+        (
+            "static_audio_bundle_sha256",
+            "dedicated-sfz-static-audio-attack-bundle-v1",
+            static_audio_bundle,
+        ),
+    ):
+        expected_hash = stable_variant_sha256(algorithm, bundle)
+        if _require_sha256(
+            attack.get(field),
+            f"{label}.attack_phase_contract.{field}",
+        ) != expected_hash:
+            raise RuntimeVariantError(
+                f"{label}.attack_phase_contract.{field} is invalid"
+            )
+
+    cycle = contract.get("finite_rr_cycle_contract")
+    if cycle is None:
+        return
+    assert isinstance(cycle, dict)
+    slot_bundle = [
+        {
+            "layer_index": binding["layer_index"],
+            "choice_sha256": binding["choice_sha256"],
+            "route_retained": binding["route_retained"],
+            "wrapper_outcome_sha256": binding["wrapper_outcome_sha256"],
+        }
+        for binding in bindings
+    ]
+    expected_slot_hash = stable_variant_sha256(
+        "dedicated-sfz-finite-rr-slot-bundle-v1",
+        slot_bundle,
+    )
+    if _require_sha256(
+        cycle.get("slot_bundle_sha256"),
+        f"{label}.finite_rr_cycle_contract.slot_bundle_sha256",
+    ) != expected_slot_hash:
+        raise RuntimeVariantError(
+            f"{label}.finite_rr_cycle_contract.slot_bundle_sha256 is invalid"
+        )
 
 
 def _validate_builtin_factory_provenance(
@@ -922,10 +1397,10 @@ def _validate_builtin_factory_provenance(
         },
         "factory_provenance",
     )
-    if value["schema_version"] != 1:
-        raise RuntimeVariantError(
-            "factory provenance schema_version is unsupported"
-        )
+    _require_schema_version(
+        value["schema_version"],
+        "factory provenance schema_version",
+    )
     if value["factory_route"] != (
         "builtin_manifest_dispatch_no_implementation"
     ):
@@ -1041,7 +1516,7 @@ def _trusted_top_level_contract(
             "expected_component_sha256s": component_hashes,
             "expected_selection_count": 1,
         }
-    if value != expected:
+    if not _json_values_match(value, expected):
         raise RuntimeVariantError(
             "trusted top-level backend returned an inconsistent contract"
         )
@@ -1050,6 +1525,255 @@ def _trusted_top_level_contract(
         "manifest_type": str(manifest["type"]),
         "factory_route": "builtin_manifest_dispatch_no_implementation",
     }
+
+
+def _validate_sample_choice_integer_fields(
+    raw_choice: Any,
+    *,
+    label: str,
+) -> dict[str, Any]:
+    choice = _expect_exact_keys(
+        raw_choice,
+        {
+            "choice_sha256",
+            "catalog_position",
+            "random_min",
+            "random_max",
+            "round_robin_position",
+            "round_robin_length",
+            "jitter",
+        },
+        label,
+    )
+    _require_integer(
+        choice["catalog_position"],
+        f"{label}.catalog_position",
+        minimum=0,
+    )
+    position = choice["round_robin_position"]
+    length = choice["round_robin_length"]
+    if (position is None) != (length is None):
+        raise RuntimeVariantError(
+            f"{label} must define both round-robin position and length"
+        )
+    if position is not None:
+        position = _require_integer(
+            position,
+            f"{label}.round_robin_position",
+            minimum=1,
+        )
+        length = _require_integer(
+            length,
+            f"{label}.round_robin_length",
+            minimum=1,
+        )
+        if position > length:
+            raise RuntimeVariantError(
+                f"{label}.round_robin_position exceeds its length"
+            )
+    return choice
+
+
+def _validate_sample_catalog_condition(
+    catalog: dict[str, Any],
+    *,
+    label: str,
+) -> dict[str, Any]:
+    condition = _expect_exact_keys(
+        catalog["condition"],
+        {
+            "pitch_hz",
+            "target_midi",
+            "velocity",
+            "pitch_bucket",
+            "velocity_bucket",
+        },
+        label,
+    )
+    for field in ("pitch_hz", "target_midi", "velocity"):
+        _require_finite_number(
+            condition[field],
+            f"{label}.{field}",
+        )
+    for field in ("pitch_bucket", "velocity_bucket"):
+        _require_integer(
+            condition[field],
+            f"{label}.{field}",
+        )
+    if _require_sha256(
+        catalog["condition_sha256"],
+        f"{label} hash",
+    ) != stable_variant_sha256(
+        "sample-region-condition-v1",
+        condition,
+    ):
+        raise RuntimeVariantError(
+            f"{label} hash is invalid"
+        )
+    return condition
+
+
+def _validate_sample_actual_selector_integer_fields(
+    raw_selector: Any,
+    *,
+    label: str,
+) -> dict[str, Any]:
+    selector = _expect_exact_keys(
+        raw_selector,
+        {
+            "random_value",
+            "round_robin_counter_before",
+            "candidate_count",
+            "candidate_index",
+        },
+        label,
+    )
+    _require_finite_number(
+        selector["random_value"],
+        f"{label}.random_value",
+    )
+    _require_integer(
+        selector["round_robin_counter_before"],
+        f"{label}.round_robin_counter_before",
+        minimum=0,
+    )
+    candidate_count = _require_integer(
+        selector["candidate_count"],
+        f"{label}.candidate_count",
+        minimum=1,
+    )
+    candidate_index = _require_integer(
+        selector["candidate_index"],
+        f"{label}.candidate_index",
+        minimum=0,
+    )
+    if candidate_index >= candidate_count:
+        raise RuntimeVariantError(
+            f"{label}.candidate_index must be below candidate_count"
+        )
+    return selector
+
+
+def _validate_sample_catalog_numeric_fields(
+    catalog: dict[str, Any],
+    *,
+    label: str,
+) -> None:
+    selector_domain = _expect_exact_keys(
+        catalog["selector_domain"],
+        {"name", "minimum", "maximum", "bounds"},
+        f"{label}.selector_domain",
+    )
+    for field in ("minimum", "maximum"):
+        _require_finite_number(
+            selector_domain[field],
+            f"{label}.selector_domain.{field}",
+        )
+
+    for choice_index, raw_choice in enumerate(catalog["choices"]):
+        choice_label = f"{label}.choices[{choice_index}]"
+        choice = _validate_sample_choice_integer_fields(
+            raw_choice,
+            label=choice_label,
+        )
+        for field in ("random_min", "random_max"):
+            _require_finite_number(
+                choice[field],
+                f"{choice_label}.{field}",
+            )
+        jitter = _expect_exact_keys(
+            choice["jitter"],
+            {
+                "pitch_random_cents",
+                "amplitude_random_db",
+                "delay_random_seconds",
+            },
+            f"{choice_label}.jitter",
+        )
+        for field, value in jitter.items():
+            _require_finite_number(
+                value,
+                f"{choice_label}.jitter.{field}",
+            )
+
+    for partition_index, raw_partition in enumerate(catalog["partitions"]):
+        partition_label = f"{label}.partitions[{partition_index}]"
+        if not isinstance(raw_partition, dict):
+            raise RuntimeVariantError(
+                f"{partition_label} must be an object"
+            )
+        kind = raw_partition.get("kind")
+        required = (
+            {"kind", "probe_value", "status", "choice_sha256s", "value"}
+            if kind == "point"
+            else {
+                "kind",
+                "probe_value",
+                "status",
+                "choice_sha256s",
+                "minimum",
+                "maximum",
+            }
+        )
+        partition = _expect_exact_keys(
+            raw_partition,
+            required,
+            partition_label,
+        )
+        if kind not in {"point", "open_interval"}:
+            raise RuntimeVariantError(
+                f"{partition_label}.kind is invalid"
+            )
+        _require_finite_number(
+            partition["probe_value"],
+            f"{partition_label}.probe_value",
+        )
+        numeric_fields = (
+            ("value",)
+            if kind == "point"
+            else ("minimum", "maximum")
+        )
+        for field in numeric_fields:
+            _require_finite_number(
+                partition[field],
+                f"{partition_label}.{field}",
+            )
+
+    for domain_index, raw_domain in enumerate(
+        catalog["unexhausted_domains"]
+    ):
+        domain_label = f"{label}.unexhausted_domains[{domain_index}]"
+        domain = _expect_exact_keys(
+            raw_domain,
+            {
+                "domain",
+                "choice_sha256",
+                "minimum",
+                "maximum",
+                "exhaustive",
+            },
+            domain_label,
+        )
+        if not isinstance(domain["domain"], str) or not domain["domain"]:
+            raise RuntimeVariantError(
+                f"{domain_label}.domain must be non-empty text"
+            )
+        _require_sha256(
+            domain["choice_sha256"],
+            f"{domain_label}.choice_sha256",
+        )
+        for field in ("minimum", "maximum"):
+            _require_finite_number(
+                domain[field],
+                f"{domain_label}.{field}",
+            )
+        if _require_boolean(
+            domain["exhaustive"],
+            f"{domain_label}.exhaustive",
+        ):
+            raise RuntimeVariantError(
+                f"{domain_label}.exhaustive must be false"
+            )
 
 
 def _validate_sample_single_catalog(
@@ -1065,41 +1789,10 @@ def _validate_sample_single_catalog(
         raise RuntimeVariantNotCertifiable(
             "sample selector catalog algorithm is not certifiable"
         )
-    condition = _expect_exact_keys(
-        catalog["condition"],
-        {
-            "pitch_hz",
-            "target_midi",
-            "velocity",
-            "pitch_bucket",
-            "velocity_bucket",
-        },
-        "sample catalog condition",
+    condition = _validate_sample_catalog_condition(
+        catalog,
+        label="sample catalog condition",
     )
-    for field in ("pitch_hz", "target_midi", "velocity"):
-        if (
-            isinstance(condition[field], bool)
-            or not isinstance(condition[field], Real)
-            or not math.isfinite(float(condition[field]))
-        ):
-            raise RuntimeVariantError(
-                f"sample catalog condition {field} must be finite"
-            )
-    for field in ("pitch_bucket", "velocity_bucket"):
-        if (
-            isinstance(condition[field], bool)
-            or not isinstance(condition[field], int)
-        ):
-            raise RuntimeVariantError(
-                f"sample catalog condition {field} must be an integer"
-            )
-    if catalog["condition_sha256"] != stable_variant_sha256(
-        "sample-region-condition-v1",
-        condition,
-    ):
-        raise RuntimeVariantError(
-            "sample catalog condition hash is invalid"
-        )
     expected_catalog_condition = {
         "pitch_hz": float(expected_pitch_hz),
         "target_midi": float(expected_midi),
@@ -1107,7 +1800,7 @@ def _validate_sample_single_catalog(
         "pitch_bucket": round(expected_midi),
         "velocity_bucket": round(expected_velocity * 127.0),
     }
-    if condition != expected_catalog_condition:
+    if not _json_values_match(condition, expected_catalog_condition):
         raise RuntimeVariantNotCertifiable(
             "sample catalog belongs to another pitch/velocity condition"
         )
@@ -1116,12 +1809,15 @@ def _validate_sample_single_catalog(
         {"name", "minimum", "maximum", "bounds"},
         "sample catalog selector_domain",
     )
-    if selector_domain != {
-        "name": "_sample_random_value",
-        "minimum": 0.0,
-        "maximum": 1.0,
-        "bounds": "closed",
-    }:
+    if not _json_values_match(
+        selector_domain,
+        {
+            "name": "_sample_random_value",
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "bounds": "closed",
+        },
+    ):
         raise RuntimeVariantNotCertifiable(
             "sample selector domain is not the exhaustive closed [0,1] domain"
         )
@@ -1141,28 +1837,11 @@ def _validate_sample_single_catalog(
         raise RuntimeVariantNotCertifiable(
             "sample condition does not have exactly one reachable choice"
         )
-    choice = _expect_exact_keys(
+    choice = _validate_sample_choice_integer_fields(
         catalog["choices"][0],
-        {
-            "choice_sha256",
-            "catalog_position",
-            "random_min",
-            "random_max",
-            "round_robin_position",
-            "round_robin_length",
-            "jitter",
-        },
-        "sample catalog sole choice",
+        label="sample catalog sole choice",
     )
     sole_choice = choice["choice_sha256"]
-    if (
-        isinstance(choice["catalog_position"], bool)
-        or not isinstance(choice["catalog_position"], int)
-        or choice["catalog_position"] < 0
-    ):
-        raise RuntimeVariantError(
-            "sample choice catalog_position must be non-negative"
-        )
     for field in ("random_min", "random_max"):
         if (
             isinstance(choice[field], bool)
@@ -1227,26 +1906,42 @@ def _validate_sample_single_catalog(
             raise RuntimeVariantError(
                 f"sample selector partition {index} kind is invalid"
             )
+        partition_label = f"sample selector partition {index}"
+        _require_finite_number(
+            partition["probe_value"],
+            f"{partition_label}.probe_value",
+        )
+        if kind == "point":
+            _require_finite_number(
+                partition["value"],
+                f"{partition_label}.value",
+            )
+        else:
+            _require_finite_number(
+                partition["minimum"],
+                f"{partition_label}.minimum",
+            )
+            _require_finite_number(
+                partition["maximum"],
+                f"{partition_label}.maximum",
+            )
         if partition.get("status") != "choices" or partition.get(
             "choice_sha256s"
         ) != [sole_choice]:
             raise RuntimeVariantNotCertifiable(
                 "sample selector domain is not deterministic-single everywhere"
             )
-    selector = _expect_exact_keys(
+    selector = _validate_sample_actual_selector_integer_fields(
         selection["actual_selector"],
-        {
-            "random_value",
-            "round_robin_counter_before",
-            "candidate_count",
-            "candidate_index",
-        },
-        "sample actual_selector",
+        label="sample actual_selector",
     )
+    candidate_count = selector["candidate_count"]
+    candidate_index = selector["candidate_index"]
+    round_robin_counter = selector["round_robin_counter_before"]
     if (
-        selector.get("candidate_count") != 1
-        or selector.get("candidate_index") != 0
-        or selector.get("round_robin_counter_before") != 0
+        candidate_count != 1
+        or candidate_index != 0
+        or round_robin_counter != 0
     ):
         raise RuntimeVariantNotCertifiable(
             "sample observation consumed RR/multiple candidates or prior state"
@@ -1342,6 +2037,25 @@ def _finite_rr_catalog_choice_cycle(
             raise RuntimeVariantError(
                 f"finite RR selector partition {index} kind is invalid"
             )
+        partition_label = f"finite RR selector partition {index}"
+        _require_finite_number(
+            partition["probe_value"],
+            f"{partition_label}.probe_value",
+        )
+        if kind == "point":
+            _require_finite_number(
+                partition["value"],
+                f"{partition_label}.value",
+            )
+        else:
+            _require_finite_number(
+                partition["minimum"],
+                f"{partition_label}.minimum",
+            )
+            _require_finite_number(
+                partition["maximum"],
+                f"{partition_label}.maximum",
+            )
         choices = partition["choice_sha256s"]
         if partition["status"] != "choices" or not isinstance(
             choices, list
@@ -1370,21 +2084,26 @@ def _finite_rr_catalog_choice_cycle(
                 "random-partition choices require audit-steered enumeration"
             )
     assert cycle is not None
+    validated_choices = [
+        _validate_sample_choice_integer_fields(
+            choice,
+            label=f"finite RR catalog choice {index}",
+        )
+        for index, choice in enumerate(catalog["choices"])
+    ]
     catalog_choices = {
         _require_sha256(
-            choice.get("choice_sha256")
-            if isinstance(choice, dict)
-            else None,
+            choice["choice_sha256"],
             "finite RR catalog choice",
         )
-        for choice in catalog["choices"]
+        for choice in validated_choices
     }
     if set(cycle) != catalog_choices:
         raise RuntimeVariantNotCertifiable(
             "finite RR catalog choices differ from its domain cycle"
         )
-    for choice in catalog["choices"]:
-        jitter = choice.get("jitter")
+    for choice in validated_choices:
+        jitter = choice["jitter"]
         if not isinstance(jitter, dict) or any(
             isinstance(value, bool)
             or not isinstance(value, Real)
@@ -1406,30 +2125,35 @@ def _validate_sample_finite_rr_catalog(
     expected_random_value: float,
     variation_slot: int,
 ) -> int:
-    if catalog != expected_catalog:
+    _validate_sample_catalog_condition(
+        catalog,
+        label="finite RR catalog condition",
+    )
+    if not _sample_catalogs_match(catalog, expected_catalog):
         raise RuntimeVariantNotCertifiable(
             "finite RR receipt catalog differs from the live exact layer catalog"
         )
     cycle = _finite_rr_catalog_choice_cycle(catalog)
-    selector = _expect_exact_keys(
+    selector = _validate_sample_actual_selector_integer_fields(
         selection["actual_selector"],
-        {
-            "random_value",
-            "round_robin_counter_before",
-            "candidate_count",
-            "candidate_index",
-        },
-        "finite RR actual_selector",
+        label="finite RR actual_selector",
     )
-    if float(selector["random_value"]) != float(expected_random_value):
+    random_value = _require_finite_number(
+        selector["random_value"],
+        "finite RR actual_selector.random_value",
+    )
+    if random_value != float(expected_random_value):
         raise RuntimeVariantNotCertifiable(
             "finite RR selector belongs to another event identity or phase"
         )
     expected_index = variation_slot % len(cycle)
+    round_robin_counter = selector["round_robin_counter_before"]
+    candidate_count = selector["candidate_count"]
+    candidate_index = selector["candidate_index"]
     if (
-        selector["round_robin_counter_before"] != variation_slot
-        or selector["candidate_count"] != len(cycle)
-        or selector["candidate_index"] != expected_index
+        round_robin_counter != variation_slot
+        or candidate_count != len(cycle)
+        or candidate_index != expected_index
         or selection["choice_sha256"] != cycle[expected_index]
     ):
         raise RuntimeVariantNotCertifiable(
@@ -1462,7 +2186,10 @@ def _exact_sample_component_sha256(engine: Any) -> str:
         "expected_component_sha256s": component_hashes,
         "expected_selection_count": 1,
     }
-    if len(component_hashes) != 1 or contract != expected:
+    if len(component_hashes) != 1 or not _json_values_match(
+        contract,
+        expected,
+    ):
         raise RuntimeVariantError(
             "Dedicated SFZ nested sample layer returned an inconsistent contract"
         )
@@ -1583,7 +2310,7 @@ def _trusted_dedicated_sfz_attack_contract(
             velocity=velocity,
             target_midi=target_midi,
         )
-        if catalog != expected_catalog:
+        if not _sample_catalogs_match(catalog, expected_catalog):
             raise RuntimeVariantNotCertifiable(
                 "Dedicated SFZ attack receipt catalog differs from the live "
                 "exact layer catalog for this condition"
@@ -1708,7 +2435,10 @@ def _trusted_dedicated_sfz_attack_contract(
             raise RuntimeVariantNotCertifiable(
                 "Dedicated SFZ provisional attack selection was never finalized"
             )
-        if actual_wrapper_outcome != expected_wrapper_outcome:
+        if not _json_values_match(
+            actual_wrapper_outcome,
+            expected_wrapper_outcome,
+        ):
             raise RuntimeVariantNotCertifiable(
                 "Dedicated SFZ actual wrapper commit differs from the "
                 "reconstructed retained attack bundle"
@@ -1937,14 +2667,11 @@ def prewarm_dedicated_sfz_variation_slot(
     from .events import PerformanceEvent
     from .tuning import EqualTemperament
 
-    if (
-        isinstance(variation_slot, bool)
-        or not isinstance(variation_slot, int)
-        or variation_slot < 0
-    ):
-        raise RuntimeVariantError(
-            "finite RR variation_slot must be a non-negative integer"
-        )
+    variation_slot = _require_integer(
+        variation_slot,
+        "finite RR variation_slot",
+        minimum=0,
+    )
     if variation_slot == 0:
         return
     condition = _validate_sampled_condition_payload(sampled_condition)
@@ -2047,6 +2774,11 @@ def certify_deterministic_single_observation(
     consumed sample catalog has one choice with no gaps, RR, or jitter.
     """
 
+    variation_slot = _require_integer(
+        variation_slot,
+        "deterministic-single variation_slot",
+        minimum=0,
+    )
     condition_payload = _validate_sampled_condition_payload(
         sampled_condition
     )
@@ -2117,7 +2849,7 @@ def certify_deterministic_single_observation(
         )
         for selection in selections:
             catalog = catalog_by_sha[selection["catalog_sha256"]]
-            if catalog != expected_catalog:
+            if not _sample_catalogs_match(catalog, expected_catalog):
                 raise RuntimeVariantNotCertifiable(
                     "sample receipt catalog differs from the live exact "
                     "SampleInstrument catalog for this sampled condition"
@@ -2195,14 +2927,11 @@ def certify_finite_rr_observation(
         raise RuntimeVariantError(
             "condition_id does not bind the sampled condition payload"
         )
-    if (
-        isinstance(variation_slot, bool)
-        or not isinstance(variation_slot, int)
-        or variation_slot < 0
-    ):
-        raise RuntimeVariantNotCertifiable(
-            "finite RR variation_slot must be non-negative"
-        )
+    variation_slot = _require_integer(
+        variation_slot,
+        "finite RR variation_slot",
+        minimum=0,
+    )
     if not isinstance(manifest, dict):
         raise RuntimeVariantNotCertifiable(
             "instrument manifest provenance is unavailable"
@@ -2289,6 +3018,11 @@ def certify_runtime_variant_observation(
 ) -> dict[str, Any]:
     """Choose the narrowest trusted proof protocol for one observation."""
 
+    variation_slot = _require_integer(
+        variation_slot,
+        "runtime variant observation variation_slot",
+        minimum=0,
+    )
     if variation_slot == 0:
         try:
             return certify_deterministic_single_observation(
@@ -2348,10 +3082,10 @@ def validate_deterministic_single_proof_document(
         },
         "runtime_variant_proof",
     )
-    if value["schema_version"] != 1:
-        raise RuntimeVariantError(
-            "runtime_variant_proof schema_version is unsupported"
-        )
+    _require_schema_version(
+        value["schema_version"],
+        "runtime_variant_proof schema_version",
+    )
     if value["kind"] != "deterministic_single_runtime_variant_proof":
         raise RuntimeVariantError("runtime_variant_proof kind is invalid")
     if (
@@ -2368,7 +3102,13 @@ def validate_deterministic_single_proof_document(
     expected_sampled_condition = _validate_sampled_condition_payload(
         sampled_condition
     )
-    if value["sampled_condition"] != expected_sampled_condition:
+    stored_sampled_condition = _validate_sampled_condition_payload(
+        value["sampled_condition"]
+    )
+    if not _json_values_match(
+        stored_sampled_condition,
+        expected_sampled_condition,
+    ):
         raise RuntimeVariantError(
             "runtime_variant_proof binds another sampled condition payload"
         )
@@ -2384,7 +3124,17 @@ def validate_deterministic_single_proof_document(
         raise RuntimeVariantError(
             "runtime_variant_proof binds another sampled condition"
         )
-    if variation_slot != 0 or value["variation_slot"] != 0:
+    variation_slot = _require_integer(
+        variation_slot,
+        "runtime_variant_proof variation_slot argument",
+        minimum=0,
+    )
+    stored_variation_slot = _require_integer(
+        value["variation_slot"],
+        "runtime_variant_proof variation_slot",
+        minimum=0,
+    )
+    if variation_slot != 0 or stored_variation_slot != 0:
         raise RuntimeVariantError(
             "deterministic-single proof requires variation slot 0"
         )
@@ -2393,11 +3143,15 @@ def validate_deterministic_single_proof_document(
         raise RuntimeVariantError(
             "runtime_variant_proof binds another selection receipt"
         )
-    contract = value["top_level_contract"]
-    if not isinstance(contract, dict):
-        raise RuntimeVariantError(
-            "runtime_variant_proof top_level_contract must be an object"
-        )
+    contract = _validate_embedded_top_level_contract_scalar_fields(
+        value["top_level_contract"],
+        label="runtime_variant_proof top_level_contract",
+    )
+    _validate_embedded_top_level_contract_hash_bindings(
+        contract,
+        selection_receipt=receipt,
+        label="runtime_variant_proof top_level_contract",
+    )
     expected_contract_hash = stable_variant_sha256(
         "top-level-runtime-variant-contract-v1",
         contract,
@@ -2475,10 +3229,10 @@ def validate_finite_rr_proof_document(
         },
         "finite_rr_runtime_variant_proof",
     )
-    if value["schema_version"] != 1:
-        raise RuntimeVariantError(
-            "finite RR proof schema_version is unsupported"
-        )
+    _require_schema_version(
+        value["schema_version"],
+        "finite RR proof schema_version",
+    )
     if value["kind"] != "finite_rr_runtime_variant_proof":
         raise RuntimeVariantError("finite RR proof kind is invalid")
     if (
@@ -2495,6 +3249,9 @@ def validate_finite_rr_proof_document(
     condition_payload = _validate_sampled_condition_payload(
         sampled_condition
     )
+    stored_condition_payload = _validate_sampled_condition_payload(
+        value["sampled_condition"]
+    )
     expected_condition = _require_sha256(condition_id, "condition_id")
     if expected_condition != stable_variant_sha256(
         "onset-isolated-sampled-condition-v1",
@@ -2505,27 +3262,35 @@ def validate_finite_rr_proof_document(
         )
     if (
         value["condition_id"] != expected_condition
-        or value["sampled_condition"] != condition_payload
+        or not _json_values_match(
+            stored_condition_payload,
+            condition_payload,
+        )
     ):
         raise RuntimeVariantError(
             "finite RR proof binds another sampled condition"
         )
-    if (
-        isinstance(variation_slot, bool)
-        or not isinstance(variation_slot, int)
-        or variation_slot < 0
-        or value["variation_slot"] != variation_slot
-    ):
+    variation_slot = _require_integer(
+        variation_slot,
+        "finite RR proof variation_slot argument",
+        minimum=0,
+    )
+    stored_variation_slot = _require_integer(
+        value["variation_slot"],
+        "finite RR proof variation_slot",
+        minimum=0,
+    )
+    if stored_variation_slot != variation_slot:
         raise RuntimeVariantError(
             "finite RR proof variation_slot is invalid"
         )
-    period = value["variation_period"]
-    if (
-        isinstance(period, bool)
-        or not isinstance(period, int)
-        or not 2 <= period <= MAX_NATURAL_FINITE_RR_VARIANTS
-        or not 0 <= variation_slot < period
-    ):
+    period = _require_integer(
+        value["variation_period"],
+        "finite RR proof variation_period",
+        minimum=2,
+        maximum=MAX_NATURAL_FINITE_RR_VARIANTS,
+    )
+    if not 0 <= variation_slot < period:
         raise RuntimeVariantError(
             "finite RR proof variation_period is invalid"
         )
@@ -2540,11 +3305,15 @@ def validate_finite_rr_proof_document(
         raise RuntimeVariantError(
             "finite RR proof binds another selection receipt"
         )
-    contract = value["top_level_contract"]
-    if not isinstance(contract, dict):
-        raise RuntimeVariantError(
-            "finite RR proof top_level_contract must be an object"
-        )
+    contract = _validate_embedded_top_level_contract_scalar_fields(
+        value["top_level_contract"],
+        label="finite RR proof top_level_contract",
+    )
+    _validate_embedded_top_level_contract_hash_bindings(
+        contract,
+        selection_receipt=receipt,
+        label="finite RR proof top_level_contract",
+    )
     if value["top_level_contract_sha256"] != stable_variant_sha256(
         "top-level-runtime-variant-contract-v1",
         contract,
@@ -2553,10 +3322,25 @@ def validate_finite_rr_proof_document(
             "finite RR proof top-level contract hash is invalid"
         )
     cycle = contract.get("finite_rr_cycle_contract")
+    if not isinstance(cycle, dict):
+        raise RuntimeVariantError(
+            "finite RR proof cycle contract must be an object"
+        )
+    cycle_period = _require_integer(
+        cycle["variation_period"],
+        "finite RR proof cycle variation_period",
+        minimum=2,
+        maximum=MAX_NATURAL_FINITE_RR_VARIANTS,
+    )
+    cycle_slot = _require_integer(
+        cycle["variation_slot"],
+        "finite RR proof cycle variation_slot",
+        minimum=0,
+        maximum=cycle_period - 1,
+    )
     if (
-        not isinstance(cycle, dict)
-        or cycle.get("variation_period") != period
-        or cycle.get("variation_slot") != variation_slot
+        cycle_period != period
+        or cycle_slot != variation_slot
         or cycle.get("slot_bundle_sha256")
         != value["slot_bundle_sha256"]
     ):
@@ -2603,6 +3387,11 @@ def validate_runtime_variant_proof_document(
     sampled_condition: Any,
     variation_slot: int,
 ) -> dict[str, Any]:
+    variation_slot = _require_integer(
+        variation_slot,
+        "runtime variant proof variation_slot",
+        minimum=0,
+    )
     if not isinstance(proof, dict):
         raise RuntimeVariantError("runtime variant proof must be an object")
     if proof.get("kind") == "finite_rr_runtime_variant_proof":
@@ -2649,7 +3438,7 @@ def validate_deterministic_single_observation_proof(
         sampled_condition=sampled_condition,
         variation_slot=variation_slot,
     )
-    if safe != expected:
+    if not _runtime_variant_proofs_match(safe, expected):
         raise RuntimeVariantError(
             "runtime variant proof does not match its contract and receipt"
         )
@@ -2693,7 +3482,7 @@ def validate_runtime_variant_observation_proof(
             sampled_condition=sampled_condition,
             variation_slot=variation_slot,
         )
-    if safe != expected:
+    if not _runtime_variant_proofs_match(safe, expected):
         raise RuntimeVariantError(
             "runtime variant proof does not match its live contract and receipt"
         )

@@ -71,7 +71,7 @@ def test_blank_snapshot_validates_and_duration_sample_rate_are_never_null(
         assert list(validator.iter_errors(invalid))
 
 
-def test_durable_project_and_revision_metadata_validate_exactly(
+def test_durable_project_revision_and_save_event_metadata_validate_exactly(
     tmp_path: Path,
 ) -> None:
     root = tmp_path / "durable metadata"
@@ -89,9 +89,18 @@ def test_durable_project_and_revision_metadata_validate_exactly(
             / "revision.json"
         ).read_text(encoding="utf-8")
     )
+    save_event = json.loads(
+        (
+            root
+            / ".tianlai"
+            / "save-events"
+            / f"{state.save_event_sha256}.json"
+        ).read_text(encoding="utf-8")
+    )
 
     validator.validate(project_manifest)
     validator.validate(revision_manifest)
+    validator.validate(save_event)
     for document in (project_manifest, revision_manifest):
         invalid = copy.deepcopy(document)
         invalid["created_at_utc"] = "2026-08-09T12:34:56+00:00"

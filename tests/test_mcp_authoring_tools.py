@@ -458,13 +458,13 @@ async def _run_stdio_authoring_lifecycle(tmp_path: Path) -> None:
         assert guide["guide"]["constitution"]["full_document_injected"] is False
         clauses_result = await session.call_tool(
             "get_music_constitution_clauses",
-            {"clause_ids": ["C0.02", "C0.25"]},
+            {"clause_ids": ["C0.06", "C4.1.16"]},
         )
         assert clauses_result.is_error is False
         clauses = clauses_result.structured_content
         assert [item["clause_id"] for item in clauses["clauses"]] == [
-            "C0.02",
-            "C0.25",
+            "C0.06",
+            "C4.1.16",
         ]
 
         workflow_result = await session.call_tool(
@@ -505,8 +505,129 @@ async def _run_stdio_authoring_lifecycle(tmp_path: Path) -> None:
         )
         activated = activated_result.structured_content
         assert activated["ok"] is True
-        assert activated["next_action"]["suggested_arguments"]["phase"] == "intent"
+        assert activated["next_action"]["operation"] == (
+            "record_workflow_composition_map"
+        )
         workflow_revision = activated["workflow"]["workflow"]["revision"]
+
+        legacy_workflow_result = await session.call_tool(
+            "create_creative_workflow",
+            {
+                "project_key": "stdio-project",
+                "mode": "iterate",
+                "base_authoring_revision": saved_result.structured_content[
+                    "project"
+                ]["revision"],
+                "composition_governance": False,
+            },
+        )
+        assert legacy_workflow_result.is_error is False
+        legacy_workflow = legacy_workflow_result.structured_content
+        assert legacy_workflow["ok"] is True
+        legacy_workflow_id = legacy_workflow["workflow"]["workflow"]["workflow_id"]
+        legacy_workflow_revision = legacy_workflow["workflow"]["workflow"][
+            "revision"
+        ]
+        legacy_activated_result = await session.call_tool(
+            "activate_creative_workflow",
+            {
+                "project_key": "stdio-project",
+                "workflow_id": legacy_workflow_id,
+                "expected_revision": legacy_workflow_revision,
+                "work_charter": {
+                    "title": "Explicit legacy-flow opt-out",
+                    "one_sentence_promise": "Preserve one traceable motif.",
+                    "target_listener_and_scene": "A focused local listener.",
+                    "primary_sovereignty": ["M"],
+                    "identity_kernel": {
+                        "invariants": ["opening contour"],
+                        "transformable_parts": ["register"],
+                    },
+                    "ending_contract": "Answer the opening without merely stopping.",
+                },
+            },
+        )
+        assert legacy_activated_result.is_error is False
+        legacy_activated = legacy_activated_result.structured_content
+        assert legacy_activated["ok"] is True
+        assert legacy_activated["next_action"]["operation"] == (
+            "record_workflow_review"
+        )
+        assert legacy_activated["next_action"]["suggested_arguments"]["phase"] == (
+            "intent"
+        )
+
+        composition_result = await session.call_tool(
+            "inspect_workflow_composition",
+            {
+                "project_key": "stdio-project",
+                "workflow_id": workflow_id,
+            },
+        )
+        composition = composition_result.structured_content
+        assert composition["ok"] is True
+        context = composition["inspection"]
+        ending_claim = next(
+            item["claim_id"]
+            for item in context["charter_claim_index"]["claims"]
+            if item["field_path"] == ["ending_contract"]
+        )
+        composition_map = {
+            "kind": "tianlai.composition_map",
+            "schema_version": 1,
+            "nodes": [
+                {
+                    "node_id": "whole-work",
+                    "label": "Whole work",
+                    "function": "Carry the current motif through one sequence.",
+                    "depends_on_claim_ids": [ending_claim],
+                    "ending_response": "Answer the opening with consequence.",
+                }
+            ],
+        }
+        draft_result = await session.call_tool(
+            "inspect_workflow_composition",
+            {
+                "project_key": "stdio-project",
+                "workflow_id": workflow_id,
+                "composition_map": composition_map,
+            },
+        )
+        draft = draft_result.structured_content
+        assert draft["ok"] is True
+        assert draft["next_action"]["operation"] == (
+            "record_workflow_composition_map"
+        )
+        mapped_result = await session.call_tool(
+            "record_workflow_composition_map",
+            {
+                "project_key": "stdio-project",
+                "workflow_id": workflow_id,
+                "expected_revision": workflow_revision,
+                "composition_map": composition_map,
+            },
+        )
+        mapped = mapped_result.structured_content
+        assert mapped["ok"] is True
+        workflow_revision = mapped["workflow"]["workflow"]["revision"]
+        reviewed_context_result = await session.call_tool(
+            "inspect_workflow_composition",
+            {
+                "project_key": "stdio-project",
+                "workflow_id": workflow_id,
+            },
+        )
+        reviewed_context = reviewed_context_result.structured_content["inspection"]
+        question_answers = [
+            {
+                "question_id": question["question_id"],
+                "answer": "The cited claim and map node support this answer.",
+                "claim_ids": [ending_claim],
+                "node_ids": ["whole-work"],
+                "event_ids": [],
+            }
+            for question in reviewed_context["review_questions"]["intent"]
+        ]
 
         review_result = await session.call_tool(
             "record_workflow_review",
@@ -517,6 +638,7 @@ async def _run_stdio_authoring_lifecycle(tmp_path: Path) -> None:
                 "phase": "intent",
                 "perception_basis": "report_only",
                 "summary": "Intent was reviewed without claiming human audition.",
+                "question_answers": question_answers,
             },
         )
         review = review_result.structured_content

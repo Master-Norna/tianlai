@@ -6,9 +6,10 @@ must be ordinary directories, managed files must be single-link regular
 files, and Windows reparse points are rejected alongside POSIX symlinks.
 
 Each save publishes a complete, immutable three-document revision first.  A
-single atomic replacement of ``tianlai-project.json`` is the only operation
-that changes the current pointer.  Consequently a crash can leave an orphaned
-valid revision, but can never expose a partially-written current revision.
+content-addressed internal causal save credential is then appended before the
+single atomic replacement of ``tianlai-project.json`` changes the current
+pointer.  Consequently a crash can leave an orphaned valid revision/credential,
+but can never expose a partially-written current revision.
 """
 
 from __future__ import annotations
@@ -54,14 +55,19 @@ PROJECT_KIND = "tianlai.authoring_project"
 PROJECT_VERSION = 1
 REVISION_KIND = "tianlai.authoring_project_revision"
 REVISION_VERSION = 1
+SAVE_EVENT_KIND = "tianlai.authoring_save_event"
+SAVE_EVENT_VERSION = 1
 PRIVATE_DIRECTORY_NAME = ".tianlai"
 REVISIONS_DIRECTORY_NAME = "revisions"
+SAVE_EVENTS_DIRECTORY_NAME = "save-events"
 RENDERS_DIRECTORY_NAME = "renders"
 PROJECT_LOCK_NAME = "project.lock"
 MAX_AUTHORING_NOTES = 50_000
 MAX_PROJECT_TITLE_BYTES = 1_024
 MAX_SCORE_TITLE_BYTES = 1_024
 MAX_METADATA_BYTES = 1024 * 1024
+MAX_AUTHORING_SAVE_SEQUENCE = (1 << 63) - 1
+MAX_AUTHORING_ANCESTRY_DEPTH = 4_096
 
 _DOCUMENT_FILENAMES = {
     "score": "score.json",
@@ -221,6 +227,13 @@ class AuthoringProjectState:
     revision: str
     documents: dict[str, dict[str, Any]]
     document_revisions: dict[str, str]
+    # ``None`` denotes durable metadata written before causal provenance was
+    # introduced.  New projects and every new public save always populate
+    # these fields.
+    save_sequence: int | None = None
+    save_event_sha256: str | None = None
+    revision_first_save_sequence: int | None = None
+    revision_parent_revision: str | None = None
 
     def __post_init__(self) -> None:
         # Detach first, then recursively freeze.  Neither the mappings supplied
@@ -474,6 +487,22 @@ def _validate_title(value: object) -> str:
 
 def _validate_revision_id(value: object, *, code: str) -> str:
     if not isinstance(value, str) or _REVISION_PATTERN.fullmatch(value) is None:
+        raise AuthoringProjectError(code)
+    return value
+
+
+def _validate_save_sequence(
+    value: object,
+    *,
+    code: str,
+    minimum: int = 1,
+) -> int:
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, int)
+        or value < minimum
+        or value > MAX_AUTHORING_SAVE_SEQUENCE
+    ):
         raise AuthoringProjectError(code)
     return value
 
@@ -877,6 +906,30 @@ def validate_authoring_project_state(
     revision = _validate_revision_id(
         state.revision, code="invalid_project_state_revision"
     )
+    if (state.save_sequence is None) is not (state.save_event_sha256 is None):
+        raise AuthoringProjectError("invalid_project_state_metadata")
+    if state.save_sequence is not None:
+        save_sequence = _validate_save_sequence(
+            state.save_sequence,
+            code="invalid_project_state_metadata",
+        )
+        _validate_revision_id(
+            state.save_event_sha256,
+            code="invalid_project_state_metadata",
+        )
+    if state.revision_first_save_sequence is None:
+        if state.revision_parent_revision is not None:
+            raise AuthoringProjectError("invalid_project_state_metadata")
+    else:
+        first_sequence = _validate_save_sequence(
+            state.revision_first_save_sequence,
+            code="invalid_project_state_metadata",
+        )
+        if state.revision_parent_revision is not None:
+            _validate_revision_id(
+                state.revision_parent_revision,
+                code="invalid_project_state_metadata",
+            )
     documents = _validate_document_set(state.documents)
     declared = state.document_revisions
     if not isinstance(declared, dict) or set(declared) != set(
@@ -953,16 +1006,32 @@ def _revision_manifest(
     project_id: str,
     revision: str,
     created_at_utc: str,
+    first_save_sequence: int,
+    parent_revision: str | None,
     payloads: Mapping[str, bytes],
     documents: Mapping[str, dict[str, Any]],
 ) -> dict[str, Any]:
     validate_canonical_utc_timestamp(created_at_utc)
+    checked_sequence = _validate_save_sequence(
+        first_save_sequence,
+        code="invalid_revision_manifest",
+    )
+    checked_parent = (
+        None
+        if parent_revision is None
+        else _validate_revision_id(
+            parent_revision,
+            code="invalid_revision_manifest",
+        )
+    )
     return {
         "kind": REVISION_KIND,
         "schema_version": REVISION_VERSION,
         "project_id": project_id,
         "revision": revision,
         "created_at_utc": created_at_utc,
+        "first_save_sequence": checked_sequence,
+        "parent_revision": checked_parent,
         "canonicalization": CANONICALIZATION,
         "documents": {
             key: {
@@ -981,7 +1050,12 @@ def _validate_revision_directory(
     *,
     expected_project_id: str,
     expected_revision: str,
-) -> tuple[dict[str, dict[str, Any]], dict[str, str]]:
+) -> tuple[
+    dict[str, dict[str, Any]],
+    dict[str, str],
+    int | None,
+    str | None,
+]:
     _require_plain_directory(directory, code="unsafe_revision_directory")
     expected_names = {*_DOCUMENT_FILENAMES.values(), "revision.json"}
     try:
@@ -996,7 +1070,7 @@ def _validate_revision_directory(
         source="revision",
         limits=_METADATA_LIMITS,
     )
-    if set(metadata) != {
+    legacy_keys = {
         "kind",
         "schema_version",
         "project_id",
@@ -1004,6 +1078,15 @@ def _validate_revision_directory(
         "created_at_utc",
         "canonicalization",
         "documents",
+    }
+    provenanced_keys = legacy_keys | {
+        "first_save_sequence",
+        "parent_revision",
+    }
+    metadata_keys = set(metadata)
+    if frozenset(metadata_keys) not in {
+        frozenset(legacy_keys),
+        frozenset(provenanced_keys),
     }:
         raise AuthoringProjectError("invalid_revision_manifest")
     if (
@@ -1018,6 +1101,26 @@ def _validate_revision_directory(
         validate_canonical_utc_timestamp(metadata.get("created_at_utc"))
     except ValueError as exc:
         raise AuthoringProjectError("invalid_revision_manifest") from exc
+    first_save_sequence: int | None = None
+    parent_revision: str | None = None
+    if metadata_keys == provenanced_keys:
+        first_save_sequence = _validate_save_sequence(
+            metadata.get("first_save_sequence"),
+            code="invalid_revision_manifest",
+        )
+        raw_parent = metadata.get("parent_revision")
+        parent_revision = (
+            None
+            if raw_parent is None
+            else _validate_revision_id(
+                raw_parent,
+                code="invalid_revision_manifest",
+            )
+        )
+        if parent_revision is None and first_save_sequence != 1:
+            raise AuthoringProjectError("invalid_revision_manifest")
+        if parent_revision == expected_revision:
+            raise AuthoringProjectError("invalid_revision_manifest")
     raw_records = metadata.get("documents")
     if not isinstance(raw_records, dict) or set(raw_records) != set(
         _DOCUMENT_FILENAMES
@@ -1063,7 +1166,7 @@ def _validate_revision_directory(
         hashes[key] = canonical_hash
     if _revision_identity(expected_project_id, hashes) != expected_revision:
         raise AuthoringProjectError("revision_identity_mismatch")
-    return documents, hashes
+    return documents, hashes, first_save_sequence, parent_revision
 
 
 def _publish_revision(
@@ -1072,7 +1175,15 @@ def _publish_revision(
     project_id: str,
     documents: Mapping[str, Any],
     created_at_utc: str,
-) -> tuple[str, dict[str, dict[str, Any]], dict[str, str]]:
+    first_save_sequence: int,
+    parent_revision: str | None,
+) -> tuple[
+    str,
+    dict[str, dict[str, Any]],
+    dict[str, str],
+    int | None,
+    str | None,
+]:
     detached = _validate_document_set(documents)
     payloads = {
         key: json_document_bytes(detached[key]) for key in _DOCUMENT_FILENAMES
@@ -1080,20 +1191,43 @@ def _publish_revision(
     hashes = {
         key: canonical_json_sha256(detached[key]) for key in _DOCUMENT_FILENAMES
     }
+    checked_sequence = _validate_save_sequence(
+        first_save_sequence,
+        code="invalid_save_sequence",
+    )
+    checked_parent = (
+        None
+        if parent_revision is None
+        else _validate_revision_id(
+            parent_revision,
+            code="invalid_parent_revision",
+        )
+    )
     revision = _revision_identity(project_id, hashes)
     revisions = _managed_path(
         root, PRIVATE_DIRECTORY_NAME, REVISIONS_DIRECTORY_NAME
     )
     final = revisions / revision
     if _lexists(final):
-        existing, existing_hashes = _validate_revision_directory(
+        (
+            existing,
+            existing_hashes,
+            existing_sequence,
+            existing_parent,
+        ) = _validate_revision_directory(
             final,
             expected_project_id=project_id,
             expected_revision=revision,
         )
         if existing_hashes != hashes or existing != detached:
             raise AuthoringProjectError("revision_collision")
-        return revision, existing, existing_hashes
+        return (
+            revision,
+            existing,
+            existing_hashes,
+            existing_sequence,
+            existing_parent,
+        )
 
     stage = revisions / f".revision-stage-{secrets.token_hex(16)}"
     try:
@@ -1105,6 +1239,8 @@ def _publish_revision(
             project_id=project_id,
             revision=revision,
             created_at_utc=created_at_utc,
+            first_save_sequence=checked_sequence,
+            parent_revision=checked_parent,
             payloads=payloads,
             documents=detached,
         )
@@ -1122,12 +1258,25 @@ def _publish_revision(
             raise AuthoringProjectError("revision_publish_conflict")
         os.replace(stage, final)
         _fsync_directory(revisions)
-        stored, stored_hashes = _validate_revision_directory(
+        (
+            stored,
+            stored_hashes,
+            stored_sequence,
+            stored_parent,
+        ) = _validate_revision_directory(
             final,
             expected_project_id=project_id,
             expected_revision=revision,
         )
-        return revision, stored, stored_hashes
+        if stored_sequence != checked_sequence or stored_parent != checked_parent:
+            raise AuthoringProjectError("revision_publish_mismatch")
+        return (
+            revision,
+            stored,
+            stored_hashes,
+            stored_sequence,
+            stored_parent,
+        )
     except AuthoringProjectError:
         raise
     except OSError as exc:
@@ -1141,6 +1290,189 @@ def _publish_revision(
             )
 
 
+def _save_events_directory(root: Path, *, create: bool = False) -> Path:
+    directory = _managed_path(
+        root,
+        PRIVATE_DIRECTORY_NAME,
+        SAVE_EVENTS_DIRECTORY_NAME,
+        escape_code="unsafe_save_events_directory",
+    )
+    if not _lexists(directory):
+        if not create:
+            raise AuthoringProjectError("save_event_history_unavailable")
+        try:
+            os.mkdir(directory)
+            _fsync_directory(directory.parent)
+        except OSError as exc:
+            raise AuthoringProjectError("save_event_history_create_failed") from exc
+    _require_plain_directory(directory, code="unsafe_save_events_directory")
+    return directory
+
+
+def _save_event_document(
+    *,
+    project_id: str,
+    sequence: int,
+    revision: str,
+    parent_event_sha256: str | None,
+    parent_revision: str | None,
+) -> dict[str, Any]:
+    checked_project_id = _validate_project_id(project_id)
+    checked_sequence = _validate_save_sequence(
+        sequence,
+        code="invalid_save_event",
+    )
+    checked_revision = _validate_revision_id(
+        revision,
+        code="invalid_save_event",
+    )
+    checked_parent_event = (
+        None
+        if parent_event_sha256 is None
+        else _validate_revision_id(
+            parent_event_sha256,
+            code="invalid_save_event",
+        )
+    )
+    checked_parent_revision = (
+        None
+        if parent_revision is None
+        else _validate_revision_id(
+            parent_revision,
+            code="invalid_save_event",
+        )
+    )
+    if checked_sequence == 1:
+        if checked_parent_event is not None:
+            raise AuthoringProjectError("invalid_save_event")
+    elif checked_parent_event is None or checked_parent_revision is None:
+        raise AuthoringProjectError("invalid_save_event")
+    return {
+        "kind": SAVE_EVENT_KIND,
+        "schema_version": SAVE_EVENT_VERSION,
+        "project_id": checked_project_id,
+        "sequence": checked_sequence,
+        "revision": checked_revision,
+        "parent_event_sha256": checked_parent_event,
+        "parent_revision": checked_parent_revision,
+    }
+
+
+def _validate_save_event(
+    root: Path,
+    event_sha256: str,
+    *,
+    expected_project_id: str,
+) -> dict[str, Any]:
+    checked_event_sha256 = _validate_revision_id(
+        event_sha256,
+        code="invalid_save_event_id",
+    )
+    directory = _save_events_directory(root)
+    document, _payload = _read_json_file(
+        directory / f"{checked_event_sha256}.json",
+        source="save_event",
+        limits=_METADATA_LIMITS,
+    )
+    if set(document) != {
+        "kind",
+        "schema_version",
+        "project_id",
+        "sequence",
+        "revision",
+        "parent_event_sha256",
+        "parent_revision",
+    }:
+        raise AuthoringProjectError("invalid_save_event")
+    if (
+        document.get("kind") != SAVE_EVENT_KIND
+        or isinstance(document.get("schema_version"), bool)
+        or not isinstance(document.get("schema_version"), int)
+        or document.get("schema_version") != SAVE_EVENT_VERSION
+        or document.get("project_id") != expected_project_id
+    ):
+        raise AuthoringProjectError("invalid_save_event")
+    normalized = _save_event_document(
+        project_id=expected_project_id,
+        sequence=document.get("sequence"),
+        revision=document.get("revision"),
+        parent_event_sha256=document.get("parent_event_sha256"),
+        parent_revision=document.get("parent_revision"),
+    )
+    if normalized != document:
+        raise AuthoringProjectError("invalid_save_event")
+    if canonical_json_sha256(normalized) != checked_event_sha256:
+        raise AuthoringProjectError("save_event_identity_mismatch")
+    return normalized
+
+
+def _publish_save_event(
+    root: Path,
+    *,
+    project_id: str,
+    sequence: int,
+    revision: str,
+    parent_event_sha256: str | None,
+    parent_revision: str | None,
+) -> tuple[str, dict[str, Any]]:
+    document = _save_event_document(
+        project_id=project_id,
+        sequence=sequence,
+        revision=revision,
+        parent_event_sha256=parent_event_sha256,
+        parent_revision=parent_revision,
+    )
+    event_sha256 = canonical_json_sha256(document)
+    directory = _save_events_directory(root, create=True)
+    final = directory / f"{event_sha256}.json"
+    if _lexists(final):
+        existing = _validate_save_event(
+            root,
+            event_sha256,
+            expected_project_id=project_id,
+        )
+        if existing != document:
+            raise AuthoringProjectError("save_event_collision")
+        return event_sha256, existing
+
+    stage = directory / f".save-event-stage-{secrets.token_hex(16)}"
+    try:
+        _write_new_file(
+            stage,
+            json_document_bytes(document, limits=_METADATA_LIMITS),
+        )
+        staged, _payload = _read_json_file(
+            stage,
+            source="save_event",
+            limits=_METADATA_LIMITS,
+        )
+        if staged != document:
+            raise AuthoringProjectError("save_event_staging_mismatch")
+        if _lexists(final):
+            raise AuthoringProjectError("save_event_publish_conflict")
+        os.replace(stage, final)
+        _fsync_directory(directory)
+        stored = _validate_save_event(
+            root,
+            event_sha256,
+            expected_project_id=project_id,
+        )
+        if stored != document:
+            raise AuthoringProjectError("save_event_publish_mismatch")
+        return event_sha256, stored
+    except AuthoringProjectError:
+        raise
+    except OSError as exc:
+        raise AuthoringProjectError("save_event_publish_failed") from exc
+    finally:
+        if _lexists(stage):
+            _preserve_failed_entry(
+                stage,
+                parent=directory,
+                prefix=".save-event-stage-",
+            )
+
+
 def _project_manifest(
     *,
     project_id: str,
@@ -1148,11 +1480,21 @@ def _project_manifest(
     created_at_utc: str,
     updated_at_utc: str,
     current_revision: str,
+    save_sequence: int,
+    current_save_event_sha256: str,
 ) -> dict[str, Any]:
     validate_canonical_utc_timestamp(created_at_utc)
     validate_canonical_utc_timestamp(updated_at_utc)
     if updated_at_utc < created_at_utc:
         raise ValueError("project update timestamp precedes creation")
+    checked_sequence = _validate_save_sequence(
+        save_sequence,
+        code="invalid_project_manifest",
+    )
+    checked_event_sha256 = _validate_revision_id(
+        current_save_event_sha256,
+        code="invalid_project_manifest",
+    )
     return {
         "kind": PROJECT_KIND,
         "schema_version": PROJECT_VERSION,
@@ -1161,11 +1503,13 @@ def _project_manifest(
         "created_at_utc": created_at_utc,
         "updated_at_utc": updated_at_utc,
         "current_revision": current_revision,
+        "save_sequence": checked_sequence,
+        "current_save_event_sha256": checked_event_sha256,
     }
 
 
 def _validate_project_manifest(document: dict[str, Any]) -> dict[str, Any]:
-    if set(document) != {
+    legacy_keys = {
         "kind",
         "schema_version",
         "project_id",
@@ -1173,7 +1517,12 @@ def _validate_project_manifest(document: dict[str, Any]) -> dict[str, Any]:
         "created_at_utc",
         "updated_at_utc",
         "current_revision",
-    }:
+    }
+    current_keys = legacy_keys | {
+        "save_sequence",
+        "current_save_event_sha256",
+    }
+    if set(document) not in (legacy_keys, current_keys):
         raise AuthoringProjectError("invalid_project_manifest")
     if (
         document.get("kind") != PROJECT_KIND
@@ -1194,11 +1543,35 @@ def _validate_project_manifest(document: dict[str, Any]) -> dict[str, Any]:
         raise AuthoringProjectError("invalid_project_manifest") from exc
     if checked_updated < checked_created:
         raise AuthoringProjectError("invalid_project_manifest")
+    save_sequence = (
+        None
+        if "save_sequence" not in document
+        else _validate_save_sequence(
+            document.get("save_sequence"),
+            code="invalid_project_manifest",
+        )
+    )
+    current_save_event_sha256 = (
+        None
+        if "current_save_event_sha256" not in document
+        else _validate_revision_id(
+            document.get("current_save_event_sha256"),
+            code="invalid_project_manifest",
+        )
+    )
     return {
         **document,
         "project_id": project_id,
         "title": title,
         "current_revision": revision,
+        **(
+            {}
+            if save_sequence is None
+            else {
+                "save_sequence": save_sequence,
+                "current_save_event_sha256": current_save_event_sha256,
+            }
+        ),
     }
 
 
@@ -1293,7 +1666,12 @@ def open_authoring_project(
             if revision is None
             else _validate_revision_id(revision, code="invalid_revision")
         )
-        documents, hashes = _validate_revision_directory(
+        (
+            documents,
+            hashes,
+            first_save_sequence,
+            parent_revision,
+        ) = _validate_revision_directory(
             _managed_path(
                 root,
                 PRIVATE_DIRECTORY_NAME,
@@ -1302,6 +1680,28 @@ def open_authoring_project(
             ),
             expected_project_id=manifest["project_id"],
             expected_revision=selected,
+        )
+        manifest_save_sequence = manifest.get("save_sequence")
+        manifest_save_event_sha256 = manifest.get(
+            "current_save_event_sha256"
+        )
+        if manifest_save_sequence is not None:
+            save_event = _validate_save_event(
+                root,
+                manifest_save_event_sha256,
+                expected_project_id=manifest["project_id"],
+            )
+            if (
+                save_event["sequence"] != manifest_save_sequence
+                or save_event["revision"] != manifest["current_revision"]
+            ):
+                raise AuthoringProjectError("project_causal_pointer_mismatch")
+        selected_is_current = selected == manifest["current_revision"]
+        save_sequence = (
+            manifest_save_sequence if selected_is_current else None
+        )
+        save_event_sha256 = (
+            manifest_save_event_sha256 if selected_is_current else None
         )
         # Opening is a complete semantic validation, not merely a hash check.
         validated = _validate_document_set(documents)
@@ -1315,7 +1715,224 @@ def open_authoring_project(
             revision=selected,
             documents=validated,
             document_revisions=hashes,
+            save_sequence=save_sequence,
+            save_event_sha256=save_event_sha256,
+            revision_first_save_sequence=first_save_sequence,
+            revision_parent_revision=parent_revision,
         )
+
+
+def verify_authoring_save_event_binding(
+    project_root: str | os.PathLike[str],
+    *,
+    event_sha256: str,
+    project_id: str,
+    revision: str,
+    save_sequence: int,
+) -> dict[str, Any]:
+    """Verify one internal immutable publication credential."""
+
+    checked_project_id = _validate_project_id(project_id)
+    checked_revision = _validate_revision_id(
+        revision,
+        code="invalid_save_event_revision",
+    )
+    checked_sequence = _validate_save_sequence(
+        save_sequence,
+        code="invalid_save_event_sequence",
+    )
+    root = _absolute_root(project_root)
+    with _project_lock(root):
+        _validate_managed_layout(root)
+        manifest = _read_project_manifest(root)
+        if manifest["project_id"] != checked_project_id:
+            raise AuthoringProjectError("save_event_project_mismatch")
+        event = _validate_save_event(
+            root,
+            event_sha256,
+            expected_project_id=checked_project_id,
+        )
+        if (
+            event["revision"] != checked_revision
+            or event["sequence"] != checked_sequence
+        ):
+            raise AuthoringProjectError("save_event_binding_mismatch")
+        return copy.deepcopy(event)
+
+
+def verify_authoring_revision_ancestry(
+    project_root: str | os.PathLike[str],
+    *,
+    descendant_revision: str,
+    ancestor_revision: str,
+    descendant_save_event_sha256: str | None = None,
+    ancestor_save_event_sha256: str | None = None,
+    minimum_exclusive_save_sequence: int | None = None,
+    require_current_head: bool = False,
+) -> dict[str, Any]:
+    """Prove one bounded, hash-addressed public-save event path.
+
+    Revisions remain content-addressed for candidate compatibility.  Causality
+    lives in an internal immutable event log whose records bind revision,
+    sequence and parent event.  A legacy ancestor uses fence sequence ``0``
+    and has no event; its first upgraded child names the legacy revision as its
+    parent boundary.
+    """
+
+    descendant = _validate_revision_id(
+        descendant_revision,
+        code="invalid_descendant_revision",
+    )
+    ancestor = _validate_revision_id(
+        ancestor_revision,
+        code="invalid_ancestor_revision",
+    )
+    requested_descendant_event = (
+        None
+        if descendant_save_event_sha256 is None
+        else _validate_revision_id(
+            descendant_save_event_sha256,
+            code="invalid_descendant_save_event",
+        )
+    )
+    requested_ancestor_event = (
+        None
+        if ancestor_save_event_sha256 is None
+        else _validate_revision_id(
+            ancestor_save_event_sha256,
+            code="invalid_ancestor_save_event",
+        )
+    )
+    fence = (
+        None
+        if minimum_exclusive_save_sequence is None
+        else _validate_save_sequence(
+            minimum_exclusive_save_sequence,
+            code="invalid_causal_fence",
+            minimum=0,
+        )
+    )
+    if not isinstance(require_current_head, bool):
+        raise AuthoringProjectError("invalid_ancestry_requirement")
+
+    root = _absolute_root(project_root)
+    with _project_lock(root):
+        _validate_managed_layout(root)
+        manifest = _read_project_manifest(root)
+        if require_current_head and manifest["current_revision"] != descendant:
+            raise AuthoringProjectError("revision_not_current_head")
+        manifest_event = manifest.get("current_save_event_sha256")
+        if require_current_head:
+            if manifest_event is None:
+                raise AuthoringProjectError("save_event_history_unavailable")
+            if (
+                requested_descendant_event is not None
+                and requested_descendant_event != manifest_event
+            ):
+                raise AuthoringProjectError("revision_not_current_head")
+            current_event_sha256 = manifest_event
+        elif requested_descendant_event is not None:
+            current_event_sha256 = requested_descendant_event
+        else:
+            raise AuthoringProjectError("descendant_save_event_required")
+
+        seen: set[str] = set()
+        descendant_sequence: int | None = None
+        depth = 0
+        while True:
+            if current_event_sha256 in seen:
+                raise AuthoringProjectError("revision_ancestry_cycle")
+            seen.add(current_event_sha256)
+            event = _validate_save_event(
+                root,
+                current_event_sha256,
+                expected_project_id=manifest["project_id"],
+            )
+            if depth == 0:
+                descendant_sequence = event["sequence"]
+                if event["revision"] != descendant:
+                    raise AuthoringProjectError(
+                        "descendant_save_event_revision_mismatch"
+                    )
+                if require_current_head and (
+                    event["sequence"] != manifest.get("save_sequence")
+                    or current_event_sha256 != manifest_event
+                ):
+                    raise AuthoringProjectError(
+                        "project_causal_pointer_mismatch"
+                    )
+
+            if requested_ancestor_event is not None and (
+                current_event_sha256 == requested_ancestor_event
+            ):
+                if (
+                    event["revision"] != ancestor
+                    or fence is None
+                    or event["sequence"] != fence
+                    or depth == 0
+                ):
+                    raise AuthoringProjectError(
+                        "causal_fence_ancestry_mismatch"
+                    )
+                return {
+                    "kind": "tianlai.authoring_revision_ancestry_proof",
+                    "schema_version": 1,
+                    "project_id": manifest["project_id"],
+                    "descendant_revision": descendant,
+                    "ancestor_revision": ancestor,
+                    "descendant_save_event_sha256": (
+                        requested_descendant_event or manifest_event
+                    ),
+                    "ancestor_save_event_sha256": requested_ancestor_event,
+                    "descendant_save_sequence": descendant_sequence,
+                    "causal_fence_save_sequence": fence,
+                    "depth": depth,
+                    "current_head_verified": require_current_head,
+                }
+            if fence is not None and event["sequence"] <= fence:
+                raise AuthoringProjectError(
+                    "revision_not_after_causal_fence"
+                )
+            parent_event = event["parent_event_sha256"]
+            if parent_event is None:
+                if (
+                    requested_ancestor_event is None
+                    and fence == 0
+                    and event["sequence"] == 1
+                    and event["parent_revision"] == ancestor
+                ):
+                    return {
+                        "kind": "tianlai.authoring_revision_ancestry_proof",
+                        "schema_version": 1,
+                        "project_id": manifest["project_id"],
+                        "descendant_revision": descendant,
+                        "ancestor_revision": ancestor,
+                        "descendant_save_event_sha256": (
+                            requested_descendant_event or manifest_event
+                        ),
+                        "ancestor_save_event_sha256": None,
+                        "descendant_save_sequence": descendant_sequence,
+                        "causal_fence_save_sequence": fence,
+                        "depth": depth + 1,
+                        "current_head_verified": require_current_head,
+                    }
+                raise AuthoringProjectError("revision_not_descendant")
+            if depth >= MAX_AUTHORING_ANCESTRY_DEPTH:
+                raise AuthoringProjectError("revision_ancestry_too_deep")
+            parent = _validate_save_event(
+                root,
+                parent_event,
+                expected_project_id=manifest["project_id"],
+            )
+            if (
+                parent["sequence"] != event["sequence"] - 1
+                or parent["revision"] != event["parent_revision"]
+            ):
+                raise AuthoringProjectError(
+                    "revision_ancestry_sequence_invalid"
+                )
+            current_event_sha256 = parent_event
+            depth += 1
 
 
 def create_authoring_project(
@@ -1350,16 +1967,33 @@ def create_authoring_project(
             os.mkdir(private)
             _write_new_file(private / PROJECT_LOCK_NAME, b"\x00")
             os.mkdir(revisions)
+            os.mkdir(private / SAVE_EVENTS_DIRECTORY_NAME)
             os.mkdir(renders)
             _validate_managed_layout(root)
 
             project_id = secrets.token_hex(16)
             timestamp = _utc_now()
-            revision, _documents, _hashes = _publish_revision(
+            (
+                revision,
+                _documents,
+                _hashes,
+                _first_save_sequence,
+                _parent_revision,
+            ) = _publish_revision(
                 root,
                 project_id=project_id,
                 documents=blank_authoring_documents(checked_title),
                 created_at_utc=timestamp,
+                first_save_sequence=1,
+                parent_revision=None,
+            )
+            save_event_sha256, _save_event = _publish_save_event(
+                root,
+                project_id=project_id,
+                sequence=1,
+                revision=revision,
+                parent_event_sha256=None,
+                parent_revision=None,
             )
             manifest = _project_manifest(
                 project_id=project_id,
@@ -1367,6 +2001,8 @@ def create_authoring_project(
                 created_at_utc=timestamp,
                 updated_at_utc=timestamp,
                 current_revision=revision,
+                save_sequence=1,
+                current_save_event_sha256=save_event_sha256,
             )
             _replace_manifest_pointer(root, manifest)
             return open_authoring_project(root)
@@ -1404,6 +2040,17 @@ def save_authoring_project(
             current = open_authoring_project(root)
             if current.revision != expected:
                 raise AuthoringProjectError("revision_conflict")
+            checked_documents = _validate_document_set(documents)
+            if checked_documents == current.documents:
+                return current
+            previous_sequence = (
+                current.save_sequence
+                if current.save_sequence is not None
+                else 0
+            )
+            if previous_sequence >= MAX_AUTHORING_SAVE_SEQUENCE:
+                raise AuthoringProjectError("save_sequence_exhausted")
+            next_save_sequence = previous_sequence + 1
             observed_timestamp = _utc_now()
             try:
                 validate_canonical_utc_timestamp(observed_timestamp)
@@ -1418,23 +2065,39 @@ def save_authoring_project(
                 current.created_at_utc,
                 current.updated_at_utc,
             )
-            revision, stored, _hashes = _publish_revision(
+            (
+                revision,
+                _stored,
+                _hashes,
+                _first_save_sequence,
+                _parent_revision,
+            ) = _publish_revision(
                 root,
                 project_id=current.project_id,
-                documents=documents,
+                documents=checked_documents,
                 created_at_utc=timestamp,
+                first_save_sequence=next_save_sequence,
+                parent_revision=current.revision,
             )
-            if revision == current.revision and stored == current.documents:
-                return current
+            save_event_sha256, _save_event = _publish_save_event(
+                root,
+                project_id=current.project_id,
+                sequence=next_save_sequence,
+                revision=revision,
+                parent_event_sha256=current.save_event_sha256,
+                parent_revision=current.revision,
+            )
             manifest = _project_manifest(
                 project_id=current.project_id,
                 title=current.title,
                 created_at_utc=current.created_at_utc,
                 updated_at_utc=timestamp,
                 current_revision=revision,
+                save_sequence=next_save_sequence,
+                current_save_event_sha256=save_event_sha256,
             )
-            # If this raises, the immutable revision remains safely orphaned and
-            # the old current pointer is untouched.
+            # If this raises, the immutable revision/save event remain safely
+            # orphaned and the old current pointer is untouched.
             _replace_manifest_pointer(root, manifest)
             return open_authoring_project(root)
 
@@ -1442,7 +2105,9 @@ def save_authoring_project(
 __all__ = [
     "AuthoringProjectError",
     "AuthoringProjectState",
+    "MAX_AUTHORING_ANCESTRY_DEPTH",
     "MAX_AUTHORING_NOTES",
+    "MAX_AUTHORING_SAVE_SEQUENCE",
     "MAX_SCORE_TITLE_BYTES",
     "PRIVATE_DIRECTORY_NAME",
     "PROJECT_LOCK_NAME",
@@ -1459,4 +2124,6 @@ __all__ = [
     "open_authoring_project",
     "save_authoring_project",
     "validate_authoring_project_state",
+    "verify_authoring_save_event_binding",
+    "verify_authoring_revision_ancestry",
 ]
