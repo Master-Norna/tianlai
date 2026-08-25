@@ -3,7 +3,7 @@
 # Documentation
 
 This map collects the user and integration documentation shipped with Tianlai
-`1.0.0`. The current `tianlai-doctor` result is authoritative for the
+`1.1.0`. The current `tianlai-doctor` result is authoritative for the
 runtime environment, instrument availability, and local resource state.
 
 ## Quick start

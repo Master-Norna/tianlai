@@ -77,6 +77,51 @@ class CreativeWorkflowTests(unittest.TestCase):
             work_charter=_charter(),
         )
 
+    def test_core_activation_rejects_new_external_constitution_bindings_without_writing(
+        self,
+    ) -> None:
+        created = self.create()
+        constitution = {
+            "document_id": "tianlai-music-constitution",
+            "version": "0.1",
+            "language": "zh-CN",
+            "content_sha256": "0" * 64,
+        }
+        clause = {
+            "clause_id": "C0.03",
+            "role": "review_lens",
+            "rationale": "Historical provenance cannot become a new binding.",
+            "interpretation": "Reason from the work charter instead.",
+        }
+
+        for legacy_arguments in (
+            {"constitution": constitution},
+            {"active_clauses": [clause]},
+            {"constitution": constitution, "active_clauses": [clause]},
+        ):
+            with self.subTest(legacy_arguments=sorted(legacy_arguments)):
+                self.assertEqual(
+                    _error_code(
+                        lambda legacy_arguments=legacy_arguments: (
+                            activate_creative_workflow(
+                                self.root,
+                                workflow_id=created.workflow_id,
+                                expected_revision=created.revision,
+                                work_charter=_charter(),
+                                **legacy_arguments,
+                            )
+                        )
+                    ),
+                    "constitution_binding_provenance_only",
+                )
+                unchanged = open_creative_workflow(
+                    self.root, workflow_id=created.workflow_id
+                )
+                self.assertEqual(unchanged.revision, created.revision)
+                self.assertEqual(unchanged.state["status"], "charter_pending")
+                self.assertIsNone(unchanged.state["constitution"])
+                self.assertEqual(unchanged.state["active_clauses"], [])
+
     def review(self, snapshot, phase: str, *, reviewer: str = "agent"):
         return record_workflow_review(
             self.root,

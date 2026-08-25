@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest import mock
 
 import tianlai.creative_workflow as workflow_module
 from tianlai.authoring_project import create_authoring_project, save_authoring_project
@@ -197,6 +198,67 @@ class WorkflowCompositionGovernanceTests(unittest.TestCase):
                 summary="Missing answers are not a review.",
             )
         self.assertEqual(caught.exception.code, "review_question_coverage_incomplete")
+
+    def test_symbolic_review_separates_relationship_from_global_necessity(
+        self,
+    ) -> None:
+        mapped = self._record_map(self.active)
+        context = inspect_workflow_composition(
+            self.root, workflow_id=mapped.workflow_id
+        )
+        questions = {
+            item["question_kind"]: item["prompt"]
+            for item in context["review_questions"]["symbolic_structure"]
+        }
+        self.assertIn("material_relationship", questions)
+        self.assertIn("instead of inventing one", questions["material_relationship"])
+        self.assertIn("whole_work_necessity", questions)
+        self.assertIn(
+            "no direct material lineage",
+            questions["whole_work_necessity"],
+        )
+        self.assertIn("silencing, or deleting", questions["whole_work_necessity"])
+
+    def test_legacy_symbolic_question_ids_remain_verifiable(self) -> None:
+        mapped = self._record_map(self.active)
+        legacy_prompts = dict(workflow_module._PHASE_REVIEW_PROMPTS)
+        legacy_prompts["symbolic_structure"] = (
+            workflow_module._LEGACY_SYMBOLIC_REVIEW_PROMPTS_V1
+        )
+        with mock.patch.object(
+            workflow_module,
+            "_PHASE_REVIEW_PROMPTS",
+            legacy_prompts,
+        ):
+            legacy_context = inspect_workflow_composition(
+                self.root, workflow_id=mapped.workflow_id
+            )
+            legacy_ids = [
+                item["question_id"]
+                for item in legacy_context["review_questions"][
+                    "symbolic_structure"
+                ]
+            ]
+            reviewed = self._review(mapped, "symbolic_structure")
+
+        current_context = inspect_workflow_composition(
+            self.root, workflow_id=reviewed.workflow_id
+        )
+        current_ids = [
+            item["question_id"]
+            for item in current_context["review_questions"][
+                "symbolic_structure"
+            ]
+        ]
+        self.assertNotEqual(legacy_ids, current_ids)
+        reopened = workflow_module.open_creative_workflow(
+            self.root, workflow_id=reviewed.workflow_id
+        )
+        self.assertEqual(reopened.revision, reviewed.revision)
+        history = workflow_module.verify_creative_workflow_history(
+            self.root, workflow_id=reviewed.workflow_id
+        )
+        self.assertTrue(history["complete"])
 
     def test_draft_map_may_expose_stale_referents_but_recording_rejects_them(self) -> None:
         claim_id = self._claim("ending_contract")

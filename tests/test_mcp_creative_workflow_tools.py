@@ -333,7 +333,7 @@ def _assert_no_local_path(value: object, root: Path) -> None:
     assert str(root.resolve()) not in encoded
 
 
-def test_guide_supplies_activation_prerequisites_without_full_constitution(
+def test_guide_keeps_constitution_external_and_optional(
     workflow_mcp,
 ) -> None:
     mcp_server, _output = workflow_mcp
@@ -347,7 +347,14 @@ def test_guide_supplies_activation_prerequisites_without_full_constitution(
     assert constitution["version"] == "0.2"
     assert constitution["content_sha256"] == hashlib.sha256(payload).hexdigest()
     assert constitution["full_document_injected"] is False
-    assert len(constitution["starter_clause_ids"]) <= 8
+    assert constitution["relationship"] == "external_optional_thought_resource"
+    assert constitution["selection_after"] == "work_charter_is_frozen"
+    assert constitution["persisted_in_workflow"] is False
+    assert constitution["generation_constraint"] is False
+    assert constitution["acceptance_gate"] is False
+    assert constitution["continuation_prerequisite"] is False
+    assert constitution["examples_are_not_defaults"] is True
+    assert len(constitution["example_clause_ids"]) <= 8
     assert guide["work_charter"]["required_fields"]
     assert guide["authority"] == {
         "mcp_final_authority": "agent",
@@ -359,24 +366,88 @@ def test_guide_supplies_activation_prerequisites_without_full_constitution(
     assert boundary["nonhard_claims_require_explicit_disposition"] is True
     assert boundary["aesthetic_risk_may_be_accepted_risk"] is True
     assert boundary["promise_conflict_may_be_accepted_risk"] is False
+    governance = guide["composition_governance"]
+    assert governance["map_template"]["nodes"][0]["bar_range"] is None
+    assert governance["map_template_semantics"] == {
+        "field_shape_only_not_a_composition_example": True,
+        "single_placeholder_is_not_a_node_count_default": True,
+        "null_bar_range_is_not_a_length_default": True,
+        "no_default_work_section_phrase_or_node_length": True,
+        "replace_placeholders_with_the_complete_current_work": True,
+    }
+    assert governance["bar_range_shape"] == {
+        "nullable_before_a_score_location_is_known": True,
+        "start": "integer_starting_at_one",
+        "end": "integer_not_before_start",
+        "semantics": "inclusive_score_bar_range",
+        "instruction": governance["bar_range_shape"]["instruction"],
+    }
+    assert "no default span" in governance["bar_range_shape"]["instruction"]
+    assert "not a quota for a new short melody" in governance[
+        "long_span_guard"
+    ]["node_boundary_rule"]
     assert guide["render_prerequisites"][:4] == [
         "current composition map bound to the full score and effective charter",
         "question-complete intent review",
         "question-complete symbolic_structure review",
         "question-complete orchestration_performance review",
     ]
+    relationship_mirror = guide["multiscale_relationship_mirror"]
+    assert relationship_mirror["scales"] == [
+        "within a melody or phrase",
+        "between adjacent or simultaneous melodies, parts or passages",
+        "between distant nodes, returns or echoes",
+        "between a detail or ornament and its whole-work context",
+    ]
+    assert "exact workflow anchor revision" in relationship_mirror[
+        "score_source"
+    ]
+    assert "current references and locations only" in relationship_mirror[
+        "machine_boundary"
+    ]
+    assert relationship_mirror["no_new_question_phase_schema_or_ledger"] is True
+    assert relationship_mirror["no_quantity_quota"] is True
+    assert "which short units force a restart" in relationship_mirror[
+        "long_span_guard"
+    ]
+    naturalness = guide["machine_naturalness_triage"]
+    assert naturalness["scope"] == "machine_triage_only"
+    assert naturalness["pre_render_source"] == (
+        "check_authoring_readiness.readiness.project_review.diagnostics."
+        "performance_naturalness"
+    )
+    assert "empty marks" in naturalness["checks"][0]
+    assert "runtime configuration" in naturalness["checks"][2]
+    assert "partial_evidence" in naturalness[
+        "connection_counterfactual_boundary"
+    ]
+    assert "bidirectional" in naturalness["connection_counterfactual_boundary"]
+    assert "any non-empty realization" in naturalness[
+        "connection_counterfactual_boundary"
+    ]
+    assert naturalness["no_score"] is True
+    assert naturalness["no_pass_fail"] is True
+    assert naturalness["nonblocking"] is True
+    assert naturalness["automatic_change"] is False
+    assert naturalness["intentional_mechanics_allowed"] is True
     decisions = guide["decisions"]
     assert any(
         "trusted hard_failure still reproduced" in requirement
         for requirement in decisions["accept_requires"]
     )
     assert any(
-        "no promise_conflict" in requirement
+        "no work-charter promise_conflict" in requirement
         for requirement in decisions["accept_requires"]
     )
     assert decisions["claim_lifecycle"] == {
         "review_ids_frozen_on_new_decisions": True,
-        "nonhard_evidence_coverage": "exactly_once_per_current_iteration",
+        "nonhard_evidence_coverage": (
+            "exactly_once_for_current_workflow_authored_claims"
+        ),
+        "retired_external_clause_provenance": (
+            "readable_in_frozen_history_but_not_selectable_in_a_new_decision_"
+            "settlement_or_fork"
+        ),
         "evidence_dispositions": [
             "resolved",
             "accepted_risk",
@@ -457,6 +528,9 @@ def test_guide_supplies_activation_prerequisites_without_full_constitution(
     assert "not required for reversible qiyun details" in guide["derivation"][
         "note"
     ]
+    assert "without invented causality" in json.dumps(guide)
+    assert qiyun["belonging_routes"]["whole_work_coordination"]
+    assert "delete" in " ".join(qiyun["honest_outcomes"])
 
     selected = mcp_server.get_music_constitution_clauses(
         ["C0.06", "C4.1.16"],
@@ -467,6 +541,9 @@ def test_guide_supplies_activation_prerequisites_without_full_constitution(
         "C4.1.16",
     ]
     assert selected["full_document_injected"] is False
+    assert selected["usage_boundary"]["persisted_in_workflow"] is False
+    assert selected["usage_boundary"]["generation_constraint"] is False
+    assert selected["next_action"] is None
     english = mcp_server.get_music_constitution_clauses(["C8.3.01"], "en")
     assert english["ok"] is True
     assert english["constitution"]["content_sha256"] == hashlib.sha256(
@@ -486,7 +563,7 @@ def test_guide_supplies_activation_prerequisites_without_full_constitution(
     _create_project(mcp_server, "constitution-project")
     created = _create_workflow(mcp_server, key="constitution-project")
     workflow_id, revision = _identity(created)
-    invalid = mcp_server.activate_creative_workflow(
+    rejected = mcp_server.activate_creative_workflow(
         "constitution-project",
         workflow_id,
         revision,
@@ -501,30 +578,24 @@ def test_guide_supplies_activation_prerequisites_without_full_constitution(
             }
         ],
     )
-    assert invalid["ok"] is False
-    assert invalid["error"]["code"] == (
-        "creative_workflow.constitution_clause_unknown"
+    assert rejected["ok"] is False
+    assert rejected["error"]["code"] == (
+        "creative_workflow.constitution_binding_provenance_only"
     )
     activated = mcp_server.activate_creative_workflow(
         "constitution-project",
         workflow_id,
         revision,
         _charter(),
-        selected["constitution"],
-        [
-            {
-                "clause_id": "C0.06",
-                "role": "review_lens",
-                "rationale": "Protect a seed that precedes its verbal reason.",
-                "interpretation": "Do not delete it merely because its role is not yet named.",
-            }
-        ],
     )
     assert activated["ok"] is True
-    assert activated["constitution_source"] == "official"
+    assert activated["constitution_source"] is None
+    assert activated["workflow"]["state"]["constitution"] is None
+    assert activated["workflow"]["state"]["active_clauses"] == []
+    assert activated["constitution_context"]["status"] == "unbound"
 
 
-def test_v01_official_constitution_binding_fails_closed(workflow_mcp) -> None:
+def test_v01_official_constitution_binding_is_provenance_only(workflow_mcp) -> None:
     mcp_server, _output = workflow_mcp
     _create_project(mcp_server, "legacy-constitution-project")
     created = _create_workflow(
@@ -558,7 +629,7 @@ def test_v01_official_constitution_binding_fails_closed(workflow_mcp) -> None:
     )
     assert rejected["ok"] is False
     assert rejected["error"]["code"] == (
-        "creative_workflow.official_constitution_binding_mismatch"
+        "creative_workflow.constitution_binding_provenance_only"
     )
 
 
@@ -578,6 +649,56 @@ def test_orchestration_next_action_exposes_lightweight_qiyun_scan(
         "intent",
         key="qiyun-next-action-project",
     )
+
+    relationship_action = workflow["next_action"]
+    assert relationship_action["suggested_arguments"]["phase"] == (
+        "symbolic_structure"
+    )
+    relationship_steps = relationship_action["prerequisites"]
+    assert [item["step"] for item in relationship_steps[:4]] == [
+        "read_anchored_score_for_relationship_scan",
+        "inspect_whole_work",
+        "multiscale_relationship_scan",
+        "answer_every_phase_question",
+    ]
+    anchored_read = relationship_steps[0]
+    assert anchored_read["operation"] == "get_authoring_snapshot"
+    assert anchored_read["arguments"]["revision"] == (
+        workflow["workflow"]["state"]["iterations"][-1]["anchor"][
+            "authoring_revision"
+        ]
+    )
+    assert relationship_steps[1]["arguments"]["revision"] == (
+        workflow["workflow"]["workflow"]["revision"]
+    )
+    relationship_scan = relationship_steps[2]
+    assert relationship_scan["scales"] == [
+        "within_a_melody_or_phrase",
+        "between_adjacent_or_simultaneous_melodies_parts_or_passages",
+        "between_distant_nodes_returns_or_echoes",
+        "between_a_detail_or_ornament_and_its_whole_work_context",
+    ]
+    assert any(
+        "short_units_close_so_completely" in item
+        for item in relationship_scan["long_span_checks"]
+    )
+    assert "both_ends" in relationship_scan["reference_rule"]
+    assert "question_targets" in relationship_scan["action"]
+    assert "answer_every_phase_question" in relationship_scan["output"]
+    assert (
+        "zero_examples_at_any_scale_is_valid"
+        in relationship_scan["constraints"]
+    )
+    assert (
+        "no_minimum_phrase_or_work_length_and_no_unbroken_lead_melody_requirement"
+        in relationship_scan["constraints"]
+    )
+    assert "existing_symbolic_structure_answers" in relationship_scan[
+        "recording"
+    ]
+    assert "separate_question_relationship_ledger_or_motif_catalog" in (
+        relationship_scan["recording"]
+    )
     workflow = _review(
         mcp_server,
         workflow,
@@ -595,10 +716,30 @@ def test_orchestration_next_action_exposes_lightweight_qiyun_scan(
         for item in next_action["prerequisites"]
         if item.get("step") == "qiyun_location_scan"
     )
+    machine_triage = next(
+        item
+        for item in next_action["prerequisites"]
+        if item.get("step") == "machine_naturalness_triage"
+    )
+    assert machine_triage["operation"] == "check_authoring_readiness"
+    assert "does_not_prove_naturalness" in machine_triage["constraint"]
+    assert "partial_evidence_is_not_absence" in machine_triage["constraint"]
     assert "zero_additions_is_a_valid_answer" in qiyun_scan["constraints"]
     assert (
         "no_quantity_quota_and_no_derivation_required_for_qiyun_details"
         in qiyun_scan["constraints"]
+    )
+    assert (
+        "never_invent_material_lineage_to_justify_an_unrelated_detail"
+        in qiyun_scan["constraints"]
+    )
+    assert (
+        "global_necessity_may_be_named_without_pretending_it_is_causal_derivation"
+        in qiyun_scan["constraints"]
+    )
+    assert any(
+        "complete work would lose" in question
+        for question in qiyun_scan["questions"]
     )
     assert any("stay empty" in question for question in qiyun_scan["questions"])
     assert "existing_orchestration_performance_answer" in qiyun_scan["recording"]
@@ -1187,6 +1328,19 @@ def test_managed_render_revision_rollback_accept_and_audit_attachment(
     assert rendered["ok"], rendered
     assert rendered["render"]["workflow_managed"] is True
     candidate = rendered["render"]["candidate"]
+    naturalness_step = next(
+        item
+        for item in rendered["next_action"]["prerequisites"]
+        if item.get("step") == "inspect_candidate_naturalness"
+    )
+    assert naturalness_step["operation"] == "inspect_authoring_candidate"
+    assert naturalness_step["arguments"]["work_id"] == candidate["work_id"]
+    assert naturalness_step["arguments"]["candidate_id"] == candidate[
+        "candidate_id"
+    ]
+    assert "partial_evidence_must_be_disclosed" in naturalness_step[
+        "constraint"
+    ]
     inspected = mcp_server.inspect_authoring_candidate(
         "workflow-project",
         candidate["work_id"],
@@ -1196,6 +1350,9 @@ def test_managed_render_revision_rollback_accept_and_audit_attachment(
     assert inspected["candidate"]["workflow_authorized"] is True
     assert inspected["candidate"]["workflow_recorded"] is True
     assert inspected["candidate"]["workflow_accepted"] is False
+    assert inspected["naturalness_inspection"]["scope"] == (
+        "machine_triage_only"
+    )
 
     reviewed = _review(mcp_server, rendered, "render_report")
     workflow_id, revision = _identity(reviewed)
@@ -1212,9 +1369,14 @@ def test_managed_render_revision_rollback_accept_and_audit_attachment(
         "No later event presently recalls its contour.",
         "A bounded revision can test one transformed recurrence.",
         "medium",
+        artifact_sha256=inspected["candidate"]["bindings"][
+            "performance_plan_sha256"
+        ],
+        artifact_role="performance_plan",
     )
     assert evidence["ok"], evidence
     evidence_item = evidence["workflow"]["state"]["iterations"][-1]["evidence"][-1]
+    assert evidence_item["basis"]["artifact_role"] == "performance_plan"
     workflow_id, revision = _identity(evidence)
     exception = mcp_server.register_workflow_exception(
         "workflow-project",

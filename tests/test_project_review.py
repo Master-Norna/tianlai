@@ -406,6 +406,61 @@ class ProjectReviewTests(unittest.TestCase):
         )
         self.assertEqual(report["diagnostics"], {"status": "unavailable"})
 
+    def test_naturalness_diagnostic_failure_is_local_and_nonblocking(self) -> None:
+        capability = _capability("实验乐器/自然性预审")
+        executor = _executor("naturalness", "lead", capability)
+        plan = _Plan((SimpleNamespace(executor=executor, trace=()),))
+        roster = _roster((executor,))
+
+        with patch(
+            "tianlai.project_review.analyze_orchestration_topology",
+            return_value=_empty_topology(),
+        ), patch(
+            "tianlai.project_review.analyze_performance_naturalness",
+            side_effect=RuntimeError("fixture failure"),
+        ):
+            report = build_project_review(plan, roster)
+
+        by_code = {item["code"]: item for item in report["items"]}
+        assert "diagnostics.performance_naturalness_unavailable" in by_code
+        assert report["diagnostics"]["performance_naturalness"]["status"] == (
+            "unavailable"
+        )
+        naturalness = report["diagnostics"]["performance_naturalness"]
+        assert naturalness["evidence_coverage"] == "unavailable"
+        assert naturalness["candidates"] == []
+        assert len(naturalness["report_sha256"]) == 64
+        assert report["diagnostics"]["orchestration_topology"]["status"] == (
+            "ready"
+        )
+        assert report["continuation_allowed"] is True
+        assert report["blocking_count"] == 0
+
+    def test_naturalness_opt_out_preserves_legacy_review_surface(self) -> None:
+        capability = _capability("实验乐器/旧复核")
+        executor = _executor("legacy", "lead", capability)
+        plan = _Plan((SimpleNamespace(executor=executor, trace=()),))
+        roster = _roster((executor,))
+
+        with patch(
+            "tianlai.project_review.analyze_orchestration_topology",
+            return_value=_empty_topology(),
+        ), patch(
+            "tianlai.project_review.analyze_performance_naturalness"
+        ) as naturalness:
+            report = build_project_review(
+                plan,
+                roster,
+                include_performance_naturalness=False,
+            )
+
+        naturalness.assert_not_called()
+        assert "performance_naturalness" not in report["diagnostics"]
+        assert all(
+            item["stage"] != "performance_naturalness"
+            for item in report["items"]
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

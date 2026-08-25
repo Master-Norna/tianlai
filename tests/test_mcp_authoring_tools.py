@@ -248,6 +248,97 @@ def test_readiness_keeps_advisory_review_nonblocking(
     assert result["readiness"]["issues"][0]["decision"] == "review"
 
 
+def test_blank_readiness_returns_schema_valid_empty_project_review(
+    authoring_mcp,
+) -> None:
+    from jsonschema import Draft202012Validator
+
+    mcp_server, _output = authoring_mcp
+    _create(mcp_server)
+
+    result = mcp_server.check_authoring_readiness("test-project")
+
+    assert result["ok"] is True
+    assert result["readiness"]["render_allowed"] is False
+    review = result["readiness"]["project_review"]
+    schema = json.loads(
+        (ROOT / "schemas" / "project-review.schema.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    Draft202012Validator(schema).validate(review)
+    assert review["continuation_allowed"] is True
+    assert review["diagnostics"]["performance_naturalness"]["status"] == (
+        "not_run"
+    )
+
+
+def test_naturalness_issues_only_enter_opted_in_mcp_readiness(
+    authoring_mcp,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from tianlai import authoring_core
+
+    mcp_server, _output = authoring_mcp
+    created = _create(mcp_server)
+    saved = mcp_server.save_authoring_project(
+        "test-project",
+        created["project"]["revision"],
+        _renderable_documents(_snapshot(mcp_server)),
+    )
+    assert saved["ok"], saved
+
+    synthetic_review = {
+        "items": [
+            {
+                "level": "warning",
+                "code": "range.legacy_review",
+                "stage": "range_profile",
+            },
+            {
+                "level": "warning",
+                "code": "performance.synthetic_candidate",
+                "stage": "performance_naturalness",
+            },
+        ],
+        "diagnostics": {
+            "performance_naturalness": {
+                "format": "tianlai.performance_naturalness",
+                "version": 1,
+                "scope": "machine_triage_only",
+                "status": "review_candidates",
+            }
+        },
+    }
+    monkeypatch.setattr(
+        authoring_core,
+        "build_project_review_safely",
+        lambda *_args, **_kwargs: synthetic_review,
+    )
+
+    snapshot_result = mcp_server.get_authoring_snapshot(
+        "test-project",
+        saved["project"]["revision"],
+    )
+    assert snapshot_result["ok"], snapshot_result
+    snapshot = snapshot_result["snapshot"]
+    legacy_codes = [item["code"] for item in snapshot["readiness"]["issues"]]
+    assert "range.legacy_review" in legacy_codes
+    assert "performance.synthetic_candidate" not in legacy_codes
+    assert "project_review" not in snapshot["readiness"]
+
+    opted_in_result = mcp_server.check_authoring_readiness(
+        "test-project",
+        saved["project"]["revision"],
+    )
+    assert opted_in_result["ok"], opted_in_result
+    opted_in = opted_in_result["readiness"]
+    opted_in_codes = [item["code"] for item in opted_in["issues"]]
+    assert "range.legacy_review" in opted_in_codes
+    assert "performance.synthetic_candidate" in opted_in_codes
+    assert opted_in["project_review"] is synthetic_review
+
+
 def test_render_tool_passes_the_requested_immutable_revision(
     authoring_mcp,
     monkeypatch: pytest.MonkeyPatch,
@@ -300,6 +391,7 @@ def test_render_tool_passes_the_requested_immutable_revision(
 
 def test_render_inspect_locate_and_compare_use_only_candidate_ids(
     authoring_mcp,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     mcp_server, output = authoring_mcp
     created = _create(mcp_server)
@@ -311,6 +403,16 @@ def test_render_inspect_locate_and_compare_use_only_candidate_ids(
     )
     assert saved["ok"], saved
     revision = saved["project"]["revision"]
+    readiness = mcp_server.check_authoring_readiness(
+        "test-project",
+        revision,
+    )
+    assert readiness["ok"], readiness
+    naturalness_preflight = readiness["readiness"]["project_review"][
+        "diagnostics"
+    ]["performance_naturalness"]
+    assert naturalness_preflight["scope"] == "machine_triage_only"
+    assert naturalness_preflight["authority"]["workflow_blocking"] is False
 
     first = mcp_server.render_authoring_revision("test-project", revision)
     second = mcp_server.render_authoring_revision("test-project", revision)
@@ -351,6 +453,112 @@ def test_render_inspect_locate_and_compare_use_only_candidate_ids(
     assert inspected["render_evidence"]["post_render_check"]["summary"][
         "can_proceed"
     ] is True
+    naturalness = inspected["naturalness_inspection"]
+    assert naturalness["format"] == "tianlai.performance_naturalness"
+    assert naturalness["scope"] == "machine_triage_only"
+    assert naturalness["bindings"]["candidate_manifest_sha256"] == (
+        inspected["candidate"]["bindings"]["candidate_manifest_sha256"]
+    )
+    assert naturalness["bindings"]["performance_plan_sha256"] == (
+        inspected["candidate"]["bindings"]["performance_plan_sha256"]
+    )
+    assert naturalness["facts"]["waveform_response"][
+        "available_render_evidence"
+    ]["post_render_check"] is True
+    assert naturalness["authority"]["audio_audition_performed"] is False
+    assert naturalness["authority"]["workflow_blocking"] is False
+    def fail_analysis(*_args, **_kwargs):
+        raise RuntimeError("fixture analysis failure")
+
+    monkeypatch.setattr(
+        mcp_server,
+        "analyze_performance_naturalness",
+        fail_analysis,
+    )
+    unavailable = mcp_server.inspect_authoring_candidate(
+        "test-project",
+        first_id["work_id"],
+        first_id["candidate_id"],
+    )
+    assert unavailable["ok"], unavailable
+    assert unavailable["naturalness_inspection"]["status"] == "unavailable"
+    assert unavailable["naturalness_inspection"]["evidence_coverage"] == (
+        "unavailable"
+    )
+    assert unavailable["naturalness_inspection"]["candidates"] == []
+    assert unavailable["naturalness_inspection"]["authority"][
+        "workflow_blocking"
+    ] is False
+
+    original_manifest_verifier = (
+        mcp_server._verified_candidate_manifest_sha256
+    )
+    manifest_verification_count = 0
+
+    def changing_manifest_verifier(*args, **kwargs):
+        nonlocal manifest_verification_count
+        manifest_verification_count += 1
+        digest = original_manifest_verifier(*args, **kwargs)
+        if manifest_verification_count == 2:
+            return "f" * 64
+        return digest
+
+    monkeypatch.setattr(
+        mcp_server,
+        "_verified_candidate_manifest_sha256",
+        changing_manifest_verifier,
+    )
+    changed_during_inspection = mcp_server.inspect_authoring_candidate(
+        "test-project",
+        first_id["work_id"],
+        first_id["candidate_id"],
+    )
+    assert changed_during_inspection["ok"] is False
+    assert changed_during_inspection["error"]["code"] == (
+        "authoring_candidate.evidence_verification_failed"
+    )
+    monkeypatch.setattr(
+        mcp_server,
+        "_verified_candidate_manifest_sha256",
+        original_manifest_verifier,
+    )
+
+    original_workflow_status_verifier = (
+        mcp_server._verified_candidate_workflow_status
+    )
+
+    def mismatched_workflow_status(*_args, **_kwargs):
+        return {
+            "workflow_claim_present": True,
+            "workflow_authorized": True,
+            "workflow_recorded": False,
+            "workflow_accepted": False,
+            "workflow_managed": True,
+            "authoring_workflow": {},
+            "workflow_status": {
+                "candidate_manifest_sha256": "e" * 64,
+            },
+        }
+
+    monkeypatch.setattr(
+        mcp_server,
+        "_verified_candidate_workflow_status",
+        mismatched_workflow_status,
+    )
+    mismatched_authority = mcp_server.inspect_authoring_candidate(
+        "test-project",
+        first_id["work_id"],
+        first_id["candidate_id"],
+    )
+    assert mismatched_authority["ok"] is False
+    assert mismatched_authority["error"]["code"] == (
+        "authoring_candidate.evidence_verification_failed"
+    )
+    monkeypatch.setattr(
+        mcp_server,
+        "_verified_candidate_workflow_status",
+        original_workflow_status_verifier,
+    )
 
     located = mcp_server.locate_authoring_candidate(
         "test-project",
@@ -376,6 +584,7 @@ def test_render_inspect_locate_and_compare_use_only_candidate_ids(
         first,
         second,
         inspected,
+        unavailable,
         located,
         compared,
     ):

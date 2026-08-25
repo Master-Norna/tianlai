@@ -13,6 +13,10 @@ from collections.abc import Mapping
 from typing import Any
 
 from .orchestration_topology import analyze_orchestration_topology
+from .performance_naturalness import (
+    analyze_performance_naturalness,
+    build_unavailable_performance_naturalness_report,
+)
 from .self_check import build_review_item, build_review_report
 
 
@@ -427,31 +431,101 @@ def _topology_review_items(plan: Any) -> tuple[list[dict[str, Any]], dict[str, A
     }
 
 
+def _naturalness_review_items(
+    plan: Any,
+    score: Any | None,
+    *,
+    binding: Mapping[str, Any] | None,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Expose machine triage without turning it into an aesthetic gate."""
+
+    try:
+        inspection = analyze_performance_naturalness(
+            score,
+            plan,
+            binding=binding,
+        )
+    except Exception as exc:
+        return [
+            build_review_item(
+                level="info",
+                code="diagnostics.performance_naturalness_unavailable",
+                stage="performance_naturalness",
+                basis="unknown",
+                confidence="low",
+                message=(
+                    "演奏自然性机器预审本次不可用；这不会改变谱面、演奏计划或渲染资格。"
+                ),
+                evidence={"error_type": type(exc).__name__},
+                suggestions=("可继续渲染，并在需要时单独重跑机器预审。",),
+            )
+        ], build_unavailable_performance_naturalness_report(
+            binding=binding,
+            error_type=type(exc).__name__,
+        )
+
+    items = [
+        build_review_item(
+            level=str(candidate["level"]),
+            code=str(candidate["code"]),
+            stage="performance_naturalness",
+            basis=str(candidate["basis"]),
+            confidence=str(candidate["confidence"]),
+            scope=candidate["scope"],
+            message=str(candidate["message"]),
+            evidence={
+                **candidate["evidence"],
+                "candidate_id": candidate["candidate_id"],
+                "review_question": candidate["review_question"],
+            },
+            suggestions=tuple(str(item) for item in candidate["suggestions"]),
+        )
+        for candidate in inspection["candidates"]
+    ]
+    return items, inspection
+
+
 def build_project_review(
     plan: Any,
     roster: Any,
     *,
+    score: Any | None = None,
     binding: Mapping[str, Any] | None = None,
     max_items: int = 64,
+    include_performance_naturalness: bool = True,
 ) -> dict[str, Any]:
     """Build one deterministic review without changing plan or render gates."""
 
+    if not isinstance(include_performance_naturalness, bool):
+        raise TypeError("include_performance_naturalness must be boolean")
     range_items, range_summary = _range_review_items(plan)
     topology_items, topology_summary = _topology_review_items(plan)
+    naturalness_items: list[dict[str, Any]] = []
+    naturalness_summary: dict[str, Any] | None = None
+    if include_performance_naturalness:
+        naturalness_items, naturalness_summary = _naturalness_review_items(
+            plan,
+            score,
+            binding=binding,
+        )
     report = build_review_report(
         [
             *_performance_review_items(plan),
             *range_items,
             *_collaboration_review_items(roster),
             *topology_items,
+            *naturalness_items,
         ],
         binding=binding,
         max_items=max_items,
     )
-    report["diagnostics"] = {
+    diagnostics = {
         "range": range_summary,
         "orchestration_topology": topology_summary,
     }
+    if naturalness_summary is not None:
+        diagnostics["performance_naturalness"] = naturalness_summary
+    report["diagnostics"] = diagnostics
     return report
 
 
@@ -459,8 +533,10 @@ def build_project_review_safely(
     plan: Any,
     roster: Any,
     *,
+    score: Any | None = None,
     binding: Mapping[str, Any] | None = None,
     max_items: int = 64,
+    include_performance_naturalness: bool = True,
 ) -> dict[str, Any]:
     """Keep an unexpected diagnostic failure outside the render gate."""
 
@@ -468,8 +544,10 @@ def build_project_review_safely(
         return build_project_review(
             plan,
             roster,
+            score=score,
             binding=binding,
             max_items=max_items,
+            include_performance_naturalness=include_performance_naturalness,
         )
     except Exception as exc:
         report = build_review_report(

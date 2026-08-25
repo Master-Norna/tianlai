@@ -2,7 +2,7 @@
 
 # Tianlai MCP interface
 
-This document describes Tianlai `1.0.0`'s stdio MCP. It exposes editable,
+This document describes Tianlai `1.1.0`'s stdio MCP. It exposes editable,
 reproducible music projects to AI
 agents. An agent does not receive an opaque “one sentence to audio” button. It
 receives fine-grained tools for reading contracts, choosing
@@ -150,17 +150,17 @@ parameters remain compatible:
 | `open_authoring_project` | No | Opens current or historical immutable project metadata. |
 | `get_authoring_snapshot` | No | Returns one three-document snapshot and bounded readiness without paths. |
 | `save_authoring_project` | **Yes** | CAS-saves complete documents as a new immutable revision. |
-| `check_authoring_readiness` | No | Checks hard contracts while leaving advisory review nonblocking. |
+| `check_authoring_readiness` | No | Checks hard contracts while leaving advisory review nonblocking, and returns nonblocking performance-naturalness machine triage under `project_review.diagnostics.performance_naturalness`. |
 | `render_authoring_revision` | **Yes** | Renders exactly the named immutable revision; the raw result is unmanaged. |
-| `inspect_authoring_candidate` | No | Verifies candidate/project bindings and separately reports authorization, recording, and acceptance. |
+| `inspect_authoring_candidate` | No | Verifies candidate/project bindings; separately reports authorization, recording, and acceptance; and returns naturalness machine triage bound to that candidate's score and performance-plan hashes. |
 | `locate_authoring_candidate` | No | Maps rendered seconds to events using project and candidate IDs only. |
 | `compare_authoring_candidates` | No | Compares two verified candidates inside one project. |
-| `creative_workflow_guide` | No | Returns modes, honesty boundary, charter template, existing phases, evidence, decisions, constitution metadata, and lightweight Chengjing / Qiyun position guidance inside `orchestration_performance` without adding a phase. |
-| `get_music_constitution_clauses` | No | Verifies the full local constitution hash and returns at most 12 explicit Chinese or English clauses. |
+| `creative_workflow_guide` | No | Returns modes, honesty boundary, charter template, existing phases, evidence, decisions, a multi-scale relationship mirror inside `symbolic_structure`, and lightweight Chengjing / Qiyun guidance inside `orchestration_performance`. Neither adds a phase or fixed question. Current v0.2 remains only an optional external reference after charter formation; no full constitution is injected. |
+| `get_music_constitution_clauses` | No | Statelessly verifies and queries the current v0.2, returning at most 12 explicit Chinese or English clauses without changing a workflow. |
 | `create_creative_workflow` | **Yes** | Creates an off/audit/iterate workflow; `composition_governance` defaults to `true` and may be explicitly disabled; stdio final authority is frozen to agent. |
 | `open_creative_workflow` | No | Opens a verified current or historical workflow revision without implicit full-history traversal. |
 | `verify_creative_workflow_history` | No | Explicitly verifies the bounded immutable parent chain back to genesis. |
-| `activate_creative_workflow` | **Yes** | Freezes a work charter and optional small official/custom clause set. |
+| `activate_creative_workflow` | **Yes** | Freezes only the prior work charter. The deprecated compatibility input `constitution` accepts only `null`; `active_clauses` accepts only `null` or an empty array. Every other value fails before any write. |
 | `inspect_workflow_composition` | No | Returns the effective-charter claim index; it can validate a draft composition map and produce read-only whole-work facts, dependency gaps, and questions without scoring or editing. |
 | `record_workflow_composition_map` | **Yes** | Freezes exactly one current-work composition map before any other work in the iteration, bound to the complete score and effective charter. |
 | `preflight_workflow_charter_amendment` | No | Computes the exact impact and reconstruction cost during review, or after `revise` while the score is still unchanged, without activating it. |
@@ -178,6 +178,16 @@ parameters remain compatible:
 | `rollback_creative_workflow` | **Yes** | Selects an earlier immutable anchor and may close the challenger as `retain_baseline` or `inconclusive`, without overwriting or deleting. |
 | `cancel_workflow_render` | **Yes** | Cancels the sole current reservation without deleting candidates. |
 | `stop_creative_workflow` | **Yes** | Stops under frozen agent authority without fabricating creator approval. |
+
+Legacy clients should remove `constitution` / `active_clauses`, or pass `null`
+and `null`/an empty array respectively; when another thinking perspective is
+useful, call the current-v0.2 getter separately after forming the work charter.
+Violating the former contract returns the stable MCP code
+`creative_workflow.constitution_binding_provenance_only`; newly adopting
+clause-based evidence, exceptions, derivations, or non-empty `clause_ids` returns
+`creative_workflow.active_clause_provenance_only`. The fields remain in the wire
+Schema and are marked deprecated solely for client and historical-shape
+compatibility, not as permission for new writes.
 
 “No” means the tool writes neither audio nor project files; import and candidate
 inspection still read authorized local files. `diagnose_runtime` and
@@ -244,16 +254,24 @@ create_authoring_project → get_authoring_snapshot
 The optional governance loop sits above it:
 
 ```text
-creative_workflow_guide → optional get_music_constitution_clauses
-  → create_creative_workflow(composition_governance=true) → activate_creative_workflow
+creative_workflow_guide → draft work_charter from this work's material and purpose
+  → create_creative_workflow(composition_governance=true)
+  → activate_creative_workflow with work_charter
+  → optional stateless get_music_constitution_clauses for current v0.2
   → inspect_workflow_composition for effective-charter claim IDs
   → draft this work's composition map
   → inspect_workflow_composition as a read-only whole-work mirror
   → record_workflow_composition_map before any other iteration work
-  → review intent/symbolic_structure/orchestration_performance,
-       answering the complete current question set and performing the lightweight
-       Chengjing / Qiyun position review inside orchestration
-  → evidence → render_workflow_candidate → review render_report
+  → review intent against the complete current question set
+  → inspect_workflow_composition for current targets/map/IDs at the exact workflow revision
+      + get_authoring_snapshot for the exact anchor-revision score
+  → run the multi-scale scan only as context for subsequent answer construction
+  → review symbolic_structure against its existing questions
+  → check_authoring_readiness and read readiness naturalness triage
+  → review orchestration_performance against its complete question set,
+       including the lightweight Chengjing / Qiyun position review
+  → evidence → render_workflow_candidate → inspect_authoring_candidate
+  → review render_report with machine candidates folded into the existing answer
   → optional key-transition derivation / optional exception
   → optional record_workflow_fork, once several complete candidates exist
        and the current candidate is one of its branches
@@ -268,8 +286,31 @@ creative_workflow_guide → optional get_music_constitution_clauses
   → next iteration rebuilds the map and repeats the whole-work mirror and reviews
 ```
 
+The work charter comes first and, together with the current score, remains the root
+of the governance loop. An external music constitution is only a stateless,
+optional source of ideas consulted afterward. If the caller never performs the
+lookup, the composition map, question-complete reviews, derivations, evidence,
+managed rendering, acceptance, and continuation all remain available. A selection
+is not written into workflow state and binds none of generation, review,
+acceptance, or continuation.
+
+Any existing official or custom binding in an older workflow is immutable
+historical provenance only. Opening or continuing that workflow neither admits
+clauses into current judgment nor blocks because they are present. v0.1 is retired:
+its text is not looked up, and its IDs are not mapped or reinterpreted as v0.2.
+New official lookups and references address only the current v0.2.
+
+Any workflow result carrying a current snapshot—including the corresponding
+successes and snapshot-bearing failures—also exposes `constitution_context`, whose status is
+`unbound`, `current_provenance_only`, `retired_provenance_only`, or
+`custom_provenance_only`. Its explicit flags deny required lookup, ID mapping,
+generation/acceptance/continuation gates, and new-decision references. The
+`get_music_constitution_clauses` response carries the same stateless usage boundary
+and returns `next_action=null`: lookup neither recommends activation nor changes
+workflow navigation.
+
 A composition map is not a fixed-form template. It first makes the complete
-sequence causality of **this work** explicit: stable nodes state their function,
+sequence relationships and whole-work functions of **this work** explicit: stable nodes state their function,
 charter dependencies, preserved or transformed established material, role changes,
 scarce resources, ending response, and open questions. Its inputs are only the
 current effective charter and score. Historical works, preference examples,
@@ -278,18 +319,79 @@ winner rationales, and fragments from other works are excluded from generation.
 coverage, and gaps into questions; it applies no fixed form, assigns no score,
 makes no edit, and auditions no audio.
 
+The single node and `bar_range=null` in the guide's composition-map template show
+only field shape. They set neither a node count nor a default of one to eight bars
+per node. A node represents whole-work function and consequences that remain after
+it, not a quota to invent another short melody. The guide's `bar_range_shape` also
+states the positive contract: `null` is allowed until location is known; once
+known, use the actual inclusive current-score range
+`{"start": <integer starting at 1>, "end": <integer no smaller than start>}`.
+There is no default span, and `from/to` must not be guessed in its place.
+
 In governed `intent`, `symbolic_structure`, and `orchestration_performance`
 reviews, “reviewed” is no longer a checkbox. The caller must answer the complete
 question set generated for the current score, effective charter, and map, citing
 real claims, nodes, or events. A key-transition derivation must also bind those
 charter claims, map nodes, and already answered questions. This makes derivation
 a replayable prerequisite to writing rather than an appeal to model discipline.
+The two fixed symbolic `question_kind` values are `material_relationship`—honestly
+name which established material is continued, transformed, answered, or refused,
+and admit when no lineage exists—and `whole_work_necessity`—without direct lineage,
+compare keeping, transforming, silencing, and deleting and state what the whole
+work would lose. They produce new deterministic question IDs. Already frozen
+legacy `material_causality` / `whole_work_dependency` questions and answers remain
+verifiable, but a client cache not yet written must refresh the current question
+set rather than replay old IDs as a new review.
+
+For `symbolic_structure`, `next_action` also supplies a read-only multi-scale
+relationship-mirror prerequisite outside the fixed question set. The scan first
+reads `inspect_workflow_composition` for the **exact workflow revision**, obtaining
+current question targets, the work charter, composition map, and node/event IDs;
+it then reads that workflow's **exact anchor-revision** score through
+`get_authoring_snapshot`. A stale score or model memory cannot substitute for
+either source. The mirror observes four scales: within a melody or phrase;
+adjacent events or simultaneous parts; long-range returns and distant responses
+across sections; and an ornament restored to whole-work context.
+
+The scan output is current-question context for subsequent answer construction;
+it is neither written as nor substituted for an existing answer. Observing no
+relationship is a valid outcome. If a later `material_relationship` answer claims
+one, it must state both ends and the connecting claim, then cite the corresponding
+current IDs. Contrast, refusal, or discontinuity counts only when those ends and
+their connection are explicitly claimed; software does not infer a relationship
+from difference alone. An unlineaged ornament goes instead to the existing
+`whole_work_necessity` answer to compare keeping, transforming, silencing, and
+deleting it.
+
+To resist assembling a whole work from perpetually restarted short melodies, the
+mirror also asks which function or consequence survives a node boundary, whether
+a new beginning follows actual closure of the preceding action, and what material,
+part, rhythm, timbre, or spatial carrier crosses several boundaries. These prompts
+do not impose one answer: intentional mosaic, fracture, and abrupt stops remain
+valid; there is no minimum melody length and no requirement for an unbroken main
+line. Exact repetition may be an ostinato, while a genuine distant response may
+have no surface pitch similarity, so the mirror creates no motif catalog or
+automatic similarity verdict.
+
+The mirror does not change the `material_relationship` prompt or deterministic
+question ID and adds no question, phase, Schema, ledger, aesthetic score, or motif
+catalog; in-progress workflows therefore keep their existing question identities.
+Claim/node/event IDs in an answer are flat reference sets, not source→target pair
+encoding. Software only verifies that they are current and that their locations
+belong to the anchored score; it cannot prove the claimed relationship,
+naturalness, or aesthetic quality.
 
 Chengjing / Qiyun adds no review phase. Inside `orchestration_performance`, it
 examines positions in the complete candidate that exist correctly yet may still
 lack flow, depth, breath, distance, resonance, or peripheral life. Zero additions
-are valid. The review must not become a periodic ornament checklist, and every
-micro-level companion detail does not need a derivation. Deletion, muting, or
+are valid. The review must not become a periodic ornament checklist. It keeps two
+paths open: trace relationships honestly when material grows from established
+material, charter promises, or whole-work relationships; when material has no such
+lineage yet is globally necessary to the complete work, identify it explicitly as
+an unlineaged choice. Neither path may invent causality; in particular, an
+unlineaged choice must not masquerade as a relational derivation. Not every
+micro-level companion detail needs a derivation. If neither path holds, silence,
+muting, or deletion is a valid answer. Deletion, muting, or
 before/after complete-candidate comparison may expose a loss, but without an actual
 audition the caller records only an `aesthetic_risk` or hypothesis, never an audible
 conclusion. If an edit reaches the identity kernel, primary harmonic causality,
@@ -299,6 +401,34 @@ preflight; no new phase, ledger, or Schema is added. The conclusion is folded in
 the existing orchestration answer rather than a scored “Qiyun question.” Software
 can verify that the prompt was surfaced and references remain valid, not that the
 model's creative thought was insightful.
+
+Naturalness machine triage likewise adds no phase, fixed question, score, or
+ledger. Before `orchestration_performance` is recorded, `next_action` directs the
+agent to read
+`readiness.project_review.diagnostics.performance_naturalness` from
+`check_authoring_readiness` for the anchored authoring revision and fold actionable
+candidates, an explicit incomplete-evidence boundary, or the limited no-machine-
+candidate conclusion available only under complete coverage into the existing
+answer. Once a
+formal candidate exists, `next_action` requires `inspect_authoring_candidate`
+before `render_report`, rerunning the inspection against the whole work's
+candidate-bound score, performance plan, and reports. A remaining risk may
+optionally enter the existing evidence lifecycle as `aesthetic_risk` with
+`diagnostic_hypothesis`, `report_only`, and that candidate's `performance_plan`
+hash. Deliberately mechanical, static, or repetitive performance may be explained
+and retained; it need not be edited merely to empty a report.
+
+This layer checks only reproducible plan contradictions and evidence gaps. It
+cannot prove that a performance is natural or that the music sounds good. It may
+return `no_machine_candidate` only with
+`evidence_coverage=complete_for_current_checks`; an unavailable score or incomplete
+connection evidence remains `partial_evidence` and cannot masquerade as absence.
+The report has no aggregate score or aesthetic pass/fail, never blocks, and never
+edits score or audio. Plan-to-event-level waveform response is explicitly
+`unavailable` until
+event-isolated envelope evidence is recorded. Whole-work loudness, peak, crest,
+LRA, and spectrum remain useful engineering diagnostics, but are never substituted
+for event-level naturalness evidence.
 
 If iteration evidence genuinely calls for a charter change, a read-only preflight
 must happen while the workflow is reviewing, or after a `revise` decision while
@@ -338,9 +468,10 @@ channel, so its workflows freeze `final_authority=agent` and expose no authority
 switch. See [Creative Workflow](创作工作流.en.md) for the full state and recovery
 contract.
 
-Constitution clauses are not a whole-work prompt. In v0.2 they ask questions at key
-positions rather than generate answers, and germinal or peripheral micro-details do
-not need a reason in advance. Derivations are likewise scarce arguments rather than
+If the caller chooses to consult v0.2, its clauses may inspire questions, but they
+are not a whole-work prompt and add no generation, review, acceptance, or
+continuation condition to the workflow. Germinal or peripheral micro-details do not
+need a reason in advance. Derivations are likewise scarce arguments rather than
 a quota: the default per-iteration ceiling is 8, and 0 disables them. A derivation is anchored by
 non-empty `event_ids` and/or the complete half-open
 `[start_bar:start_beat, end_bar:end_beat)` range; `part_ids` only filter that scope.
@@ -438,10 +569,11 @@ ceiling. A disabled zero limit does not count. Other reasons such as
 declarations; the contract checks authority and shape, not whether aesthetic
 stagnation or the external fact has been proven.
 
-Byte-exact, fixed-hash Chinese and English constitution sources ship as wheel
-package data and are tested against the copies in the music-creation notes. Clause
-lookup therefore does not depend on a repository `docs/` directory being present at
-runtime.
+Byte-exact, fixed-hash Chinese and English copies of the current v0.2 optional
+reference ship as wheel package data and are tested against the copies in the
+music-creation notes. An explicit clause lookup therefore does not depend on a
+repository `docs/` directory being present at runtime; the core workflow does not
+require that lookup at all.
 
 The two paths are not the same permission or file wrapper. CLI import writes
 three files and offers a loss policy; MCP import returns an in-memory bundle.
@@ -463,6 +595,11 @@ At the start of every session, call:
 score_and_roster_format()
 list_instruments()
 ```
+
+The one-bar example returned by `score_and_roster_format` demonstrates JSON syntax
+and the smallest renderable loop only. It is not an example of a work, target
+duration, phrase, form, density, or style. A complete-work workflow must not infer a
+“write one bar at a time” or “keep restarting short melodies” default from it.
 
 With no arguments, `list_instruments` uses `instrument_scope="formal"`,
 `detail_level="summary"`, and `limit=32`, returning the first page of the
@@ -672,6 +809,10 @@ focused listening review.
   collaboration coverage, and same-source unison candidates enter the read-only
   `project_review`. They carry evidence and review options without changing the
   hard gate.
+- `diagnostics.performance_naturalness` exposes locatable performance-plan
+  candidates with `scope=machine_triage_only`. It has no aggregate score or
+  aesthetic pass/fail, permits intentional mechanics, and is always nonblocking
+  and non-editing.
 - `compatibility` remains the default range mode. It preserves extended
   registers, edge timbres, and experimental writing inside the declared hard
   playable range while reporting useful evidence. `strict_hq` remains an
@@ -723,6 +864,94 @@ Every item fixes `automatic_change=false`, so the review itself leaves the
 score, roster, performance plan, and audio unchanged.
 The complete machine contract is `schemas/project-review.schema.json`, allowing
 a future UI to validate and present the report without guessing field meaning.
+
+`project_review.diagnostics.performance_naturalness` currently concentrates on
+four generalizable facts:
+
+- explicit phrase marks leave performed onsets uncovered, or overlap one onset so
+  that later phrase-array order wins, or are empty and hit no merged onset;
+- for non-kit executors whose note gates carry connection semantics, residual
+  randomness changes an adjacent-note relationship among overlap, touch, and
+  separation. This candidate is always `info` and is never promoted by dominant
+  velocity residual; one-shot kit note-off is transport bookkeeping and is
+  explicitly `not_applicable_one_shot_kit`;
+- approved onset evidence does not match the current runtime configuration, so the
+  related compensation cannot be applied. A connected
+  `not_applied_unapproved_context` is an expected fact retained in grouped counts,
+  not a candidate; and
+- a sufficiently long part contains almost no work-authored phrases, per-note
+  velocity/articulation, realization, or gain/control direction, leaving detail
+  mostly to generic conducting rules and residual variation.
+
+“Complete” first includes a reverse score-to-trace coverage check, limited to parts
+actually assigned in the performance plan. Expected events are computed after tie
+merge; observations from multiple executors or kit routes for the same part are
+the union of their `source_event_id` values. A missing expected event, a merged
+score event without stable identity, or a cross-part, unknown, or extra trace event
+marks that part `partial_evidence`; so does reuse of the same event identity within
+one executor/kit trace, counted as `duplicate_trace_event_count`. Unassigned score
+parts are not reported as missing. Per-part counts and status are exposed in
+`facts.performance_plan.part_trace_coverage`.
+
+Residual presence is also governed by the performance plan's
+`expression.humanize` contract rather than inferred from whichever trace keys
+happen to exist. `depth` must be finite and within `0..4`; `timing_ms` must be
+finite and non-negative. An invalid contract itself makes plan evidence partial.
+When `depth>0` and `timing_ms>0`, every trace event must carry a parseable, finite
+`推导.残差随机`: an absent key is missing evidence, while a present malformed or
+non-finite value is invalid evidence. Conversely, a residual key at `depth=0`, or
+a non-zero timing residual at `timing_ms=0`, is unexpected. An absolute timing
+residual above `depth * timing_ms` plus the text display's half-step tolerance is
+out of range. With `depth>0`, a zero timing residual remains allowed at
+`timing_ms=0` to carry velocity humanize and does not by itself make coverage
+partial. These are evidence states, not musical findings: any missing, invalid,
+unexpected, or out-of-range evidence makes coverage partial and suppresses that
+executor's now-unreliable connection candidates. The aggregate contract and
+category counts are exposed in
+`facts.performance_plan.humanize_timing_contract` and the plan/executor facts.
+
+The connection counterfactual also requires consistent forward source-event
+mapping for the executor, finite non-negative time, and finite positive duration;
+a failure in those base conditions directly yields `partial_evidence`. For an
+event that actually has a residual, a time boundary, clipped onset compensation,
+reconstructed-baseline boundary, or any non-empty `realization` makes the
+counterfactual non-invertible. This includes velocity-only overrides because
+realization enters sample-grid quantization. The executor is then partial and all
+of its connection candidates are suppressed rather than joined across unknown
+material. Without a residual, baseline equals actual, so those boundary, clipping,
+and realization paths do not manufacture a counterfactual gap.
+
+The residual text's finite precision is itself part of the evidence boundary, but
+only when at least one side of an adjacent onset-group pair actually has a
+residual. Both the actual relation and reconstructed baseline are checked against
+the overlap/touch/separate thresholds. A near-threshold relation is
+`indeterminate` rather than forced into a flip, so the executor's connection
+coverage remains partial. Without a residual this rounding-uncertainty band is not
+introduced; other fully evidenced relations away from thresholds may still be
+reported.
+
+The report also carries `evidence_coverage`. It is `partial` when the score is
+unavailable or any applicable executor has incomplete connection evidence; even if
+another finding makes top-level `status=review_candidates`, that coverage gap stays
+visible. With no findings and partial coverage, top-level status is
+`partial_evidence`; only `complete_for_current_checks` may yield
+`no_machine_candidate`. These are review candidates, not error verdicts, and
+`no_machine_candidate` does not mean that the result sounds natural. The report's
+`authority` states that
+no audio audition occurred, naturalness and aesthetic quality were not proved, no
+automatic change happened, and intentional mechanical, static, or repetitive
+performance remains allowed. The report also marks plan-to-event-level waveform
+response `unavailable`: whole-work loudness, peak, crest, LRA, and spectrum from
+the current `post_render_check` / `mix_report` can diagnose engineering problems,
+but cannot replace event-isolated envelope evidence that is not yet recorded.
+
+`check_authoring_readiness` returns this pre-render report for the anchored
+revision. `inspect_authoring_candidate.naturalness_inspection` rereads the
+immutable candidate-bound score and performance plan, then binds its report to
+the candidate manifest, score, canonical and file performance-plan hashes, render
+receipt, post-render check, and any mix-report hash. An analysis failure makes
+only this diagnostic `unavailable`; it does not alter candidate integrity,
+readiness, or render eligibility.
 
 All three entry points use the same semantics. Preflight exposes the review
 before rendering, readiness adds physical-reference state beside it, and a

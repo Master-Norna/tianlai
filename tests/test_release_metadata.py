@@ -198,6 +198,53 @@ class ReleaseMetadataTests(unittest.TestCase):
                 with self.subTest(path=relative, marker=marker):
                     self.assertIn(marker, text)
 
+    def test_external_constitution_boundary_is_explicit_and_bilingual(
+        self,
+    ) -> None:
+        chinese = "\n".join(
+            (ROOT / relative).read_text(encoding="utf-8")
+            for relative in (
+                "README.md",
+                "docs/MCP.md",
+                "docs/创作工作流.md",
+                "docs/当前状态.md",
+            )
+        )
+        english = "\n".join(
+            (ROOT / relative).read_text(encoding="utf-8")
+            for relative in (
+                "README.en.md",
+                "README.pypi.md",
+                "docs/MCP.en.md",
+                "docs/创作工作流.en.md",
+                "docs/当前状态.en.md",
+            )
+        )
+
+        for marker in (
+            "无状态可选",
+            "前者只接受 `null`",
+            "constitution_context",
+            "material_relationship",
+            "whole_work_necessity",
+            "next_action=null",
+        ):
+            with self.subTest(language="zh-CN", marker=marker):
+                self.assertIn(marker, chinese)
+        self.assertNotIn("工作流法源", chinese)
+        self.assertNotIn("官方 activation 所需", chinese)
+
+        for marker in (
+            "stateless, optional source of ideas",
+            "former accepts only `null`",
+            "constitution_context",
+            "material_relationship",
+            "whole_work_necessity",
+            "next_action=null",
+        ):
+            with self.subTest(language="en", marker=marker):
+                self.assertIn(marker, english)
+
     def test_default_pytest_collection_is_confined_to_the_test_suite(self) -> None:
         project = tomllib.loads(
             (ROOT / "pyproject.toml").read_text(encoding="utf-8")
@@ -211,10 +258,10 @@ class ReleaseMetadataTests(unittest.TestCase):
         citation = (ROOT / "CITATION.cff").read_text(encoding="utf-8")
         self.assertIn('family-names: "Nor.na"', citation)
         self.assertIn(f"version: {tianlai.__version__}", citation)
-        self.assertIn("date-released: 2026-08-24", citation)
+        self.assertIn("date-released: 2026-08-25", citation)
 
     def test_formal_release_surfaces_are_synchronised(self) -> None:
-        self.assertEqual(tianlai.__version__, "1.0.0")
+        self.assertEqual(tianlai.__version__, "1.1.0")
         current_files = (
             "README.md",
             "README.en.md",
@@ -230,7 +277,7 @@ class ReleaseMetadataTests(unittest.TestCase):
         for relative in current_files:
             with self.subTest(path=relative):
                 text = (ROOT / relative).read_text(encoding="utf-8")
-                self.assertIn("1.0.0", text)
+                self.assertIn("1.1.0", text)
                 self.assertNotIn("0.8.0rc1", text)
 
         # The private construction repository keeps the historical changelog;
@@ -243,13 +290,23 @@ class ReleaseMetadataTests(unittest.TestCase):
             self.assertTrue(changelog_en_path.is_file())
             changelog = changelog_path.read_text(encoding="utf-8")
             changelog_en = changelog_en_path.read_text(encoding="utf-8")
+            self.assertIn("## 1.1.0（2026-08-25）", changelog)
+            self.assertIn("## 1.1.0 (2026-08-25)", changelog_en)
             self.assertIn("## 1.0.0（2026-08-24）", changelog)
             self.assertIn("## 1.0.0 (2026-08-24)", changelog_en)
-            chinese_unreleased, chinese_release = changelog.split(
+            chinese_unreleased, chinese_releases = changelog.split(
+                "## 1.1.0（2026-08-25）",
+                maxsplit=1,
+            )
+            english_unreleased, english_releases = changelog_en.split(
+                "## 1.1.0 (2026-08-25)",
+                maxsplit=1,
+            )
+            chinese_release, chinese_prior_releases = chinese_releases.split(
                 "## 1.0.0（2026-08-24）",
                 maxsplit=1,
             )
-            english_unreleased, english_release = changelog_en.split(
+            english_release, english_prior_releases = english_releases.split(
                 "## 1.0.0 (2026-08-24)",
                 maxsplit=1,
             )
@@ -257,15 +314,51 @@ class ReleaseMetadataTests(unittest.TestCase):
             self.assertIn("- None.", english_unreleased)
             self.assertNotIn("天籁音乐宪法 v0.2", chinese_unreleased)
             self.assertNotIn("Constitution v0.2", english_unreleased)
-            self.assertIn("天籁音乐宪法 v0.2", chinese_release)
-            self.assertIn("Constitution v0.2", english_release)
+            self.assertIn("天籁音乐宪法 v0.2", chinese_prior_releases)
+            self.assertIn("Constitution v0.2", english_prior_releases)
+
+            for marker in (
+                "无状态可选",
+                "material_relationship",
+                "whole_work_necessity",
+                "constitution_context",
+            ):
+                with self.subTest(section="chinese_release", marker=marker):
+                    self.assertIn(marker, chinese_release)
+            for marker in (
+                "stateless, optional source of ideas",
+                "material_relationship",
+                "whole_work_necessity",
+                "constitution_context",
+            ):
+                with self.subTest(section="english_release", marker=marker):
+                    self.assertIn(marker, english_release)
+
+            for marker in (
+                "作品展开图",
+                "prior_revision_assessment",
+                "save_sequence",
+                "work_id",
+                "collaboration",
+            ):
+                with self.subTest(section="chinese_release", marker=marker):
+                    self.assertIn(marker, chinese_prior_releases)
+            for marker in (
+                "composition map",
+                "prior_revision_assessment",
+                "save_sequence",
+                "work_id",
+                "collaboration",
+            ):
+                with self.subTest(section="english_release", marker=marker):
+                    self.assertIn(marker, english_prior_releases)
 
         self.assertIn(
-            "更新日期：2026-08-24",
+            "更新日期：2026-08-25",
             (ROOT / "docs" / "当前状态.md").read_text(encoding="utf-8"),
         )
         self.assertIn(
-            "Updated: 2026-08-24",
+            "Updated: 2026-08-25",
             (ROOT / "docs" / "当前状态.en.md").read_text(encoding="utf-8"),
         )
 

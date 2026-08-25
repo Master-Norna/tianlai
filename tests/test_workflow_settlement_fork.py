@@ -26,6 +26,7 @@ from tianlai.creative_workflow import (
     create_creative_workflow,
     decide_workflow_iteration,
     record_workflow_authoring_revision,
+    record_workflow_derivation,
     record_workflow_evidence,
     record_workflow_fork,
     record_workflow_review,
@@ -255,8 +256,6 @@ class WorkflowSettlementTests(unittest.TestCase):
             workflow_id=created.workflow_id,
             expected_revision=created.revision,
             work_charter=_charter(),
-            constitution=_constitution(),
-            active_clauses=_active_clauses(),
         )
 
     def review(self, snapshot):
@@ -732,8 +731,6 @@ class WorkflowSettlementTests(unittest.TestCase):
             workflow_id=created.workflow_id,
             expected_revision=created.revision,
             work_charter=_charter(),
-            constitution=_constitution(),
-            active_clauses=_active_clauses(),
         )
         reviewed = self.review(active)
         stopped = terminate_creative_workflow(
@@ -815,8 +812,6 @@ class WorkflowForkTests(unittest.TestCase):
             workflow_id=created.workflow_id,
             expected_revision=created.revision,
             work_charter=_charter(),
-            constitution=_constitution(),
-            active_clauses=_active_clauses(),
         )
 
     @staticmethod
@@ -1037,6 +1032,98 @@ class WorkflowForkTests(unittest.TestCase):
                 self.managed_identity("candidate-b")[1],
             ],
         )
+
+    def test_new_fork_cannot_adopt_a_frozen_clause_derivation(self) -> None:
+        snapshot = self.two_candidate_snapshot()
+        derived = record_workflow_derivation(
+            self.root,
+            workflow_id=snapshot.workflow_id,
+            expected_revision=snapshot.revision,
+            claim="The second world answers material established before it.",
+            premises=[
+                {
+                    "kind": "established_material",
+                    "reference": None,
+                    "event_ids": ["event-1"],
+                    "artifact_sha256": None,
+                    "artifact_role": None,
+                }
+            ],
+            excluded_alternatives=[
+                {
+                    "alternative": "Ignore the earlier material.",
+                    "failure": "The second world would lose its internal answer.",
+                    "premise_indexes": [0],
+                }
+            ],
+            event_ids=["event-2"],
+        )
+        state = derived.detached_state()
+        state["constitution"] = _constitution()
+        state["active_clauses"] = _active_clauses()
+        iteration = state["iterations"][-1]
+        historical = iteration["derivations"][0]
+        historical["premises"][0] = {
+            "kind": "active_clause",
+            "reference": "C0.03",
+            "event_ids": [],
+            "artifact_sha256": None,
+            "artifact_role": None,
+        }
+        historical["clause_ids"] = ["C0.03"]
+        body = {
+            key: value
+            for key, value in historical.items()
+            if key != "derivation_id"
+        }
+        historical["derivation_id"] = workflow_module._derivation_identity(
+            workflow_id=state["workflow_id"],
+            iteration_number=iteration["iteration_number"],
+            body=body,
+        )
+        layout = workflow_module._existing_layout(
+            self.root, derived.workflow_id
+        )
+        legacy_revision = _replace_equivalent_current(layout, state)
+        legacy = workflow_module.open_creative_workflow(
+            self.root,
+            workflow_id=derived.workflow_id,
+            revision=legacy_revision,
+        )
+        derivation_id = historical["derivation_id"]
+
+        self.assertEqual(
+            _error_code(
+                lambda: record_workflow_fork(
+                    self.root,
+                    workflow_id=legacy.workflow_id,
+                    expected_revision=legacy.revision,
+                    branches=[
+                        {
+                            "candidate": self.locator(
+                                candidate_id="candidate-a", manifest="1"
+                            ),
+                            "stance": "The original register remains possible.",
+                            "derivation_ids": [],
+                        },
+                        {
+                            "candidate": self.locator(
+                                candidate_id="candidate-b", manifest="7"
+                            ),
+                            "stance": "The raised return cites retired provenance.",
+                            "derivation_ids": [derivation_id],
+                        },
+                    ],
+                    invariant_indexes=[0],
+                    event_ids=["event-2"],
+                )
+            ),
+            "active_clause_provenance_only",
+        )
+        unchanged = workflow_module.open_creative_workflow(
+            self.root, workflow_id=legacy.workflow_id
+        )
+        self.assertEqual(unchanged.revision, legacy.revision)
 
     def test_reopen_recomputes_fork_identity(self) -> None:
         recorded = self.record_two_candidate_fork()

@@ -21,7 +21,7 @@ import os
 import re
 from collections import Counter
 from pathlib import Path
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, Mapping
 
 from typing_extensions import NotRequired, TypedDict
 
@@ -107,6 +107,10 @@ from .mcp_tool_contract import bind_strict_mcp_tool
 from .path_policy import (
     InputPathPolicyError,
     discover_mcp_input_policy,
+)
+from .performance_naturalness import (
+    analyze_performance_naturalness,
+    build_unavailable_performance_naturalness_report,
 )
 from .plain_file import read_plain_file_bytes, revalidate_plain_file
 from .portable_filename import is_windows_reserved_filename
@@ -242,6 +246,26 @@ _WorkflowReferenceList = Annotated[
 _ConstitutionClauseIdList = Annotated[
     list[_AuthoringSelector],
     Field(min_length=1, max_length=12),
+]
+_DeprecatedWorkflowConstitution = Annotated[
+    dict | None,
+    Field(
+        deprecated=True,
+        description=(
+            "Deprecated compatibility input. It must be null: external constitution "
+            "clauses are stateless thought resources, not workflow bindings."
+        ),
+    ),
+]
+_DeprecatedWorkflowActiveClauses = Annotated[
+    list[dict] | None,
+    Field(
+        deprecated=True,
+        description=(
+            "Deprecated compatibility input. It must be null or empty and is never "
+            "written into a newly activated workflow."
+        ),
+    ),
 ]
 _WorkflowDerivationEmptyReferences = Annotated[
     list[_AuthoringSelector],
@@ -1515,6 +1539,7 @@ def _workflow_next_action(
                     "arguments": {
                         "project_key": project_key,
                         "workflow_id": snapshot.workflow_id,
+                        "revision": snapshot.revision,
                     },
                 },
                 {
@@ -1648,6 +1673,7 @@ def _workflow_next_action(
                     "arguments": {
                         "project_key": project_key,
                         "workflow_id": snapshot.workflow_id,
+                        "revision": snapshot.revision,
                     },
                 },
                 {
@@ -1680,6 +1706,87 @@ def _workflow_next_action(
         if (
             governed
             and operation == "record_workflow_review"
+            and suggested_arguments.get("phase") == "symbolic_structure"
+        ):
+            relationship_steps = [
+                {
+                    "step": "read_anchored_score_for_relationship_scan",
+                    "operation": "get_authoring_snapshot",
+                    "arguments": {
+                        "project_key": project_key,
+                        "revision": iteration["anchor"]["authoring_revision"],
+                    },
+                    "input": "snapshot.documents.score",
+                    "constraint": (
+                        "use_the_exact_workflow_anchor_revision_not_memory_or_the_"
+                        "current_authoring_head"
+                    ),
+                },
+                {
+                    "step": "multiscale_relationship_scan",
+                    "action": (
+                        "inspect_relationships_at_four_scales_for_the_current_"
+                        "material_relationship_and_whole_work_necessity_question_targets"
+                    ),
+                    "recording": (
+                        "fold_the_scan_or_no_observed_relationship_conclusion_into_"
+                        "the_existing_symbolic_structure_answers; do_not_create_a_"
+                        "separate_question_relationship_ledger_or_motif_catalog"
+                    ),
+                    "scales": [
+                        "within_a_melody_or_phrase",
+                        "between_adjacent_or_simultaneous_melodies_parts_or_passages",
+                        "between_distant_nodes_returns_or_echoes",
+                        "between_a_detail_or_ornament_and_its_whole_work_context",
+                    ],
+                    "long_span_checks": [
+                        "what_musical_consequence_remains_live_or_unresolved_across_each_selected_local_phrase_or_node_boundary",
+                        "which_short_units_close_so_completely_that_the_next_unit_has_to_restart_and_whether_that_is_intentional",
+                        "what_crosses_multiple_boundaries_through_melody_harmony_rhythm_register_timbre_space_or_silence",
+                        "if_no_long_span_consequence_exists_what_whole_work_logic_makes_the_mosaic_or_discontinuity_intentional",
+                    ],
+                    "reference_rule": (
+                        "when_a_relationship_is_claimed_locate_both_ends_with_current_"
+                        "node_ids_and_or_event_ids_and_describe_the_observed_connection"
+                    ),
+                    "input_sources": {
+                        "score": (
+                            "read_anchored_score_for_relationship_scan.snapshot."
+                            "documents.score"
+                        ),
+                        "map_facts_and_current_ids": (
+                            "inspect_whole_work.inspection"
+                        ),
+                        "question_targets": (
+                            "inspect_whole_work.inspection.review_questions."
+                            "symbolic_structure"
+                        ),
+                    },
+                    "output": (
+                        "bounded_relationship_observations_consumed_by_"
+                        "answer_every_phase_question"
+                    ),
+                    "constraints": [
+                        "zero_examples_at_any_scale_is_valid",
+                        "state_no_observed_lineage_instead_of_inventing_one",
+                        "contrast_refusal_or_deliberate_discontinuity_may_count_only_when_both_ends_and_the_connection_are_explicitly_claimed",
+                        "an_unrelated_detail_may_remain_only_as_a_whole_work_necessity_claim",
+                        "no_quantity_quota_similarity_threshold_or_naturalness_score",
+                        "shared_key_tempo_instrumentation_or_added_layers_alone_do_not_establish_long_span_continuity",
+                        "no_minimum_phrase_or_work_length_and_no_unbroken_lead_melody_requirement",
+                        "software_validates_current_references_and_locations_not_the_relationship_or_its_aesthetic_value",
+                    ],
+                },
+            ]
+            prerequisites = [
+                relationship_steps[0],
+                prerequisites[0],
+                relationship_steps[1],
+                *prerequisites[1:],
+            ]
+        if (
+            governed
+            and operation == "record_workflow_review"
             and suggested_arguments.get("phase")
             == "orchestration_performance"
         ):
@@ -1702,6 +1809,15 @@ def _workflow_next_action(
                         "where a return could carry a small history of elapsed time",
                         "where companion lines, echoes, micro-motion, glints, breath, resonance, shadow layers, timing, space, subtraction, or silence may be tried",
                         "where timbre, space, resonance, and performance remain static rather than growing with the work",
+                        (
+                            "which details genuinely continue, transform, answer, or "
+                            "refuse earlier material, and which have no such lineage"
+                        ),
+                        (
+                            "for a detail with no lineage, what the complete work would "
+                            "lose if it were removed; if nothing material is lost, whether "
+                            "muting, deletion, or preserved space is more honest"
+                        ),
                         "which apparently empty positions should stay empty",
                         "which refined details would merely repeat a predictable ornament formula",
                         "whether any trial would cross into identity, principal harmonic causality, section function, climax basis, ending response, or charter change",
@@ -1710,10 +1826,70 @@ def _workflow_next_action(
                         "locations_grant_reversible_trial_right_not_a_duty_to_add",
                         "zero_additions_is_a_valid_answer",
                         "no_quantity_quota_and_no_derivation_required_for_qiyun_details",
+                        "never_invent_material_lineage_to_justify_an_unrelated_detail",
+                        "global_necessity_may_be_named_without_pretending_it_is_causal_derivation",
                         "without_actual_audition_record_only_a_trial_or_hypothesis_not_an_audible_improvement",
                         "structural_or_charter_change_uses_the_formal_revision_or_amendment_path",
                         "software_can_surface_the_prompt_and_verify_references_but_cannot_prove_creative_thought",
                     ],
+                }
+            )
+        if (
+            operation == "record_workflow_review"
+            and suggested_arguments.get("phase")
+            == "orchestration_performance"
+        ):
+            prerequisites.append(
+                {
+                    "step": "machine_naturalness_triage",
+                    "operation": "check_authoring_readiness",
+                    "arguments": {
+                        "project_key": project_key,
+                        "revision": iteration["anchor"]["authoring_revision"],
+                    },
+                    "input_from": (
+                        "readiness.project_review.diagnostics."
+                        "performance_naturalness"
+                    ),
+                    "recording": (
+                        "answer_actionable_candidates_inside_the_existing_"
+                        "orchestration_performance_review"
+                    ),
+                    "constraint": (
+                        "no_machine_candidate_does_not_prove_naturalness; "
+                        "partial_evidence_is_not_absence; "
+                        "intentional_mechanics_may_be_kept; never_auto_edit"
+                    ),
+                }
+            )
+        if (
+            operation == "record_workflow_review"
+            and suggested_arguments.get("phase") == "render_report"
+            and isinstance(candidate, dict)
+        ):
+            prerequisites.append(
+                {
+                    "step": "inspect_candidate_naturalness",
+                    "operation": "inspect_authoring_candidate",
+                    "arguments": {
+                        "project_key": project_key,
+                        "work_id": candidate["work_id"],
+                        "candidate_id": candidate["candidate_id"],
+                    },
+                    "input_from": (
+                        "inspect_authoring_candidate.naturalness_inspection"
+                    ),
+                    "recording": (
+                        "fold_each_actionable_candidate_or_intentional_"
+                        "exception_into_the_existing_render_report_review; "
+                        "a_remaining_risk_may_use_existing_aesthetic_risk_evidence"
+                    ),
+                    "constraint": (
+                        "machine_triage_is_nonblocking_and_not_audio_audition; "
+                        "partial_evidence_must_be_disclosed; "
+                        "never_claim_naturalness_or_aesthetic_quality_from_no_"
+                        "machine_candidate"
+                    ),
                 }
             )
         early_withdrawal = early_withdrawal_navigation()
@@ -1733,6 +1909,36 @@ def _workflow_next_action(
     if continuation is not None:
         result["continuation"] = continuation
     return result
+
+
+def _workflow_constitution_context(
+    snapshot: CreativeWorkflowSnapshot,
+) -> dict[str, Any]:
+    """Describe a recorded binding without looking up, mapping, or enforcing it."""
+
+    binding = snapshot.detached_state().get("constitution")
+    if binding is None:
+        status = "unbound"
+    elif any(binding == metadata for metadata in _OFFICIAL_CONSTITUTIONS.values()):
+        status = "current_provenance_only"
+    elif (
+        isinstance(binding, dict)
+        and binding.get("document_id") == _OFFICIAL_CONSTITUTION["document_id"]
+    ):
+        status = "retired_provenance_only"
+    else:
+        status = "custom_provenance_only"
+    return {
+        "status": status,
+        "recorded_binding_preserved": binding is not None,
+        "provenance_only": binding is not None,
+        "clause_lookup_required": False,
+        "clause_mapping_allowed": False,
+        "generation_constraint": False,
+        "acceptance_gate": False,
+        "continuation_gate": False,
+        "new_decision_reference_allowed": False,
+    }
 
 
 def _workflow_success(
@@ -1756,6 +1962,7 @@ def _workflow_success(
             else None
         ),
         **payload,
+        "constitution_context": _workflow_constitution_context(snapshot),
     }
 
 
@@ -1965,29 +2172,12 @@ def _validate_mcp_constitution_activation(
     constitution: dict | None,
     active_clauses: list[dict] | None,
 ) -> str | None:
-    if constitution is None:
+    if constitution is None and active_clauses in (None, []):
         return None
-    if not isinstance(constitution, dict):
-        return "custom"
-    document_id = constitution.get("document_id")
-    if document_id != _OFFICIAL_CONSTITUTION["document_id"]:
-        return "custom"
-    language = constitution.get("language")
-    expected = _OFFICIAL_CONSTITUTIONS.get(language)
-    if expected is None or constitution != expected:
-        raise _McpWorkflowBoundaryError(
-            "creative_workflow.official_constitution_binding_mismatch",
-            stage="constitution",
-        )
-    registry = _official_constitution_registry(language)
-    for clause in [] if active_clauses is None else active_clauses:
-        clause_id = clause.get("clause_id") if isinstance(clause, dict) else None
-        if clause_id not in registry:
-            raise _McpWorkflowBoundaryError(
-                "creative_workflow.constitution_clause_unknown",
-                stage="constitution",
-            )
-    return "official"
+    raise _McpWorkflowBoundaryError(
+        "creative_workflow.constitution_binding_provenance_only",
+        stage="constitution",
+    )
 
 
 def _workflow_failure_with_current(
@@ -2015,6 +2205,7 @@ def _workflow_failure_with_current(
         snapshot,
         project_key=project_key,
     )
+    result["constitution_context"] = _workflow_constitution_context(snapshot)
     return result
 
 
@@ -2305,6 +2496,35 @@ def _read_bound_candidate_json(
             stage="candidate",
         )
     return document
+
+
+def _verified_candidate_manifest_sha256(
+    directory: Path,
+    directory_identity: PlainDirectoryIdentity,
+    expected_document: Mapping[str, Any],
+) -> str:
+    """Re-read the verified manifest and retain its raw artifact identity."""
+
+    try:
+        if revalidate_plain_directory(directory_identity) != directory:
+            raise OSError("candidate directory identity mismatch")
+        identity, payload = read_plain_file_bytes(
+            directory / CANDIDATE_MANIFEST_NAME,
+            maximum_bytes=_AUTHORING_EVIDENCE_MAX_BYTES,
+        )
+        document = json.loads(payload.decode("utf-8"))
+        revalidate_plain_file(identity)
+        if (
+            revalidate_plain_directory(directory_identity) != directory
+            or document != expected_document
+        ):
+            raise OSError("candidate manifest changed during inspection")
+    except (OSError, UnicodeError, ValueError, json.JSONDecodeError) as exc:
+        raise _McpAuthoringBoundaryError(
+            "authoring_candidate.evidence_verification_failed",
+            stage="candidate",
+        ) from exc
+    return hashlib.sha256(payload).hexdigest()
 
 
 def _verified_candidate_workflow_status(
@@ -2792,6 +3012,7 @@ def _safe_project_review(
     plan: Any | None,
     roster: Any | None,
     *,
+    score: Any | None = None,
     binding: dict[str, Any],
 ) -> dict[str, Any]:
     """Run creator review without allowing a diagnostic failure to block."""
@@ -2800,7 +3021,12 @@ def _safe_project_review(
         report = build_review_report([], binding=binding)
         report["diagnostics"] = {"status": "not_run"}
         return report
-    return build_project_review_safely(plan, roster, binding=binding)
+    return build_project_review_safely(
+        plan,
+        roster,
+        score=score,
+        binding=binding,
+    )
 
 
 def _compile_project(
@@ -3136,6 +3362,7 @@ def _compile_project(
     project_review = _safe_project_review(
         plan,
         roster_document,
+        score=score_document,
         binding=project,
     )
     stage_order = {
@@ -3731,9 +3958,10 @@ def plan_resource_restore(
 
 @mcp_tool(title="Get score and roster format", annotations=_READ_ONLY_TOOL)
 def score_and_roster_format() -> dict[str, Any]:
-    """返回乐谱与编制的写法说明 + 一个最小可用示例。
+    """返回乐谱与编制写法 + 纯语法的最小渲染闭环示例。
 
-    你(AI)据此直接写出 score 与 roster 两个 JSON 对象,再交给 render。
+    示例不是作品、旋律、篇幅或曲式模板。你(AI)据此写出 score 与 roster
+    两个 JSON 对象,再交给 render。
     铁律:bpm 恒数四分音符;beat/duration_beats 用拍号的拍单位(6/8 里一拍=八分)。
     velocity 在 (0,1];pitch 用科学音名如 "C4"/"F#3" 或 MIDI 数字。
     """
@@ -3871,6 +4099,17 @@ def score_and_roster_format() -> dict[str, Any]:
         ],
     }
     return {
+        "example_scope": {
+            "purpose": "仅说明字段语法与最小渲染闭环，不是作品范例",
+            "composition_template": False,
+            "duration_default": False,
+            "phrase_length_default": False,
+            "form_or_node_length_default": False,
+            "density_or_style_default": False,
+            "instruction": (
+                "创作完整作品时先依据该作品自己的展开图建立长程发展；不得从一小节语法示例推导作品时长、乐句长度、段落数量或旋律重启频率。"
+            ),
+        },
         "score_fields": {
             "schema_version": "新谱写 1；此时每个音符必须带全谱唯一的稳定 event_id。"
                               "旧谱可继续渲染，但局部编辑前应先调用 upgrade_score",
@@ -3930,6 +4169,8 @@ def score_and_roster_format() -> dict[str, Any]:
             "不要从乐器名猜主次；在 roster.role 和 balance_relations 中显式声明",
             "不要从 Piano L/R、乐器名或轨道顺序猜组合端点；只有 roster 明确写入"
             " collaboration.part_groups 才可按组分析",
+            "example_score 与 example_kit_score 只说明字段语法和最小渲染闭环，"
+            "不是作品、旋律、篇幅、曲式、密度或风格范例",
         ],
         "example_score": example_score,
         "example_roster": example_roster,
@@ -5329,7 +5570,7 @@ def compare_rendered_candidates(
 
 @mcp_tool(title="Get creative workflow guide", annotations=_READ_ONLY_TOOL)
 def creative_workflow_guide() -> dict[str, Any]:
-    """Return the current bounded workflow contract without loading the full constitution."""
+    """Return the workflow contract and its external optional-reference boundary."""
 
     return {
         "kind": _WORKFLOW_RESULT_KIND,
@@ -5430,11 +5671,31 @@ def creative_workflow_guide() -> dict[str, Any]:
                     "derivations or rendering so each local choice is argued as part "
                     "of one evolving work. It is not a fixed-form template."
                 ),
+                "long_span_guard": {
+                    "node_boundary_rule": (
+                        "a node marks a current-work function or consequence, not a "
+                        "quota for a new short melody, cadence, texture or restart"
+                    ),
+                    "continuity_question": (
+                        "what remains live or unresolved across each selected local "
+                        "phrase or node boundary beyond shared key, tempo, instrumentation "
+                        "or a newly added layer"
+                    ),
+                    "episodic_exception": (
+                        "mosaic, episodic, interrupted and deliberately discontinuous "
+                        "works remain valid when their whole-work identity is stated; "
+                        "an unbroken lead melody is never required"
+                    ),
+                },
                 "workflow": [
                     "inspect_workflow_composition without a map to obtain current claim ids",
                     "draft and inspect one current-work map against the immutable score",
                     "record_workflow_composition_map exactly once for the iteration",
                     "answer every phase question before that review counts",
+                    (
+                        "for decisive material, distinguish genuine relationship "
+                        "from whole-work necessity without invented causality"
+                    ),
                     "bind hinge derivations to charter claims, map nodes and answered questions",
                 ],
                 "map_template": {
@@ -5445,7 +5706,7 @@ def creative_workflow_guide() -> dict[str, Any]:
                             "node_id": "opening_state",
                             "label": "work-specific sequence node",
                             "function": "what this node establishes or transforms",
-                            "bar_range": {"start": 1, "end": 8},
+                            "bar_range": None,
                             "depends_on_claim_ids": [
                                 "claim id returned by inspect_workflow_composition"
                             ],
@@ -5458,6 +5719,23 @@ def creative_workflow_guide() -> dict[str, Any]:
                             "open_questions": [],
                         }
                     ],
+                },
+                "map_template_semantics": {
+                    "field_shape_only_not_a_composition_example": True,
+                    "single_placeholder_is_not_a_node_count_default": True,
+                    "null_bar_range_is_not_a_length_default": True,
+                    "no_default_work_section_phrase_or_node_length": True,
+                    "replace_placeholders_with_the_complete_current_work": True,
+                },
+                "bar_range_shape": {
+                    "nullable_before_a_score_location_is_known": True,
+                    "start": "integer_starting_at_one",
+                    "end": "integer_not_before_start",
+                    "semantics": "inclusive_score_bar_range",
+                    "instruction": (
+                        "use the actual current-score range once a node is located; "
+                        "the field shape supplies no default span"
+                    ),
                 },
                 "charter_amendment": {
                     "rule": (
@@ -5495,6 +5773,90 @@ def creative_workflow_guide() -> dict[str, Any]:
                 "render_report",
                 "audio_audition",
             ],
+            "multiscale_relationship_mirror": {
+                "location": (
+                    "the existing symbolic_structure material_relationship and "
+                    "whole_work_necessity question targets and their eventual answers"
+                ),
+                "score_source": (
+                    "get_authoring_snapshot at the exact workflow anchor revision"
+                ),
+                "scales": [
+                    "within a melody or phrase",
+                    "between adjacent or simultaneous melodies, parts or passages",
+                    "between distant nodes, returns or echoes",
+                    "between a detail or ornament and its whole-work context",
+                ],
+                "long_span_guard": (
+                    "inspect what remains live or unresolved across local boundaries, "
+                    "which short units force a restart, and what consequence crosses "
+                    "multiple boundaries through melody, harmony, rhythm, register, "
+                    "timbre, space or silence; an explicit mosaic or discontinuity is "
+                    "valid, and no minimum phrase length or unbroken lead is required"
+                ),
+                "claim_rule": (
+                    "a claimed relationship locates both ends with current node_ids "
+                    "and/or event_ids and describes the observed connection"
+                ),
+                "absence_rule": (
+                    "observing no relationship is a valid outcome at every scale; "
+                    "never invent lineage, and permit an unrelated detail only through "
+                    "an explicit whole-work necessity claim"
+                ),
+                "machine_boundary": (
+                    "software validates current references and locations only; it "
+                    "does not discover motifs, prove the relationship, score "
+                    "naturalness, or treat repetition, difference, distance, "
+                    "discontinuity or silence as a defect"
+                ),
+                "no_new_question_phase_schema_or_ledger": True,
+                "no_quantity_quota": True,
+            },
+            "machine_naturalness_triage": {
+                "scope": "machine_triage_only",
+                "pre_render_source": (
+                    "check_authoring_readiness.readiness.project_review."
+                    "diagnostics.performance_naturalness"
+                ),
+                "candidate_source": (
+                    "inspect_authoring_candidate.naturalness_inspection"
+                ),
+                "checks": [
+                    "explicit phrase coverage gaps, overlaps, or empty marks",
+                    (
+                        "residual randomness that changes note-connection relations "
+                        "where note-gate semantics are meaningful"
+                    ),
+                    (
+                        "approved onset evidence whose runtime configuration "
+                        "does not match the current executor"
+                    ),
+                    "long parts whose authored performance direction is sparse",
+                ],
+                "connection_counterfactual_boundary": (
+                    "one-shot kit voices are not applicable; incomplete bidirectional "
+                    "part/trace identity, non-finite timing, malformed or contradictory "
+                    "humanize residual evidence, or a residual event passing through "
+                    "boundary clipping or any non-empty realization makes the evidence "
+                    "partial_evidence; residual relation thresholds also retain an indeterminate "
+                    "band for rounded trace evidence"
+                ),
+                "evidence_coverage": (
+                    "partial evidence never permits a no_machine_candidate claim"
+                ),
+                "waveform_event_response": (
+                    "unavailable until event-isolated envelope evidence is recorded; "
+                    "global loudness, crest, LRA or spectrum never substitutes for it"
+                ),
+                "no_score": True,
+                "no_pass_fail": True,
+                "nonblocking": True,
+                "automatic_change": False,
+                "intentional_mechanics_allowed": True,
+                "absence_claim": (
+                    "no_machine_candidate is not proof of naturalness or aesthetic quality"
+                ),
+            },
             "render_prerequisites": [
                 "current composition map bound to the full score and effective charter",
                 "question-complete intent review",
@@ -5509,7 +5871,7 @@ def creative_workflow_guide() -> dict[str, Any]:
                     "are blocked only when the trusted boundary reproduces it again."
                 ),
                 "promise_conflict": (
-                    "A declared_promise or active_clause conflict; nonblocking until "
+                    "A conflict with this work's declared promise; nonblocking until "
                     "the frozen final authority decides."
                 ),
                 "aesthetic_risk": (
@@ -5533,7 +5895,6 @@ def creative_workflow_guide() -> dict[str, Any]:
                 ),
                 "premise_kinds": [
                     "declared_promise",
-                    "active_clause",
                     "established_material",
                     "render_measurement",
                 ],
@@ -5572,6 +5933,16 @@ def creative_workflow_guide() -> dict[str, Any]:
                     "structural reason; locating it is not a claim that it already "
                     "improves the music"
                 ),
+                "belonging_routes": {
+                    "relational": (
+                        "trace a genuine continuation, transformation, answer, or "
+                        "refusal of this work's established material"
+                    ),
+                    "whole_work_coordination": (
+                        "when no lineage exists, ask what the complete work would "
+                        "lose without the detail; never invent ancestry to keep it"
+                    ),
+                },
                 "possible_forms": [
                     "companion line",
                     "echo",
@@ -5597,6 +5968,12 @@ def creative_workflow_guide() -> dict[str, Any]:
                     "climax basis, ending response, or charter changes return to "
                     "the formal revision and amendment path"
                 ),
+                "honest_outcomes": [
+                    "keep through a genuine relationship",
+                    "keep as globally necessary without fabricated lineage",
+                    "leave provisional until whole-candidate audition",
+                    "transform, mute, delete, or preserve silence",
+                ],
                 "evidence_boundary": (
                     "without actual audition record only a trial or hypothesis; "
                     "do not claim an audible improvement"
@@ -5612,13 +5989,19 @@ def creative_workflow_guide() -> dict[str, Any]:
                     "governed phase reviews answer the exact current whole-work question set",
                     "no trusted hard_failure still reproduced at the readiness boundary",
                     "a selected review proving the agent's declared perception basis",
-                    "every current non-hard claim disposed as resolved, accepted_risk or excepted",
-                    "no promise_conflict disposed as accepted_risk",
+                    "every current workflow-authored non-hard claim disposed as resolved, accepted_risk or excepted",
+                    "no work-charter promise_conflict disposed as accepted_risk",
                     "every charter promise settled as kept, transformed or refused with selected basis",
                 ],
                 "claim_lifecycle": {
                     "review_ids_frozen_on_new_decisions": True,
-                    "nonhard_evidence_coverage": "exactly_once_per_current_iteration",
+                    "nonhard_evidence_coverage": (
+                        "exactly_once_for_current_workflow_authored_claims"
+                    ),
+                    "retired_external_clause_provenance": (
+                        "readable_in_frozen_history_but_not_selectable_in_a_"
+                        "new_decision_settlement_or_fork"
+                    ),
                     "evidence_dispositions": [
                         "resolved",
                         "accepted_risk",
@@ -5711,11 +6094,15 @@ def creative_workflow_guide() -> dict[str, Any]:
                 **_OFFICIAL_CONSTITUTION,
                 "optional": True,
                 "full_document_injected": False,
-                "activation_rule": (
-                    "Bind the exact document hash and activate only a small, work-relevant "
-                    "clause set; do not inject or activate the full document each iteration."
-                ),
-                "starter_clause_ids": [
+                "relationship": "external_optional_thought_resource",
+                "selection_after": "work_charter_is_frozen",
+                "lookup_tool": "get_music_constitution_clauses",
+                "persisted_in_workflow": False,
+                "generation_constraint": False,
+                "acceptance_gate": False,
+                "continuation_prerequisite": False,
+                "historical_clause_mapping": False,
+                "example_clause_ids": [
                     "C0.02",
                     "C0.04",
                     "C0.06",
@@ -5723,12 +6110,11 @@ def creative_workflow_guide() -> dict[str, Any]:
                     "C4.1.03",
                     "C4.1.15",
                 ],
-                "active_clause_shape": {
-                    "clause_id": "C0.04",
-                    "role": "review_lens",
-                    "rationale": "why this clause matters for this work",
-                    "interpretation": "bounded, work-specific interpretation",
-                },
+                "examples_are_not_defaults": True,
+                "note": (
+                    "Selected clauses may stimulate thought after the work has its own "
+                    "charter, but they never become workflow state or authority."
+                ),
             },
         },
         "next_action": {
@@ -5743,7 +6129,7 @@ def get_music_constitution_clauses(
     clause_ids: _ConstitutionClauseIdList,
     language: Literal["zh-CN", "en"] = "zh-CN",
 ) -> dict[str, Any]:
-    """Return at most twelve exact registered clauses after verifying the full document."""
+    """Return current clauses as a stateless optional reference after chartering."""
 
     operation = "get_music_constitution_clauses"
     try:
@@ -5767,10 +6153,16 @@ def get_music_constitution_clauses(
             "clauses": [registry[clause_id] for clause_id in clause_ids],
             "bounded": True,
             "full_document_injected": False,
-            "next_action": {
-                "operation": "activate_creative_workflow",
-                "reason": "interpret_only_the_selected_work_relevant_clauses",
+            "usage_boundary": {
+                "relationship": "external_optional_thought_resource",
+                "selection_after": "work_charter_is_frozen",
+                "persisted_in_workflow": False,
+                "generation_constraint": False,
+                "acceptance_gate": False,
+                "continuation_prerequisite": False,
+                "historical_clause_mapping": False,
             },
+            "next_action": None,
         }
     except _McpWorkflowBoundaryError as exc:
         return _workflow_failure(operation, exc)
@@ -5954,10 +6346,14 @@ def activate_creative_workflow(
     workflow_id: _AuthoringSelector,
     expected_revision: _AuthoringSelector,
     work_charter: dict,
-    constitution: dict | None = None,
-    active_clauses: list[dict] | None = None,
+    constitution: _DeprecatedWorkflowConstitution = None,
+    active_clauses: _DeprecatedWorkflowActiveClauses = None,
 ) -> dict[str, Any]:
-    """Freeze the work charter and optional small constitution clause set."""
+    """Freeze the work charter without binding an external constitution.
+
+    ``constitution`` and ``active_clauses`` remain in the wire contract for old
+    clients, but non-empty values are rejected before any workflow write.
+    """
 
     operation = "activate_creative_workflow"
     try:
@@ -5967,22 +6363,22 @@ def activate_creative_workflow(
             required=True,
         )
         assert checked_revision is not None
+        constitution_source = _validate_mcp_constitution_activation(
+            constitution,
+            active_clauses,
+        )
         root = _authoring_project_root(
             project_key,
             create_namespace=False,
             require_existing=True,
-        )
-        constitution_source = _validate_mcp_constitution_activation(
-            constitution,
-            active_clauses,
         )
         snapshot = activate_creative_workflow_state(
             root,
             workflow_id=checked_id,
             expected_revision=checked_revision,
             work_charter=work_charter,
-            constitution=constitution,
-            active_clauses=[] if active_clauses is None else active_clauses,
+            constitution=None,
+            active_clauses=[],
         )
         return _workflow_success(
             operation,
@@ -6461,13 +6857,18 @@ def record_workflow_evidence(
     scope: dict | None = None,
     artifact_sha256: _AuthoringSelector | None = None,
     artifact_role: Literal[
+        "performance_plan",
         "render_receipt",
         "post_render_check",
         "mix_report",
     ]
     | None = None,
 ) -> dict[str, Any]:
-    """Record bounded negative or advisory evidence without changing score/audio."""
+    """Record bounded negative or advisory evidence without changing score/audio.
+
+    ``active_clause`` remains an input enum value for wire compatibility, but
+    external clauses are provenance-only and are rejected for new evidence.
+    """
 
     operation = "record_workflow_evidence"
     try:
@@ -6591,7 +6992,11 @@ def register_workflow_exception(
     evidence_ids: _WorkflowReferenceList,
     reusable: StrictBool = False,
 ) -> dict[str, Any]:
-    """Register a bounded exception; hard failures are never eligible."""
+    """Register a bounded exception; hard failures are never eligible.
+
+    The legacy ``active_clause`` target remains schema-visible but is rejected
+    for new writes; exceptions now apply only to the work's own charter.
+    """
 
     operation = "register_workflow_exception"
     try:
@@ -6669,6 +7074,8 @@ def record_workflow_derivation(
     The four bar/beat fields form one end-exclusive score range and therefore
     must be supplied together or omitted together.  Part IDs only filter an
     event or range anchor; they are not a passage anchor by themselves.
+    Legacy ``active_clause`` premises and ``clause_ids`` remain schema-visible
+    but are rejected for new writes.
     """
 
     operation = "record_workflow_derivation"
@@ -6894,6 +7301,7 @@ def check_authoring_readiness(
         readiness = validate_authoring_project_readiness(
             state,
             project_root=root,
+            include_project_review=True,
         )
         return _authoring_success(
             operation,
@@ -7023,6 +7431,77 @@ def inspect_authoring_candidate(
             )
         project_binding = manifest["project"]
         authoring_binding = manifest["authoring_project"]
+        candidate_manifest_sha256 = _verified_candidate_manifest_sha256(
+            directory,
+            candidate_identity,
+            manifest,
+        )
+        performance_plan_binding = receipt.get("performance_plan")
+        if not isinstance(performance_plan_binding, dict):
+            raise _McpAuthoringBoundaryError(
+                "authoring_candidate.evidence_binding_invalid",
+                stage="candidate",
+            )
+        performance_plan = _read_bound_candidate_json(
+            directory,
+            candidate_identity,
+            {
+                "path": performance_plan_binding.get("path"),
+                "sha256": performance_plan_binding.get("file_sha256"),
+            },
+            label="performance_plan",
+        )
+        performance_plan_sha256 = canonical_json_sha256(performance_plan)
+        if (
+            performance_plan_sha256 != performance_plan_binding.get("sha256")
+            or performance_plan_sha256
+            != project_binding.get("performance_plan_sha256")
+        ):
+            raise _McpAuthoringBoundaryError(
+                "authoring_candidate.evidence_verification_failed",
+                stage="candidate",
+            )
+        score_document = state.documents["score"]
+        score_sha256 = canonical_json_sha256(score_document)
+        if score_sha256 != project_binding["score"]["canonical_sha256"]:
+            raise _McpAuthoringBoundaryError(
+                "authoring_candidate.evidence_verification_failed",
+                stage="candidate",
+            )
+        naturalness_binding = {
+            "candidate_manifest_sha256": candidate_manifest_sha256,
+            "score_sha256": score_sha256,
+            "performance_plan_sha256": performance_plan_sha256,
+            "performance_plan_file_sha256": performance_plan_binding[
+                "file_sha256"
+            ],
+            "render_receipt_sha256": manifest["render_receipt"]["sha256"],
+            "post_render_check_sha256": receipt["post_render_check"][
+                "sha256"
+            ],
+            "mix_report_sha256": (
+                receipt["mix_report"]["sha256"]
+                if isinstance(receipt.get("mix_report"), dict)
+                else None
+            ),
+        }
+        try:
+            naturalness_inspection = analyze_performance_naturalness(
+                parse_score_document(score_document),
+                performance_plan,
+                binding=naturalness_binding,
+                post_render_check=post_render_check,
+                mix_report=mix_report,
+            )
+        except Exception as exc:
+            naturalness_inspection = (
+                build_unavailable_performance_naturalness_report(
+                    binding=naturalness_binding,
+                    error_type=type(exc).__name__,
+                    post_render_check_available=True,
+                    mix_report_available=mix_report is not None,
+                )
+            )
         workflow_status = _verified_candidate_workflow_status(
             _authoring_project_root(
                 project_key,
@@ -7032,6 +7511,36 @@ def inspect_authoring_candidate(
             directory,
             manifest,
         )
+        workflow_status_document = workflow_status.get("workflow_status")
+        if (
+            isinstance(workflow_status_document, Mapping)
+            and workflow_status_document.get("candidate_manifest_sha256")
+            != candidate_manifest_sha256
+        ):
+            raise _McpAuthoringBoundaryError(
+                "authoring_candidate.evidence_verification_failed",
+                stage="candidate",
+            )
+        # The workflow status helper independently re-opens the candidate.
+        # Re-bind the result to the same manifest and directory snapshot before
+        # combining both evidence sets, so a path replacement cannot mix two
+        # candidates in one successful response.
+        final_manifest_sha256 = _verified_candidate_manifest_sha256(
+            directory,
+            candidate_identity,
+            manifest,
+        )
+        try:
+            if (
+                final_manifest_sha256 != candidate_manifest_sha256
+                or revalidate_plain_directory(candidate_identity) != directory
+            ):
+                raise OSError("candidate changed during inspection")
+        except OSError as exc:
+            raise _McpAuthoringBoundaryError(
+                "authoring_candidate.evidence_verification_failed",
+                stage="candidate",
+            ) from exc
         mix_binding = receipt.get("mix")
         if not isinstance(mix_binding, dict):
             raise _McpAuthoringBoundaryError(
@@ -7057,6 +7566,7 @@ def inspect_authoring_candidate(
                     ]["canonical_sha256"],
                 },
                 "bindings": {
+                    "candidate_manifest_sha256": candidate_manifest_sha256,
                     "score_sha256": project_binding["score"][
                         "canonical_sha256"
                     ],
@@ -7069,12 +7579,24 @@ def inspect_authoring_candidate(
                     "performance_plan_sha256": project_binding[
                         "performance_plan_sha256"
                     ],
+                    "performance_plan_file_sha256": performance_plan_binding[
+                        "file_sha256"
+                    ],
                     "render_receipt_sha256": manifest["render_receipt"][
                         "sha256"
                     ],
+                    "post_render_check_sha256": receipt["post_render_check"][
+                        "sha256"
+                    ],
+                    "mix_report_sha256": (
+                        receipt["mix_report"]["sha256"]
+                        if isinstance(receipt.get("mix_report"), dict)
+                        else None
+                    ),
                     "mix_sha256": mix_binding.get("sha256"),
                 },
             },
+            naturalness_inspection=naturalness_inspection,
             render_evidence={
                 "audio_format": receipt.get("audio_format"),
                 "master_gain_db": receipt.get("master_gain_db"),
@@ -8080,6 +8602,7 @@ def render(
     project_review = _safe_project_review(
         plan,
         roster_doc,
+        score=score_doc,
         binding=project_binding,
     )
     try:

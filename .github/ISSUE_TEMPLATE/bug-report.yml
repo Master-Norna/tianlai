@@ -8,7 +8,7 @@ body:
     id: version
     attributes:
       label: 天籁版本或提交
-      placeholder: 1.0.0 / abcdef1
+      placeholder: 1.1.0 / abcdef1
     validations:
       required: true
   - type: input

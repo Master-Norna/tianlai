@@ -1255,6 +1255,7 @@ def main(argv: list[str] | None = None) -> int:
             project_review = build_project_review_safely(
                 plan,
                 roster,
+                score=score,
                 binding=review_binding,
             )
             title = (
@@ -1851,6 +1852,7 @@ def main(argv: list[str] | None = None) -> int:
             project_review = build_project_review_safely(
                 plan,
                 roster,
+                score=score,
                 binding=review_binding,
             )
             directory = Path(args.output)

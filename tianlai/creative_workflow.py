@@ -2959,6 +2959,30 @@ def _validate_state_derivation_referents(
                     score_document=documents[authoring_revision],
                     phase=review["phase"],
                 )
+                recorded_question_ids = [
+                    answer["question_id"]
+                    for answer in review["question_answers"]
+                ]
+                current_question_ids = [
+                    question["question_id"] for question in context["questions"]
+                ]
+                if (
+                    review["phase"] == "symbolic_structure"
+                    and recorded_question_ids != current_question_ids
+                ):
+                    legacy_context = _governed_review_context(
+                        state,
+                        iteration=iteration,
+                        score_document=documents[authoring_revision],
+                        phase=review["phase"],
+                        legacy_symbolic_questions=True,
+                    )
+                    legacy_question_ids = [
+                        question["question_id"]
+                        for question in legacy_context["questions"]
+                    ]
+                    if recorded_question_ids == legacy_question_ids:
+                        context = legacy_context
                 normalized_answers, covered_claim_ids = (
                     _normalize_review_question_answers(
                         review["question_answers"],
@@ -3774,6 +3798,89 @@ def _validate_prior_revision_assessment(
         raise CreativeWorkflowError("revision_assessment_candidate_review_required")
 
 
+def _active_clause_provenance_reference_ids(
+    iteration: Mapping[str, Any],
+) -> set[str]:
+    """Return retired external-clause records that new writes may not adopt.
+
+    Durable state validation intentionally does not call this helper: historical
+    evidence, exceptions, derivations, forks, and decisions remain byte-for-byte
+    readable.  Current write entry points use it to keep that provenance from
+    becoming authority for a new decision or branch.
+    """
+
+    references = {
+        evidence["evidence_id"]
+        for evidence in iteration.get("evidence", [])
+        if isinstance(evidence.get("basis"), Mapping)
+        and evidence["basis"].get("kind") == "active_clause"
+    }
+    references.update(
+        exception["exception_id"]
+        for exception in iteration.get("exceptions", [])
+        if exception.get("target_type") == "active_clause"
+    )
+    references.update(
+        derivation["derivation_id"]
+        for derivation in iteration.get("derivations", [])
+        if derivation.get("clause_ids")
+        or any(
+            isinstance(premise, Mapping)
+            and premise.get("kind") == "active_clause"
+            for premise in derivation.get("premises", [])
+        )
+    )
+    return references
+
+
+def _reject_active_clause_provenance_decision_references(
+    decision: Mapping[str, Any],
+    *,
+    iteration: Mapping[str, Any],
+) -> None:
+    """Reject retired clause provenance only at a current decision write."""
+
+    provenance_ids = _active_clause_provenance_reference_ids(iteration)
+    if not provenance_ids:
+        return
+    referenced_ids: set[str] = set()
+    for field in ("evidence_ids", "exception_ids", "derivation_ids"):
+        values = decision.get(field, [])
+        if isinstance(values, list):
+            referenced_ids.update(item for item in values if isinstance(item, str))
+    for field in ("evidence_dispositions", "charter_settlement"):
+        values = decision.get(field, [])
+        if not isinstance(values, list):
+            continue
+        for item in values:
+            if not isinstance(item, Mapping):
+                continue
+            evidence_id = item.get("evidence_id")
+            if isinstance(evidence_id, str):
+                referenced_ids.add(evidence_id)
+            basis_ids = item.get("basis_ids", [])
+            if isinstance(basis_ids, list):
+                referenced_ids.update(
+                    basis_id for basis_id in basis_ids if isinstance(basis_id, str)
+                )
+    assessment = decision.get("prior_revision_assessment")
+    if isinstance(assessment, Mapping):
+        basis_ids = assessment.get("basis_ids", [])
+        if isinstance(basis_ids, list):
+            referenced_ids.update(
+                basis_id for basis_id in basis_ids if isinstance(basis_id, str)
+            )
+    contract = decision.get("revision_contract")
+    if isinstance(contract, Mapping):
+        target_ids = contract.get("revision_target_evidence_ids", [])
+        if isinstance(target_ids, list):
+            referenced_ids.update(
+                target_id for target_id in target_ids if isinstance(target_id, str)
+            )
+    if referenced_ids.intersection(provenance_ids):
+        raise CreativeWorkflowError("active_clause_provenance_only")
+
+
 def _validate_decision(value: object, *, iteration: dict[str, Any]) -> None:
     optional_keys = {
         "derivation_ids",
@@ -3999,12 +4106,21 @@ def _validate_decision(value: object, *, iteration: dict[str, Any]) -> None:
 
         for evidence_id in resolved_evidence_dependencies:
             visit_resolved_evidence(evidence_id)
-        expected_nonhard = {
+        all_nonhard = {
             evidence_id
             for evidence_id, evidence in evidence_by_id.items()
             if evidence["category"] != "hard_failure"
         }
-        if set(disposition_by_evidence) != expected_nonhard:
+        required_nonhard = {
+            evidence_id
+            for evidence_id in all_nonhard
+            if evidence_by_id[evidence_id]["basis"]["kind"] != "active_clause"
+        }
+        recorded_dispositions = set(disposition_by_evidence)
+        if (
+            not required_nonhard.issubset(recorded_dispositions)
+            or not recorded_dispositions.issubset(all_nonhard)
+        ):
             raise CreativeWorkflowError("evidence_disposition_incomplete")
         if value["disposition"] in {"revise", "recommend_revision"} and not any(
             disposition == "revision_target"
@@ -6626,19 +6742,17 @@ def activate_creative_workflow(
     constitution: Mapping[str, Any] | None = None,
     active_clauses: Sequence[Mapping[str, Any]] = (),
 ) -> CreativeWorkflowSnapshot:
+    if constitution is not None or active_clauses:
+        raise CreativeWorkflowError("constitution_binding_provenance_only")
     charter = _normalize_work_charter(work_charter)
-    constitution_binding = _normalize_constitution(constitution)
-    clauses = _normalize_active_clauses(active_clauses)
-    if (constitution_binding is None) != (not clauses):
-        raise CreativeWorkflowError("constitution_clause_binding_mismatch")
 
     def mutate(state: dict[str, Any], layout: _WorkflowLayout, _expected: str) -> None:
         _require_status(state, "charter_pending")
         if state["mode"] == "off":
             raise CreativeWorkflowError("workflow_disabled")
-        state["constitution"] = copy.deepcopy(constitution_binding)
+        state["constitution"] = None
         state["work_charter"] = copy.deepcopy(charter)
-        state["active_clauses"] = copy.deepcopy(clauses)
+        state["active_clauses"] = []
         governance = state.get("governance")
         if isinstance(governance, dict):
             governance["initial_charter_sha256"] = canonical_json_sha256(charter)
@@ -7790,12 +7904,12 @@ _PHASE_REVIEW_PROMPTS: dict[str, tuple[tuple[str, str], ...]] = {
     ),
     "symbolic_structure": (
         (
-            "material_causality",
-            "How does each decisive node grow from material already established by this work rather than introducing an unrelated replacement idea?",
+            "material_relationship",
+            "For each decisive node, what earlier material does it continue, transform, answer, or deliberately refuse? If no such lineage exists, say so instead of inventing one.",
         ),
         (
-            "whole_work_dependency",
-            "If one decisive node were removed or exchanged, where would the whole-work causal chain break, and which charter claim would lose support?",
+            "whole_work_necessity",
+            "For a decisive node with no direct material lineage, what would the complete work lose if it were removed, and is keeping, transforming, silencing, or deleting it the more honest whole-work choice?",
         ),
     ),
     "orchestration_performance": (
@@ -7810,16 +7924,36 @@ _PHASE_REVIEW_PROMPTS: dict[str, tuple[tuple[str, str], ...]] = {
     ),
 }
 
+# Reviews recorded before the current-work belonging split must remain
+# verifiable byte for byte.  These prompts are used only when a frozen review's
+# exact question IDs match the former symbolic question set; all new inspection
+# and review writes use ``_PHASE_REVIEW_PROMPTS`` above.
+_LEGACY_SYMBOLIC_REVIEW_PROMPTS_V1: tuple[tuple[str, str], ...] = (
+    (
+        "material_causality",
+        "How does each decisive node grow from material already established by this work rather than introducing an unrelated replacement idea?",
+    ),
+    (
+        "whole_work_dependency",
+        "If one decisive node were removed or exchanged, where would the whole-work causal chain break, and which charter claim would lose support?",
+    ),
+)
+
 
 def _phase_review_questions(
     inspection: Mapping[str, Any],
     *,
     phase: str,
     effective_charter_sha256: str,
+    legacy_symbolic_questions: bool = False,
 ) -> list[dict[str, Any]]:
     """Return deterministic whole-work questions for one reasoning phase."""
 
-    prompts = _PHASE_REVIEW_PROMPTS.get(phase, ())
+    prompts = (
+        _LEGACY_SYMBOLIC_REVIEW_PROMPTS_V1
+        if legacy_symbolic_questions and phase == "symbolic_structure"
+        else _PHASE_REVIEW_PROMPTS.get(phase, ())
+    )
     questions: list[dict[str, Any]] = []
     for question_kind, prompt in prompts:
         body = {
@@ -7860,6 +7994,7 @@ def _governed_review_context(
     iteration: Mapping[str, Any],
     score_document: Mapping[str, Any],
     phase: str,
+    legacy_symbolic_questions: bool = False,
 ) -> dict[str, Any]:
     number = iteration["iteration_number"]
     map_record = _composition_map_record(state, number)
@@ -7886,6 +8021,7 @@ def _governed_review_context(
         inspection,
         phase=phase,
         effective_charter_sha256=charter_sha256,
+        legacy_symbolic_questions=legacy_symbolic_questions,
     )
     return {
         "effective_charter": charter,
@@ -8189,6 +8325,8 @@ def record_workflow_evidence(
         raise CreativeWorkflowError("invalid_evidence_category")
     if category == "hard_failure":
         raise CreativeWorkflowError("hard_failure_requires_trusted_boundary")
+    if basis_kind == "active_clause":
+        raise CreativeWorkflowError("active_clause_provenance_only")
     if reporter in {"engine", "validator"}:
         raise CreativeWorkflowError("trusted_reporter_requires_internal_boundary")
     if not isinstance(code, str) or _CODE.fullmatch(code) is None:
@@ -8469,6 +8607,8 @@ def register_workflow_exception(
     evidence_ids: Sequence[str],
     reusable: bool = False,
 ) -> CreativeWorkflowSnapshot:
+    if target_type == "active_clause":
+        raise CreativeWorkflowError("active_clause_provenance_only")
     checked = {
         field: _bounded_text(value, field=f"exception.{field}", maximum_bytes=4096)
         for field, value in {
@@ -8663,6 +8803,8 @@ def record_workflow_derivation(
         raw = _json_detach(premise, field=f"derivation.premises[{index}]")
         if set(raw) != {"kind", "reference", "event_ids", "artifact_sha256", "artifact_role"}:
             raise CreativeWorkflowError("invalid_derivation_premise")
+        if raw["kind"] == "active_clause":
+            raise CreativeWorkflowError("active_clause_provenance_only")
         checked_premises.append(
             {
                 "kind": raw["kind"],
@@ -8700,6 +8842,8 @@ def record_workflow_derivation(
             }
         )
     checked_clause_ids = list(clause_ids)
+    if checked_clause_ids:
+        raise CreativeWorkflowError("active_clause_provenance_only")
     checked_sacrificed = _bounded_text_list(
         list(sacrificed_values),
         field="derivation.sacrificed_values",
@@ -8992,6 +9136,9 @@ def record_workflow_fork(
         derivation_ids_available = {
             item["derivation_id"] for item in iteration.get("derivations", [])
         }
+        active_clause_provenance_ids = _active_clause_provenance_reference_ids(
+            iteration
+        )
         for branch in checked_branches:
             candidate = branch["candidate"]
             locator = (
@@ -9003,6 +9150,10 @@ def record_workflow_fork(
                 raise CreativeWorkflowError("fork_branch_candidate_not_recorded")
             if not set(branch["derivation_ids"]).issubset(derivation_ids_available):
                 raise CreativeWorkflowError("fork_derivation_not_found")
+            if set(branch["derivation_ids"]).intersection(
+                active_clause_provenance_ids
+            ):
+                raise CreativeWorkflowError("active_clause_provenance_only")
         timestamp = _transition_timestamp(state, iteration["opened_at_utc"])
         body = {
             "anchor": {
@@ -9652,6 +9803,10 @@ def decide_workflow_iteration(
             evidence_dispositions=evidence_dispositions,
             charter_settlement=charter_settlement,
             prior_revision_assessment=prior_revision_assessment,
+        )
+        _reject_active_clause_provenance_decision_references(
+            decision,
+            iteration=iteration,
         )
         if disposition == "revise":
             decision["revision_contract"] = _build_revision_contract(
@@ -10518,6 +10673,7 @@ def rollback_workflow(
             item["evidence_id"]
             for item in current["evidence"]
             if item["category"] != "hard_failure"
+            and item["basis"]["kind"] != "active_clause"
         ]
         decision = _decision_record(
             disposition="rollback",
@@ -10542,6 +10698,10 @@ def rollback_workflow(
                 for evidence_id in nonhard_evidence_ids
             ],
             prior_revision_assessment=prior_revision_assessment,
+        )
+        _reject_active_clause_provenance_decision_references(
+            decision,
+            iteration=current,
         )
         _validate_decision(decision, iteration=current)
         if state["status"] == "candidate_pending":

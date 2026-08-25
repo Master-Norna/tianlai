@@ -74,26 +74,6 @@ def _score_metadata_revision_scope() -> dict[str, object]:
     }
 
 
-def _constitution() -> dict[str, object]:
-    return {
-        "document_id": "tianlai-music-constitution",
-        "version": "0.2",
-        "language": "zh-CN",
-        "content_sha256": "0" * 64,
-    }
-
-
-def _active_clauses() -> list[dict[str, object]]:
-    return [
-        {
-            "clause_id": "C0.04",
-            "role": "review_lens",
-            "rationale": "The ear keeps final authority in this trial.",
-            "interpretation": "Metrics argue; listening decides.",
-        }
-    ]
-
-
 def _error_code(call) -> str:
     with unittest.TestCase().assertRaises(CreativeWorkflowError) as captured:
         call()
@@ -299,8 +279,6 @@ class WorkflowDerivationTests(unittest.TestCase):
             workflow_id=created.workflow_id,
             expected_revision=created.revision,
             work_charter=_charter(),
-            constitution=_constitution(),
-            active_clauses=_active_clauses(),
         )
 
     def record(self, snapshot, **overrides):
@@ -401,9 +379,7 @@ class WorkflowDerivationTests(unittest.TestCase):
             premises=[
                 _material_premise(),
                 _promise_premise(),
-                _clause_premise(),
             ],
-            clause_ids=["C0.04"],
             sacrificed_values=["surface brightness"],
         )
         derivations = result.state["iterations"][-1]["derivations"]
@@ -419,7 +395,7 @@ class WorkflowDerivationTests(unittest.TestCase):
         self.assertIsNone(anchor["candidate_id"])
         self.assertEqual(
             [premise["kind"] for premise in record["premises"]],
-            ["established_material", "declared_promise", "active_clause"],
+            ["established_material", "declared_promise"],
         )
         self.assertEqual(len(record["excluded_alternatives"]), 1)
         self.assertEqual(
@@ -619,11 +595,11 @@ class WorkflowDerivationTests(unittest.TestCase):
             "derivation_premise_required",
         )
 
-    def test_rejects_inactive_clause_reference(self) -> None:
+    def test_rejects_new_clause_reference_as_provenance_only(self) -> None:
         active = self.activate()
         self.assertEqual(
             _error_code(lambda: self.record(active, clause_ids=["C0.10"])),
-            "derivation_clause_not_active",
+            "active_clause_provenance_only",
         )
 
     def test_rejects_invalid_promise_reference(self) -> None:
@@ -637,7 +613,7 @@ class WorkflowDerivationTests(unittest.TestCase):
             "derivation_promise_reference_invalid",
         )
 
-    def test_rejects_inactive_clause_premise(self) -> None:
+    def test_rejects_new_clause_premise_as_provenance_only(self) -> None:
         active = self.activate()
         self.assertEqual(
             _error_code(
@@ -645,7 +621,7 @@ class WorkflowDerivationTests(unittest.TestCase):
                     active, premises=[_clause_premise("C0.10")]
                 )
             ),
-            "derivation_clause_not_active",
+            "active_clause_provenance_only",
         )
 
     def test_rejects_measurement_premise_without_candidate(self) -> None:

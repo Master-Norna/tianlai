@@ -40,6 +40,7 @@ from .roster import parse_roster_document
 from .runtime_layout import discover_runtime_layout
 from .score import ScoreDocument, parse_score_document
 from .score_time import validate_score_time_coordinates
+from .self_check import build_review_report
 
 
 SNAPSHOT_KIND = "tianlai.authoring_project_snapshot"
@@ -141,10 +142,14 @@ def validate_project_readiness(
     *,
     project_root: str | os.PathLike[str],
     render_output_root: str | os.PathLike[str] | None = None,
+    include_project_review: bool = False,
 ) -> dict[str, Any]:
-    """Validate one immutable revision and return only bounded safe issues."""
+    """Validate one revision; optionally expose its bounded read-only review."""
 
+    if not isinstance(include_project_review, bool):
+        raise TypeError("include_project_review must be boolean")
     issues: list[dict[str, Any]] = []
+    project_review: dict[str, Any] | None = None
     documents = validate_authoring_project_state(state)
     score = parse_score_document(documents["score"])
     validate_score_time_coordinates(score)
@@ -213,9 +218,11 @@ def validate_project_readiness(
                 collaboration_mode=profile.collaboration_mode,
                 stem_cache_enabled=profile.use_stem_cache,
             )
-            review = build_project_review_safely(
+            project_review = build_project_review_safely(
                 plan,
                 formal_roster,
+                score=score,
+                include_performance_naturalness=include_project_review,
                 binding={
                     "score_sha256": state.document_revisions["score"],
                     "roster_sha256": canonical_json_sha256(formal_document),
@@ -225,8 +232,16 @@ def validate_project_readiness(
                 },
                 max_items=64,
             )
-            for item in review.get("items", []):
+            for item in project_review.get("items", []):
                 if not isinstance(item, dict):
+                    continue
+                if (
+                    not include_project_review
+                    and item.get("stage") == "performance_naturalness"
+                ):
+                    # Preserve the durable v1 snapshot/readiness bytes.  The
+                    # MCP readiness endpoint opts into the new diagnostic and
+                    # receives these review-only projections by default.
                     continue
                 level = item.get("level")
                 if level not in {"warning", "info"}:
@@ -293,7 +308,7 @@ def validate_project_readiness(
     )
     review_required = any(item["decision"] == "review" for item in bounded)
     status = "blocked" if blocked else "review" if review_required else "ready"
-    return {
+    result = {
         "status": status,
         "render_allowed": not blocked,
         "summary": {
@@ -306,6 +321,24 @@ def validate_project_readiness(
         "issues": bounded,
         "issues_truncated": truncated,
     }
+    if include_project_review:
+        if project_review is None:
+            project_review = build_review_report(
+                [],
+                binding={
+                    "score_sha256": state.document_revisions["score"],
+                },
+            )
+            project_review["diagnostics"] = {
+                "performance_naturalness": {
+                    "format": "tianlai.performance_naturalness",
+                    "version": 1,
+                    "scope": "machine_triage_only",
+                    "status": "not_run",
+                }
+            }
+        result["project_review"] = project_review
+    return result
 
 
 def _probe_plain_directory_writable(directory: Path) -> bool:

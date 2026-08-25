@@ -45,7 +45,7 @@ directly exercises import, explicit instrumentation, first sound, location,
 patching, second render, and comparison without downloading several gigabytes
 of sound sources first.
 
-> Current release: `1.0.0`
+> Current release: `1.1.0`
 >
 > **Distribution boundary:** the formal product is the lightweight source ZIP
 > published by the project. If PyPI sdists or wheels are published later,
@@ -57,7 +57,7 @@ of sound sources first.
 
 | Environment | Shortest entry point | Current boundary |
 | --- | --- | --- |
-| Windows 10/11 x64 | [Windows in three steps](#windows-in-three-steps) | Complete reference platform for `1.0.0` |
+| Windows 10/11 x64 | [Windows in three steps](#windows-in-three-steps) | Complete reference platform for `1.1.0` |
 | Linux / WSL x86_64 | [Linux / WSL quick start](docs/Linux快速开始.en.md) | Bash, programmatic instruments, and MCP are available; the success path and real-sample coverage are validated in separate layers |
 | macOS Apple Silicon / Intel | [macOS quick start](docs/macOS快速开始.en.md) | Native 64-bit CPython 3.11–3.14; clean-source-ZIP portable CI is included, while real samples are accepted separately |
 
@@ -92,7 +92,7 @@ and every installation must pass complete integrity verification. See the
 ## Windows in three steps
 
 Windows 10/11 x64 with 64-bit CPython 3.11–3.14 is the reference environment
-for `1.0.0`. Run the following `cmd` blocks from Command Prompt (`cmd.exe`)
+for `1.1.0`. Run the following `cmd` blocks from Command Prompt (`cmd.exe`)
 in the source-release root. The multiline continuation character is `^`.
 
 1. Create the project's own virtual environment and skip the automatic smoke
@@ -142,7 +142,7 @@ before using your own score.
 
 ## Recommended creative loop
 
-For `1.0.0`, use this main workflow instead of invoking older import and
+For `1.1.0`, use this main workflow instead of invoking older import and
 ensemble commands separately and assembling their artifacts by hand:
 
 | Stage | CLI | Result |
@@ -274,9 +274,10 @@ a lossless inverse of the score.
 The MCP server currently exposes 50 tools. Existing diagnosis, import, roster,
 score editing, preflight, location, comparison, and rendering remain compatible.
 The path-isolated persistent authoring projects and optional creative workflow
-introduced in v0.7 provide charters, small constitution clause sets, phased
-review, trusted hard failures, exceptions, managed rendering, revision,
-rollback, and history audit. `1.0.0` adds
+introduced in v0.7 provide work charters, phased review, trusted hard failures,
+exceptions, managed rendering, revision, rollback, and history audit. MCP also
+offers a separate stateless external-constitution lookup that may be consulted
+after the charter is formed. `1.0.0` adds
 Claim Lifecycle v1—content-ID recomputation, score-referent verification,
 per-claim decision dispositions, and frozen terminal open claims—passage-level
 necessity derivations, charter settlement (acceptance must settle every charter
@@ -300,6 +301,19 @@ material alternatives are closed, the workflow should stop rather than iterate
 for iteration's sake. `budget_exhausted` is valid only when a positive frozen
 budget, the fork cap, or the history ceiling is actually reached; other
 termination reasons remain final-authority declarations, not machine proofs.
+
+The work charter comes first and, together with the work's own material, remains
+the root of the workflow. An external music constitution is only a stateless,
+optional source of ideas that may be consulted afterward. Without it, the
+composition map, question-complete reviews, derivations, evidence, acceptance,
+and continuation remain fully available. Clauses bind none of generation,
+review, acceptance, or continuation. Any existing binding in an older workflow
+preserves only immutable provenance about what was referenced then; it is neither
+admitted into current judgment nor allowed to block continued work. v0.1 is
+retired, so its text is not looked up or mapped to v0.2.
+Legacy clients should remove `constitution` / `active_clauses` from activation,
+or pass `null` and `null`/an empty array respectively; consult the stateless
+current-v0.2 getter separately after forming the charter when useful.
 
 > Upgrade compatibility note: Opening a `0.9.x` authoring project read-only
 > under `1.0.0` does not rewrite it; opening it or saving identical documents
@@ -339,7 +353,12 @@ bindings only—they neither replace human listening nor prove that the music
 sounds good. The optional loop may still record a sparse fork once several
 complete candidates genuinely exist, and acceptance supplies
 `charter_settlement` covering every affirmative charter promise. With no real
-branch or new information, it adds neither step.
+branch or new information, it adds neither step. Position review keeps two paths
+open: material that grows from existing material and relationships should trace
+those consequences honestly; material with no such lineage may still be accepted
+when it is globally necessary to the complete work. Never invent causality merely
+to preserve a detail. If neither path holds, silence, muting, or deletion is also
+a complete outcome.
 
 `render`, `render_authoring_revision`, and `render_workflow_candidate` write
 audio. Other write tools publish immutable state/document revisions only inside

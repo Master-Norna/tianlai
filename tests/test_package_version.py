@@ -15,7 +15,7 @@ class PackageVersionTests(unittest.TestCase):
         )
 
         self.assertEqual(tianlai.__version__, metadata["project"]["version"])
-        self.assertEqual(tianlai.__version__, "1.0.0")
+        self.assertEqual(tianlai.__version__, "1.1.0")
 
 
 if __name__ == "__main__":

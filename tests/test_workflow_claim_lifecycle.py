@@ -277,6 +277,24 @@ def _append_forged_child_and_repoint(layout, parent, state: dict[str, object]) -
     return revision
 
 
+def _replace_equivalent_current(layout, state: dict[str, object]) -> str:
+    """Publish one hash-consistent sibling at the current history position."""
+
+    revision, _directory = _forge_revision_directory(layout, state)
+    workflow_module._replace_manifest(
+        layout,
+        workflow_module._manifest_document(
+            workflow_id=state["workflow_id"],
+            project_id=state["project_id"],
+            created_at_utc=state["created_at_utc"],
+            updated_at_utc=state["updated_at_utc"],
+            revision=revision,
+            sequence=state["sequence"],
+        ),
+    )
+    return revision
+
+
 def _close_forged_accept(
     state: dict[str, object],
     *,
@@ -695,6 +713,182 @@ class WorkflowClaimLifecycleTests(unittest.TestCase):
             ),
             "evidence_disposition_incomplete",
         )
+
+    def test_historical_clause_evidence_validates_only_as_frozen_provenance(
+        self,
+    ) -> None:
+        evidence = self.evidence(self.review(self.activate()))
+        iteration = evidence.detached_state()["iterations"][-1]
+        historical = iteration["evidence"][0]
+        historical["basis"]["kind"] = "active_clause"
+        historical["basis"]["reference"] = "C0.04"
+        evidence_id = historical["evidence_id"]
+        review_id = iteration["reviews"][0]["review_id"]
+
+        omitted = _decision(
+            iteration=iteration,
+            disposition="preserve",
+            evidence_ids=[],
+            evidence_dispositions=[],
+            review_ids=[review_id],
+        )
+        workflow_module._validate_decision(omitted, iteration=iteration)
+
+        retained = _decision(
+            iteration=iteration,
+            disposition="preserve",
+            evidence_ids=[evidence_id],
+            evidence_dispositions=[
+                {
+                    "evidence_id": evidence_id,
+                    "disposition": "resolved",
+                    "rationale": (
+                        "This was a structurally valid historical disposition."
+                    ),
+                    "basis_ids": [review_id],
+                }
+            ],
+            review_ids=[review_id],
+        )
+        workflow_module._validate_decision(retained, iteration=iteration)
+        self.assertEqual(
+            _error_code(
+                lambda: workflow_module._reject_active_clause_provenance_decision_references(
+                    retained,
+                    iteration=iteration,
+                )
+            ),
+            "active_clause_provenance_only",
+        )
+
+    def test_decision_api_cannot_re_adopt_frozen_clause_evidence(self) -> None:
+        recorded = self.evidence(self.review(self.activate()))
+        state = recorded.detached_state()
+        state["constitution"] = {
+            "document_id": "tianlai-music-constitution",
+            "version": "0.1",
+            "language": "zh-CN",
+            "content_sha256": "0" * 64,
+        }
+        state["active_clauses"] = [
+            {
+                "clause_id": "C0.03",
+                "role": "review_lens",
+                "rationale": "Preserve the old source without reviving it.",
+                "interpretation": "The work charter now carries the judgment.",
+            }
+        ]
+        iteration = state["iterations"][-1]
+        historical = iteration["evidence"][0]
+        historical["basis"]["kind"] = "active_clause"
+        historical["basis"]["reference"] = "C0.03"
+        body = {
+            key: value for key, value in historical.items() if key != "evidence_id"
+        }
+        historical["evidence_id"] = _content_id(
+            "evidence-", state=state, iteration=iteration, body=body
+        )
+        layout = workflow_module._existing_layout(
+            self.root, recorded.workflow_id
+        )
+        legacy_revision = _replace_equivalent_current(layout, state)
+        legacy = workflow_module.open_creative_workflow(
+            self.root,
+            workflow_id=recorded.workflow_id,
+            revision=legacy_revision,
+        )
+        review_id = iteration["reviews"][0]["review_id"]
+        evidence_id = historical["evidence_id"]
+
+        self.assertEqual(
+            _error_code(
+                lambda: decide_workflow_iteration(
+                    self.root,
+                    workflow_id=legacy.workflow_id,
+                    expected_revision=legacy.revision,
+                    disposition="preserve",
+                    summary="Do not revive a retired external clause.",
+                    rationale="Current judgment must cite the work itself.",
+                    final_authority="agent",
+                    perception_basis="report_only",
+                    evidence_ids=[evidence_id],
+                    evidence_dispositions=[
+                        {
+                            "evidence_id": evidence_id,
+                            "disposition": "resolved",
+                            "rationale": "This disposition belongs only to history.",
+                            "basis_ids": [review_id],
+                        }
+                    ],
+                    review_ids=[review_id],
+                )
+            ),
+            "active_clause_provenance_only",
+        )
+        unchanged = workflow_module.open_creative_workflow(
+            self.root, workflow_id=legacy.workflow_id
+        )
+        self.assertEqual(unchanged.revision, legacy.revision)
+
+    def test_new_decision_gate_rejects_every_retired_clause_record_kind_and_path(
+        self,
+    ) -> None:
+        iteration = {
+            "evidence": [
+                {
+                    "evidence_id": "evidence-" + "1" * 20,
+                    "basis": {"kind": "active_clause"},
+                }
+            ],
+            "exceptions": [
+                {
+                    "exception_id": "exception-" + "2" * 20,
+                    "target_type": "active_clause",
+                }
+            ],
+            "derivations": [
+                {
+                    "derivation_id": "derivation-" + "3" * 20,
+                    "premises": [{"kind": "active_clause"}],
+                    "clause_ids": ["C0.03"],
+                }
+            ],
+        }
+        evidence_id = iteration["evidence"][0]["evidence_id"]
+        exception_id = iteration["exceptions"][0]["exception_id"]
+        derivation_id = iteration["derivations"][0]["derivation_id"]
+        decisions = (
+            {"evidence_ids": [evidence_id]},
+            {"exception_ids": [exception_id]},
+            {"derivation_ids": [derivation_id]},
+            {
+                "evidence_dispositions": [
+                    {"evidence_id": "ordinary", "basis_ids": [exception_id]}
+                ]
+            },
+            {
+                "charter_settlement": [
+                    {"basis_ids": [derivation_id]}
+                ]
+            },
+            {"prior_revision_assessment": {"basis_ids": [evidence_id]}},
+            {
+                "revision_contract": {
+                    "revision_target_evidence_ids": [evidence_id]
+                }
+            },
+        )
+        for decision in decisions:
+            with self.subTest(decision=decision):
+                self.assertEqual(
+                    _error_code(
+                        lambda decision=decision: workflow_module._reject_active_clause_provenance_decision_references(
+                            decision,
+                            iteration=iteration,
+                        )
+                    ),
+                    "active_clause_provenance_only",
+                )
 
     def test_accept_rejects_every_nonterminal_evidence_disposition(self) -> None:
         first = self.evidence(self.activate())

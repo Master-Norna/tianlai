@@ -189,6 +189,10 @@ class RosterProblemsTest(unittest.TestCase):
 
     def test_published_format_example_uses_real_trusted_paths(self):
         example = self.m.score_and_roster_format()
+        self.assertFalse(example["example_scope"]["composition_template"])
+        self.assertFalse(example["example_scope"]["duration_default"])
+        self.assertFalse(example["example_scope"]["phrase_length_default"])
+        self.assertIn("不是作品范例", example["example_scope"]["purpose"])
         self.assertEqual(
             self.m._roster_instrument_problems(
                 example["example_roster"],

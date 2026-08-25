@@ -191,6 +191,29 @@ def _record_review(root: Path, snapshot, phase: str):
     )
 
 
+def _publish_equivalent_workflow_state(root: Path, snapshot, state):
+    """Seal a historical workflow shape without a production write bypass."""
+
+    layout = creative_workflow_module._existing_layout(
+        root, snapshot.workflow_id
+    )
+    revision = creative_workflow_module._publish_revision(layout, state)
+    creative_workflow_module._replace_manifest(
+        layout,
+        creative_workflow_module._manifest_document(
+            workflow_id=state["workflow_id"],
+            project_id=state["project_id"],
+            created_at_utc=state["created_at_utc"],
+            updated_at_utc=state["updated_at_utc"],
+            revision=revision,
+            sequence=state["sequence"],
+        ),
+    )
+    return creative_workflow_module.open_creative_workflow(
+        root, workflow_id=snapshot.workflow_id, revision=revision
+    )
+
+
 def _reserve_real_workflow(root: Path, state):
     snapshot = create_creative_workflow(
         root,
@@ -949,6 +972,56 @@ def test_candidate_pending_rollback_cancels_reservation_and_keeps_history(
     )
     snapshot = _record_review(root, snapshot, "symbolic_structure")
     snapshot = _record_review(root, snapshot, "orchestration_performance")
+    recorded = record_workflow_evidence(
+        root,
+        workflow_id=snapshot.workflow_id,
+        expected_revision=snapshot.revision,
+        category="promise_conflict",
+        code="promise.retired_clause_source",
+        basis_kind="declared_promise",
+        basis_reference="one_sentence_promise",
+        reporter="agent",
+        perception_basis="report_only",
+        summary="Forge one retired source record for rollback compatibility.",
+        observation="The old record remains readable in this iteration.",
+        interpretation="Rollback must not adopt it as a current claim.",
+        confidence="high",
+    )
+    legacy_state = recorded.detached_state()
+    legacy_state["constitution"] = {
+        "document_id": "tianlai-music-constitution",
+        "version": "0.1",
+        "language": "zh-CN",
+        "content_sha256": "0" * 64,
+    }
+    legacy_state["active_clauses"] = [
+        {
+            "clause_id": "C0.03",
+            "role": "review_lens",
+            "rationale": "Keep the retired source only as history.",
+            "interpretation": "Current rollback cites the work, not this clause.",
+        }
+    ]
+    legacy_iteration = legacy_state["iterations"][-1]
+    historical_evidence = legacy_iteration["evidence"][-1]
+    historical_evidence["basis"]["kind"] = "active_clause"
+    historical_evidence["basis"]["reference"] = "C0.03"
+    evidence_body = {
+        key: value
+        for key, value in historical_evidence.items()
+        if key != "evidence_id"
+    }
+    historical_evidence["evidence_id"] = (
+        creative_workflow_module._evidence_identity(
+            workflow_id=legacy_state["workflow_id"],
+            iteration_number=legacy_iteration["iteration_number"],
+            body=evidence_body,
+        )
+    )
+    snapshot = _publish_equivalent_workflow_state(
+        root, recorded, legacy_state
+    )
+    historical_evidence_id = historical_evidence["evidence_id"]
     pending = request_workflow_render(
         root,
         workflow_id=snapshot.workflow_id,
@@ -984,6 +1057,11 @@ def test_candidate_pending_rollback_cancels_reservation_and_keeps_history(
     workflow_state = rolled_back.detached_state()
     abandoned = workflow_state["iterations"][1]
     attempt = abandoned["render_attempts"][0]
+    assert [item["evidence_id"] for item in abandoned["evidence"]] == [
+        historical_evidence_id
+    ]
+    assert abandoned["decision"]["evidence_ids"] == []
+    assert abandoned["decision"]["evidence_dispositions"] == []
     assert abandoned["outcome"] == "rolled_back"
     assert attempt["status"] == "cancelled"
     assert attempt["reservation_revision"] == authorization[

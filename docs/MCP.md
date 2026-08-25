@@ -2,7 +2,7 @@
 
 # 天籁 MCP 接口
 
-本文描述天籁 `1.0.0` 的 stdio MCP。它把可编辑、可复算的音乐工程交给 AI Agent。
+本文描述天籁 `1.1.0` 的 stdio MCP。它把可编辑、可复算的音乐工程交给 AI Agent。
 Agent 拿到的不是一个
 不可解释的“一句话转音频”按钮，而是一组细粒度工具：读取合同、
 选择乐器、导入谱面、明确配器、预检、渲染不可变候选、按秒定位、局部修改，再
@@ -130,17 +130,17 @@ v0.7 的持久创作工程使用更窄的独立边界。客户端只传小写 AS
 | `open_authoring_project` | 否 | 读取当前或指定不可变修订的轻量身份与文档 Hash。 |
 | `get_authoring_snapshot` | 否 | 读取指定修订的三文档快照和有界 readiness；不返回路径。 |
 | `save_authoring_project` | **是** | 用 `expected_revision` 做 CAS 保存；冲突不覆盖，旧修订不变。 |
-| `check_authoring_readiness` | 否 | 检查指定修订的硬合同和建议性证据；`review` 不会被升级为阻断。 |
+| `check_authoring_readiness` | 否 | 检查指定修订的硬合同和建议性证据；`review` 不会被升级为阻断，并在 `project_review.diagnostics.performance_naturalness` 返回非阻断的演奏自然性机器预审。 |
 | `render_authoring_revision` | **是** | 只渲染调用方明确给出的不可变修订，不跟随可能变化的当前指针。 |
-| `inspect_authoring_candidate` | 否 | 按工程和候选 ID 验证身份链，返回 workflow 管理状态、脱敏回执、自检及可选协作证据。 |
+| `inspect_authoring_candidate` | 否 | 按工程和候选 ID 验证身份链，返回 workflow 管理状态、脱敏回执、自检、可选协作证据，以及绑定该候选 score 与演奏计划 Hash 的自然性机器预审。 |
 | `locate_authoring_candidate` | 否 | 按工程和候选 ID 将渲染秒数映射回事件，不接受或返回路径。 |
 | `compare_authoring_candidates` | 否 | 在同一工程内比较两个已验证候选的谱面、配置、计划与混音身份。 |
-| `creative_workflow_guide` | 否 | 返回模式、诚信边界、work charter 模板、既有复核阶段、证据和决策合同，以及 `orchestration_performance` 内不新增 phase 的轻量成境 / Qiyun 位置指引；不注入宪法全文。 |
-| `get_music_constitution_clauses` | 否 | 校验本地官方宪法完整 Hash 后，按 ID 返回至多 12 条中英文条文；未知 ID 拒绝。 |
+| `creative_workflow_guide` | 否 | 返回模式、诚信边界、work charter 模板、既有复核阶段、证据和决策合同，以及 `symbolic_structure` 内的多尺度关系镜子与 `orchestration_performance` 内的轻量成境 / Qiyun 指引；两者都不新增 phase 或固定问题。当前 v0.2 只作为立宪后可选的外部参考，不注入宪法全文。 |
+| `get_music_constitution_clauses` | 否 | 无状态校验并查询当前 v0.2：按 ID 返回至多 12 条中英文条文；未知 ID 拒绝，不改变 workflow。 |
 | `create_creative_workflow` | **是** | 创建 `off`、`audit` 或 `iterate` 工作流；`composition_governance` 默认 `true`、可显式关闭；此 stdio 边界把终审身份真实冻结为 `agent`。 |
 | `open_creative_workflow` | 否 | 验证并打开当前或指定不可变 workflow 修订，不做隐式全历史遍历。 |
 | `verify_creative_workflow_history` | 否 | 显式、有界地验证从当前指针回到创世修订的完整父链。 |
-| `activate_creative_workflow` | **是** | 冻结单曲 work charter，以及可选的、少量激活的官方或自定义宪法条款。 |
+| `activate_creative_workflow` | **是** | 只冻结先行的单曲 work charter；兼容保留的入参已弃用：`constitution` 只接受 `null`，`active_clauses` 只接受 `null` 或空数组，其他值会在写盘前拒绝。 |
 | `inspect_workflow_composition` | 否 | 返回当前有效宪章的主张索引；可校验草拟的作品展开图并生成只读全曲事实、依赖缺口与问题，不评分或改谱。 |
 | `record_workflow_composition_map` | **是** | 在本轮其他工作之前冻结唯一一份、只描述当前作品的展开图，并绑定本轮完整 score 与有效宪章。 |
 | `preflight_workflow_charter_amendment` | 否 | 在复核期，或 revise 后但尚未改谱时，只读计算拟修宪的精确影响与重构成本，不激活修改。 |
@@ -158,6 +158,14 @@ v0.7 的持久创作工程使用更窄的独立边界。客户端只传小写 AS
 | `rollback_creative_workflow` | **是** | 选择较早的不可变候选锚点；可同时以 `prior_revision_assessment=retain_baseline/inconclusive` 结清挑战者，不覆盖工程修订，也不删除后来候选。 |
 | `cancel_workflow_render` | **是** | 取消唯一当前预留，不删除任何已经发布的候选。 |
 | `stop_creative_workflow` | **是** | 按冻结的 agent 权限停止流程；不会伪造创作者批准。 |
+
+旧客户端的迁移动作是删除 `constitution` / `active_clauses`，或分别传 `null` 与
+`null`/空数组；需要思想参考时，在作品宪章形成后单独调用当前 v0.2 条文查询。
+违反前一合同的 MCP 稳定错误码为
+`creative_workflow.constitution_binding_provenance_only`；新写入若再采用条款型证据、
+例外、推导或非空 `clause_ids`，错误码为
+`creative_workflow.active_clause_provenance_only`。字段仍留在 wire Schema 且标为弃用，
+只为旧客户端和历史形状兼容，不代表继续允许写入。
 
 表中的“否”表示不写音频或项目文件；导入和候选检查工具仍会读取已授权的本机
 文件。`diagnose_runtime` 和 `check_project_readiness` 严格被动：不加载外部原生库，
@@ -251,25 +259,37 @@ compare_authoring_candidates → 创作者听取 A/B
 
 ```text
 creative_workflow_guide
-    → 可选 get_music_constitution_clauses（至多 12 条）
+    → 先从本曲材料与目标草拟 work_charter
     ↓
 create_creative_workflow(mode=off|audit|iterate, composition_governance=true)
     ↓
-activate_creative_workflow(work_charter, 可选 constitution + active_clauses)
+activate_creative_workflow(work_charter)
+    → 可选 get_music_constitution_clauses（当前 v0.2，至多 12 条，无状态）
     ↓
 inspect_workflow_composition（取得有效宪章 claim IDs）
     → 草拟当前作品的展开图
     → inspect_workflow_composition（只读全曲镜子）
     → record_workflow_composition_map（本轮其他工作之前）
     ↓
-record_workflow_review(intent → symbolic_structure → orchestration_performance；
-                       逐题回答本轮完整问题集，配器复核内含轻量成境位置审视)
+record_workflow_review(intent；逐题回答本轮完整问题集)
+    ↓
+inspect_workflow_composition（读取 exact workflow revision 的当前问题目标 / map / IDs）
+    + get_authoring_snapshot（读取精确 anchor revision score）
+    → 多尺度关系扫描（只产生供随后构造答案的上下文）
+    → record_workflow_review(symbolic_structure；逐题回答)
+    ↓
+check_authoring_readiness（读取 readiness 自然性预审）
+    ↓
+record_workflow_review(orchestration_performance；逐题回答，
+                       配器复核内含轻量成境位置审视)
     ↓
 record_workflow_evidence / record_verified_workflow_hard_failure
     ↓
 render_workflow_candidate（内部预留、渲染、复验并记录）
     ↓
-record_workflow_review(render_report；真实听过才可 audio_audition)
+inspect_authoring_candidate（复验完整候选并读取自然性机器预审）
+    ↓
+record_workflow_review(render_report；折入机器候选，真实听过才可 audio_audition)
     ↓
 record_workflow_derivation（可选；仅关键转移）/ register_workflow_exception（可选）
     ↓
@@ -286,26 +306,101 @@ decide_workflow_iteration（最新策略显式提交 charter_settlement；accept
          → 下一轮重建展开图、重做全曲镜子与三相复核
 ```
 
-作品展开图不是固定曲式模板，而是先把**这一首作品**的完整序列因果关系定构出来：
+作品宪章先行，并与当前 score 一起构成治理闭环的根。外部音乐宪法只是立宪后可按需
+查询的无状态思想资源；不调用查询时，展开图、逐题复核、推导、证据、受管渲染、验收
+和续作一个不少。选择结果不写入 workflow，条款也不绑定生成、复核、验收或续作。
+
+旧 workflow 中任何既存的官方或自定义 binding 都只是不可变历史来源：打开或继续它时
+不让条款参与当前裁决，也不因其存在而阻断。v0.1 已废弃，旧条文不再回查，旧编号也不
+映射或重解释成 v0.2；新的官方查询与参考只面向当前 v0.2。
+
+凡返回当前 workflow snapshot 的结果（包括相应成功结果及带快照的失败结果）另带
+`constitution_context`，用 `unbound`、
+`current_provenance_only`、`retired_provenance_only` 或 `custom_provenance_only` 明示
+绑定状态，并逐项声明不要求条文查询、不允许编号映射、不构成生成/验收/续作门禁，也不
+允许新裁决引用。`get_music_constitution_clauses` 自身返回同样的无状态使用边界，且
+`next_action=null`：查询不会建议或触发 activation，也不会改变 workflow 导航。
+
+作品展开图不是固定曲式模板，而是先把**这一首作品**的完整序列关系与全局职能定构出来：
 每个稳定节点说明其作用、依赖的宪章主张、沿用或变化的既有材料、角色变化、稀缺资源、
 结尾回应与仍待回答的问题。输入只来自当前有效宪章和当前 score；历史作品、偏好案例、
 获奖理由与其他作品的片段都不进入生成依据。`inspect_workflow_composition` 只把全谱事实、
 位置、依赖覆盖与缺口变成可追问记录；它不套用固定曲式、不评分、不自动修改，也没有
 试听音频。
 
+guide 中 composition map template 的单节点和 `bar_range=null` 只演示字段形状，不给出节点
+数量，也不建立“一节点默认 1–8 小节”的长度规范。节点表达的是全曲功能及其在后续留下的
+后果，不是每到一个节点就新造一条短旋律的配额。guide 的 `bar_range_shape` 同时给出正向
+合同：位置尚未知时可以是 `null`；一旦已知，必须写当前 score 的实际闭区间
+`{"start": <从 1 开始的整数>, "end": <不小于 start 的整数>}`，没有默认跨度，也不能改猜
+`from/to`。
+
 在受治理的 `intent`、`symbolic_structure` 与 `orchestration_performance` 三相中，复核不再是
 勾选“已看过”：调用方必须回答镜子针对本轮 score、有效宪章和展开图生成的完整问题集，
 并引用真实的 claim、节点或事件。关键转移的推导还必须绑定这些宪章主张、展开图节点和
 已回答的问题；这样“先推导、再写作”成为可复验的过程，而不是只依赖模型自觉。
+结构复核的两个固定 `question_kind` 是 `material_relationship`（如实说明延续、转化、
+回答或拒绝了哪些既有材料；没有血缘就明确承认）与 `whole_work_necessity`（没有直接
+血缘时比较保留、转化、静音和删除，说明全曲会失去什么）。两者生成新的确定性 question
+ID；已经冻结的旧 `material_causality` / `whole_work_dependency` 问题与答案仍可验，
+但尚未写入的客户端缓存必须重新检查本轮问题，不能把旧 ID 重放成新复核。
+
+`symbolic_structure` 的 `next_action` 还会在原问题集之外给出一个只读的多尺度关系镜子
+prerequisite。扫描先读取该 **exact workflow revision** 的
+`inspect_workflow_composition`，取得当前 question targets、作品宪章、展开图、node 与 event
+IDs，再用 `get_authoring_snapshot` 读取它绑定的**精确 anchor revision** score，不能拿旧谱
+或模型记忆代替。镜子依次观察四种尺度：旋律或乐句内部；相邻事件或同时发生的声部；
+跨段落的远距回返与遥应；点缀放回完整作品后的语境。
+
+扫描输出只是供随后 answer construction 使用的当前问题上下文，本身不写成、也不冒充
+既有答案。观察后没有发现关系是合法结果。若随后在 `material_relationship` 答案中主张
+存在关系，必须明确两端及连接它们的陈述，再引用相应的当前 IDs；对照、拒绝或断裂只有在
+两端和连接均被明确主张时才算关系，不能由机器从差异本身推定。没有材料血缘的点缀进入
+既有 `whole_work_necessity`，比较保留、转化、静音与删除。
+
+为避免把全曲拼成不断重启的短旋律，镜子还追问：哪些作用或后果跨过节点边界仍在继续；
+一次新开始是否发生在前一动作真正闭合之后；什么材料、声部、节奏、音色或空间载体跨越
+多个边界。它不把这些追问变成统一答案：有意的 mosaic、断裂与突停都合法，没有最短旋律
+长度，也不要求主旋律连续不断。精确重复可能只是 ostinato，真实遥应也不要求音高表面
+相似；镜子因此不建立 motif catalog 或自动相似度判决。
+
+这项镜子不修改 `material_relationship` 的 prompt 或 deterministic question ID，也不新增
+question、phase、Schema、账本、审美分数或 motif catalog；进行中的 workflow 因此继续使用
+原来的问题身份。答案中的 claim / node / event IDs 是扁平引用集合，不编码 source→target
+配对；机器只验证它们属于当前注册表且位置仍属锚定 score，不能证明模型声称的关系成立，
+更不能证明作品自然或好听。
 
 成境 / Qiyun 不增加 review phase，而是在 `orchestration_performance` 中审视完整候选的
 具体位置：哪里虽已正确存在，却还缺少流动、层次、呼吸、距离、余响或周边生命。结果
-可以是零新增；不得把它执行成固定周期的点缀清单，也不要求为每个微小伴生细节补一条
-推导。删除、静音或前后完整候选比较可以帮助发现损失，但没有实际听审时只能记录
+可以是零新增；不得把它执行成固定周期的点缀清单。它同时保留两路审视：能从已有材料、
+宪章承诺或全曲关系长出的内容，如实追索关联；没有这种血缘、却对完整作品的全局关系
+确有必要的内容，可以明确作为无血缘选择。两路都不得伪造因果，也不要求为每个微小
+伴生细节补一条推导；尤其不得把无血缘选择伪装成关联推导。若都不成立，留白、静音或
+删除就是有效答案。删除、静音或前后完整
+候选比较可以帮助发现损失，但没有实际听审时只能记录
 `aesthetic_risk` 或待验证假设，不能声称差异已经成立。若修改触及身份核、主要和声因果、
 段落职能、高潮依据、结尾回应或宪章主张，就退出这次微观审视，走正式修订；需要改变
 宪章时沿用现有修宪预检，不新增阶段、账本或 Schema。审视结论折入既有配器复核回答，
 不增加可打分的“成境题”；机器只能确认提示已给出和引用合法，不能证明模型真的想明白。
+
+自然性机器预审也不增加 phase、固定问题、分数或账本。准备记录
+`orchestration_performance` 前，`next_action` 会要求读取锚定 authoring 修订的
+`check_authoring_readiness` 返回值中的
+`readiness.project_review.diagnostics.performance_naturalness`，把可行动候选、证据覆盖
+不全的未知边界，或仅在覆盖完整时成立的“没有机器候选”有限结论折入既有回答；正式
+候选形成后，记录 `render_report`
+前会要求调用 `inspect_authoring_candidate`，用该候选实际绑定的 score、演奏计划和报告
+重新预审完整作品。若仍有值得保留的风险，可选择以 `aesthetic_risk`、
+`diagnostic_hypothesis`、`report_only` 和该候选的 `performance_plan` Hash 写入既有证据
+生命周期；故意机械、静态或重复的演奏可以说明后保留，不需要为清空报告而修改。
+
+这层目前只查可复算的计划矛盾和证据缺口，不能证明“自然”或“好听”。只有
+`evidence_coverage=complete_for_current_checks` 时才可能返回 `no_machine_candidate`；score
+不可用或连接证据不全时保留 `partial_evidence`，不能冒充“没有机器候选”。报告无总分、
+无审美 pass/fail，不阻断、不自动改谱或改音频。计划到逐事件波形响应因尚未记录事件
+隔离包络证据而明确为 `unavailable`；全曲
+响度、峰值、crest、LRA 或频谱统计仍可排查工程问题，但不会被拿来冒充逐事件自然性
+证据。
 
 如果迭代意见确实要求改变宪章，必须在 `reviewing` 期，或作出 `revise` 决定后但尚未
 改谱时，先做只读预检。预检逐项列出受影响
@@ -327,8 +422,9 @@ decide_workflow_iteration（最新策略显式提交 charter_settlement；accept
 只记录为什么改、依据是什么、付出了什么以及新修订是哪一个。`rollback` 也是选择，
 不是覆盖。
 
-宪法条款不是全曲提示词；v0.2 用它们在关键位置提出问题，而不是直接生成答案，也不
-要求尚在萌发或仅改变周边气息的每个细节先给出理由。推导同样是稀缺论证，不是配额：
+调用方若选择参考 v0.2，可以借条款启发问题，但条款不是全曲提示词，也不向 workflow
+添加生成、复核、验收或续作条件，更不要求尚在萌发或仅改变周边气息的每个细节先给出
+理由。推导同样是稀缺论证，不是配额：
 每轮默认上限为 8，设为 0 可关闭，
 无需为了用完预算逐小节制造理由。其锚点必须是非空 `event_ids` 和/或完整的
 `[start_bar:start_beat, end_bar:end_beat)` 半开范围；`part_ids` 只能过滤，不能独立
@@ -396,8 +492,9 @@ preserve/stop 可部分或为空。旧 shape 只读兼容：旧 terminal 保持�
 `no_material_improvement`、`external_blocker` 等其他理由仍是终审 authority 的如实声明，
 合同只验证其权限与形状，不证明审美已经停滞或外部事实必然成立。
 
-中英文官方宪法的固定 Hash 法源副本作为 package data 随 wheel 发布，并与音乐创作
-参考笔记中的原文做 byte-for-byte 同步检查；条文查询不依赖运行目录存在仓库 `docs/`。
+当前 v0.2 的中英文可选参考副本以固定 Hash 作为 package data 随 wheel 发布，并与音乐
+创作参考笔记中的原文做 byte-for-byte 同步检查；主动条文查询不依赖运行目录存在仓库
+`docs/`，核心 workflow 则完全不要求发生这项查询。
 
 `render_workflow_candidate` 不接受 `workflow_authorization`、候选路径或输出路径。
 服务端先发布唯一当前预留，从该不可变状态取得精确 authorization，渲染器在昂贵工作
@@ -435,6 +532,10 @@ failure 不可赦免。接受仍是特定宪章下的上下文决定，不是“
 score_and_roster_format()
 list_instruments()
 ```
+
+`score_and_roster_format` 返回的一小节 example 只演示 JSON 语法和最小可渲染闭环，不是
+作品、目标时长、乐句、曲式、密度或风格范例。创作完整作品时不得从这个最小示例推导
+“每次只写一小节”或“不断重启短旋律”的默认策略。
 
 省略参数时，`list_instruments` 使用 `instrument_scope="formal"`、
 `detail_level="summary"` 和 `limit=32`，从当前 103 个正式可调用声音入口返回
@@ -620,6 +721,8 @@ validate_project(
   继续进入 `issues`，并据此决定 `ok`、`status` 与是否可以渲染；
 - 音域画像、发音补偿、自动奏法覆盖、协奏覆盖信息和同源齐奏候选进入只读
   `project_review`；它们提供证据和复核方向，不改变硬门禁；
+- `diagnostics.performance_naturalness` 以 `scope=machine_triage_only` 暴露演奏计划中的
+  可定位候选；它无总分、无审美 pass/fail，允许有意机械，并固定不阻断、不自动修改；
 - `compatibility` 是默认音域模式：在已声明的硬可演奏范围内保留扩展音区、边缘音色
   与实验性写法，同时报告值得关注的证据；`strict_hq` 仍是创作者显式选择的严格
   高质量画像门禁。
@@ -668,6 +771,67 @@ validate_project(
 `automatic_change=false`，因此复核报告本身不会修改 score、roster、演奏计划或音频。
 完整机器合同见 `schemas/project-review.schema.json`，未来 UI 可直接按该 Schema
 校验和展示，而不必推测字段含义。
+
+`project_review.diagnostics.performance_naturalness` 当前重点检查四类可泛化事实：
+
+- 显式乐句标记为空、已经启用却留下未覆盖起音，或让同一起音落入多个乐句而产生后写
+  覆盖；
+- 对 note gate 确实表达连接关系的非 kit 执行器，残差随机把相邻音原有关系改成重叠、
+  相触或分离中的另一类；这类候选固定为 `info`，不会因力度残差占优升级；one-shot kit
+  的 note-off 只是传输记账，因此明确为 `not_applicable_one_shot_kit`；
+- 已批准的发音证据与当前 runtime configuration 不匹配，致使相关位置不能应用补偿；
+  `not_applied_unapproved_context` 的连接语境是预期事实，只进入分组统计，不生成候选；
+- 较长声部几乎没有作品自写的乐句、逐音力度/奏法、realization 或增益/控制方向，细节
+  主要来自通用指挥规则与残差微差。
+
+“完整”首先包含 score → trace 的反向覆盖核对，而且只检查演奏计划中实际指派的 part。
+每个 part 先按 tie merge 得到预期事件；同一 part 的多个 executor / kit 以
+`source_event_id` 并集合并观察结果。预期事件缺失、合并后事件没有稳定 ID、trace 引用了
+另一声部或未知/额外事件，或同一 executor / kit trace 重复使用同一个事件身份，都会把该
+part 标为 `partial_evidence`；后者计入 `duplicate_trace_event_count`。未指派的 score part
+不会被误报成缺失。逐 part 计数与状态写在
+`facts.performance_plan.part_trace_coverage`。
+
+残差证据是否存在也由演奏计划中的 `expression.humanize` 约束，而不是靠 trace 恰好带键来
+猜。`depth` 必须是 finite 的 `0..4`，`timing_ms` 必须是 finite 且非负；合同本身无效就令
+计划证据为 partial。`depth>0` 且 `timing_ms>0` 时，每个 trace 事件都必须带可解析、finite
+的 `推导.残差随机`，缺键记为 missing，键存在但格式错误或含非 finite 数值记为 invalid。
+反过来，`depth=0` 却出现该键、`timing_ms=0` 却出现非零 timing residual，分别记为
+unexpected；timing residual 的绝对值超过 `depth * timing_ms` 加文本显示半步容差时记为
+out-of-range。`depth>0` 且 `timing_ms=0` 时允许保留零 timing residual 来记录 velocity
+humanize，不会因此变成 partial。这些是证据状态而非音乐候选；任一 missing / invalid /
+unexpected / out-of-range 都会令覆盖为 partial，并抑制该执行器不再可靠的连接候选。汇总
+合同与各类计数分别写在 `facts.performance_plan.humanize_timing_contract` 及 plan / executor
+facts 中。
+
+连接反事实还要求该执行器的 source-event 正向映射一致，时间与时长都是 finite、时间非负
+且时长大于零；这些基础条件不满足时直接进入 `partial_evidence`。对于确有 residual 的
+事件，时间边界、发音补偿截断、重建基线越界或任何非空 `realization` 都会使反事实不可
+逆——不只 timing/gate，只有 velocity 改写也一样，因为 realization 也进入样本网格量化
+路径。此时同样标为 partial 并抑制该执行器全部连接候选，避免跨过未知事件拼接出假关系。
+没有 residual 时 baseline 就等于 actual，上述边界、截断与 realization 不会凭空造成
+反事实缺口。
+
+残差文本自身的有限精度也进入证据边界。只有相邻起音组至少一侧确有 residual 时，才对
+实际关系与重建基线两侧检查 overlap/touch/separate 分类阈值；靠近阈值、无法稳定归类的
+连接记为 `indeterminate`，不强行制造翻转结论，该执行器的连接覆盖因此保持 partial。
+没有 residual 时不引入这层舍入不确定区；其余远离阈值、证据完整的位置仍可单独报告。
+
+报告另带 `evidence_coverage`。score 不可用或任一适用执行器的连接证据不完整时，其值为
+`partial`；即使另有候选使顶层 `status=review_candidates`，覆盖缺口仍不会被隐藏。没有
+候选且覆盖不完整时，顶层状态是 `partial_evidence`；只有覆盖为
+`complete_for_current_checks` 时才可能给出 `no_machine_candidate`。这些条目都是复核候选，
+不是错误判决；`no_machine_candidate` 也不代表听感自然。
+报告的 `authority` 明示没有执行音频听审、没有证明自然性或审美质量、没有自动改动，且
+允许创作者有意保留机械、静态与重复。报告还把“演奏计划到逐事件波形响应”标为
+`unavailable`：现有 `post_render_check` / `mix_report` 的全曲响度、峰值、crest、LRA 和
+频谱统计只能排查工程问题，不能替代尚未记录的事件隔离包络证据。
+
+`check_authoring_readiness` 返回的是锚定修订的预渲染报告；
+`inspect_authoring_candidate.naturalness_inspection` 则重新读取不可变候选绑定的 score 和
+演奏计划，并把报告绑定到候选 manifest、score、演奏计划规范化及文件 Hash、render
+receipt、post-render check 和可用的 mix report Hash。检查失败只让该诊断局部
+`unavailable`，不会改变候选完整性、readiness 或渲染资格。
 
 三个入口返回相同语义：预检适合在渲染前查看，资源就绪检查在同一复核旁补充实际
 引用状态，成功渲染则把与实际候选输入一致的复核结果一并返回。硬合同继续由
