@@ -659,6 +659,7 @@ active = claim_reserved_worker_slot(ChildSlotSpec(Path(raw['directory']), raw['s
 Path(raw['active']).write_text('active', encoding='ascii')
 time.sleep(1.5)
 active.close()
+Path(raw['done']).write_text('done', encoding='ascii')
 """
         parent_code = r"""
 import json, os, subprocess, sys, time, uuid
@@ -671,10 +672,15 @@ reservation = pool.reserve_exact((claim,))
 slot = reservation.take()
 spec = slot.child_spec
 active_path = scratch / 'child-active'
-payload = json.dumps({'directory': str(spec.directory), 'slot': spec.slot_index, 'token': spec.token, 'parent': spec.parent_pid, 'active': str(active_path)})
+done_path = scratch / 'child-done'
+payload = json.dumps({'directory': str(spec.directory), 'slot': spec.slot_index, 'token': spec.token, 'parent': spec.parent_pid, 'active': str(active_path), 'done': str(done_path)})
 child = subprocess.Popen([sys.executable, '-c', child_code.read_text(encoding='utf-8'), payload], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 slot.wait_for_active(child)
-ready.write_text(json.dumps({'child_pid': child.pid, 'active': str(active_path)}), encoding='utf-8')
+while not active_path.is_file():
+    if child.poll() is not None:
+        os._exit(64)
+    time.sleep(0.005)
+ready.write_text(json.dumps({'child_pid': child.pid, 'active': str(active_path), 'done': str(done_path)}), encoding='utf-8')
 os._exit(23)
 """
         child_script = root / "child_code.py.txt"
@@ -706,7 +712,16 @@ os._exit(23)
         # The owner capacity is one, so the orphan child's active.lock keeps
         # every competing batch on the serial path after parent os._exit.
         assert pool.reserve_exact((_claim(root, capacity=1),)) is None
-        time.sleep(1.8)
+        # Wait for the child to release its slot instead of sleeping a fixed
+        # 1.8 s.  The child writes `done` only after closing the claim, and a
+        # fixed wait cannot bound a loaded runner: when the child still held
+        # the lock at cleanup, Windows raised WinError 32 on active.lock and
+        # Linux reported "Directory not empty" from the temporary directory.
+        done_path = Path(details["done"])
+        deadline = time.monotonic() + 15
+        while not done_path.is_file() and time.monotonic() < deadline:
+            time.sleep(0.02)
+        assert done_path.is_file()
         recovered = pool.reserve_exact((_claim(root, capacity=1),))
         assert recovered is not None
         recovered_slot = recovered.take()
