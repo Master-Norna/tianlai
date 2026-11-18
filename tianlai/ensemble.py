@@ -982,7 +982,14 @@ def _render_backup_prefix(final: Path) -> str:
 
 
 def _pending_render_backups(final: Path) -> list[Path]:
-    """Return same-parent backups left by an earlier, interrupted publication."""
+    """Return same-parent backups left by an earlier, interrupted publication.
+
+    Only an ordinary, non-reparse directory can be renderer state.  A name
+    match alone is not ownership: accepting a ``.NAME.render-backup.*`` link
+    would hand this renderer a foreign directory whose artifacts it would then
+    move out of place, so an entry that does not survive a plain-identity
+    capture is left untouched and reported.
+    """
 
     parent = final.parent
     prefix = _render_backup_prefix(final)
@@ -995,72 +1002,92 @@ def _pending_render_backups(final: Path) -> list[Path]:
         name = entry.name
         # Preserved entries are the renderer's own recoverable quarantine and
         # keep their source name as a prefix; they are never live backups.
-        if (
-            not name.startswith(prefix)
-            or ".cleanup-preserved-" in name
-            or not entry.is_dir()
-        ):
+        if not name.startswith(prefix) or ".cleanup-preserved-" in name:
+            continue
+        try:
+            capture_plain_directory(entry)
+        except OSError as exc:
+            warnings.warn(
+                "渲染备份候选不是普通目录，已忽略而不触碰 "
+                f"{entry}: {exc}",
+                RuntimeWarning,
+                stacklevel=3,
+            )
             continue
         backups.append(entry)
     return backups
 
 
-def _restore_render_backup(backup: Path, final: Path) -> None:
-    """Move one interrupted publication's previous generation back.
+def _restore_render_backup(backup: Path, final: Path) -> Path | None:
+    """Swap one interrupted publication's previous generation back into place.
 
     Publication moves the previous artifacts into the backup before it
     installs anything and installs the new receipt last, so a process death
     in between leaves ``final`` without a receipt while the previous
-    generation is still complete inside the backup.  Restoring the receipt
-    last keeps an interrupted recovery from advertising a partial
-    generation.
+    generation is still complete inside the backup.
 
-    A partly installed new generation may still occupy the final path.
-    Those entries were never committed, so they are moved aside into one
-    private directory and quarantined instead of being deleted.
+    The crashed directory and the backup are exchanged with two directory
+    renames.  Moving the backup back artifact by artifact needs a rule for an
+    artifact the backup does not hold: it is either uncommitted state from the
+    interrupted publication or something an earlier recovery already put back,
+    and the two are indistinguishable once the receipt is not yet installed.
+    Guessing wrong either leaves an artifact that ``verify_render_generation``
+    rejects beside the restored receipt, or hides a recovered one.  A
+    directory swap has no such window: ``final`` is either still absent, and a
+    retry runs the same swap again, or it is the previous generation itself.
+
+    Entries that are not render artifacts are not renderer state — a delivery
+    note, an exported copy — so they are moved back into the restored
+    directory instead of being quarantined with the crashed attempt.  Returns
+    the preserved directory holding that crashed attempt, when one was left
+    behind.
     """
 
     parent = final.parent
     final.mkdir(parents=True, exist_ok=True)
+    # A linked output alias cannot be swapped: renaming it would move the link
+    # and leave the artifacts it points at where they are.
+    capture_plain_directory(final)
     displaced_prefix = f".{final.name}.render-recover."
-    displaced: Path | None = None
-    displaced_identity: PlainDirectoryIdentity | None = None
+    displaced = Path(tempfile.mkdtemp(dir=parent, prefix=displaced_prefix))
+    displaced_identity = capture_plain_directory(displaced)
+    crashed = displaced / "generation"
+    preserved: Path | None = None
+    stranded: list[str] = []
     try:
-        for name in (
-            *(
-                item
-                for item in _RENDER_ARTIFACT_NAMES
-                if item != RENDER_RECEIPT_NAME
-            ),
-            RENDER_RECEIPT_NAME,
-        ):
-            source = backup / name
-            if not _artifact_exists(source):
+        os.replace(final, crashed)
+        os.replace(backup, final)
+        for entry in crashed.iterdir():
+            if entry.name in _RENDER_ARTIFACT_NAMES:
                 continue
-            target = final / name
+            target = final / entry.name
             if _artifact_exists(target):
-                if displaced is None:
-                    displaced = Path(
-                        tempfile.mkdtemp(dir=parent, prefix=displaced_prefix)
-                    )
-                    displaced_identity = capture_plain_directory(displaced)
-                os.replace(target, displaced / name)
-            os.replace(source, target)
+                stranded.append(entry.name)
+                continue
+            os.replace(entry, target)
     finally:
-        if displaced is not None:
-            try:
-                _remove_private_render_directory(
-                    displaced,
-                    parent,
-                    displaced_prefix,
-                    directory_identity=displaced_identity,
-                )
-            except BaseException as exc:
-                warnings.warn(
-                    f"渲染恢复临时目录未能退出活跃命名空间 {displaced}: {exc}",
-                    RuntimeWarning,
-                    stacklevel=2,
-                )
+        try:
+            preserved = _remove_private_render_directory(
+                displaced,
+                parent,
+                displaced_prefix,
+                directory_identity=displaced_identity,
+            )
+        except BaseException as exc:
+            preserved = displaced
+            warnings.warn(
+                f"渲染恢复临时目录未能退出活跃命名空间 {displaced}: {exc}",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+        if stranded:
+            warnings.warn(
+                "渲染恢复时非产物条目与旧产物同名，已保全于 "
+                f"{preserved}: " + ", ".join(stranded),
+                RuntimeWarning,
+                stacklevel=2,
+            )
+    return preserved
 
 
 def _retire_render_backup(backup: Path, final: Path) -> None:
@@ -1112,11 +1139,11 @@ def _recover_interrupted_render_publication(final: Path) -> None:
             + ", ".join(str(path) for path in backups)
         )
     backup = backups[0]
-    _restore_render_backup(backup, final)
-    _retire_render_backup(backup, final)
+    preserved = _restore_render_backup(backup, final)
     warnings.warn(
         "已从上次中断的渲染发布中恢复上一版完整产物: "
-        f"{final}",
+        f"{final}"
+        + (f"；上次未完成的产物已保全于 {preserved}" if preserved else ""),
         RuntimeWarning,
         stacklevel=3,
     )
