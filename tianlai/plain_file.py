@@ -45,16 +45,34 @@ def _is_reparse(value: os.stat_result) -> bool:
     )
 
 
+class PlainFileShapeError(OSError):
+    """One rejected file shape with a stable machine-readable reason."""
+
+    def __init__(self, reason: str, message: str) -> None:
+        self.reason = reason
+        super().__init__(message)
+
+
 def _require_plain_status(value: os.stat_result) -> None:
-    if (
-        not stat.S_ISREG(value.st_mode)
-        or stat.S_ISLNK(value.st_mode)
-        or _is_reparse(value)
-        or value.st_nlink != 1
-    ):
-        raise OSError("path is not a plain single-link file")
+    if stat.S_ISLNK(value.st_mode) or _is_reparse(value):
+        raise PlainFileShapeError(
+            "linked", "path is a symbolic link or reparse point"
+        )
+    if not stat.S_ISREG(value.st_mode):
+        raise PlainFileShapeError("not_regular", "path is not a regular file")
+    if value.st_nlink != 1:
+        # Name the real reason.  Folding this into a generic "unreadable"
+        # turned a deliberate rejection of a hard-linked input into a
+        # misleading I/O failure, especially for files produced by snapshot
+        # or deduplication tools.
+        raise PlainFileShapeError(
+            "multiple_links",
+            f"path has {value.st_nlink} hard links; a single-link file is required",
+        )
     if int(value.st_ino) == 0:
-        raise OSError("plain file has no stable filesystem identity")
+        raise PlainFileShapeError(
+            "no_identity", "plain file has no stable filesystem identity"
+        )
 
 
 def _is_windows_runtime() -> bool:
