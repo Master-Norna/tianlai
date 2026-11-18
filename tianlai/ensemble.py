@@ -49,6 +49,7 @@ from pathlib import PurePosixPath
 import shutil
 import stat
 import tempfile
+import threading
 from types import SimpleNamespace
 from typing import Any, Callable
 import uuid
@@ -976,6 +977,151 @@ def verify_render_generation(directory: str | Path) -> None:
     _verify_render_generation(Path(directory).resolve())
 
 
+def _render_backup_prefix(final: Path) -> str:
+    return f".{final.name}.render-backup."
+
+
+def _pending_render_backups(final: Path) -> list[Path]:
+    """Return same-parent backups left by an earlier, interrupted publication."""
+
+    parent = final.parent
+    prefix = _render_backup_prefix(final)
+    try:
+        entries = sorted(parent.iterdir())
+    except FileNotFoundError:
+        return []
+    backups: list[Path] = []
+    for entry in entries:
+        name = entry.name
+        # Preserved entries are the renderer's own recoverable quarantine and
+        # keep their source name as a prefix; they are never live backups.
+        if (
+            not name.startswith(prefix)
+            or ".cleanup-preserved-" in name
+            or not entry.is_dir()
+        ):
+            continue
+        backups.append(entry)
+    return backups
+
+
+def _restore_render_backup(backup: Path, final: Path) -> None:
+    """Move one interrupted publication's previous generation back.
+
+    Publication moves the previous artifacts into the backup before it
+    installs anything and installs the new receipt last, so a process death
+    in between leaves ``final`` without a receipt while the previous
+    generation is still complete inside the backup.  Restoring the receipt
+    last keeps an interrupted recovery from advertising a partial
+    generation.
+
+    A partly installed new generation may still occupy the final path.
+    Those entries were never committed, so they are moved aside into one
+    private directory and quarantined instead of being deleted.
+    """
+
+    parent = final.parent
+    final.mkdir(parents=True, exist_ok=True)
+    displaced_prefix = f".{final.name}.render-recover."
+    displaced: Path | None = None
+    displaced_identity: PlainDirectoryIdentity | None = None
+    try:
+        for name in (
+            *(
+                item
+                for item in _RENDER_ARTIFACT_NAMES
+                if item != RENDER_RECEIPT_NAME
+            ),
+            RENDER_RECEIPT_NAME,
+        ):
+            source = backup / name
+            if not _artifact_exists(source):
+                continue
+            target = final / name
+            if _artifact_exists(target):
+                if displaced is None:
+                    displaced = Path(
+                        tempfile.mkdtemp(dir=parent, prefix=displaced_prefix)
+                    )
+                    displaced_identity = capture_plain_directory(displaced)
+                os.replace(target, displaced / name)
+            os.replace(source, target)
+    finally:
+        if displaced is not None:
+            try:
+                _remove_private_render_directory(
+                    displaced,
+                    parent,
+                    displaced_prefix,
+                    directory_identity=displaced_identity,
+                )
+            except BaseException as exc:
+                warnings.warn(
+                    f"渲染恢复临时目录未能退出活跃命名空间 {displaced}: {exc}",
+                    RuntimeWarning,
+                    stacklevel=2,
+                )
+
+
+def _retire_render_backup(backup: Path, final: Path) -> None:
+    """Move one superseded backup out of the active publication namespace."""
+
+    try:
+        _remove_private_render_directory(
+            backup,
+            final.parent,
+            _render_backup_prefix(final),
+        )
+    except BaseException as exc:
+        warnings.warn(
+            f"渲染备份未能退出活跃命名空间 {backup}: {exc}",
+            RuntimeWarning,
+            stacklevel=3,
+        )
+
+
+def _recover_interrupted_render_publication(final: Path) -> None:
+    """Repair the output directory after a publication that never completed.
+
+    ``_publish_render_artifacts`` documents its own failure rollback, but a
+    process that dies between moving the previous receipt away and installing
+    the new one leaves the directory with no commit marker and the previous
+    generation parked in a hidden backup.  Nothing used to look for that
+    state, so the previous generation stayed invisible and a later render
+    simply created a second backup.  Recovery restores the previous
+    generation, and a leftover backup beside an already committed receipt is
+    retired.
+    """
+
+    backups = _pending_render_backups(final)
+    if not backups:
+        return
+    if (final / RENDER_RECEIPT_NAME).is_file():
+        for backup in backups:
+            _retire_render_backup(backup, final)
+            warnings.warn(
+                "已提交的渲染目录带有上次发布遗留的备份，已退出活跃命名空间: "
+                f"{backup}",
+                RuntimeWarning,
+                stacklevel=3,
+            )
+        return
+    if len(backups) > 1:
+        raise RuntimeError(
+            "渲染输出目录存在多个未完成的发布备份，无法判断应恢复哪一版: "
+            + ", ".join(str(path) for path in backups)
+        )
+    backup = backups[0]
+    _restore_render_backup(backup, final)
+    _retire_render_backup(backup, final)
+    warnings.warn(
+        "已从上次中断的渲染发布中恢复上一版完整产物: "
+        f"{final}",
+        RuntimeWarning,
+        stacklevel=3,
+    )
+
+
 def _publish_render_artifacts(staging: Path, final: Path) -> None:
     """Publish one complete render, with the receipt acting as commit marker.
 
@@ -990,7 +1136,8 @@ def _publish_render_artifacts(staging: Path, final: Path) -> None:
     parent = final.parent
     final.mkdir(parents=True, exist_ok=True)
     parent_identity = capture_plain_directory(parent)
-    backup_prefix = f".{final.name}.render-backup."
+    _recover_interrupted_render_publication(final)
+    backup_prefix = _render_backup_prefix(final)
     backup = Path(tempfile.mkdtemp(dir=parent, prefix=backup_prefix))
     backup_identity = capture_plain_directory(backup)
 
@@ -6469,6 +6616,41 @@ def _render_plan_locked(
             )
 
 
+_PRIVATE_OUTPUT_GUARD = threading.Lock()
+_ACTIVE_PRIVATE_OUTPUTS: set[Path] = set()
+
+
+def _claim_private_output(output_directory: Path) -> Path:
+    """Assert that a lock-free render really targets a private directory.
+
+    ``_acquire_output_lock=False`` states that the caller already owns the
+    target through another lock and renders into a directory it has just
+    created.  Only the type of that switch used to be checked.  A caller that
+    pointed it at a shared output directory published over the previous
+    generation with plain ``os.replace`` calls: two concurrent renders both
+    reported success while the later one silently replaced the earlier audio,
+    stems and receipt, and the torn window between them could leave a
+    receipt bound to the other render's mix.
+    """
+
+    try:
+        resolved = output_directory.resolve(strict=False)
+    except OSError as exc:
+        raise ValueError(
+            f"无法解析渲染输出目录: {output_directory}: {exc}"
+        ) from exc
+    if resolved.exists():
+        if not resolved.is_dir():
+            raise ValueError(f"渲染输出路径必须是目录: {resolved}")
+        with os.scandir(resolved) as entries:
+            if next(entries, None) is not None:
+                raise ValueError(
+                    "跳过输出锁时，渲染目标必须是调用方新建的私有空目录；"
+                    f"当前目录已有内容: {resolved}"
+                )
+    return resolved
+
+
 def render_plan(
     plan: PerformancePlan,
     output_directory: str | Path,
@@ -6492,11 +6674,13 @@ def render_plan(
     from targeting the same output at once.  Immutable-candidate publication
     may pass the private ``_acquire_output_lock=False`` switch only while it
     owns the stable final-candidate lock and renders into its newly created,
-    private staging directory.  The generation is built in a private sibling
-    directory, every receipt hash is verified before publication, and the
-    receipt is installed last as the commit marker.  Ordinary render or
-    filesystem errors therefore leave the previous complete generation
-    available.
+    private staging directory; that target must now be absent or empty, and
+    one process may not use the same private target twice at once.  The
+    generation is built in a private sibling directory, every receipt hash is
+    verified before publication, and the receipt is installed last as the
+    commit marker.  Ordinary render or filesystem errors therefore leave the
+    previous complete generation available, and a publication interrupted by
+    process death is restored from its own backup by the next publication.
 
     Passing ``stem_cache_directory`` enables a non-authoritative cache of raw
     instrument renders.  Every hit is verified against the current
@@ -6560,11 +6744,25 @@ def render_plan(
         # candidate lock.  Its staging directory is freshly created and
         # private, so acquiring a second lock keyed by that random name would
         # add no exclusion while leaving an orphan sidecar after every render.
-        return _render_plan_locked(
-            plan,
-            Path(output_directory).resolve(),
-            **render_arguments,
-        )
+        # The private-directory claim below is what makes that claim true;
+        # without it the switch silently permitted an overwriting render.
+        resolved_output = _claim_private_output(Path(output_directory))
+        with _PRIVATE_OUTPUT_GUARD:
+            if resolved_output in _ACTIVE_PRIVATE_OUTPUTS:
+                raise RuntimeError(
+                    "同一进程内已有渲染正在写入该私有输出目录: "
+                    f"{resolved_output}"
+                )
+            _ACTIVE_PRIVATE_OUTPUTS.add(resolved_output)
+        try:
+            return _render_plan_locked(
+                plan,
+                resolved_output,
+                **render_arguments,
+            )
+        finally:
+            with _PRIVATE_OUTPUT_GUARD:
+                _ACTIVE_PRIVATE_OUTPUTS.discard(resolved_output)
     with acquire_render_lock(output_directory) as ownership:
         return _render_plan_locked(
             plan,
