@@ -29,9 +29,7 @@ poisoning, or denial of service before a fix is available.
 - External paths are checked for containment after resolving symbolic links and
   Windows reparse points or junctions.
 - Scores, MIDI, MusicXML/MXL, render duration, note counts, executors, memory,
-  and output sizes all have default limits. A score's note and part fan-out is
-  counted from the raw arrays before structural parsing, and the parsed objects
-  are checked again afterwards.
+  and output sizes all have default limits.
 - With `trusted_only=true`, a missing or invalid trusted catalog fails closed.
 - Candidates and imported projects are non-overwriting by default. Explicit
   candidate replacement binds both the old receipt and the preparation-stage
