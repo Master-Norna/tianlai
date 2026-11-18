@@ -507,5 +507,49 @@ class RevisionContractTests(unittest.TestCase):
         )
 
 
+class RevisionScopeNumericEqualityTests(unittest.TestCase):
+    """A JSON round trip that only rewrites number spelling is not an edit."""
+
+    def test_numeric_round_trip_is_not_a_changed_leaf(self) -> None:
+        before = {"gain_db": 1, "name": "a", "offset": 0.0}
+        after = {"gain_db": 1.0, "name": "a", "offset": -0.0}
+        self.assertEqual(
+            workflow_module._changed_json_leaf_pointers(before, after),
+            set(),
+        )
+
+    def test_type_change_is_a_changed_leaf(self) -> None:
+        self.assertEqual(
+            workflow_module._changed_json_leaf_pointers(
+                {"flag": True}, {"flag": 1}
+            ),
+            {"/flag"},
+        )
+        self.assertEqual(
+            workflow_module._changed_json_leaf_pointers(
+                {"value": 1}, {"value": "1"}
+            ),
+            {"/value"},
+        )
+
+    def test_scope_check_accepts_a_numeric_round_trip(self) -> None:
+        workflow_module._enforce_document_path_scope(
+            {"gain_db": 1, "name": "before"},
+            {"gain_db": 1.0, "name": "after"},
+            allowed_paths=["/name"],
+        )
+
+    def test_scope_check_still_rejects_a_real_out_of_scope_edit(self) -> None:
+        with self.assertRaises(CreativeWorkflowError) as caught:
+            workflow_module._enforce_document_path_scope(
+                {"gain_db": 1, "name": "before"},
+                {"gain_db": 1.5, "name": "after"},
+                allowed_paths=["/name"],
+            )
+        self.assertEqual(
+            caught.exception.code, "revision_scope_document_path_overreach"
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

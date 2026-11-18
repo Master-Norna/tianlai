@@ -11,6 +11,7 @@ from tianlai.canonical_json import (
     canonical_json_bytes,
     canonical_json_file_sha256,
     canonical_json_sha256,
+    json_values_equal,
 )
 
 
@@ -67,6 +68,32 @@ class CanonicalJsonTests(unittest.TestCase):
             path.write_text('{"same":1,"same":2}', encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "duplicate JSON object key"):
                 canonical_json_file_sha256(path)
+
+
+class JsonValueEqualityTests(unittest.TestCase):
+    """Meaning equality is deliberately weaker than document identity."""
+
+    def test_numeric_spelling_does_not_change_the_value(self) -> None:
+        self.assertTrue(json_values_equal({"gain_db": 1}, {"gain_db": 1.0}))
+        self.assertTrue(json_values_equal({"offset": 0.0}, {"offset": -0.0}))
+        self.assertTrue(json_values_equal([1, 2.5], [1.0, 2.5]))
+        # Identity stays document-exact, so both facts can hold at once.
+        self.assertNotEqual(
+            canonical_json_sha256({"gain_db": 1}),
+            canonical_json_sha256({"gain_db": 1.0}),
+        )
+
+    def test_a_real_type_change_is_never_equal(self) -> None:
+        self.assertFalse(json_values_equal({"flag": True}, {"flag": 1}))
+        self.assertFalse(json_values_equal({"value": 1}, {"value": "1"}))
+        self.assertFalse(json_values_equal({"value": 0}, {"value": False}))
+        self.assertFalse(json_values_equal({"value": None}, {"value": 0}))
+
+    def test_structure_must_match(self) -> None:
+        self.assertFalse(json_values_equal({"a": 1}, {"a": 1, "b": None}))
+        self.assertFalse(json_values_equal([1, 2], [1, 2, 3]))
+        self.assertFalse(json_values_equal({"a": [1]}, {"a": {"0": 1}}))
+        self.assertTrue(json_values_equal({"a": [1, {"b": None}]}, {"a": [1.0, {"b": None}]}))
 
 
 if __name__ == "__main__":

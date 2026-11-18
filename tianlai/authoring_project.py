@@ -37,7 +37,11 @@ from .authoring_json import (
     strict_json_loads,
     validate_request_size,
 )
-from .canonical_json import CANONICALIZATION, canonical_json_sha256
+from .canonical_json import (
+    CANONICALIZATION,
+    canonical_json_sha256,
+    json_values_equal,
+)
 from .plain_file import read_plain_file_bytes, revalidate_plain_file
 from .render_lock import capture_plain_directory
 from .render_profile import parse_render_profile
@@ -2041,7 +2045,12 @@ def save_authoring_project(
             if current.revision != expected:
                 raise AuthoringProjectError("revision_conflict")
             checked_documents = _validate_document_set(documents)
-            if checked_documents == current.documents:
+            # "Nothing changed" must mean the same thing here and in the
+            # revision-scope check that later compares canonical documents.
+            # Plain ``==`` also equates ``True`` with ``1`` and would skip a
+            # real type change; a canonical hash would instead see a pure
+            # ``1`` -> ``1.0`` JSON round trip as an edit.
+            if json_values_equal(checked_documents, current.documents):
                 return current
             previous_sequence = (
                 current.save_sequence

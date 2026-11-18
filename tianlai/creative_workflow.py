@@ -63,7 +63,11 @@ from .charter_amendment import (
     preflight_charter_amendment,
     verify_charter_amendment_ledger,
 )
-from .canonical_json import CANONICALIZATION, canonical_json_sha256
+from .canonical_json import (
+    CANONICALIZATION,
+    canonical_json_sha256,
+    json_values_equal,
+)
 from .composition_map import (
     MAX_NODES as MAX_COMPOSITION_MAP_NODES,
     CompositionMapError,
@@ -10201,7 +10205,7 @@ def _json_leaf_pointers(value: object, *, path: str) -> set[str]:
 def _changed_json_leaf_pointers(
     before: object, after: object, *, path: str = ""
 ) -> set[str]:
-    if canonical_json_sha256(before) == canonical_json_sha256(after):
+    if json_values_equal(before, after):
         return set()
     if isinstance(before, Mapping) and isinstance(after, Mapping):
         result: set[str] = set()
@@ -10293,11 +10297,9 @@ def _enforce_bounded_score_revision(
             field
             for field in set(before_note) | set(after_note)
             if field != "event_id"
-            and canonical_json_sha256(
-                {"present": field in before_note, "value": before_note.get(field)}
-            )
-            != canonical_json_sha256(
-                {"present": field in after_note, "value": after_note.get(field)}
+            and not json_values_equal(
+                {"present": field in before_note, "value": before_note.get(field)},
+                {"present": field in after_note, "value": after_note.get(field)},
             )
         }
         if before_part != after_part:
@@ -10337,7 +10339,7 @@ def _enforce_revision_contract_documents(
     changed = {
         name
         for name in _REVISION_DOCUMENTS
-        if canonical_json_sha256(before[name]) != canonical_json_sha256(after[name])
+        if not json_values_equal(before[name], after[name])
     }
     if not changed.issubset(allowed_documents):
         raise CreativeWorkflowError("revision_scope_document_overreach")
