@@ -43,6 +43,7 @@ from . import __version__
 
 from .candidate import (
     CANDIDATE_MANIFEST_NAME,
+    CandidateAlreadyExistsError,
     canonical_json_sha256,
     compare_candidates,
     load_candidate,
@@ -137,6 +138,7 @@ from .render_profile import (
 )
 from .resource_limits import (
     ResourceLimitError,
+    precheck_score_document_resource_limits,
     validate_render_request_resource_limits,
     validate_score_resource_limits,
 )
@@ -3133,6 +3135,9 @@ def _compile_project(
         checks["settings"] = {"status": "passed"}
 
     try:
+        # Bound note and part fan-out before the parser builds one object per
+        # note; the post-parse check below still reports the accepted sizes.
+        precheck_score_document_resource_limits(score)
         score_document = parse_score_document(score)
     except Exception as exc:
         checks["score_document"] = {"status": "failed"}
@@ -3143,7 +3148,7 @@ def _compile_project(
         issues.append(
             _issue(
                 severity="error",
-                code="score.parse_failed",
+                code=getattr(exc, "code", "score.parse_failed"),
                 stage="score_document",
                 message=exc,
             )
@@ -5521,6 +5526,89 @@ def _candidate_output_path(value: str) -> Path:
     return candidate
 
 
+class _CandidateTargetError(Exception):
+    """One candidate target the boundary refuses, with a path-free reason."""
+
+    def __init__(self, reason: str) -> None:
+        self.reason = reason
+        super().__init__(reason)
+
+
+def _candidate_target(value: str) -> Path:
+    """Resolve one caller-supplied candidate the way the library accepts it.
+
+    ``load_candidate`` takes either the generation directory or the manifest
+    file inside it, so this guard has to keep both shapes reachable; checking
+    for a directory alone rejected the manifest form.  The two stat calls run
+    inside the boundary as well: ``Path.is_dir`` re-raises ``EACCES`` and only
+    swallows "no such entry" style errors, so an unsearchable ancestor used to
+    escape the tool as an uncaught ``PermissionError`` naming the path.
+    """
+
+    try:
+        path = _candidate_output_path(value)
+        if path.is_dir():
+            return path
+        if path.name == CANDIDATE_MANIFEST_NAME and path.is_file():
+            return path
+    except ValueError as exc:
+        raise _CandidateTargetError("outside_output_root") from exc
+    except OSError as exc:
+        raise _CandidateTargetError("unreadable") from exc
+    raise _CandidateTargetError("missing")
+
+
+_CANDIDATE_FAILURE_MESSAGES = {
+    "missing": "候选目录或候选文件不存在",
+    "not_a_directory": "候选路径不是目录",
+    "unreadable": "候选目录或文件无法读取",
+    "invalid_candidate": "候选内容无法按回执校验",
+    "outside_output_root": "候选必须位于当前天籁 MCP 输出目录内",
+}
+
+
+def _candidate_failure_reason(exc: BaseException) -> str:
+    if isinstance(exc, FileNotFoundError):
+        return "missing"
+    if isinstance(exc, NotADirectoryError):
+        return "not_a_directory"
+    if isinstance(exc, OSError):
+        return "unreadable"
+    return "invalid_candidate"
+
+
+def _candidate_boundary_failure(
+    *,
+    kind: str,
+    code: str,
+    stage: str,
+    reason: str,
+) -> dict[str, Any]:
+    """Return one candidate failure that never echoes a local path.
+
+    These tools used to pass ``str(exc)`` straight to the caller.  Candidate
+    errors name the absolute directory they refused, so one failed locate or
+    compare wrote this machine's directory layout into the client transcript
+    while the authoring family of the same tools had already converged on
+    path-free failures.
+    """
+
+    return {
+        "kind": kind,
+        "schema_version": 1,
+        "ok": False,
+        "issues": [
+            _issue(
+                severity="error",
+                code=code,
+                stage=stage,
+                message=_CANDIDATE_FAILURE_MESSAGES[reason],
+                reason=reason,
+            )
+        ],
+    }
+
+
 @mcp_tool(title="Locate rendered candidate", annotations=_READ_ONLY_TOOL)
 def locate_rendered_candidate(
     candidate_directory: str,
@@ -5537,27 +5625,34 @@ def locate_rendered_candidate(
     """
 
     try:
-        return locate_candidate(
-            _candidate_output_path(candidate_directory),
+        directory = _candidate_target(candidate_directory)
+    except _CandidateTargetError as failure:
+        return _candidate_boundary_failure(
+            kind="tianlai.candidate_locate_result",
+            code="candidate.locate_failed",
+            stage="candidate_receipt",
+            reason=failure.reason,
+        )
+    try:
+        located = locate_candidate(
+            directory,
             at_seconds=at_seconds,
             tail_lookback_seconds=tail_lookback_seconds,
             upcoming_seconds=upcoming_seconds,
             max_events=max_events,
         )
     except (OSError, TypeError, ValueError, KeyError, json.JSONDecodeError) as exc:
-        return {
-            "kind": "tianlai.candidate_locate_result",
-            "schema_version": 1,
-            "ok": False,
-            "issues": [
-                _issue(
-                    severity="error",
-                    code="candidate.locate_failed",
-                    stage="candidate_receipt",
-                    message=exc,
-                )
-            ],
-        }
+        return _candidate_boundary_failure(
+            kind="tianlai.candidate_locate_result",
+            code="candidate.locate_failed",
+            stage="candidate_receipt",
+            reason=_candidate_failure_reason(exc),
+        )
+    # The caller already addressed the candidate by its MCP-relative path;
+    # returning the resolved absolute directory would disclose this machine's
+    # layout.  The authoring locate tool already drops the same field.
+    located.pop("candidate_directory", None)
+    return located
 
 
 @mcp_tool(title="Compare rendered candidates", annotations=_READ_ONLY_TOOL)
@@ -5569,25 +5664,28 @@ def compare_rendered_candidates(
     """比较两个不可变候选的乐谱、编制、配置、演奏计划和混音身份。"""
 
     try:
+        before = _candidate_target(before_candidate_directory)
+        after = _candidate_target(after_candidate_directory)
+    except _CandidateTargetError as failure:
+        return _candidate_boundary_failure(
+            kind="tianlai.candidate_compare_result",
+            code="candidate.compare_failed",
+            stage="candidate_receipt",
+            reason=failure.reason,
+        )
+    try:
         return compare_candidates(
-            _candidate_output_path(before_candidate_directory),
-            _candidate_output_path(after_candidate_directory),
+            before,
+            after,
             max_changes=max_changes,
         )
     except (OSError, TypeError, ValueError, KeyError, json.JSONDecodeError) as exc:
-        return {
-            "kind": "tianlai.candidate_compare_result",
-            "schema_version": 1,
-            "ok": False,
-            "issues": [
-                _issue(
-                    severity="error",
-                    code="candidate.compare_failed",
-                    stage="candidate_receipt",
-                    message=exc,
-                )
-            ],
-        }
+        return _candidate_boundary_failure(
+            kind="tianlai.candidate_compare_result",
+            code="candidate.compare_failed",
+            stage="candidate_receipt",
+            reason=_candidate_failure_reason(exc),
+        )
 
 
 @mcp_tool(title="Get creative workflow guide", annotations=_READ_ONLY_TOOL)
@@ -8567,6 +8665,9 @@ def render(
     caps = _caps()
 
     try:
+        # Same pre-parse bound as validate_project: a score that is small in
+        # bytes can still request hundreds of thousands of note objects.
+        precheck_score_document_resource_limits(score)
         score_doc = parse_score_document(score)
         validate_score_resource_limits(score, score_doc)
         roster_doc = parse_roster_document(roster, caps)
@@ -8636,6 +8737,32 @@ def render(
             overwrite=overwrite,
             expected_receipt_sha256=expected_receipt_sha256,
         )
+    except CandidateAlreadyExistsError:
+        # The library error names the absolute candidate directory.  This
+        # boundary reports the actionable rule instead of this machine's
+        # layout; the caller already knows which output_id it asked for.
+        return {
+            "kind": "tianlai.render_result",
+            "schema_version": 2,
+            "ok": False,
+            "error": (
+                "候选已存在，默认拒绝覆盖；如需覆盖请提供 "
+                "expected_receipt_sha256 并设置 overwrite=true，"
+                "或换一个 output_id"
+            ),
+            "issues": [
+                _issue(
+                    severity="error",
+                    code="candidate.already_exists",
+                    stage="candidate_target",
+                    message=(
+                        "候选已存在，默认拒绝覆盖；如需覆盖请提供 "
+                        "expected_receipt_sha256 并设置 overwrite=true，"
+                        "或换一个 output_id"
+                    ),
+                )
+            ],
+        }
     except (OSError, TypeError, ValueError) as exc:
         return {
             "kind": "tianlai.render_result",

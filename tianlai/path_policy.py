@@ -19,7 +19,7 @@ from pathlib import Path
 import stat
 from typing import Iterable
 
-from .plain_file import read_plain_file_bytes
+from .plain_file import PlainFileShapeError, read_plain_file_bytes
 from .runtime_layout import RuntimeLayout, discover_runtime_layout
 
 
@@ -261,6 +261,14 @@ class InputPathPolicy:
                 resolved,
                 maximum_bytes=maximum_bytes,
             )
+        except PlainFileShapeError as exc:
+            raise InputPathPolicyError(
+                code=f"input_path.{exc.reason}",
+                message=str(exc),
+                requested_path=os.fspath(value),
+                resolved_path=str(resolved),
+                allowed_roots=self.allowed_roots,
+            ) from exc
         except OSError as exc:
             raise InputPathPolicyError(
                 code="input_path.unreadable",
