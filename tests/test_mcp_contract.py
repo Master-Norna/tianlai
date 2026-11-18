@@ -1126,6 +1126,8 @@ RENDER_TOOLS = {"render", "render_workflow_candidate"}
 @unittest.skipUnless(_HAS_MCP, "optional mcp package is not installed")
 class McpAdvertisedContractTests(unittest.TestCase):
     def test_all_tool_schemas_defaults_outputs_and_annotations_are_fixed(self) -> None:
+        from tianlai.composition_map import MAX_NODES
+        from tianlai.creative_workflow import MAX_REVIEW_QUESTION_ANSWERS
         from tianlai.mcp_server import mcp
 
         listed = asyncio.run(mcp.list_tools())
@@ -1298,7 +1300,10 @@ class McpAdvertisedContractTests(unittest.TestCase):
             if option.get("type") == "array"
         )
         self.assertEqual(question_answers["minItems"], 1)
-        self.assertEqual(question_answers["maxItems"], 128)
+        # The advertised ceiling follows the core answer budget.  A literal
+        # here is what let a legal map freeze with more questions than the
+        # transport would ever accept.
+        self.assertEqual(question_answers["maxItems"], MAX_REVIEW_QUESTION_ANSWERS)
         self.assertIs(question_answers["uniqueItems"], True)
         answer_definition = review_schema["$defs"][
             question_answers["items"]["$ref"].rsplit("/", 1)[-1]
@@ -1358,18 +1363,22 @@ class McpAdvertisedContractTests(unittest.TestCase):
         self.assertIs(premise_indexes_schema["uniqueItems"], True)
         self.assertEqual(premise_indexes_schema["items"]["minimum"], 0)
         self.assertEqual(premise_indexes_schema["items"]["maximum"], 7)
-        for field in (
-            "charter_claim_ids",
-            "composition_map_node_ids",
-            "question_ids",
-        ):
+        # Each reference list mirrors a core contract.  Only the two that a
+        # composition map can fill to its own ceiling derive from that ceiling;
+        # a narrower literal here rejects legal calls before the core sees them.
+        reference_bounds = {
+            "charter_claim_ids": 128,
+            "composition_map_node_ids": MAX_NODES,
+            "question_ids": MAX_REVIEW_QUESTION_ANSWERS,
+        }
+        for field, expected_maximum in reference_bounds.items():
             reference_list = next(
                 option
                 for option in derivation_properties[field]["anyOf"]
                 if option.get("type") == "array"
             )
             self.assertEqual(reference_list["minItems"], 1)
-            self.assertEqual(reference_list["maxItems"], 128)
+            self.assertEqual(reference_list["maxItems"], expected_maximum)
             self.assertIs(reference_list["uniqueItems"], True)
 
         decision_schema = tools["decide_workflow_iteration"].input_schema

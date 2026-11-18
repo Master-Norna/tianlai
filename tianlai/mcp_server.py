@@ -67,8 +67,10 @@ from .authoring_render import (
     render_project_candidate as render_authoring_project_candidate,
 )
 from .capability import load_capabilities
+from .composition_map import MAX_NODES as MAX_COMPOSITION_MAP_NODES
 from .conductor import ExpressionSettings, build_plan
 from .creative_workflow import (
+    MAX_REVIEW_QUESTION_ANSWERS,
     CreativeWorkflowError,
     CreativeWorkflowSnapshot,
     activate_creative_workflow as activate_creative_workflow_state,
@@ -421,14 +423,26 @@ _WorkflowDerivationClaimIds = Annotated[
     Field(min_length=1, max_length=128, json_schema_extra={"uniqueItems": True}),
     AfterValidator(_unique_workflow_claim_references),
 ]
+# These three mirror contracts the semantic core already bounds: a derivation
+# cites whatever the current iteration offers, so its ceiling is the map node
+# limit, not a smaller number written here.  A boundary narrower than the core
+# turns a legal call into a schema error before the core can decide.
 _WorkflowDerivationNodeIds = Annotated[
     list[_WorkflowStableId],
-    Field(min_length=1, max_length=128, json_schema_extra={"uniqueItems": True}),
+    Field(
+        min_length=1,
+        max_length=MAX_COMPOSITION_MAP_NODES,
+        json_schema_extra={"uniqueItems": True},
+    ),
     AfterValidator(_unique_workflow_claim_references),
 ]
 _WorkflowDerivationQuestionIds = Annotated[
     list[_WorkflowQuestionId],
-    Field(min_length=1, max_length=128, json_schema_extra={"uniqueItems": True}),
+    Field(
+        min_length=1,
+        max_length=MAX_REVIEW_QUESTION_ANSWERS,
+        json_schema_extra={"uniqueItems": True},
+    ),
     AfterValidator(_unique_workflow_claim_references),
 ]
 _WorkflowReviewClaimIds = Annotated[
@@ -484,7 +498,7 @@ class _WorkflowCompositionMapNode(TypedDict):
 
 _WorkflowCompositionMapNodes = Annotated[
     list[_WorkflowCompositionMapNode],
-    Field(min_length=1, max_length=256),
+    Field(min_length=1, max_length=MAX_COMPOSITION_MAP_NODES),
 ]
 
 
@@ -515,7 +529,15 @@ def _unique_workflow_question_answers(
 
 _WorkflowReviewQuestionAnswers = Annotated[
     list[_WorkflowReviewQuestionAnswer],
-    Field(min_length=1, max_length=128, json_schema_extra={"uniqueItems": True}),
+    # The core admits MAX_REVIEW_QUESTION_ANSWERS answers per review.  A
+    # smaller literal here let a map freeze with 320 questions and then made
+    # the review itself unsubmittable through MCP, so the two bounds are now
+    # derived from one constant.
+    Field(
+        min_length=1,
+        max_length=MAX_REVIEW_QUESTION_ANSWERS,
+        json_schema_extra={"uniqueItems": True},
+    ),
     AfterValidator(_unique_workflow_question_answers),
 ]
 
