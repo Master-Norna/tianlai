@@ -60,10 +60,48 @@ def canonical_json_file_sha256(path: str | Path) -> str:
     return canonical_json_sha256(document)
 
 
+def json_values_equal(before: Any, after: Any) -> bool:
+    """Compare two JSON values by meaning instead of by serialization.
+
+    ``json.dumps`` writes ``1`` and ``1.0`` as different bytes, and ``0.0`` and
+    ``-0.0`` as well, so a client that round-trips a document through a JSON
+    library that widens integers re-serializes every number differently while
+    the document still asserts exactly the same value.  A canonical hash cannot
+    see that; comparing through Python ``==`` is not the answer either, because
+    ``True == 1`` and the caller would then accept a real type change as "no
+    edit".  This predicate requires the same JSON kind and then compares the
+    value, so both directions stay honest.
+    """
+
+    if isinstance(before, bool) or isinstance(after, bool):
+        return (
+            isinstance(before, bool)
+            and isinstance(after, bool)
+            and before is after
+        )
+    if isinstance(before, (int, float)) and isinstance(after, (int, float)):
+        return before == after
+    if isinstance(before, dict) and isinstance(after, dict):
+        if set(before) != set(after):
+            return False
+        return all(json_values_equal(before[key], after[key]) for key in before)
+    if isinstance(before, (list, tuple)) and isinstance(after, (list, tuple)):
+        if len(before) != len(after):
+            return False
+        return all(
+            json_values_equal(left, right)
+            for left, right in zip(before, after)
+        )
+    if type(before) is not type(after):
+        return False
+    return before == after
+
+
 __all__ = [
     "CANONICALIZATION",
     "HASH_ALGORITHM",
     "canonical_json_bytes",
     "canonical_json_file_sha256",
     "canonical_json_sha256",
+    "json_values_equal",
 ]
