@@ -5504,11 +5504,44 @@ def _candidate_output_path(value: str) -> Path:
     return candidate
 
 
+class _CandidateTargetError(Exception):
+    """One candidate target the boundary refuses, with a path-free reason."""
+
+    def __init__(self, reason: str) -> None:
+        self.reason = reason
+        super().__init__(reason)
+
+
+def _candidate_target(value: str) -> Path:
+    """Resolve one caller-supplied candidate the way the library accepts it.
+
+    ``load_candidate`` takes either the generation directory or the manifest
+    file inside it, so this guard has to keep both shapes reachable; checking
+    for a directory alone rejected the manifest form.  The two stat calls run
+    inside the boundary as well: ``Path.is_dir`` re-raises ``EACCES`` and only
+    swallows "no such entry" style errors, so an unsearchable ancestor used to
+    escape the tool as an uncaught ``PermissionError`` naming the path.
+    """
+
+    try:
+        path = _candidate_output_path(value)
+        if path.is_dir():
+            return path
+        if path.name == CANDIDATE_MANIFEST_NAME and path.is_file():
+            return path
+    except ValueError as exc:
+        raise _CandidateTargetError("outside_output_root") from exc
+    except OSError as exc:
+        raise _CandidateTargetError("unreadable") from exc
+    raise _CandidateTargetError("missing")
+
+
 _CANDIDATE_FAILURE_MESSAGES = {
     "missing": "候选目录或候选文件不存在",
     "not_a_directory": "候选路径不是目录",
     "unreadable": "候选目录或文件无法读取",
     "invalid_candidate": "候选内容无法按回执校验",
+    "outside_output_root": "候选必须位于当前天籁 MCP 输出目录内",
 }
 
 
@@ -5528,7 +5561,6 @@ def _candidate_boundary_failure(
     code: str,
     stage: str,
     reason: str,
-    message: str | None = None,
 ) -> dict[str, Any]:
     """Return one candidate failure that never echoes a local path.
 
@@ -5548,7 +5580,7 @@ def _candidate_boundary_failure(
                 severity="error",
                 code=code,
                 stage=stage,
-                message=message or _CANDIDATE_FAILURE_MESSAGES[reason],
+                message=_CANDIDATE_FAILURE_MESSAGES[reason],
                 reason=reason,
             )
         ],
@@ -5571,28 +5603,13 @@ def locate_rendered_candidate(
     """
 
     try:
-        directory = _candidate_output_path(candidate_directory)
-    except ValueError:
+        directory = _candidate_target(candidate_directory)
+    except _CandidateTargetError as failure:
         return _candidate_boundary_failure(
             kind="tianlai.candidate_locate_result",
             code="candidate.locate_failed",
             stage="candidate_receipt",
-            reason="outside_output_root",
-            message="候选必须位于当前天籁 MCP 输出目录内",
-        )
-    except OSError:
-        return _candidate_boundary_failure(
-            kind="tianlai.candidate_locate_result",
-            code="candidate.locate_failed",
-            stage="candidate_receipt",
-            reason="unreadable",
-        )
-    if not directory.is_dir():
-        return _candidate_boundary_failure(
-            kind="tianlai.candidate_locate_result",
-            code="candidate.locate_failed",
-            stage="candidate_receipt",
-            reason="missing",
+            reason=failure.reason,
         )
     try:
         located = locate_candidate(
@@ -5625,31 +5642,15 @@ def compare_rendered_candidates(
     """比较两个不可变候选的乐谱、编制、配置、演奏计划和混音身份。"""
 
     try:
-        before = _candidate_output_path(before_candidate_directory)
-        after = _candidate_output_path(after_candidate_directory)
-    except ValueError:
+        before = _candidate_target(before_candidate_directory)
+        after = _candidate_target(after_candidate_directory)
+    except _CandidateTargetError as failure:
         return _candidate_boundary_failure(
             kind="tianlai.candidate_compare_result",
             code="candidate.compare_failed",
             stage="candidate_receipt",
-            reason="outside_output_root",
-            message="候选必须位于当前天籁 MCP 输出目录内",
+            reason=failure.reason,
         )
-    except OSError:
-        return _candidate_boundary_failure(
-            kind="tianlai.candidate_compare_result",
-            code="candidate.compare_failed",
-            stage="candidate_receipt",
-            reason="unreadable",
-        )
-    for candidate in (before, after):
-        if not candidate.is_dir():
-            return _candidate_boundary_failure(
-                kind="tianlai.candidate_compare_result",
-                code="candidate.compare_failed",
-                stage="candidate_receipt",
-                reason="missing",
-            )
     try:
         return compare_candidates(
             before,
