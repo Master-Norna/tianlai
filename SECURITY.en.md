@@ -4,8 +4,9 @@
 
 ## Supported versions
 
-The current `0.5.x` series receives security fixes. Earlier experimental
-versions are handled only when a fix can be backported safely.
+The current `1.1.x` series receives security fixes. Earlier experimental
+versions are handled only when a fix can be backported safely; `0.5.x` and
+older are out of support.
 
 ## Reporting a vulnerability
 
@@ -22,12 +23,15 @@ poisoning, or denial of service before a fix is available.
 
 ## Current security boundaries
 
-- MCP local score import reads only the project and score directories plus
-  directories explicitly allowed through `TIANLAI_INPUT_ROOTS`.
+- MCP local score import reads only the project and score directories, the MCP
+  output directory, and directories explicitly allowed through
+  `TIANLAI_INPUT_ROOTS`.
 - External paths are checked for containment after resolving symbolic links and
   Windows reparse points or junctions.
 - Scores, MIDI, MusicXML/MXL, render duration, note counts, executors, memory,
-  and output sizes all have default limits.
+  and output sizes all have default limits. A score's note and part fan-out is
+  counted from the raw arrays before structural parsing, and the parsed objects
+  are checked again afterwards.
 - With `trusted_only=true`, a missing or invalid trusted catalog fails closed.
 - Candidates and imported projects are non-overwriting by default. Explicit
   candidate replacement binds both the old receipt and the preparation-stage
