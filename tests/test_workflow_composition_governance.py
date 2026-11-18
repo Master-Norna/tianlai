@@ -8,7 +8,7 @@ from unittest import mock
 
 import tianlai.creative_workflow as workflow_module
 from tianlai.authoring_project import create_authoring_project, save_authoring_project
-from tianlai.composition_map import COMPOSITION_MAP_KIND
+from tianlai.composition_map import COMPOSITION_MAP_KIND, MAX_NODES as MAX_COMPOSITION_MAP_NODES
 from tianlai.creative_workflow import (
     CreativeWorkflowError,
     activate_creative_workflow,
@@ -345,17 +345,19 @@ class WorkflowCompositionGovernanceTests(unittest.TestCase):
             "schema_version": 1,
             "nodes": [
                 {
-                    "node_id": "question-budget",
+                    "node_id": f"question-budget-{node_index}",
                     "label": "Question budget",
                     "function": "Keep the forced review finite and answerable.",
                     "depends_on_claim_ids": [claim_id],
                     # symbolic_structure already contributes two mandatory
-                    # whole-work questions, so 127 declared questions exceed
-                    # the 128-answer public contract.
+                    # whole-work questions, so two nodes declaring 200 open
+                    # questions each exceed the answer budget even after it
+                    # was raised to cover the maximum legal map.
                     "open_questions": [
-                        f"Question {index}" for index in range(127)
+                        f"Question {node_index}-{index}" for index in range(200)
                     ],
                 }
+                for node_index in range(2)
             ],
         }
         inspected = inspect_workflow_composition(
@@ -365,7 +367,7 @@ class WorkflowCompositionGovernanceTests(unittest.TestCase):
         )
         self.assertGreater(
             len(inspected["review_questions"]["symbolic_structure"]),
-            128,
+            workflow_module.MAX_REVIEW_QUESTION_ANSWERS,
         )
 
         with self.assertRaises(CreativeWorkflowError) as caught:
@@ -376,6 +378,44 @@ class WorkflowCompositionGovernanceTests(unittest.TestCase):
                 composition_map=composition_map,
             )
         self.assertEqual(caught.exception.code, "review_question_budget_exceeded")
+        self.assertEqual(
+            caught.exception.location_segments, ("symbolic_structure",)
+        )
+
+    def test_maximum_legal_map_stays_answerable(self) -> None:
+        """The review budget must not contradict the schema's node capacity."""
+
+        composition_map = {
+            "kind": COMPOSITION_MAP_KIND,
+            "schema_version": 1,
+            "nodes": [
+                {
+                    "node_id": f"node-{index:03d}",
+                    "label": f"Node {index}",
+                    "function": "Declare one segment function of the whole work.",
+                    # No depends_on_claim_ids: exactly the shape that used to
+                    # make a 126-node map impossible to freeze.
+                }
+                for index in range(MAX_COMPOSITION_MAP_NODES)
+            ],
+        }
+        inspected = inspect_workflow_composition(
+            self.root,
+            workflow_id=self.active.workflow_id,
+            composition_map=composition_map,
+        )
+        self.assertLessEqual(
+            len(inspected["review_questions"]["symbolic_structure"]),
+            workflow_module.MAX_REVIEW_QUESTION_ANSWERS,
+        )
+
+        recorded = record_workflow_composition_map(
+            self.root,
+            workflow_id=self.active.workflow_id,
+            expected_revision=self.active.revision,
+            composition_map=composition_map,
+        )
+        self.assertNotEqual(recorded.revision, self.active.revision)
 
     def test_question_answers_cover_every_current_reference_in_the_question(self) -> None:
         claim_id = self._claim("ending_contract")

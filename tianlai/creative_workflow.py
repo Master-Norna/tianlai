@@ -65,6 +65,7 @@ from .charter_amendment import (
 )
 from .canonical_json import CANONICALIZATION, canonical_json_sha256
 from .composition_map import (
+    MAX_NODES as MAX_COMPOSITION_MAP_NODES,
     CompositionMapError,
     composition_map_sha256,
     inspect_composition_map,
@@ -157,7 +158,15 @@ MAX_ITERATIONS = 1 + MAX_REVISION_CYCLES + MAX_ROLLBACKS
 MAX_COMPOSITION_MAPS = MAX_ITERATIONS
 MAX_CHARTER_AMENDMENT_PREFLIGHTS = 128
 MAX_CHARTER_AMENDMENTS = 32
-MAX_REVIEW_QUESTION_ANSWERS = 128
+# A symbolic review must stay answerable for every map the schema admits.  A
+# node that declares no claim dependency contributes one whole-work mirror
+# question, so a budget below MAX_COMPOSITION_MAP_NODES makes a legal map
+# impossible to freeze: 126 undeclared nodes already produced 128 questions,
+# and the freeze failed with review_question_budget_exceeded, which names the
+# answer budget instead of the map.  The slack covers the fixed phase prompts
+# and the map-level questions (unmapped regions, unreferenced claims,
+# overlaps, ordering, scarce resources).
+MAX_REVIEW_QUESTION_ANSWERS = MAX_COMPOSITION_MAP_NODES + 64
 MAX_REVIEW_CLAIM_REFERENCES = 1024
 MAX_REVIEW_NODE_REFERENCES = 256
 MAX_REVIEW_EVENT_REFERENCES = 128
@@ -6973,18 +6982,23 @@ def record_workflow_composition_map(
                 )
             )
         charter_sha256 = canonical_json_sha256(charter)
-        if any(
-            len(
-                _phase_review_questions(
-                    inspection,
-                    phase=phase,
-                    effective_charter_sha256=charter_sha256,
+        # Name the phase that overran the answer budget.  The code alone said
+        # nothing about which phase or which map shape forced the refusal.
+        for phase in _GOVERNANCE_REVIEW_PHASES:
+            if (
+                len(
+                    _phase_review_questions(
+                        inspection,
+                        phase=phase,
+                        effective_charter_sha256=charter_sha256,
+                    )
                 )
-            )
-            > MAX_REVIEW_QUESTION_ANSWERS
-            for phase in _GOVERNANCE_REVIEW_PHASES
-        ):
-            raise CreativeWorkflowError("review_question_budget_exceeded")
+                > MAX_REVIEW_QUESTION_ANSWERS
+            ):
+                raise CreativeWorkflowError(
+                    "review_question_budget_exceeded",
+                    location_segments=(phase,),
+                )
         timestamp = _transition_timestamp(state, iteration["opened_at_utc"])
         governance = state["governance"]
         governance["composition_maps"].append(
