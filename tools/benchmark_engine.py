@@ -50,7 +50,9 @@ def run(seconds: int, repeats: int) -> dict:
     with tempfile.TemporaryDirectory() as temporary:
         directory = Path(temporary)
         # Deterministic local mono PCM fixture. No licensed sample resources.
-        phase = np.arange(frames, dtype=np.float64) * (2 * np.pi * 440 / _RATE)
+        # A pitch-up voice consumes source frames 1.5 times as fast.
+        # Keep enough source audio for the complete note rather than timing silence.
+        phase = np.arange(2 * frames, dtype=np.float64) * (2 * np.pi * 440 / _RATE)
         pcm = np.rint(np.sin(phase) * 10000).astype("<i2")
         with wave.open(str(directory / "sample.wav"), "wb") as stream:
             stream.setnchannels(1)
