@@ -30,7 +30,7 @@ from .canonical_json import canonical_json_bytes
 from .plain_file import PlainFileIdentity, read_plain_file_bytes
 from .resource_limits import (
     ProjectLimits,
-    ResourceLimitError,
+    precheck_score_document_resource_limits,
     validate_score_resource_limits,
 )
 from .score import ScoreDocument, parse_score_document
@@ -158,44 +158,6 @@ def _freeze_parsed_score(score: ParsedScore) -> ParsedScore:
     return replace(score, tuning=tuning)
 
 
-def _preflight_raw_score_counts(
-    document: dict[str, Any],
-    limits: ProjectLimits,
-) -> None:
-    """Apply configured fan-out limits before building a typed score graph."""
-
-    raw_parts = document.get("parts")
-    if type(raw_parts) is not list:
-        return
-    part_count = len(raw_parts)
-    if part_count > limits.max_parts:
-        raise ResourceLimitError(
-            "score.too_many_parts",
-            f"score part count {part_count:g} exceeds limit "
-            f"{limits.max_parts:g}; raise TIANLAI_MAX_PARTS deliberately "
-            "if this project is trusted",
-            actual=part_count,
-            limit=limits.max_parts,
-        )
-    note_count = 0
-    for raw_part in raw_parts:
-        if type(raw_part) is not dict:
-            continue
-        raw_notes = raw_part.get("notes")
-        if type(raw_notes) is not list:
-            continue
-        note_count += len(raw_notes)
-        if note_count > limits.max_notes:
-            raise ResourceLimitError(
-                "score.too_many_notes",
-                f"score note count {note_count:g} exceeds limit "
-                f"{limits.max_notes:g}; raise TIANLAI_MAX_NOTES deliberately "
-                "if this project is trusted",
-                actual=note_count,
-                limit=limits.max_notes,
-            )
-
-
 @dataclass(frozen=True, slots=True, init=False)
 class ScoreSourceSnapshot:
     """One immutable, canonicalized generation of a trusted score source."""
@@ -277,7 +239,7 @@ def _bind_detached_document(
         raise TypeError("file_identity must be a PlainFileIdentity or None")
     document_sha256 = hashlib.sha256(canonical_bytes).hexdigest()
     parser = _score_parser_for(document)
-    _preflight_raw_score_counts(document, limits)
+    precheck_score_document_resource_limits(document, limits)
     score = parser(document)
     if not isinstance(score, (ScoreDocument, ScoreV2Document)):
         raise TypeError(
