@@ -27,6 +27,7 @@ importer silently rewrites the music:
 from __future__ import annotations
 
 import copy
+from bisect import bisect_right
 from collections import deque
 from dataclasses import dataclass, field
 import hashlib
@@ -130,21 +131,22 @@ class ImportReport:
 
 
 class _Reader:
-    __slots__ = ("data", "position")
+    __slots__ = ("data", "position", "limit")
 
     def __init__(self, data: bytes) -> None:
         self.data = data
         self.position = 0
+        self.limit = len(data)
 
     def byte(self) -> int:
-        if self.position >= len(self.data):
+        if self.position >= self.limit:
             raise ValueError("MIDI 数据在读取中意外结束")
         value = self.data[self.position]
         self.position += 1
         return value
 
     def read(self, count: int) -> bytes:
-        if self.position + count > len(self.data):
+        if self.position + count > self.limit:
             raise ValueError("MIDI 数据在读取中意外结束")
         chunk = self.data[self.position : self.position + count]
         self.position += count
@@ -244,13 +246,8 @@ class _BarClock:
             )
 
     def segment_at(self, tick: int) -> _MeterSegment:
-        chosen = self.segments[0]
-        for segment in self.segments:
-            if segment.start_tick <= tick:
-                chosen = segment
-            else:
-                break
-        return chosen
+        index = bisect_right(self.segments, tick, key=lambda segment: segment.start_tick)
+        return self.segments[max(0, index - 1)]
 
     def position(self, tick: int) -> tuple[int, float]:
         segment = self.segment_at(tick)
@@ -275,6 +272,9 @@ def _parse_track(
     end = reader.position + length
     if end > len(reader.data):
         raise ValueError(f"MIDI 轨道 {track_index} 的声明长度超过文件边界")
+    # Events and variable-length quantities must not borrow bytes from
+    # the following chunk, even if the enclosing file has more data.
+    reader.limit = end
     tick = 0
     status = 0
     track_name = ""
@@ -453,6 +453,7 @@ def _parse_track(
             synthesized_note_offs += 1
 
     reader.position = end
+    reader.limit = len(reader.data)
     for part in parts.values():
         part.name = track_name
     warnings: list[str] = []
@@ -595,6 +596,7 @@ def read_midi(
     tempos: list[tuple[int, int]] = []
     meters: list[tuple[int, int, int]] = []
     warnings: list[str] = []
+    note_count = 0
     for track_index in range(track_count):
         marker = reader.read(4)
         length = reader.integer(4)
@@ -610,9 +612,7 @@ def read_midi(
             track_warnings,
         ) = _parse_track(reader, track_index, length)
         raw_parts.extend(parts)
-        note_count = sum(
-            len(part.notes) for part in raw_parts
-        )
+        note_count += sum(len(part.notes) for part in parts)
         if note_count > _MAX_IMPORTED_NOTES:
             raise ValueError(
                 f"MIDI 可配对音符数超过 {_MAX_IMPORTED_NOTES}"
