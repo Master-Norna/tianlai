@@ -344,6 +344,49 @@ def _tree_snapshot(directory: Path) -> dict[str, bytes]:
     }
 
 
+class BoundedCandidateLocationTests(unittest.TestCase):
+    def test_bounded_location_matches_full_stable_sort(self) -> None:
+        traces = []
+        for index in range(30):
+            for start, duration in ((4, 2), (3, 1), (5.5, 1), (0, 1)):
+                traces.append({
+                    "时间": start, "时长": duration,
+                    "source_event_id": str(index % 3),
+                    "拍": index,  # distinguish rows with otherwise equal keys
+                })
+        plan = {"parts": [{"executor_id": "lead", "trace": traces}]}
+        candidate = {
+            "candidate_id": "test",
+            "project": {
+                "performance_plan_sha256": "plan",
+                "score": {"canonical_sha256": "score"},
+                "roster": {"canonical_sha256": "roster"},
+            },
+        }
+        receipt = {"mix": {"frame_count": 80000},
+                   "audio_format": {"sample_rate": 8000}}
+        with mock.patch.object(candidate_module, "load_candidate",
+                               return_value=(Path("."), candidate)), \
+             mock.patch.object(candidate_module, "_verified_plan",
+                               return_value=(plan, receipt)):
+            full = locate_candidate(".", at_seconds=5,
+                                    tail_lookback_seconds=2, max_events=1024)
+            for limit in (1, 7, 35, 65):
+                bounded = locate_candidate(".", at_seconds=5,
+                                           tail_lookback_seconds=2,
+                                           max_events=limit)
+                remaining = limit
+                for category in ("active_events",
+                                 "possible_release_or_space_sources",
+                                 "upcoming_events"):
+                    expected = full[category][:remaining]
+                    self.assertEqual(bounded[category], expected)
+                    remaining -= len(expected)
+                self.assertEqual(bounded["summary"]["matched_event_count"], 90)
+                self.assertEqual(bounded["summary"]["returned_event_count"], limit)
+                self.assertTrue(bounded["summary"]["truncated"])
+
+
 class CandidateTests(unittest.TestCase):
     @unittest.skipUnless(os.name == "nt", "Windows 8.3 paths are required")
     def test_candidate_round_trip_accepts_a_short_name_output_ancestor(
