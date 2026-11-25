@@ -167,6 +167,34 @@ class RenderResourceRequestTests(unittest.TestCase):
 
 
 class CliRenderPreflightParityTests(unittest.TestCase):
+    def test_cli_rejects_raw_note_fanout_before_parsing(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            score_path = base / "score.json"
+            roster_path = base / "roster.json"
+            document = _long_score()
+            document["parts"][0]["notes"] *= 2
+            score_path.write_text(json.dumps(document), encoding="utf-8")
+            roster_path.write_text(json.dumps(_roster()), encoding="utf-8")
+            for command, output_option in (
+                ("ensemble", "--output"),
+                ("project-render", "--output-root"),
+            ):
+                output = base / command
+                with self.subTest(command=command), patch.dict(
+                    "os.environ", {"TIANLAI_MAX_NOTES": "1"}
+                ), patch(
+                    "tianlai.score.parse_score_document",
+                    side_effect=AssertionError("score parsed before precheck"),
+                ), contextlib.redirect_stderr(io.StringIO()) as stderr:
+                    status = cli_main([
+                        command, "--score", str(score_path),
+                        "--roster", str(roster_path), output_option, str(output),
+                    ])
+                    self.assertEqual(status, 2)
+                    self.assertIn("score note count", stderr.getvalue())
+                    self.assertFalse(output.exists())
+
     def test_plan_only_uses_the_same_default_hall_gate_as_render(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             base = Path(temporary)
