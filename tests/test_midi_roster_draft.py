@@ -278,6 +278,21 @@ def _event_projection(
 
 
 class MidiRosterDraftTests(unittest.TestCase):
+    def test_track_events_cannot_read_into_the_next_chunk(self) -> None:
+        following = _track([(0, b"\x90\x3c\x40"), (480, b"\x80\x3c\x00")])
+        for truncated in (
+            b"\x00\x90\x3c",          # missing velocity
+            b"\x00\xc0",              # missing program
+            b"\x00\xff\x03\x01",      # missing meta payload
+            b"\x00\xf0\x01",          # missing SysEx payload
+            b"\x81",                  # unfinished delta
+        ):
+            with self.subTest(truncated=truncated):
+                first = b"MTrk" + len(truncated).to_bytes(4, "big") + truncated
+                payload = _midi_header(1, 2) + first + following
+                with self.assertRaises(ValueError):
+                    read_midi("truncated.mid", source_bytes=payload)
+
     @classmethod
     def setUpClass(cls) -> None:
         cls._temporary_directory = tempfile.TemporaryDirectory()
