@@ -45,7 +45,11 @@ from .canonical_json import (
 from .plain_file import read_plain_file_bytes, revalidate_plain_file
 from .render_lock import capture_plain_directory
 from .render_profile import parse_render_profile
-from .resource_limits import ProjectLimits, validate_score_resource_limits
+from .resource_limits import (
+    ProjectLimits,
+    precheck_score_document_resource_limits,
+    validate_score_resource_limits,
+)
 from .score import parse_score_document
 from .score_time import validate_score_time_coordinates
 from .utc_timestamp import (
@@ -839,6 +843,9 @@ def _validate_document_set(
         ) from exc
 
     try:
+        precheck_score_document_resource_limits(
+            detached["score"], _AUTHORING_PROJECT_LIMITS
+        )
         _validate_public_score_types(detached["score"])
         score = parse_score_document(detached["score"])
         if score.schema_version != 1:
