@@ -37,7 +37,7 @@ from .midi_import import (
     build_roster_draft as build_midi_roster_draft,
     read_midi,
 )
-from .musicxml_import import read_musicxml
+from .musicxml_import import _capture_source_bytes, read_musicxml
 from .plain_file import (
     PlainFileIdentity,
     read_plain_file_bytes,
@@ -70,19 +70,6 @@ _DEFAULT_FILENAMES = {
 }
 _MAX_IMPORT_DOCUMENT_BYTES = 64 * 1024 * 1024
 _PRIVATE_CLEANUP_ATTEMPTS = 16
-
-
-def _source_sha256(path: Path) -> tuple[str, int]:
-    digest = hashlib.sha256()
-    byte_length = 0
-    with path.open("rb") as source:
-        while True:
-            block = source.read(1024 * 1024)
-            if not block:
-                break
-            digest.update(block)
-            byte_length += len(block)
-    return digest.hexdigest(), byte_length
 
 
 def _score_v1(score: object) -> tuple[dict[str, Any], Any]:
@@ -354,21 +341,11 @@ def import_musicxml_project(
     """Import MusicXML and bind the result to the original XML/MXL bytes."""
 
     source_path = Path(path)
-    if source_bytes is None:
-        before_sha256, before_size = _source_sha256(source_path)
-        score, parser_report = read_musicxml(source_path)
-        after_sha256, after_size = _source_sha256(source_path)
-        if (before_sha256, before_size) != (after_sha256, after_size):
-            raise ValueError("MusicXML source changed while it was being imported")
-    else:
-        if not isinstance(source_bytes, bytes):
-            raise TypeError("source_bytes must be bytes")
-        before_sha256 = hashlib.sha256(source_bytes).hexdigest()
-        before_size = len(source_bytes)
-        score, parser_report = read_musicxml(
-            source_path,
-            source_bytes=source_bytes,
-        )
+    payload = _capture_source_bytes(source_path, source_bytes=source_bytes)
+    before_sha256 = hashlib.sha256(payload).hexdigest()
+    before_size = len(payload)
+    score, parser_report = read_musicxml(source_path, source_bytes=payload)
+    del payload
     _score_v1(score)
     report = _generic_report(
         source_kind="musicxml",
