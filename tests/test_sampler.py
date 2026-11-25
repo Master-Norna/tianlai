@@ -68,6 +68,20 @@ def write_stereo_values(
 
 
 class SampleInstrumentTests(unittest.TestCase):
+    def test_failed_sample_load_never_publishes_decoded_frames(self) -> None:
+        sample = sampler_module._SampleData(Path("sample.wav"), 48000, 1, 2)
+        frames = object()
+        with patch.object(sampler_module, "read_audio_float",
+                          side_effect=[(44100, frames), (44100, frames),
+                                       (48000, frames)]) as decode:
+            for _ in range(2):
+                with self.assertRaisesRegex(ValueError, "sample rate changed"):
+                    sample.load()
+                self.assertIsNone(sample.frames)
+            self.assertIs(sample.load(), frames)
+            self.assertIs(sample.load(), frames)
+            self.assertEqual(decode.call_count, 3)
+
     def test_sample_manifest_renders_at_requested_pitch(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             directory = Path(temporary_directory)
