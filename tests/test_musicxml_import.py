@@ -663,6 +663,45 @@ class MusicXMLImportTest(unittest.TestCase):
         }
         self.assertIn("import_musicxml", names)
 
+    def test_dynamic_lookup_preserves_latest_matching_scope(self):
+        from fractions import Fraction
+        from tianlai.musicxml_import import (
+            _apply_dynamics, _DynamicEvent, _PartInfo, _PartResult, _RawNote,
+        )
+
+        def direction(sequence, staff, voice, mark):
+            return _DynamicEvent(1, Fraction(0), sequence, staff, voice, mark, None)
+
+        def note(sequence, staff, voice, mark=None):
+            return _RawNote(
+                1, Fraction(0), Fraction(0), Fraction(1), sequence,
+                staff, voice, 60.0, mark, None, None, False,
+            )
+
+        dynamics = [
+            direction(1, None, None, "p"),
+            direction(2, 1, None, "mp"),
+            direction(3, None, "a", "mf"),
+            direction(4, 1, "a", "f"),
+            direction(5, 99, "other", "ppp"),
+            direction(10, None, None, "ff"),
+        ]
+        notes = [
+            note(6, 1, "a"),
+            note(7, 1, "b"),
+            note(8, 2, "a"),
+            note(9, 2, "b"),
+            note(11, 1, "a"),
+            note(12, 1, "a", "pp"),
+        ]
+        result = _PartResult(
+            _PartInfo("P1", "P1", "Piano"), notes, dynamics, {}, set(), set()
+        )
+        _apply_dynamics(result)
+        self.assertEqual(
+            [item.dynamic for item in notes], ["f", "mp", "mf", "p", "ff", "pp"]
+        )
+
     def test_staff_specific_dynamics_do_not_rewrite_an_earlier_voice(self):
         xml = """\
 <score-partwise version="4.0">
