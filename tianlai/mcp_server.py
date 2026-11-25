@@ -133,6 +133,7 @@ from .render_lock import (
 )
 from .render_profile import (
     RenderProfile,
+    expression_options,
     parse_render_profile,
     profile_with_overrides,
 )
@@ -3115,11 +3116,7 @@ def _compile_project(
     try:
         normalized_seed = int(seed)
         settings = ExpressionSettings.from_dict(
-            {
-                "mode": expression,
-                "range_mode": range_mode,
-                "humanize": {"seed": normalized_seed},
-            }
+            expression_options(expression, range_mode, normalized_seed)
         )
     except Exception as exc:
         checks["settings"] = {"status": "failed"}
@@ -4723,10 +4720,7 @@ def validate_project(
         seed=profile.seed,
         range_mode=profile.range_mode,
         instrument_scope=resolved_scope,
-        write_stems=profile.write_stems,
-        space=profile.space,
-        collaboration_mode=profile.collaboration_mode,
-        stem_cache_enabled=profile.use_stem_cache,
+        **profile.preflight_options(),
     )
     return _validation_result_from_compilation(
         compilation,
@@ -4860,10 +4854,7 @@ def check_project_readiness(
         seed=profile.seed,
         range_mode=profile.range_mode,
         instrument_scope=resolved_scope,
-        write_stems=profile.write_stems,
-        space=profile.space,
-        collaboration_mode=profile.collaboration_mode,
-        stem_cache_enabled=profile.use_stem_cache,
+        **profile.preflight_options(),
     )
     result = _validation_result_from_compilation(
         compilation,
@@ -8671,13 +8662,7 @@ def render(
         score_doc = parse_score_document(score)
         validate_score_resource_limits(score, score_doc)
         roster_doc = parse_roster_document(roster, caps)
-        settings = ExpressionSettings.from_dict(
-            {
-                "mode": expression,
-                "range_mode": range_mode,
-                "humanize": {"seed": int(seed)},
-            }
-        )
+        settings = ExpressionSettings.from_dict(profile.expression_options())
         plan = build_plan(score_doc, roster_doc, settings)
     except Exception as exc:  # 把校验错误如实回给 AI,让它改
         return {"error": f"乐谱/编制解析失败:{exc}"}
@@ -8685,10 +8670,7 @@ def render(
     try:
         resource_preflight = validate_render_request_resource_limits(
             plan,
-            write_stems=profile.write_stems,
-            space=profile.space,
-            collaboration_mode=profile.collaboration_mode,
-            stem_cache_enabled=profile.use_stem_cache,
+            **profile.preflight_options(),
         )
     except ResourceLimitError as exc:
         return {
@@ -8778,17 +8760,12 @@ def render(
         result = render_plan(
             plan,
             directory,
-            write_stems=write_stems,
-            master_gain_db=master_gain_db,
-            normalize_peak_db=normalize_peak_db,
-            space=space,
-            collaboration_mode=collaboration_mode,
+            **profile.render_options(),
             stem_cache_directory=(
                 OUTPUT_DIR.parent / ".tianlai-cache" / "stems"
                 if use_stem_cache
                 else None
             ),
-            refresh_stem_cache=refresh_stem_cache,
             analysis_cache_directory=(
                 OUTPUT_DIR.parent / ".tianlai-cache" / "analysis"
                 if use_stem_cache
