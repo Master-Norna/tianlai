@@ -84,6 +84,44 @@ class MidiExportTests(unittest.TestCase):
         _, report = build_midi(score, allow_lossy=True)
         self.assertNotIn(code, {item["code"] for item in report["losses"]})
 
+    def test_shared_percussion_channel_reports_cross_track_overlap(self) -> None:
+        score = _score()
+        first = score["parts"][0]
+        first["id"] = first["name"] = "drum-a"
+        first["notes"] = [first["notes"][0]]
+        first["notes"][0]["duration_beats"] = 2
+        second = copy.deepcopy(first)
+        second["id"] = second["name"] = "drum-b"
+        second["notes"][0].update(event_id="drum-b-1", beat=2)
+        score["parts"].append(second)
+
+        code = "overlapping_shared_channel_key_notes"
+        with self.assertRaises(MidiExportLossError) as raised:
+            build_midi(score)
+        collision = next(item for item in raised.exception.report["losses"]
+                         if item["code"] == code)
+        self.assertEqual(collision["details"], {
+            "channel_1based": 10, "key": 60,
+            "part_ids": ["drum-a", "drum-b"],
+        })
+        _, report = build_midi(score, allow_lossy=True)
+        self.assertIn(code, {item["code"] for item in report["losses"]})
+
+        # Adjacent notes and different keys are not overlapping same-key notes.
+        second["notes"][0]["beat"] = 3
+        _, report = build_midi(score, allow_lossy=True)
+        self.assertNotIn(code, {item["code"] for item in report["losses"]})
+        second["notes"][0].update(beat=2, pitch="D4")
+        _, report = build_midi(score, allow_lossy=True)
+        self.assertNotIn(code, {item["code"] for item in report["losses"]})
+
+        # The same pitch is safe when the melodic tracks use distinct channels.
+        first["id"] = first["name"] = "violin-a"
+        second["id"] = second["name"] = "violin-b"
+        second["notes"][0]["pitch"] = "C4"
+        _, report = build_midi(score, allow_lossy=True)
+        self.assertNotIn(code, {item["code"] for item in report["losses"]})
+
     def test_v1_identity_loss_requires_explicit_approval(self) -> None:
         with self.assertRaises(MidiExportLossError) as raised:
             build_midi(_score())
