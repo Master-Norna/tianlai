@@ -1190,13 +1190,7 @@ def main(argv: list[str] | None = None) -> int:
                 if args.render_profile
                 else None
             )
-            settings = ExpressionSettings.from_dict(
-                {
-                    "mode": profile.expression,
-                    "range_mode": profile.range_mode,
-                    "humanize": {"seed": profile.seed},
-                }
-            )
+            settings = ExpressionSettings.from_dict(profile.expression_options())
             raw_realization = (
                 _load_realization_json_object(
                     args.realization,
@@ -1237,10 +1231,7 @@ def main(argv: list[str] | None = None) -> int:
             )
             resource_preflight = validate_render_request_resource_limits(
                 plan,
-                write_stems=profile.write_stems,
-                space=profile.space,
-                collaboration_mode=profile.collaboration_mode,
-                stem_cache_enabled=profile.use_stem_cache,
+                **profile.preflight_options(),
             )
             plan_sha256 = canonical_json_sha256(plan_document)
             review_binding = {
@@ -1291,11 +1282,7 @@ def main(argv: list[str] | None = None) -> int:
                 result = render_plan(
                     plan,
                     operation_staging,
-                    write_stems=profile.write_stems,
-                    master_gain_db=profile.master_gain_db,
-                    normalize_peak_db=profile.normalize_peak_db,
-                    space=profile.space,
-                    collaboration_mode=profile.collaboration_mode,
+                    **profile.render_options(),
                     stem_cache_directory=(
                         output_root.parent / ".tianlai-cache" / "stems"
                         if profile.use_stem_cache
@@ -1308,7 +1295,6 @@ def main(argv: list[str] | None = None) -> int:
                         if profile.use_stem_cache
                         else None
                     ),
-                    refresh_stem_cache=profile.refresh_stem_cache,
                     _acquire_output_lock=False,
                 )
                 if not result.receipt_path:
@@ -1801,13 +1787,7 @@ def main(argv: list[str] | None = None) -> int:
                 ),
             )
             space = profile.space
-            settings = ExpressionSettings.from_dict(
-                {
-                    "mode": profile.expression,
-                    "range_mode": profile.range_mode,
-                    "humanize": {"seed": profile.seed},
-                }
-            )
+            settings = ExpressionSettings.from_dict(profile.expression_options())
             raw_realization = (
                 _load_realization_json_object(args.realization)
                 if args.realization
@@ -1834,10 +1814,7 @@ def main(argv: list[str] | None = None) -> int:
             )
             resource_preflight = validate_render_request_resource_limits(
                 plan,
-                write_stems=profile.write_stems,
-                space=profile.space,
-                collaboration_mode=profile.collaboration_mode,
-                stem_cache_enabled=profile.use_stem_cache,
+                **profile.preflight_options(),
             )
             plan_sha256 = canonical_json_sha256(plan.to_dict())
             review_binding = {
@@ -1896,11 +1873,7 @@ def main(argv: list[str] | None = None) -> int:
             result = render_plan(
                 plan,
                 directory,
-                write_stems=profile.write_stems,
-                master_gain_db=profile.master_gain_db,
-                normalize_peak_db=profile.normalize_peak_db,
-                space=space,
-                collaboration_mode=profile.collaboration_mode,
+                **profile.render_options(),
                 stem_cache_directory=(
                     None
                     if not profile.use_stem_cache
@@ -1926,7 +1899,6 @@ def main(argv: list[str] | None = None) -> int:
                         / "analysis"
                     )
                 ),
-                refresh_stem_cache=profile.refresh_stem_cache,
             )
             profile_path = directory / "渲染配置.json"
             _write_json_atomic(
