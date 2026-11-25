@@ -277,6 +277,24 @@ class RosterTests(unittest.TestCase):
             {"现代鼓组/底鼓", "现代鼓组/边击军鼓", "现代鼓组/闭合踩镲"},
         )
 
+    def test_part_index_preserves_executor_order_and_rebuilds_on_replace(self) -> None:
+        from dataclasses import replace
+        import pickle
+
+        roster = parse_roster_document(_load_roster(), self.capabilities)
+        for part_id in {item.part_id for item in roster.executors}:
+            expected = tuple(item for item in roster.executors if item.part_id == part_id)
+            self.assertEqual(roster.executors_for(part_id), expected)
+            self.assertIs(roster.executors_for(part_id), roster.executors_for(part_id))
+        self.assertEqual(roster.executors_for("unknown-part"), ())
+        reordered = replace(roster, executors=tuple(reversed(roster.executors)))
+        self.assertEqual(reordered.executors_for("drums"),
+                         tuple(reversed(roster.executors_for("drums"))))
+        copied = copy.deepcopy(roster)
+        self.assertEqual(copied.to_dict(), roster.to_dict())
+        restored = pickle.loads(pickle.dumps(roster))
+        self.assertEqual(restored.to_dict(), roster.to_dict())
+
     def test_noteheads_route_to_their_own_instrument(self) -> None:
         roster = parse_roster_document(_load_roster(), self.capabilities)
         self.assertEqual(
