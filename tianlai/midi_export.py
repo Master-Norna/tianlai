@@ -10,14 +10,15 @@ and requires ``allow_lossy=True`` before crossing that boundary.
 from __future__ import annotations
 
 import hashlib
+from heapq import merge
 from pathlib import Path
 import struct
-from typing import Any
+from typing import Any, Iterator
 
 from .atomic_publish import _publish_bytes_atomic
 from .canonical_json import canonical_json_sha256 as _canonical_sha256
 from .conductor import velocity_for_dynamic
-from .score import parse_score_document
+from .score import ScoreNote, ScorePart, TempoMap, parse_score_document
 from .score_time import validate_score_time_coordinates
 
 
@@ -202,6 +203,43 @@ def _loss(
     losses.append(item)
 
 
+def _raw_midi_timing(note: ScoreNote, tempo_map: TempoMap) -> tuple[float, float]:
+    start_quarter = tempo_map.quarter_at(note.bar, note.beat)
+    meter = tempo_map.entry_at_bar(note.bar)
+    return start_quarter * DIVISION, note.duration_beats * meter.quarters_per_beat * DIVISION
+
+
+def _shared_channel_overlap(
+    parts: list[ScorePart], tempo_map: TempoMap,
+) -> tuple[int, str, str] | None:
+    """Find the first cross-track key collision on one MIDI channel.
+
+    Merge onset-sorted streams only for shared channels; no full interval
+    list or per-note cross-track scan is needed.
+    """
+    def intervals(part: ScorePart) -> Iterator[tuple[int, int, int, str]]:
+        for note in part.notes:
+            raw_start, raw_length = _raw_midi_timing(note, tempo_map)
+            start = round(raw_start)
+            end = start + max(1, round(raw_length))
+            key = min(127, max(0, round(note.midi)))
+            yield start, end, key, part.id
+
+    latest: dict[int, tuple[int, str]] = {}
+    for start, end, key, part_id in merge(
+        *(intervals(part) for part in parts), key=lambda item: item[0]
+    ):
+        previous = latest.get(key)
+        if previous is not None:
+            previous_end, previous_part = previous
+            if start < previous_end and previous_part != part_id:
+                return key, previous_part, part_id
+            if end <= previous_end:
+                continue
+        latest[key] = (end, part_id)
+    return None
+
+
 def build_midi(
     score: dict[str, Any],
     *,
@@ -338,6 +376,7 @@ def build_midi(
     tracks = [_track_chunk(meta)]
     melodic_channel_index = 0
     part_reports: list[dict[str, Any]] = []
+    parts_by_channel: dict[int, list[ScorePart]] = {}
 
     for part in parsed.parts:
         if not part.notes:
@@ -450,6 +489,7 @@ def build_midi(
                     part_id=part.id,
                 )
 
+        parts_by_channel.setdefault(channel, []).append(part)
         events: list[tuple[int, int, bytes]] = [
             (0, 0, _meta_text(0x03, part.name or part.id))
         ]
@@ -466,16 +506,7 @@ def build_midi(
         has_same_key_overlap = False
         last_end_by_key: dict[int, int] = {}
         for note in part.notes:
-            start_quarter = parsed.tempo_map.quarter_at(
-                note.bar,
-                note.beat,
-            )
-            meter = parsed.tempo_map.entry_at_bar(note.bar)
-            duration_quarters = (
-                note.duration_beats * meter.quarters_per_beat
-            )
-            raw_start = start_quarter * DIVISION
-            raw_length = duration_quarters * DIVISION
+            raw_start, raw_length = _raw_midi_timing(note, parsed.tempo_map)
             start = round(raw_start)
             length = max(1, round(raw_length))
             has_timing_quantization = has_timing_quantization or any(
@@ -604,6 +635,25 @@ def build_midi(
                 "gm_program_0based": program,
             }
         )
+
+    for channel, parts in parts_by_channel.items():
+        if len(parts) < 2:
+            continue
+        overlap = _shared_channel_overlap(parts, parsed.tempo_map)
+        if overlap is not None:
+            key, earlier_part, later_part = overlap
+            _loss(
+                losses,
+                "overlapping_shared_channel_key_notes",
+                "不同 MIDI 轨共用同一通道和键位；重叠音符的 note-off "
+                "在播放端可能提前结束另一轨的音符",
+                blocking=True,
+                details={
+                    "channel_1based": channel + 1,
+                    "key": key,
+                    "part_ids": sorted((earlier_part, later_part)),
+                },
+            )
 
     report: dict[str, Any] = {
         "kind": "tianlai.midi_export_report",
