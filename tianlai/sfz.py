@@ -56,7 +56,8 @@ def parse_sfz(path: str | Path) -> tuple[SfzRegion, ...]:
     source_path = Path(path)
     text = source_path.read_text(encoding="utf-8-sig", errors="replace")
     global_values: dict[str, str] = {}
-    group_values: dict[str, str] = {}
+    master_values: dict[str, str] | None = None
+    group_values: dict[str, str] | None = None
     current_kind = ""
     current_values: dict[str, str] | None = None
     regions: list[SfzRegion] = []
@@ -88,12 +89,26 @@ def parse_sfz(path: str | Path) -> tuple[SfzRegion, ...]:
                 finish_region()
                 current_kind = header_kind
                 if header_kind == "global":
+                    global_values = {}
+                    master_values = None
+                    group_values = None
                     current_values = global_values
-                elif header_kind in ("master", "group"):
-                    group_values = dict(global_values)
+                elif header_kind == "master":
+                    master_values = dict(global_values)
+                    group_values = None
+                    current_values = master_values
+                elif header_kind == "group":
+                    group_values = dict(
+                        master_values if master_values is not None else global_values
+                    )
                     current_values = group_values
                 elif header_kind == "region":
-                    current_values = dict(group_values or global_values)
+                    inherited = (
+                        group_values if group_values is not None
+                        else master_values if master_values is not None
+                        else global_values
+                    )
+                    current_values = dict(inherited)
                 else:
                     current_values = {}
             if current_values is None:
