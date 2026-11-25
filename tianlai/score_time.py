@@ -20,7 +20,7 @@ from __future__ import annotations
 from bisect import bisect_right
 from dataclasses import dataclass
 import math
-from typing import TYPE_CHECKING, Iterable
+from typing import TYPE_CHECKING, Sequence
 
 if TYPE_CHECKING:
     from .score import ScoreDocument, TempoEntry, TempoMap
@@ -257,33 +257,24 @@ def validate_score_time_coordinates(score: ScoreDocument) -> None:
                 )
 
 
-def _tempo_boundaries(
-    tempo_map: TempoMap,
-) -> tuple[list[float], list[float]]:
-    """Return parallel logical-quarter and second starts for tempo entries."""
-
-    quarters = [
-        tempo_map.quarter_at(entry.bar, entry.beat)
-        for entry in tempo_map.entries
-    ]
-    seconds = [0.0]
-    for index in range(1, len(quarters)):
-        span = quarters[index] - quarters[index - 1]
-        seconds.append(
-            seconds[-1] + span * 60.0 / tempo_map.entries[index - 1].bpm
-        )
-    return quarters, seconds
-
-
-def _snap_quarter(value: float, boundaries: Iterable[float]) -> float:
-    for boundary in boundaries:
-        if math.isclose(
-            value,
-            boundary,
-            rel_tol=0.0,
-            abs_tol=_QUARTER_BOUNDARY_TOLERANCE,
+def _snap_quarter(value: float, boundaries: Sequence[float]) -> float:
+    # Find the first boundary within tolerance, not merely the nearest one.
+    # Dense tempo maps can have multiple boundaries within tolerance, and
+    # the original forward scan chose the earliest matching boundary.
+    left, right = 0, len(boundaries)
+    while left < right:
+        middle = (left + right) // 2
+        boundary = boundaries[middle]
+        if boundary < value and not math.isclose(
+            value, boundary, rel_tol=0.0, abs_tol=_QUARTER_BOUNDARY_TOLERANCE
         ):
-            return boundary
+            left = middle + 1
+        else:
+            right = middle
+    if left < len(boundaries) and math.isclose(
+        value, boundaries[left], rel_tol=0.0, abs_tol=_QUARTER_BOUNDARY_TOLERANCE
+    ):
+        return boundaries[left]
     return value
 
 
@@ -293,12 +284,7 @@ def _coordinate_at_quarter(
     *,
     seconds: float,
 ) -> MusicalCoordinate:
-    meter_entries = [
-        entry for entry in tempo_map.entries if entry.changes_meter
-    ]
-    meter_quarters = [
-        tempo_map.quarter_at(entry.bar, 1.0) for entry in meter_entries
-    ]
+    meter_entries, meter_quarters = tempo_map.meter_boundaries()
     quarter = _snap_quarter(quarter, meter_quarters)
     meter_index = bisect_right(meter_quarters, quarter) - 1
     meter = meter_entries[meter_index]
@@ -344,6 +330,12 @@ def coordinate_at_position(
     """Resolve one valid notation position to logical quarter and seconds."""
 
     validate_tempo_map_coordinates(tempo_map)
+    return _coordinate_at_validated_position(tempo_map, bar, beat)
+
+
+def _coordinate_at_validated_position(
+    tempo_map: TempoMap, bar: int, beat: float
+) -> MusicalCoordinate:
     validate_bar_beat(tempo_map, bar, beat)
     quarter = tempo_map.quarter_at(bar, beat)
     return MusicalCoordinate(
@@ -370,7 +362,7 @@ def coordinate_at_seconds(
     if checked_seconds < 0.0:
         raise ScoreTimeError("seconds must not be negative")
     validate_tempo_map_coordinates(tempo_map)
-    tempo_quarters, tempo_seconds = _tempo_boundaries(tempo_map)
+    tempo_quarters, tempo_seconds = tempo_map.tempo_boundaries()
     tempo_index = bisect_right(tempo_seconds, checked_seconds) - 1
     entry = tempo_map.entries[tempo_index]
     quarter = tempo_quarters[tempo_index] + (
@@ -435,8 +427,9 @@ def seconds_range_for_positions(
 ) -> SecondsRange:
     """Convert a musical region to a padded, clipped logical-second window."""
 
-    start = coordinate_at_position(tempo_map, start_bar, start_beat)
-    end = coordinate_at_position(tempo_map, end_bar, end_beat)
+    validate_tempo_map_coordinates(tempo_map)
+    start = _coordinate_at_validated_position(tempo_map, start_bar, start_beat)
+    end = _coordinate_at_validated_position(tempo_map, end_bar, end_beat)
     if end.absolute_quarter < start.absolute_quarter:
         raise ScoreTimeError("musical window end must not precede its start")
     before = _finite_number(pre_roll_seconds, path="pre_roll_seconds")
