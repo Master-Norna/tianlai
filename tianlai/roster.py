@@ -1128,6 +1128,27 @@ def parse_roster_document(
     )
 
 
+@dataclass(frozen=True, slots=True)
+class RosterCoverage:
+    """Sorted score/roster discrepancies independent of transport policy."""
+
+    unknown_assigned_parts: tuple[str, ...]
+    unknown_dropped_parts: tuple[str, ...]
+    unassigned_parts: tuple[str, ...]
+
+
+def roster_coverage(roster: Roster, score: ScoreDocument) -> RosterCoverage:
+    """Compute every mismatch; callers choose how to surface the findings."""
+    score_parts = {part.id for part in score.parts}
+    assigned = {executor.part_id for executor in roster.executors}
+    dropped = set(roster.dropped_parts)
+    return RosterCoverage(
+        unknown_assigned_parts=tuple(sorted(assigned - score_parts)),
+        unknown_dropped_parts=tuple(sorted(dropped - score_parts)),
+        unassigned_parts=tuple(sorted(score_parts - assigned - dropped)),
+    )
+
+
 def check_roster_covers_score(roster: Roster, score: ScoreDocument) -> None:
     """Refuse to proceed when the roster and score disagree about parts.
 
@@ -1136,21 +1157,18 @@ def check_roster_covers_score(roster: Roster, score: ScoreDocument) -> None:
     ignoring an unassigned staff would let a whole line vanish without a trace.
     """
 
-    score_parts = {part.id for part in score.parts}
-    roster_parts = {executor.part_id for executor in roster.executors}
-    dropped = set(roster.dropped_parts)
-
-    phantom_drops = sorted(dropped - score_parts)
+    coverage = roster_coverage(roster, score)
+    phantom_drops = coverage.unknown_dropped_parts
     if phantom_drops:
         raise ValueError(
             f"drop_parts 列出了总谱里不存在的声部: {', '.join(phantom_drops)}"
         )
-    unplayed = sorted(score_parts - roster_parts - dropped)
+    unplayed = coverage.unassigned_parts
     if unplayed:
         raise ValueError(
             f"总谱有声部没人演奏: {', '.join(unplayed)};"
             "请在编制表里指派乐器,或用 drop_parts 明确声明有意删除"
         )
-    extra = sorted(roster_parts - score_parts)
+    extra = coverage.unknown_assigned_parts
     if extra:
         raise ValueError(f"编制表指派了总谱里不存在的声部: {', '.join(extra)}")
