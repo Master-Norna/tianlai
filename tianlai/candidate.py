@@ -2822,6 +2822,25 @@ def locate_candidate(
     active: list[dict[str, Any]] = []
     possible_tails: list[dict[str, Any]] = []
     upcoming: list[dict[str, Any]] = []
+    total = 0
+
+    def key(row: dict[str, Any]) -> tuple[float, str, str]:
+        return (
+            float(row["start_seconds"]),
+            str(row.get("executor_id")),
+            str(row.get("source_event_id")),
+        )
+
+    # Keep at most twice the requested output per category. Stable sorting
+    # before trimming retains the original tie order across batches.
+    def retain(
+        rows: list[dict[str, Any]], row: dict[str, Any], *, reverse: bool
+    ) -> None:
+        rows.append(row)
+        if len(rows) >= 2 * max_events:
+            rows.sort(key=key, reverse=reverse)
+            del rows[max_events:]
+
     for part in plan.get("parts", []):
         if not isinstance(part, dict):
             continue
@@ -2835,6 +2854,17 @@ def locate_candidate(
                 continue
             start = float(trace.get("时间", 0.0))
             end = start + float(trace.get("时长", 0.0))
+            reverse = False
+            if start <= at < end:
+                rows = active
+            elif end <= at and end >= at - float(tail_lookback_seconds):
+                rows = possible_tails
+                reverse = True
+            elif at < start <= at + float(upcoming_seconds):
+                rows = upcoming
+            else:
+                continue
+            total += 1
             row = {
                 **identity,
                 "source_event_id": trace.get("source_event_id"),
@@ -2845,21 +2875,10 @@ def locate_candidate(
                 "pitch": trace.get("音"),
                 "articulation": trace.get("奏法"),
             }
-            if start <= at < end:
-                active.append(row)
-            elif end <= at and end >= at - float(tail_lookback_seconds):
-                possible_tails.append(row)
-            elif at < start <= at + float(upcoming_seconds):
-                upcoming.append(row)
-    key = lambda row: (
-        float(row["start_seconds"]),
-        str(row.get("executor_id")),
-        str(row.get("source_event_id")),
-    )
+            retain(rows, row, reverse=reverse)
     active.sort(key=key)
     possible_tails.sort(key=key, reverse=True)
     upcoming.sort(key=key)
-    total = len(active) + len(possible_tails) + len(upcoming)
     remaining = max_events
 
     def take(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
