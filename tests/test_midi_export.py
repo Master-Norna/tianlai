@@ -57,6 +57,33 @@ def _score() -> dict:
 
 
 class MidiExportTests(unittest.TestCase):
+    def test_vlq_rejects_out_of_range_without_emitting_invalid_smf(self) -> None:
+        from tianlai.midi_export import _vlq
+
+        self.assertEqual(_vlq(0x0FFFFFFF), b"\xff\xff\xff\x7f")
+        with self.assertRaisesRegex(ValueError, "four-byte SMF limit"):
+            _vlq(0x10000000)
+        score = _score()
+        score["parts"][0]["notes"][0]["bar"] = 1_000_000
+        score["parts"][0]["notes"][1]["bar"] = 1_000_000
+        with self.assertRaisesRegex(ValueError, "four-byte SMF limit"):
+            build_midi(score, allow_lossy=True)
+
+    def test_overlapping_same_key_notes_are_reported_after_quantization(self) -> None:
+        score = _score()
+        first, second = score["parts"][0]["notes"]
+        first["duration_beats"] = 3.0
+        second["pitch"] = "C4"
+        with self.assertRaises(MidiExportLossError) as raised:
+            build_midi(score)
+        code = "overlapping_same_key_notes_not_unambiguous"
+        self.assertIn(code, {item["code"] for item in raised.exception.report["losses"]})
+        _, report = build_midi(score, allow_lossy=True)
+        self.assertIn(code, {item["code"] for item in report["losses"]})
+        first["duration_beats"] = 1.0
+        _, report = build_midi(score, allow_lossy=True)
+        self.assertNotIn(code, {item["code"] for item in report["losses"]})
+
     def test_v1_identity_loss_requires_explicit_approval(self) -> None:
         with self.assertRaises(MidiExportLossError) as raised:
             build_midi(_score())
