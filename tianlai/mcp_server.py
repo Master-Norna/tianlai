@@ -142,7 +142,7 @@ from .resource_limits import (
     validate_render_request_resource_limits,
     validate_score_resource_limits,
 )
-from .roster import parse_roster_document
+from .roster import parse_roster_document, roster_coverage
 from .runtime_layout import discover_runtime_layout
 from .score import (
     parse_score_document,
@@ -3248,12 +3248,8 @@ def _compile_project(
             "blocked_by": blocked_by,
         }
     else:
-        score_parts = {part.id for part in score_document.parts}
-        assigned_parts = {
-            executor.part_id for executor in roster_document.executors
-        }
-        dropped_parts = set(roster_document.dropped_parts)
-        for part_id in sorted(assigned_parts - score_parts):
+        coverage = roster_coverage(roster_document, score_document)
+        for part_id in coverage.unknown_assigned_parts:
             cross_errors.append(
                 _issue(
                     severity="error",
@@ -3263,7 +3259,7 @@ def _compile_project(
                     part_id=part_id,
                 )
             )
-        for part_id in sorted(dropped_parts - score_parts):
+        for part_id in coverage.unknown_dropped_parts:
             cross_errors.append(
                 _issue(
                     severity="error",
@@ -3273,9 +3269,7 @@ def _compile_project(
                     part_id=part_id,
                 )
             )
-        for part_id in sorted(
-            score_parts - assigned_parts - dropped_parts
-        ):
+        for part_id in coverage.unassigned_parts:
             cross_errors.append(
                 _issue(
                     severity="error",
