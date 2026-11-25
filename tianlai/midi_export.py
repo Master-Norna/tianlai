@@ -107,6 +107,8 @@ class MidiExportLossError(ValueError):
 def _vlq(value: int) -> bytes:
     if value < 0:
         raise ValueError("MIDI delta time must not be negative")
+    if value > 0x0FFFFFFF:
+        raise ValueError("MIDI variable-length quantity exceeds four-byte SMF limit")
     encoded = bytearray((value & 0x7F,))
     value >>= 7
     while value:
@@ -461,6 +463,8 @@ def build_midi(
         has_out_of_range_pitch = False
         has_timing_quantization = False
         has_velocity_quantization = False
+        has_same_key_overlap = False
+        last_end_by_key: dict[int, int] = {}
         for note in part.notes:
             start_quarter = parsed.tempo_map.quarter_at(
                 note.bar,
@@ -487,6 +491,13 @@ def build_midi(
             if not 0 <= key <= 127:
                 has_out_of_range_pitch = True
             key = min(127, max(0, key))
+            # Parsed notes are onset-sorted and round() is monotonic, so
+            # overlapping quantized same-key intervals can be detected in
+            # one pass. SMF note-offs cannot identify which note they end.
+            previous_end = last_end_by_key.get(key, 0)
+            if start < previous_end:
+                has_same_key_overlap = True
+            last_end_by_key[key] = max(previous_end, start + length)
             dynamic = note.dynamic or part.default_dynamic
             velocity = (
                 note.velocity
@@ -515,6 +526,15 @@ def build_midi(
             has_tie = has_tie or note.tie
             has_voice_identity = has_voice_identity or (
                 note.staff is not None or note.voice is not None
+            )
+        if has_same_key_overlap:
+            _loss(
+                losses,
+                "overlapping_same_key_notes_not_unambiguous",
+                "同通道同键位的重叠音符缺少独立 note-off 身份；"
+                "重新导入时可能改变时值或配对",
+                blocking=True,
+                part_id=part.id,
             )
         if has_timing_quantization:
             _loss(
