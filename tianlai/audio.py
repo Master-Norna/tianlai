@@ -1034,7 +1034,14 @@ def read_audio_float(path: str | Path) -> tuple[int, Any]:
     try:
         import soundfile as sf
 
-        frames, sample_rate = sf.read(str(audio_path), dtype="float32", always_2d=True)
+        # Validate metadata on the same open decoder before allocating the
+        # complete sample. Unsupported multichannel assets must not consume
+        # memory proportional to their decoded duration.
+        with sf.SoundFile(str(audio_path), mode="r") as source:
+            if source.channels not in (1, 2):
+                raise ValueError(f"unsupported audio channel count: {source.channels}")
+            sample_rate = source.samplerate
+            frames = source.read(dtype="float32", always_2d=True)
         if frames.shape[1] == 1:
             import numpy as np
 
@@ -1076,6 +1083,8 @@ def read_wav_float(path: str | Path) -> tuple[int, tuple[tuple[float, float], ..
         return struct.unpack_from("<i", raw, offset)[0] / 2_147_483_648.0
 
     stride = channels * width
+    if len(raw) != frame_count * stride:
+        raise ValueError("truncated WAV PCM data")
     frames: list[tuple[float, float]] = []
     for frame_index in range(frame_count):
         offset = frame_index * stride
