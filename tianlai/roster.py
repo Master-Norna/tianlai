@@ -23,6 +23,7 @@ plain note — the same refusal as ``explicit_only_no_silent_gm`` one layer up.
 
 from __future__ import annotations
 
+from bisect import bisect_left
 from dataclasses import dataclass, field
 import math
 from numbers import Real
@@ -382,8 +383,26 @@ class Roster:
         default_factory=CollaborationSettings
     )
 
+    _part_ids: tuple[str, ...] = field(init=False, repr=False, compare=False)
+    _part_executors: tuple[tuple[Executor, ...], ...] = field(
+        init=False, repr=False, compare=False
+    )
+
+    def __post_init__(self) -> None:
+        grouped: dict[str, list[Executor]] = {}
+        for executor in self.executors:
+            grouped.setdefault(executor.part_id, []).append(executor)
+        part_ids = tuple(sorted(grouped))
+        object.__setattr__(self, "_part_ids", part_ids)
+        object.__setattr__(
+            self, "_part_executors", tuple(tuple(grouped[key]) for key in part_ids)
+        )
+
     def executors_for(self, part_id: str) -> tuple[Executor, ...]:
-        return tuple(item for item in self.executors if item.part_id == part_id)
+        position = bisect_left(self._part_ids, part_id)
+        if position == len(self._part_ids) or self._part_ids[position] != part_id:
+            return ()
+        return self._part_executors[position]
 
     def route(self, part_id: str, midi: float) -> Executor:
         """Pick the executor that plays this notehead within its part."""
