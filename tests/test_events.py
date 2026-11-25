@@ -4,6 +4,27 @@ from tianlai.events import parse_performance_document
 
 
 class PerformanceDocumentTests(unittest.TestCase):
+    def test_quantization_preserves_source_order_at_equal_samples(self) -> None:
+        document = parse_performance_document({
+            "sample_rate": 8000,
+            "events": [
+                {"time": time, "type": "control", "name": "expression", "value": 0.5}
+                for time in (0.0, 0.00001, 0.0000625, 0.000125, 0.00013)
+            ],
+        })
+        self.assertEqual([event.sequence for event in document.events], list(range(5)))
+        self.assertEqual([event.sample for event in document.events], [0, 0, 0, 1, 1])
+
+    def test_finite_seconds_that_overflow_sample_grid_are_rejected(self) -> None:
+        for document in (
+            {"events": [{"time": 1e308, "type": "control",
+                         "name": "expression", "value": 0.5}]},
+            {"events": [], "duration_seconds": 1e308},
+        ):
+            with self.subTest(document=document):
+                with self.assertRaisesRegex(ValueError, "finite sample timeline"):
+                    parse_performance_document(document)
+
     def test_events_are_converted_to_sample_positions(self) -> None:
         document = parse_performance_document(
             {
