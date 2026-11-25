@@ -168,6 +168,48 @@ class DedicatedSfzPreprocessorTests(unittest.TestCase):
 
 
 class DedicatedSfzInstrumentTests(unittest.TestCase):
+    def test_render_sweeps_voice_groups_once_across_articulations(self) -> None:
+        from types import SimpleNamespace
+
+        class CountingGroups(dict):
+            scans = 0
+
+            def __iter__(self):
+                self.scans += 1
+                return super().__iter__()
+
+        def layer(voices, frame):
+            return SimpleNamespace(engine=SimpleNamespace(
+                voices=voices, render_frame=lambda: frame
+            ))
+
+        instrument = SimpleNamespace(
+            expression=1.0, expression_target=1.0,
+            modulation=1.0, modulation_target=1.0,
+            _control_coefficient=0.1, expression_exponent=1.0,
+            modulation_floor=0.0, modulation_exponent=1.0,
+            articulations={
+                "a": SimpleNamespace(
+                    attack_layers=(layer({1: object()}, (0.1, 0.2)),),
+                    release_layers=(layer({}, (0.2, 0.1)),),
+                ),
+                "b": SimpleNamespace(
+                    attack_layers=(layer({3: object()}, (0.3, 0.4)),),
+                    release_layers=(),
+                ),
+            },
+            _voice_groups=CountingGroups({
+                ("a", 0, 1): object(), ("a", 0, 2): object(),
+                ("b", 0, 3): object(), ("b", 0, 4): object(),
+            }),
+        )
+        left, right = DedicatedSfzInstrument.render_frame(instrument)
+        self.assertAlmostEqual(left, 0.6)
+        self.assertAlmostEqual(right, 0.7)
+        self.assertEqual(instrument._voice_groups.scans, 1)
+        self.assertEqual(set(instrument._voice_groups.keys()),
+                         {("a", 0, 1), ("b", 0, 3)})
+
     def _instrument(
         self,
         directory: Path,
