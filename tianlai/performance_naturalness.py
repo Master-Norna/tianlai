@@ -7,6 +7,7 @@ review candidates that can reduce the amount of undirected human listening.
 
 from __future__ import annotations
 
+from bisect import bisect_left, bisect_right
 from collections import Counter, defaultdict
 from collections.abc import Mapping
 import math
@@ -138,24 +139,30 @@ def _phrase_analysis(
         if not part.phrases or not merged:
             continue
         explicit_part_count += 1
-        coverage = [0] * len(merged)
+        onsets = [note.start_quarter for note in merged]
+        coverage = [0] * (len(merged) + 1)
         empty_indexes: list[int] = []
         for phrase_index, phrase in enumerate(part.phrases):
             start_q = score.tempo_map.quarter_at(
                 phrase.start_bar, phrase.start_beat
             )
             end_q = score.tempo_map.quarter_at(phrase.end_bar, phrase.end_beat)
-            indexes = [
-                index
-                for index, note in enumerate(merged)
-                if start_q - 1.0e-6 <= note.start_quarter <= end_q + 1.0e-6
-            ]
-            if not indexes:
+            left = bisect_left(onsets, start_q - 1.0e-6)
+            right = bisect_right(onsets, end_q + 1.0e-6)
+            if left == right:
                 empty_indexes.append(phrase_index)
                 continue
             valid_phrase_count += 1
-            for index in range(indexes[0], indexes[-1] + 1):
-                coverage[index] += 1
+            coverage[left] += 1
+            coverage[right] -= 1
+
+        # Difference-array accumulation makes overlap counting independent
+        # of the total length of all declared phrase spans.
+        coverage.pop()
+        running = 0
+        for index, delta in enumerate(coverage):
+            running += delta
+            coverage[index] = running
 
         if empty_indexes:
             empty_phrase_count += len(empty_indexes)
@@ -201,7 +208,7 @@ def _phrase_analysis(
         overlapping_onset_count += len(overlap_groups)
 
         if uncovered_groups:
-            examples = [_example(merged[group[0]]) for group in uncovered_groups]
+            examples = [_example(merged[group[0]]) for group in uncovered_groups[:max_examples]]
             affected_note_count = sum(
                 group[1] - group[0] + 1 for group in uncovered_groups
             )
@@ -219,7 +226,7 @@ def _phrase_analysis(
                         "affected_onset_count": len(uncovered_groups),
                         "affected_note_count": affected_note_count,
                         "examples": examples[:max_examples],
-                        "examples_truncated": len(examples) > max_examples,
+                        "examples_truncated": len(uncovered_groups) > max_examples,
                     },
                     review_question=(
                         "这些位置失去乐句塑形是有意的断面，还是显式乐句覆盖遗漏？"
@@ -232,7 +239,7 @@ def _phrase_analysis(
             )
 
         if overlap_groups:
-            examples = [_example(merged[group[0]]) for group in overlap_groups]
+            examples = [_example(merged[group[0]]) for group in overlap_groups[:max_examples]]
             affected_note_count = sum(
                 sum(
                     1
@@ -255,7 +262,7 @@ def _phrase_analysis(
                         "affected_onset_count": len(overlap_groups),
                         "affected_note_count": affected_note_count,
                         "examples": examples[:max_examples],
-                        "examples_truncated": len(examples) > max_examples,
+                        "examples_truncated": len(overlap_groups) > max_examples,
                     },
                     review_question=(
                         "重叠是有意的边界共享，还是会让同一材料获得意外的后写覆盖？"
