@@ -27,6 +27,38 @@ class SfzParserTests(unittest.TestCase):
             self.assertEqual(regions[0].values["ampeg_release"], "1.2")
             self.assertEqual(regions[1].values["tune"], "-5")
 
+    def test_master_inheritance_and_global_reset_match_dedicated_parser(self) -> None:
+        from tianlai.dedicated_sfz import parse_dedicated_sfz
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "hierarchy.sfz"
+            path.write_text(
+                "<global> tune=2\n"
+                "<master> volume=3\n"
+                "<group> ampeg_release=0.5\n"
+                "<region> sample=a.wav key=C4\n"
+                "<group> ampeg_attack=0.1\n"
+                "<region> sample=b.wav key=D4\n"
+                "<master> volume=4\n"
+                "<region> sample=c.wav key=E4\n"
+                "<global> tune=-1\n"
+                "<region> sample=d.wav key=F4\n",
+                encoding="utf-8",
+            )
+            simple = [item.values for item in parse_sfz(path)]
+            dedicated = [
+                item.values for item in parse_dedicated_sfz(
+                    path, asset_root=Path(directory)
+                ).regions
+            ]
+            self.assertEqual(simple, dedicated)
+            self.assertEqual(simple[0]["volume"], "3")
+            self.assertEqual(simple[1]["volume"], "3")
+            self.assertNotIn("ampeg_release", simple[1])
+            self.assertNotIn("ampeg_attack", simple[2])
+            self.assertNotIn("volume", simple[3])
+            self.assertEqual(simple[3]["tune"], "-1")
+
     def test_attack_and_release_regions_can_be_separated(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "trigger.sfz"
