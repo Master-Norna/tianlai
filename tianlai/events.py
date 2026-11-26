@@ -67,6 +67,13 @@ def _finite_float(value: object, field: str) -> float:
     return number
 
 
+def _sample_position(seconds: float, sample_rate: int, field: str) -> int:
+    sample = seconds * sample_rate
+    if not math.isfinite(sample):
+        raise ValueError(f"{field} exceeds the finite sample timeline")
+    return round(sample)
+
+
 def _integer(value: object, field: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int):
         raise ValueError(f"{field} must be an integer")
@@ -219,14 +226,16 @@ def parse_performance_document(data: dict[str, Any]) -> PerformanceDocument:
             payload["name"] = name
         events.append(
             PerformanceEvent(
-                sample=round(time * sample_rate),
+                sample=_sample_position(time, sample_rate, f"events[{sequence}].time"),
                 sequence=sequence,
                 type=event_type,
                 payload=payload,
             )
         )
 
-    events.sort(key=lambda event: (event.sample, event.sequence))
+    # Input times are checked as non-decreasing above. Multiplication by
+    # a positive sample rate and rounding are monotonic, and sequence is
+    # the original array index, so the event list is already in render order.
     tail_seconds = _finite_float(data.get("tail_seconds", 1.0), "tail_seconds")
     if tail_seconds < 0.0:
         raise ValueError("tail_seconds must not be negative")
@@ -236,7 +245,7 @@ def parse_performance_document(data: dict[str, Any]) -> PerformanceDocument:
     )
     if duration_seconds < last_time:
         raise ValueError("duration_seconds must not end before the final event")
-    total_samples = max(1, round(duration_seconds * sample_rate))
+    total_samples = max(1, _sample_position(duration_seconds, sample_rate, "duration_seconds"))
 
     return PerformanceDocument(
         sample_rate=sample_rate,
