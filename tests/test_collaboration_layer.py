@@ -397,6 +397,28 @@ class RosterTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "instrument 或 kit"):
             parse_roster_document(document, self.capabilities)
 
+    def test_shared_coverage_reports_all_mismatches_in_stable_order(self) -> None:
+        from types import SimpleNamespace
+        from tianlai.roster import check_roster_covers_score, roster_coverage
+
+        score = SimpleNamespace(parts=tuple(
+            SimpleNamespace(id=name) for name in ("unassigned-z", "played", "unassigned-a", "drop")
+        ))
+        roster = SimpleNamespace(
+            executors=tuple(SimpleNamespace(part_id=name) for name in
+                            ("extra-z", "played", "extra-a", "extra-z")),
+            dropped_parts=("phantom-z", "drop", "phantom-a"),
+        )
+        coverage = roster_coverage(roster, score)
+        self.assertEqual(coverage.unknown_assigned_parts, ("extra-a", "extra-z"))
+        self.assertEqual(coverage.unknown_dropped_parts, ("phantom-a", "phantom-z"))
+        self.assertEqual(coverage.unassigned_parts, ("unassigned-a", "unassigned-z"))
+        with self.assertRaisesRegex(ValueError, "phantom-a, phantom-z"):
+            check_roster_covers_score(roster, score)
+        roster.dropped_parts = ("drop",)
+        with self.assertRaisesRegex(ValueError, "unassigned-a, unassigned-z"):
+            check_roster_covers_score(roster, score)
+
     def test_unplayed_score_part_is_refused(self) -> None:
         from tianlai.roster import check_roster_covers_score
 
