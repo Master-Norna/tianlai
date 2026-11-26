@@ -279,6 +279,14 @@ class TempoMap:
         object.__setattr__(self, "_tempo_quarters", tuple(tempo_quarters))
         object.__setattr__(self, "_tempo_seconds", tuple(tempo_seconds))
 
+    def tempo_boundaries(self) -> tuple[tuple[float, ...], tuple[float, ...]]:
+        """Return immutable parallel quarter/second starts of tempo segments."""
+        return self._tempo_quarters, self._tempo_seconds
+
+    def meter_boundaries(self) -> tuple[tuple[TempoEntry, ...], tuple[float, ...]]:
+        """Return immutable parallel meter entries and their quarter starts."""
+        return self._meter_entries, self._meter_quarters
+
     def entry_at_bar(self, bar: int) -> TempoEntry:
         if not self.entries:
             raise IndexError("tempo map has no entries")

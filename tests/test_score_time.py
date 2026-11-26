@@ -223,6 +223,31 @@ class ScoreTimeValidationTests(unittest.TestCase):
 
 
 class ReverseCoordinateTests(unittest.TestCase):
+    def test_inverse_reuses_precomputed_boundaries_after_validation(self):
+        tempo_map = _document().tempo_map
+        expected = coordinate_at_seconds(tempo_map, 6.0)
+        with patch("tianlai.score_time.validate_tempo_map_coordinates") as validate:
+            with patch.object(
+                TempoMap, "quarter_at",
+                side_effect=AssertionError("boundary reconstruction"),
+            ):
+                self.assertEqual(coordinate_at_seconds(tempo_map, 6.0), expected)
+            validate.assert_called_once_with(tempo_map)
+
+    def test_snap_preserves_first_matching_boundary_for_dense_maps(self):
+        from tianlai.score_time import _snap_quarter
+
+        boundaries = (0.0, 1.0, 1.00000000005, 1.00000000010, 2.0)
+        for value in (0.0, 0.5, 0.99999999995, 1.00000000005,
+                      1.00000000015, 2.0, 3.0):
+            expected = next(
+                (b for b in boundaries if math.isclose(
+                    value, b, rel_tol=0.0, abs_tol=1e-10
+                )),
+                value,
+            )
+            self.assertEqual(_snap_quarter(value, boundaries), expected)
+
     def test_mid_bar_tempo_and_meter_changes_are_inverted_exactly(self):
         tempo_map = _document().tempo_map
         expected = (
