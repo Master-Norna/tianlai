@@ -57,6 +57,71 @@ def _score() -> dict:
 
 
 class MidiExportTests(unittest.TestCase):
+    def test_vlq_rejects_out_of_range_without_emitting_invalid_smf(self) -> None:
+        from tianlai.midi_export import _vlq
+
+        self.assertEqual(_vlq(0x0FFFFFFF), b"\xff\xff\xff\x7f")
+        with self.assertRaisesRegex(ValueError, "four-byte SMF limit"):
+            _vlq(0x10000000)
+        score = _score()
+        score["parts"][0]["notes"][0]["bar"] = 1_000_000
+        score["parts"][0]["notes"][1]["bar"] = 1_000_000
+        with self.assertRaisesRegex(ValueError, "four-byte SMF limit"):
+            build_midi(score, allow_lossy=True)
+
+    def test_overlapping_same_key_notes_are_reported_after_quantization(self) -> None:
+        score = _score()
+        first, second = score["parts"][0]["notes"]
+        first["duration_beats"] = 3.0
+        second["pitch"] = "C4"
+        with self.assertRaises(MidiExportLossError) as raised:
+            build_midi(score)
+        code = "overlapping_same_key_notes_not_unambiguous"
+        self.assertIn(code, {item["code"] for item in raised.exception.report["losses"]})
+        _, report = build_midi(score, allow_lossy=True)
+        self.assertIn(code, {item["code"] for item in report["losses"]})
+        first["duration_beats"] = 1.0
+        _, report = build_midi(score, allow_lossy=True)
+        self.assertNotIn(code, {item["code"] for item in report["losses"]})
+
+    def test_shared_percussion_channel_reports_cross_track_overlap(self) -> None:
+        score = _score()
+        first = score["parts"][0]
+        first["id"] = first["name"] = "drum-a"
+        first["notes"] = [first["notes"][0]]
+        first["notes"][0]["duration_beats"] = 2
+        second = copy.deepcopy(first)
+        second["id"] = second["name"] = "drum-b"
+        second["notes"][0].update(event_id="drum-b-1", beat=2)
+        score["parts"].append(second)
+
+        code = "overlapping_shared_channel_key_notes"
+        with self.assertRaises(MidiExportLossError) as raised:
+            build_midi(score)
+        collision = next(item for item in raised.exception.report["losses"]
+                         if item["code"] == code)
+        self.assertEqual(collision["details"], {
+            "channel_1based": 10, "key": 60,
+            "part_ids": ["drum-a", "drum-b"],
+        })
+        _, report = build_midi(score, allow_lossy=True)
+        self.assertIn(code, {item["code"] for item in report["losses"]})
+
+        # Adjacent notes and different keys are not overlapping same-key notes.
+        second["notes"][0]["beat"] = 3
+        _, report = build_midi(score, allow_lossy=True)
+        self.assertNotIn(code, {item["code"] for item in report["losses"]})
+        second["notes"][0].update(beat=2, pitch="D4")
+        _, report = build_midi(score, allow_lossy=True)
+        self.assertNotIn(code, {item["code"] for item in report["losses"]})
+
+        # The same pitch is safe when the melodic tracks use distinct channels.
+        first["id"] = first["name"] = "violin-a"
+        second["id"] = second["name"] = "violin-b"
+        second["notes"][0]["pitch"] = "C4"
+        _, report = build_midi(score, allow_lossy=True)
+        self.assertNotIn(code, {item["code"] for item in report["losses"]})
+
     def test_v1_identity_loss_requires_explicit_approval(self) -> None:
         with self.assertRaises(MidiExportLossError) as raised:
             build_midi(_score())
