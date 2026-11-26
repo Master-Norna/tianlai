@@ -38,7 +38,7 @@ note.
 
 from __future__ import annotations
 
-from bisect import bisect_right
+from bisect import bisect_left, bisect_right
 from dataclasses import dataclass, field
 import hashlib
 import json
@@ -78,7 +78,7 @@ from .roster import (
     Roster,
     check_roster_covers_score,
 )
-from .score import ScoreDocument, ScoreNote, parse_score_document, pitch_name
+from .score import ScoreDocument, ScoreNote, ScorePart, parse_score_document, pitch_name
 from .score_time import validate_score_time_coordinates
 
 
@@ -471,6 +471,52 @@ def _infer_phrases(notes: list[ResolvedNote]) -> list[tuple[int, int]]:
         )
     phrases.append((groups[start_group][0], groups[-1][1]))
     return phrases
+
+
+def _phrase_contexts(
+    notes: list[ResolvedNote],
+    part: ScorePart,
+    score: ScoreDocument,
+) -> dict[int, tuple[float, bool, float, float]]:
+    """Resolve phrase shape and pitch bounds once per span.
+
+    Resolved notes retain source onset order. Explicit spans include both
+    endpoints with the original tolerance; later overlapping spans win.
+    """
+    if not notes:
+        return {}
+    bounds: list[tuple[int, int]] = []
+    if part.phrases:
+        onsets = [note.start_quarter for note in notes]
+        for phrase in part.phrases:
+            start = score.tempo_map.quarter_at(phrase.start_bar, phrase.start_beat)
+            end = score.tempo_map.quarter_at(phrase.end_bar, phrase.end_beat)
+            left = bisect_left(onsets, start - 1e-6)
+            right = bisect_right(onsets, end + 1e-6)
+            if left < right:
+                bounds.append((left, right - 1))
+    phrases = bounds or _infer_phrases(notes)
+    contexts: dict[int, tuple[float, bool, float, float]] = {}
+    # Identical spans have identical contour and onset groups; processing
+    # them again is unnecessary, but preserve the last occurrence order.
+    for start, end in reversed(tuple(dict.fromkeys(reversed(phrases)))):
+        groups = _onset_groups(notes, start, end)
+        denominator = max(1, len(groups) - 1)
+        low = high = notes[start].midi
+        for index in range(start + 1, end + 1):
+            pitch = notes[index].midi
+            low = min(low, pitch)
+            high = max(high, pitch)
+        for group_position, (first, last) in enumerate(groups):
+            context = (
+                group_position / denominator,
+                group_position == len(groups) - 1,
+                low,
+                high,
+            )
+            for index in range(first, last + 1):
+                contexts[index] = context
+    return contexts
 
 
 def _metric_accent(note: ResolvedNote, score: ScoreDocument) -> tuple[float, str]:
@@ -1161,34 +1207,8 @@ def build_plan(
         notes = _merge_ties(part.notes, score)
         if not notes:
             continue
-        if part.phrases:
-            bounds: list[tuple[int, int]] = []
-            for phrase in part.phrases:
-                start_q = score.tempo_map.quarter_at(phrase.start_bar, phrase.start_beat)
-                end_q = score.tempo_map.quarter_at(phrase.end_bar, phrase.end_beat)
-                indices = [
-                    index
-                    for index, note in enumerate(notes)
-                    if start_q - 1e-6 <= note.start_quarter <= end_q + 1e-6
-                ]
-                if indices:
-                    bounds.append((indices[0], indices[-1]))
-            phrases = bounds or _infer_phrases(notes)
-        else:
-            phrases = _infer_phrases(notes)
-
-        # 乐句位置按“同起音组”而不是扁平音符序号计算。同一和弦的各音必须
-        # 一起处于句首/句中/句尾；音高排序只用于稳定输出，不能把末和弦的
-        # 最高音单独推迟成一个假装的句尾。旋律音区 contour 仍按逐音计算。
-        phrase_of: dict[int, tuple[int, int, float, bool]] = {}
-        for span in phrases:
-            groups = _onset_groups(notes, span[0], span[1])
-            denominator = max(1, len(groups) - 1)
-            for group_position, group in enumerate(groups):
-                position = group_position / denominator
-                is_last = group_position == len(groups) - 1
-                for index in range(group[0], group[1] + 1):
-                    phrase_of[index] = (span[0], span[1], position, is_last)
+        # Strict mode never consumes structural phrase/contour context.
+        phrase_of = _phrase_contexts(notes, part, score) if settings.structural else {}
 
         for order, note in enumerate(notes):
             executor = roster.route(part.id, note.midi)
@@ -1299,9 +1319,7 @@ def build_plan(
 
                 phrase = phrase_of.get(order)
                 if phrase is not None:
-                    span_start, span_end, position, is_last = phrase
-                    low = min(notes[i].midi for i in range(span_start, span_end + 1))
-                    high = max(notes[i].midi for i in range(span_start, span_end + 1))
+                    position, is_last, low, high = phrase
                     shape, delay_quarters, shape_reason = _phrase_shape(
                         position, is_last
                     )

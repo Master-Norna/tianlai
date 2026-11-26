@@ -916,6 +916,46 @@ class ArticulationGateTests(unittest.TestCase):
 
 
 class ConductorTests(unittest.TestCase):
+    def test_phrase_context_matches_reference_for_overlaps_and_chords(self) -> None:
+        from dataclasses import replace
+        from tianlai.conductor import _merge_ties, _onset_groups, _phrase_contexts
+        from tianlai.score import Phrase
+
+        score = parse_score_document({
+            "tempo_map": [{"bar": 1, "bpm": 120, "beats_per_bar": 4, "beat_unit": 4}],
+            "parts": [{"id": "lead", "notes": [
+                {"bar": 1, "beat": beat, "duration_beats": 0.5, "pitch": pitch}
+                for beat, pitch in [(1, "C4"), (1, "E4"), (2, "D4"),
+                                    (3, "G4"), (4, "C5")]
+            ]}],
+        })
+        base = score.parts[0]
+        notes = _merge_ties(base.notes, score)
+        # Overlaps, duplicate spans, empty spans and chord endpoints.
+        ranges = [(1, 3), (2, 4), (1, 3), (2.5, 2.75)]
+        phrases = tuple(
+            Phrase(start_bar=1, start_beat=start, end_bar=1, end_beat=end)
+            for start, end in ranges
+        )
+        part = replace(base, phrases=phrases)
+        expected = {}
+        for start, end in ranges:
+            selected = [i for i, item in enumerate(notes)
+                        if start - 1 - 1e-6 <= item.start_quarter <= end - 1 + 1e-6]
+            if not selected:
+                continue
+            first, last = selected[0], selected[-1]
+            groups = _onset_groups(notes, first, last)
+            for order, (left, right) in enumerate(groups):
+                for index in range(left, right + 1):
+                    expected[index] = (
+                        order / max(1, len(groups) - 1),
+                        order == len(groups) - 1,
+                        min(item.midi for item in notes[first:last + 1]),
+                        max(item.midi for item in notes[first:last + 1]),
+                    )
+        self.assertEqual(_phrase_contexts(notes, part, score), expected)
+
     @classmethod
     def setUpClass(cls) -> None:
         cls.capabilities = load_capabilities(ROOT / "乐器")
