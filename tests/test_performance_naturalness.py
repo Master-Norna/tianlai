@@ -110,6 +110,32 @@ def _trace_plan(note_count: int = 8, *, residual: bool = False) -> dict:
     }
 
 
+def test_dense_phrase_coverage_keeps_counts_and_bounded_examples() -> None:
+    from tianlai.performance_naturalness import _phrase_analysis
+
+    score = _score(
+        note_count=8,
+        phrases=[
+            {"start_bar": 1, "start_beat": 2, "end_bar": 2, "end_beat": 2},
+            {"start_bar": 1, "start_beat": 3, "end_bar": 2, "end_beat": 1},
+            {"start_bar": 1, "start_beat": 3, "end_bar": 2, "end_beat": 1},
+            {"start_bar": 3, "start_beat": 1, "end_bar": 3, "end_beat": 2},
+        ],
+    )
+    candidates, summary, _, _ = _phrase_analysis(score, max_examples=1)
+    assert summary["valid_explicit_phrase_count"] == 3
+    assert summary["empty_explicit_phrase_count"] == 1
+    assert summary["uncovered_onset_count"] == 3
+    assert summary["overlapping_onset_count"] == 3
+    by_code = {item["code"]: item for item in candidates}
+    for code in ("coverage_gap", "overlap"):
+        evidence = by_code["performance.explicit_phrase_" + code]["evidence"]
+        assert evidence["affected_onset_count"] == 3
+        assert evidence["affected_note_count"] == 3
+        assert len(evidence["examples"]) == 1
+        assert evidence["examples_truncated"] is True
+
+
 def test_explicit_phrase_gaps_and_overlaps_follow_execution_semantics() -> None:
     score = _score(
         note_count=4,
