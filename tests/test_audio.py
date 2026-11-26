@@ -63,6 +63,47 @@ def test_wav_loop_points_bounds_the_untrusted_chunk_read() -> None:
         assert wav_loop_points("bounded.wav") == (100, 200)
 
 
+def test_pcm_fallback_rejects_truncated_frames(tmp_path: Path) -> None:
+    from tianlai.audio import read_wav_float
+
+    path = tmp_path / "truncated-pcm.wav"
+    with wave.open(str(path), "wb") as output:
+        output.setnchannels(2)
+        output.setsampwidth(2)
+        output.setframerate(48000)
+        output.writeframes(b"\x00" * 8)
+    path.write_bytes(path.read_bytes()[:-1])
+    with pytest.raises(ValueError, match="truncated WAV PCM data"):
+        read_wav_float(path)
+
+
+def test_multichannel_sample_is_rejected_before_decoding(tmp_path: Path) -> None:
+    import soundfile as sf
+    from tianlai.audio import read_audio_float
+
+    path = tmp_path / "three-channels.wav"
+    sf.write(path, np.zeros((16, 3)), 48000)
+    with patch.object(sf.SoundFile, "read", side_effect=AssertionError("decoded")):
+        with pytest.raises(ValueError, match="unsupported audio channel count: 3"):
+            read_audio_float(path)
+
+
+def test_read_audio_float_preserves_mono_duplication_and_stereo(tmp_path: Path) -> None:
+    import soundfile as sf
+    from tianlai.audio import read_audio_float
+
+    for channels in (1, 2):
+        path = tmp_path / f"sample-{channels}.wav"
+        samples = np.arange(16 * channels, dtype=np.float32).reshape(16, channels) / 64
+        sf.write(path, samples, 48000, subtype="FLOAT")
+        expected, rate = sf.read(path, dtype="float32", always_2d=True)
+        actual_rate, frames = read_audio_float(path)
+        assert actual_rate == rate
+        np.testing.assert_array_equal(
+            frames, np.repeat(expected, 2, axis=1) if channels == 1 else expected
+        )
+
+
 def test_numpy_pcm24_fast_path_is_byte_identical_and_does_not_mutate(
     tmp_path: Path,
 ) -> None:
