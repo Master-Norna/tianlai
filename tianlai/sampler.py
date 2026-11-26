@@ -83,9 +83,10 @@ class _SampleData:
 
     def load(self) -> Any:
         if self.frames is None:
-            decoded_rate, self.frames = read_audio_float(self.path)
+            decoded_rate, frames = read_audio_float(self.path)
             if decoded_rate != self.sample_rate:
                 raise ValueError(f"sample rate changed while loading: {self.path}")
+            self.frames = frames
         return self.frames
 
 
@@ -404,26 +405,22 @@ class SampleInstrument(Instrument):
         target_midi: float,
         random_value: float,
     ) -> list[_Region]:
-        eligible = [
-            region
-            for region in self.regions
-            if region.random_min <= random_value <= region.random_max
-        ]
-        if not eligible:
-            return []
-        scores = {
-            id(region): self._region_score(
+        best_score: tuple[float, float, float] | None = None
+        candidates: list[_Region] = []
+        for region in self.regions:
+            if not region.random_min <= random_value <= region.random_max:
+                continue
+            score = self._region_score(
                 region,
                 pitch_hz=pitch_hz,
                 velocity=velocity,
                 target_midi=target_midi,
             )
-            for region in eligible
-        }
-        best_score = min(scores.values())
-        candidates = [
-            region for region in eligible if scores[id(region)] == best_score
-        ]
+            if best_score is None or score < best_score:
+                best_score = score
+                candidates = [region]
+            elif score == best_score:
+                candidates.append(region)
         # SFZ-backed candidates carry the source sequence position so an RR2
         # sample whose filename sorts before RR1 still starts on RR1. Plain
         # sample manifests retain the historical path-stable ordering.
