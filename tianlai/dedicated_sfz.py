@@ -2098,7 +2098,7 @@ class DedicatedSfzInstrument(Instrument):
         ) * self._control_coefficient
         left = 0.0
         right = 0.0
-        for name, runtime in self.articulations.items():
+        for runtime in self.articulations.values():
             for layer in runtime.attack_layers:
                 attack_left, attack_right = layer.engine.render_frame()
                 left += attack_left
@@ -2107,12 +2107,16 @@ class DedicatedSfzInstrument(Instrument):
                 release_left, release_right = layer.engine.render_frame()
                 left += release_left
                 right += release_right
-            for key in tuple(self._voice_groups):
-                if key[0] != name:
-                    continue
-                _, layer_index, internal_id = key
-                if internal_id not in runtime.attack_layers[layer_index].engine.voices:
-                    del self._voice_groups[key]
+        # Voice-group bookkeeping is independent of the summing order.
+        # Sweep once after all engines advance, rather than constructing
+        # and scanning a new key snapshot for every articulation per frame.
+        for key in tuple(self._voice_groups):
+            name, layer_index, internal_id = key
+            runtime = self.articulations.get(name)
+            if runtime is not None and (
+                internal_id not in runtime.attack_layers[layer_index].engine.voices
+            ):
+                del self._voice_groups[key]
         expression = self.expression**self.expression_exponent
         modulation = self.modulation_floor + (1.0 - self.modulation_floor) * (
             self.modulation**self.modulation_exponent
