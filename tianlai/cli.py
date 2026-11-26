@@ -209,6 +209,13 @@ def _parser() -> argparse.ArgumentParser:
     doctor.add_argument("--quick", action="store_true")
     doctor.add_argument("--require-all-resources", action="store_true")
 
+    cache_stats = subcommands.add_parser(
+        "cache-stats", help="report read-only disk usage of regenerable render caches"
+    )
+    cache_stats.add_argument(
+        "--root", required=True, help="explicit .tianlai-cache directory"
+    )
+
     render = subcommands.add_parser("render", help="render a performance JSON document to WAV")
     render.add_argument("--instrument", required=True, help="instrument manifest JSON")
     render.add_argument("--events", required=True, help="performance event JSON")
@@ -795,6 +802,12 @@ def main(argv: list[str] | None = None) -> int:
             if args.require_all_resources:
                 forwarded.append("--require-all-resources")
             return doctor_main(forwarded)
+
+        if args.command == "cache-stats":
+            from .cache_usage import cache_usage
+
+            print(json.dumps(cache_usage(Path(args.root)), ensure_ascii=False, indent=2))
+            return 0
 
         if args.command == "progress":
             from .quality import load_upgrade_progress

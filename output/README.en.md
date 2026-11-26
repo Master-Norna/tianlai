@@ -82,3 +82,7 @@ The Apache-2.0 code license does not automatically attach to input works or
 music output. Third-party sound sources remain governed by their own licenses.
 Before publishing audio, inspect the attribution sidecar generated for that
 render and read [`OUTPUT_RIGHTS.en.md`](../OUTPUT_RIGHTS.en.md).
+
+## Cache usage
+
+Run `tianlai cache-stats --root output/.tianlai-cache` (or specify the actual cache root) to report logical bytes of recognized stem and analysis cache files. This is read-only metadata accounting, not content verification; it excludes locks, temporary files and unrelated directories. Concurrent rendering may change the counts. For cleanup, stop all CLI/MCP rendering processes before manually removing the cache directory as described above. Online eviction is not provided.
