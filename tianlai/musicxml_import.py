@@ -1682,11 +1682,17 @@ def _apply_dynamics(result: _PartResult) -> None:
             # A per-note notation or exact velocity is more specific than any
             # persistent direction and must not inherit an older exact value.
             continue
+        # Only these four scopes can match a concrete staff/voice.
+        # Unrelated direction states need not be scanned for every note.
         candidates = [
-            event
-            for (staff, voice), event in states.items()
-            if (staff is None or staff == note.staff)
-            and (voice is None or voice == note.voice)
+            states[scope]
+            for scope in (
+                (None, None),
+                (note.staff, None),
+                (None, note.voice),
+                (note.staff, note.voice),
+            )
+            if scope in states
         ]
         if not candidates:
             continue
