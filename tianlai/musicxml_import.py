@@ -503,11 +503,12 @@ def _read_mxl(payload: bytes, path: Path) -> bytes:
         raise ValueError(f"损坏或不受支持的 MXL 压缩包: {path}") from exc
 
 
-def _read_source(
+def _capture_source_bytes(
     path: Path,
     *,
     source_bytes: bytes | None = None,
-) -> tuple[bytes, str]:
+) -> bytes:
+    """Capture the exact bounded XML/MXL bytes used for parsing and evidence."""
     suffix = path.suffix.lower()
     if suffix not in (".musicxml", ".xml", ".mxl"):
         raise ValueError("MusicXML 输入扩展名必须是 .musicxml、.xml 或 .mxl")
@@ -534,10 +535,22 @@ def _read_source(
         if not isinstance(source_bytes, bytes):
             raise TypeError("source_bytes must be bytes")
         payload = source_bytes
+    limit = _MAX_ARCHIVE_BYTES if suffix == ".mxl" else _MAX_XML_BYTES
+    label = "MXL" if suffix == ".mxl" else "MusicXML"
+    if len(payload) > limit:
+        raise ValueError(f"{label} 文件超过 {limit // 1024 // 1024} MiB")
+    return payload
+
+
+def _read_source(
+    path: Path,
+    *,
+    source_bytes: bytes | None = None,
+) -> tuple[bytes, str]:
+    payload = _capture_source_bytes(path, source_bytes=source_bytes)
+    suffix = path.suffix.lower()
     if suffix == ".mxl":
         return _read_mxl(payload, path), "mxl"
-    if len(payload) > _MAX_XML_BYTES:
-        raise ValueError(f"MusicXML 文件超过 {_MAX_XML_BYTES // 1024 // 1024} MiB")
     return payload, suffix.lstrip(".")
 
 

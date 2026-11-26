@@ -209,6 +209,34 @@ class ProjectImportTests(unittest.TestCase):
                 {},
             )
 
+    def test_musicxml_import_binds_the_exact_parsed_generation(self) -> None:
+        from tianlai import project_import as module
+
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "score.musicxml"
+            original = _musicxml()
+            replacement = original.replace(b"<step>C</step>", b"<step>D</step>")
+            path.write_bytes(original)
+            real_parser = module.read_musicxml
+
+            def replace_before_parsing(source, **kwargs):
+                # A pathname change after the bounded capture must not change
+                # the score or the digest, even if the original is restored.
+                path.write_bytes(replacement)
+                try:
+                    return real_parser(source, **kwargs)
+                finally:
+                    path.write_bytes(original)
+
+            with mock.patch.object(module, "read_musicxml",
+                                   side_effect=replace_before_parsing):
+                bundle = import_musicxml_project(path)
+            self.assertEqual(bundle["score"]["parts"][0]["notes"][0]["pitch"], "C4")
+            self.assertEqual(
+                bundle["import_report"]["source_musicxml_sha256"],
+                hashlib.sha256(original).hexdigest(),
+            )
+
     def test_musicxml_adds_source_bytes_and_score_hash(self) -> None:
         path = self._write_musicxml()
         bundle = import_musicxml_project(path)
