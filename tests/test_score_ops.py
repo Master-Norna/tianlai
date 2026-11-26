@@ -200,6 +200,30 @@ class ScoreSliceTests(unittest.TestCase):
 
 
 class ScorePatchTests(unittest.TestCase):
+    def test_bulk_delete_and_add_preserve_order_and_bounded_diff(self) -> None:
+        score = _score()
+        original = copy.deepcopy(score)
+        operations = [
+            {"op": "delete_note", "event_id": "melody-2"},
+            {"op": "add_note", "part_id": "melody", "note": {
+                "bar": 3, "beat": 1, "duration_beats": 1, "pitch": "A4",
+            }},
+            {"op": "delete_note", "event_id": "melody-1"},
+            {"op": "delete_note", "event_id": "bass-1"},
+        ]
+        result = apply_score_patch(score, _patch(score, operations))
+        self.assertEqual(score, original)
+        self.assertEqual(
+            [note["event_id"] for note in result["score"]["parts"][0]["notes"]],
+            ["melody-3", result["operation_results"][1]["event_id"]],
+        )
+        self.assertEqual(result["score"]["parts"][1]["notes"], [])
+        self.assertEqual(result["diff"], compare_scores(score, result["score"]))
+        bounded = compare_scores(score, result["score"], max_changes=1)
+        self.assertEqual(bounded["changes"], result["diff"]["changes"][:1])
+        self.assertEqual(bounded["counts"], result["diff"]["counts"])
+        self.assertTrue(bounded["changes_truncated"])
+
     def test_hash_conflict_fails_without_mutating_input(self) -> None:
         score = _score()
         before = copy.deepcopy(score)

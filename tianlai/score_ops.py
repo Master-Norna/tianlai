@@ -369,8 +369,8 @@ def slice_score(
                 details={"part_ids": unknown_parts},
             )
 
-    known_events = _all_event_ids(score)
     if requested_events is not None:
+        known_events = _all_event_ids(score)
         unknown_events = sorted(set(requested_events) - known_events)
         if unknown_events:
             raise ScoreOpsError(
@@ -394,8 +394,8 @@ def slice_score(
         part_id = _raw_part_id(part)
         if requested_part_set is not None and part_id not in requested_part_set:
             continue
-        selected = copy.deepcopy(part)
         selected_notes: list[dict[str, Any]] = []
+        part_matched_count = 0
         for note in part["notes"]:
             if (
                 requested_event_set is not None
@@ -406,7 +406,9 @@ def slice_score(
                 bar_range["start"] <= note["bar"] <= bar_range["end"]
             ):
                 continue
-            selected_notes.append(copy.deepcopy(note))
+            part_matched_count += 1
+            if matched_count + part_matched_count <= max_notes:
+                selected_notes.append(note)
             if len(preview) < max_notes:
                 preview.append(
                     {
@@ -418,13 +420,18 @@ def slice_score(
                         "pitch": copy.deepcopy(note["pitch"]),
                     }
                 )
-        selected["notes"] = selected_notes
-        selected_parts.append(selected)
-        matched_count += len(selected_notes)
+        matched_count += part_matched_count
+        if matched_count <= max_notes:
+            selected_parts.append({
+                **{key: value for key, value in part.items() if key != "notes"},
+                "notes": selected_notes,
+            })
+        else:
+            selected_parts.clear()
         by_part.append(
             {
                 "part_id": part_id,
-                "matched_note_count": len(selected_notes),
+                "matched_note_count": part_matched_count,
             }
         )
 
@@ -448,8 +455,10 @@ def slice_score(
         )
         return base_result
 
-    fragment = copy.deepcopy(score)
-    fragment["parts"] = selected_parts
+    fragment = copy.deepcopy({
+        **{key: value for key, value in score.items() if key != "parts"},
+        "parts": selected_parts,
+    })
     _validate_score_v1(fragment, path="result.fragment")
     base_result.update(
         {
@@ -516,10 +525,12 @@ def _note_field_changes(
 
 
 def _score_metadata_shell(score: dict[str, Any]) -> dict[str, Any]:
-    shell = copy.deepcopy(score)
-    for part in shell["parts"]:
-        part["notes"] = []
-    return shell
+    return {
+        **{key: value for key, value in score.items() if key != "parts"},
+        "parts": [
+            {**part, "notes": []} for part in score["parts"]
+        ],
+    }
 
 
 def compare_scores(
@@ -533,6 +544,16 @@ def compare_scores(
     limit = _positive_limit(max_changes, path="max_changes")
     before_hash = _validated_score_hash(before, path="before")
     after_hash = _validated_score_hash(after, path="after")
+    return _compare_validated_scores(before, after, before_hash, after_hash, limit)
+
+
+def _compare_validated_scores(
+    before: dict[str, Any],
+    after: dict[str, Any],
+    before_hash: str,
+    after_hash: str,
+    limit: int,
+) -> dict[str, Any]:
     before_notes, _ = _score_note_index(before)
     after_notes, _ = _score_note_index(after)
 
@@ -563,42 +584,45 @@ def compare_scores(
         candidate = after_notes.get(event_id)
         if candidate is None:
             counts["deleted"] += 1
-            changes.append(
-                {
-                    "change": "deleted",
-                    "event_id": event_id,
-                    "part_id": part_id,
-                    "before": copy.deepcopy(note),
-                }
-            )
+            if len(changes) < limit:
+                changes.append(
+                    {
+                        "change": "deleted",
+                        "event_id": event_id,
+                        "part_id": part_id,
+                        "before": copy.deepcopy(note),
+                    }
+                )
             continue
         after_part_id, after_note, _ = candidate
         fields = _note_field_changes(note, after_note)
         if part_id != after_part_id or fields:
             counts["updated"] += 1
-            changes.append(
-                {
-                    "change": "updated",
-                    "event_id": event_id,
-                    "part_id_before": part_id,
-                    "part_id_after": after_part_id,
-                    "field_changes": fields,
-                    "before": copy.deepcopy(note),
-                    "after": copy.deepcopy(after_note),
-                }
-            )
+            if len(changes) < limit:
+                changes.append(
+                    {
+                        "change": "updated",
+                        "event_id": event_id,
+                        "part_id_before": part_id,
+                        "part_id_after": after_part_id,
+                        "field_changes": fields,
+                        "before": copy.deepcopy(note),
+                        "after": copy.deepcopy(after_note),
+                    }
+                )
 
     for event_id, (part_id, note, _) in after_notes.items():
         if event_id not in before_notes:
             counts["added"] += 1
-            changes.append(
-                {
-                    "change": "added",
-                    "event_id": event_id,
-                    "part_id": part_id,
-                    "after": copy.deepcopy(note),
-                }
-            )
+            if len(changes) < limit:
+                changes.append(
+                    {
+                        "change": "added",
+                        "event_id": event_id,
+                        "part_id": part_id,
+                        "after": copy.deepcopy(note),
+                    }
+                )
 
     before_part_orders = {
         _raw_part_id(part): [note["event_id"] for note in part["notes"]]
@@ -613,12 +637,8 @@ def compare_scores(
             continue
         stable_ids = {
             event_id
-            for event_id, (original_part_id, _, _) in before_notes.items()
-            if (
-                original_part_id == part_id
-                and event_id in after_notes
-                and after_notes[event_id][0] == part_id
-            )
+            for event_id in before_part_orders[part_id]
+            if event_id in after_notes and after_notes[event_id][0] == part_id
         }
         order_before = [
             event_id
@@ -632,24 +652,25 @@ def compare_scores(
         ]
         if order_before != order_after:
             counts["reordered"] += 1
-            changes.append(
-                {
-                    "change": "reordered",
-                    "part_id": part_id,
-                    "event_count": len(order_before),
-                    "before_order_sha256": _value_sha256(
-                        order_before,
-                        path=f"before part {part_id!r} order",
-                    ),
-                    "after_order_sha256": _value_sha256(
-                        order_after,
-                        path=f"after part {part_id!r} order",
-                    ),
-                    "before_preview": order_before[:16],
-                    "after_preview": order_after[:16],
-                    "preview_truncated": len(order_before) > 16,
-                }
-            )
+            if len(changes) < limit:
+                changes.append(
+                    {
+                        "change": "reordered",
+                        "part_id": part_id,
+                        "event_count": len(order_before),
+                        "before_order_sha256": _value_sha256(
+                            order_before,
+                            path=f"before part {part_id!r} order",
+                        ),
+                        "after_order_sha256": _value_sha256(
+                            order_after,
+                            path=f"after part {part_id!r} order",
+                        ),
+                        "before_preview": order_before[:16],
+                        "after_preview": order_after[:16],
+                        "preview_truncated": len(order_before) > 16,
+                    }
+                )
 
     total = sum(counts.values())
     returned = changes[:limit]
@@ -834,6 +855,7 @@ def apply_score_patch(
     reserved_ids = set(note_index)
     targeted_existing_ids: set[str] = set()
     operation_results: list[dict[str, Any]] = []
+    deleted_by_part: dict[str, set[str]] = {}
 
     for operation_index, raw_operation in enumerate(checked_patch["operations"]):
         path = f"patch.operations[{operation_index}]"
@@ -926,14 +948,14 @@ def apply_score_patch(
                     f"score has no event {event_id!r}",
                     details={"event_id": event_id},
                 )
-            _, note, containing_notes = candidate
+            part_id, note, _ = candidate
             _check_expectation(
                 note,
                 raw_operation.get("expect"),
                 path=f"{path}.expect",
                 event_id=event_id,
             )
-            containing_notes.remove(note)
+            deleted_by_part.setdefault(part_id, set()).add(event_id)
             del note_index[event_id]
             targeted_existing_ids.add(event_id)
             operation_results.append(
@@ -1000,6 +1022,10 @@ def apply_score_patch(
                 details={"path": f"{path}.op", "actual": operation},
             )
 
+    for part_id, deleted_ids in deleted_by_part.items():
+        notes = part_index[part_id]["notes"]
+        notes[:] = [note for note in notes if note["event_id"] not in deleted_ids]
+
     try:
         after_hash = _validated_score_hash(edited, path="patched_score")
     except ScoreOpsError as exc:
@@ -1011,13 +1037,12 @@ def apply_score_patch(
             details={"cause": exc.to_dict()},
         ) from exc
 
-    diff = compare_scores(
+    diff = _compare_validated_scores(
         score,
         edited,
-        max_changes=checked_patch.get(
-            "max_diff_entries",
-            DEFAULT_RESULT_LIMIT,
-        ),
+        before_hash,
+        after_hash,
+        checked_patch.get("max_diff_entries", DEFAULT_RESULT_LIMIT),
     )
     return {
         "kind": SCORE_PATCH_RESULT_KIND,
