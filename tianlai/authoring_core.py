@@ -202,21 +202,12 @@ def validate_project_readiness(
                     )
                 )
 
-            settings = ExpressionSettings.from_dict(
-                {
-                    "mode": profile.expression,
-                    "range_mode": profile.range_mode,
-                    "humanize": {"seed": profile.seed},
-                }
-            )
+            settings = ExpressionSettings.from_dict(profile.expression_options())
             plan = build_plan(score, formal_roster, settings)
             duration_seconds = float(plan.duration_seconds)
             validate_render_request_resource_limits(
                 plan,
-                write_stems=profile.write_stems,
-                space=profile.space,
-                collaboration_mode=profile.collaboration_mode,
-                stem_cache_enabled=profile.use_stem_cache,
+                **profile.preflight_options(),
             )
             project_review = build_project_review_safely(
                 plan,

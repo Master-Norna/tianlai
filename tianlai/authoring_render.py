@@ -556,20 +556,11 @@ def render_project_candidate(
         )
         roster = parse_roster_document(formal_document, capabilities)
         enforce_roster_availability(roster)
-        expression = ExpressionSettings.from_dict(
-            {
-                "mode": profile.expression,
-                "range_mode": profile.range_mode,
-                "humanize": {"seed": profile.seed},
-            }
-        )
+        expression = ExpressionSettings.from_dict(profile.expression_options())
         plan = build_plan(score, roster, expression)
         validate_render_request_resource_limits(
             plan,
-            write_stems=profile.write_stems,
-            space=profile.space,
-            collaboration_mode=profile.collaboration_mode,
-            stem_cache_enabled=profile.use_stem_cache,
+            **profile.preflight_options(),
         )
         plan_sha256 = canonical_json_sha256(plan.to_dict())
         authoring_roster_sha256 = canonical_json_sha256(
@@ -662,14 +653,9 @@ def render_project_candidate(
             result = render_plan(
                 plan,
                 staging.directory,
-                write_stems=profile.write_stems,
-                master_gain_db=profile.master_gain_db,
-                normalize_peak_db=profile.normalize_peak_db,
-                space=profile.space,
-                collaboration_mode=profile.collaboration_mode,
+                **profile.render_options(),
                 stem_cache_directory=cache_stems,
                 analysis_cache_directory=cache_analysis,
-                refresh_stem_cache=profile.refresh_stem_cache,
                 _acquire_output_lock=False,
                 _authoring_project_binding=authoring_receipt_binding,
                 _authoring_workflow_binding=managed_authorization,

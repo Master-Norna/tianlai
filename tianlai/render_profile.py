@@ -54,6 +54,30 @@ class RenderProfile:
     use_stem_cache: bool = True
     refresh_stem_cache: bool = False
 
+    def expression_options(self) -> dict[str, Any]:
+        """Project the conductor settings governed by this profile."""
+        return expression_options(self.expression, self.range_mode, self.seed)
+
+    def preflight_options(self) -> dict[str, Any]:
+        """Project the renderer's resource-relevant settings."""
+        return {
+            "write_stems": self.write_stems,
+            "space": self.space,
+            "collaboration_mode": self.collaboration_mode,
+            "stem_cache_enabled": self.use_stem_cache,
+        }
+
+    def render_options(self) -> dict[str, Any]:
+        """Project engine settings, leaving paths and authority to callers."""
+        return {
+            "write_stems": self.write_stems,
+            "master_gain_db": self.master_gain_db,
+            "normalize_peak_db": self.normalize_peak_db,
+            "space": self.space,
+            "collaboration_mode": self.collaboration_mode,
+            "refresh_stem_cache": self.refresh_stem_cache,
+        }
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "kind": PROFILE_KIND,
@@ -77,6 +101,17 @@ class RenderProfile:
             "use_stem_cache": self.use_stem_cache,
             "refresh_stem_cache": self.refresh_stem_cache,
         }
+
+
+def expression_options(
+    expression: str, range_mode: str, seed: int
+) -> dict[str, Any]:
+    """One mapping from render parameters to conductor input."""
+    return {
+        "mode": expression,
+        "range_mode": range_mode,
+        "humanize": {"seed": seed},
+    }
 
 
 def parse_render_profile(
