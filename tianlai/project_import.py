@@ -50,7 +50,10 @@ from .render_lock import (
     ensure_plain_directory_tree,
     revalidate_plain_directory,
 )
-from .resource_limits import validate_score_resource_limits
+from .resource_limits import (
+    precheck_score_document_resource_limits,
+    validate_score_resource_limits,
+)
 from .roster import check_roster_covers_score, parse_roster_document
 from .score import parse_score_document
 from .score_time import validate_score_time_coordinates
@@ -75,6 +78,7 @@ _PRIVATE_CLEANUP_ATTEMPTS = 16
 def _score_v1(score: object) -> tuple[dict[str, Any], Any]:
     if not isinstance(score, dict):
         raise ValueError("score must be an object")
+    precheck_score_document_resource_limits(score)
     parsed = parse_score_document(score)
     validate_score_time_coordinates(parsed)
     validate_score_resource_limits(score, parsed)

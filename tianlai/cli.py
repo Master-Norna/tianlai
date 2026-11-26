@@ -1185,6 +1185,7 @@ def main(argv: list[str] | None = None) -> int:
             from .render_profile import parse_render_profile
             from .realization import parse_realization_document
             from .resource_limits import (
+                precheck_score_document_resource_limits,
                 validate_render_request_resource_limits,
                 validate_score_resource_limits,
             )
@@ -1193,6 +1194,7 @@ def main(argv: list[str] | None = None) -> int:
 
             raw_score = load_json_object(args.score)
             raw_roster = load_json_object(args.roster)
+            precheck_score_document_resource_limits(raw_score)
             score = parse_score_document(raw_score)
             validate_score_resource_limits(raw_score, score)
             table = load_capabilities(_catalog_path(args.root))
@@ -1749,6 +1751,7 @@ def main(argv: list[str] | None = None) -> int:
             )
             from .realization import parse_realization_document
             from .resource_limits import (
+                precheck_score_document_resource_limits,
                 validate_render_request_resource_limits,
                 validate_score_resource_limits,
             )
@@ -1757,6 +1760,7 @@ def main(argv: list[str] | None = None) -> int:
             from .space import SpaceConfig
 
             raw_score = load_json_object(args.score)
+            precheck_score_document_resource_limits(raw_score)
             score = parse_score_document(raw_score)
             validate_score_resource_limits(raw_score, score)
             table = load_capabilities(_catalog_path(args.root))
